@@ -1,0 +1,14 @@
+{
+  "id": "drift:001",
+  "resourceId": "document:case-plan",
+  "subjectId": "user:external",
+  "nativeAccess": "owner",
+  "intendedAccess": "none",
+  "severity": "high",
+  "detectedAt": "2026-05-21T17:00:00.000Z",
+  "sourceConnectorId": "mock",
+  "recommendedAction": "revoke",
+  "status": "open",
+  "version": "drift:v1",
+  "createdAt": "2026-05-21T17:00:00.000Z"
+}

@@ -1,0 +1,25 @@
+{
+  "id": "plan:decision:allow-alice-read-case-plan",
+  "sourceDecisionId": "decision:allow-alice-read-case-plan",
+  "subjectId": "user:alice",
+  "resourceId": "document:case-plan",
+  "action": "read",
+  "mode": "dry_run",
+  "status": "planned",
+  "actions": [
+    {
+      "actionId": "action:grant-alice-read-case-plan",
+      "operation": "grant",
+      "targetPlatform": "mock",
+      "targetObjectId": "document:case-plan",
+      "requestedState": {
+        "subjectId": "user:alice",
+        "permission": "read"
+      },
+      "dryRun": true,
+      "idempotencyKey": "user:alice:read:document:case-plan:policy:test-v1"
+    }
+  ],
+  "version": "plan:v1",
+  "createdAt": "2026-05-21T17:00:00.000Z"
+}

@@ -1,0 +1,33 @@
+{
+  "decisionId": "decision:allow-alice-read-case-plan",
+  "decision": "allow",
+  "subjectId": "user:alice",
+  "action": "read",
+  "resourceId": "document:case-plan",
+  "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+  "policyVersion": "policy:test-v1",
+  "relationshipVersion": "tuple-set:test-v1",
+  "relationshipPath": [
+    {
+      "subjectId": "user:alice",
+      "relation": "member_of",
+      "objectId": "group:case-team"
+    },
+    {
+      "subjectId": "group:case-team",
+      "relation": "contributor_to",
+      "objectId": "workspace:case"
+    },
+    {
+      "subjectId": "workspace:case",
+      "relation": "contains",
+      "objectId": "document:case-plan"
+    }
+  ],
+  "constraints": {
+    "mfaRequired": true,
+    "mfaSatisfied": true,
+    "llmDecisioning": false
+  },
+  "evaluatedAt": "2026-05-21T17:00:00.000Z"
+}

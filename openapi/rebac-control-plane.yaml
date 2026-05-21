@@ -1,0 +1,882 @@
+openapi: 3.1.0
+info:
+  title: Access Kit ReBAC Control Plane
+  version: 0.1.0
+  summary: API-first contract for an ATO-ready ReBAC authorization control plane.
+  description: >
+    Deterministic, explainable, versioned ReBAC control-plane API. The first milestone
+    defines contracts only; live Microsoft, AWS, SharePoint, AD, and Power Platform
+    enforcement are deferred.
+servers:
+  - url: https://rebac.example.gov
+    description: Placeholder production boundary
+  - url: http://localhost:3000
+    description: Local development
+tags:
+  - name: decision
+  - name: subjects
+  - name: resources
+  - name: relationships
+  - name: policies
+  - name: provisioning
+  - name: reconciliation
+  - name: audit
+  - name: evidence
+  - name: connectors
+paths:
+  /v1/decision/check:
+    post:
+      tags: [decision]
+      summary: Run a fast allow or deny authorization decision.
+      operationId: checkDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionRequest"
+      responses:
+        "200":
+          description: Decision result.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/decision.schema.json"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /v1/decision/explain:
+    post:
+      tags: [decision]
+      summary: Run a decision and return relationship path, versions, and reason code.
+      operationId: explainDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DecisionRequest"
+      responses:
+        "200":
+          description: Explainable decision result.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/decision.schema.json"
+  /v1/decision/batch-check:
+    post:
+      tags: [decision]
+      summary: Evaluate several decision requests.
+      operationId: batchCheckDecision
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [requests]
+              properties:
+                requests:
+                  type: array
+                  minItems: 1
+                  items:
+                    $ref: "#/components/schemas/DecisionRequest"
+      responses:
+        "200":
+          description: Batch decision results.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [results]
+                properties:
+                  results:
+                    type: array
+                    items:
+                      $ref: "../schemas/decision.schema.json"
+  /v1/subjects:
+    get:
+      tags: [subjects]
+      summary: List canonical subjects.
+      operationId: listSubjects
+      parameters:
+        - $ref: "#/components/parameters/PageToken"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Subject page.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "../schemas/subject.schema.json"
+                  nextPageToken:
+                    type: string
+    post:
+      tags: [subjects]
+      summary: Create or import a canonical subject.
+      operationId: createSubject
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../schemas/subject.schema.json"
+      responses:
+        "201":
+          description: Created subject.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/subject.schema.json"
+  /v1/subjects/{id}:
+    get:
+      tags: [subjects]
+      summary: Get a canonical subject.
+      operationId: getSubject
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Subject.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/subject.schema.json"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /v1/subjects/{id}/access:
+    get:
+      tags: [subjects]
+      summary: Explain current access for a subject.
+      operationId: getSubjectAccess
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Subject access decisions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessView"
+  /v1/resources:
+    get:
+      tags: [resources]
+      summary: List canonical resources.
+      operationId: listResources
+      parameters:
+        - $ref: "#/components/parameters/PageToken"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: Resource page.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "../schemas/resource.schema.json"
+                  nextPageToken:
+                    type: string
+    post:
+      tags: [resources]
+      summary: Create or import a canonical resource.
+      operationId: createResource
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../schemas/resource.schema.json"
+      responses:
+        "201":
+          description: Created resource.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/resource.schema.json"
+  /v1/resources/{id}:
+    get:
+      tags: [resources]
+      summary: Get a canonical resource.
+      operationId: getResource
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Resource.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/resource.schema.json"
+  /v1/resources/{id}/access:
+    get:
+      tags: [resources]
+      summary: Explain who can access a resource and why.
+      operationId: getResourceAccess
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Resource access decisions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AccessView"
+  /v1/relationships:
+    get:
+      tags: [relationships]
+      summary: Query relationship tuples.
+      operationId: queryRelationships
+      parameters:
+        - name: subjectId
+          in: query
+          schema:
+            type: string
+        - name: objectId
+          in: query
+          schema:
+            type: string
+        - name: relation
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Relationship tuples.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "../schemas/relationship.schema.json"
+    put:
+      tags: [relationships]
+      summary: Idempotently create or replace a relationship tuple.
+      operationId: putRelationship
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../schemas/relationship.schema.json"
+      responses:
+        "200":
+          description: Relationship tuple.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/relationship.schema.json"
+    delete:
+      tags: [relationships]
+      summary: Idempotently delete a relationship tuple.
+      operationId: deleteRelationship
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+        - name: relationshipId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Relationship tuple deleted.
+  /v1/policies:
+    get:
+      tags: [policies]
+      summary: List policy models and versions.
+      operationId: listPolicies
+      responses:
+        "200":
+          description: Policy versions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PolicySummary"
+    post:
+      tags: [policies]
+      summary: Create a draft policy model.
+      operationId: createPolicy
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyDraft"
+      responses:
+        "201":
+          description: Policy summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicySummary"
+  /v1/policies/{id}/validate:
+    post:
+      tags: [policies]
+      summary: Validate policy syntax and mandatory tests.
+      operationId: validatePolicy
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Policy validation result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResult"
+  /v1/policies/{id}/publish:
+    post:
+      tags: [policies]
+      summary: Publish an approved policy model.
+      operationId: publishPolicy
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [changeTicket, approverId]
+              properties:
+                changeTicket:
+                  type: string
+                approverId:
+                  type: string
+      responses:
+        "200":
+          description: Published policy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicySummary"
+  /v1/policies/{id}/rollback:
+    post:
+      tags: [policies]
+      summary: Roll back to a prior policy version.
+      operationId: rollbackPolicy
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [targetVersion, changeTicket, approverId]
+              properties:
+                targetVersion:
+                  type: string
+                changeTicket:
+                  type: string
+                approverId:
+                  type: string
+      responses:
+        "200":
+          description: Rolled-back policy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicySummary"
+  /v1/provisioning/plans:
+    post:
+      tags: [provisioning]
+      summary: Create a dry-run provisioning plan.
+      operationId: createProvisioningPlan
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [subjectId, resourceId, action, dryRun]
+              properties:
+                subjectId:
+                  type: string
+                resourceId:
+                  type: string
+                action:
+                  type: string
+                dryRun:
+                  type: boolean
+                  const: true
+      responses:
+        "201":
+          description: Provisioning plan.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/provisioning-plan.schema.json"
+  /v1/provisioning/jobs:
+    post:
+      tags: [provisioning]
+      summary: Apply an approved provisioning plan.
+      operationId: createProvisioningJob
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [planId, approverId]
+              properties:
+                planId:
+                  type: string
+                approverId:
+                  type: string
+      responses:
+        "202":
+          description: Provisioning job accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvisioningJob"
+  /v1/provisioning/jobs/{id}:
+    get:
+      tags: [provisioning]
+      summary: Get provisioning job status.
+      operationId: getProvisioningJob
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Provisioning job.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProvisioningJob"
+  /v1/reconciliation/run:
+    post:
+      tags: [reconciliation]
+      summary: Run connector reconciliation and drift detection.
+      operationId: runReconciliation
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [connectorId, dryRun]
+              properties:
+                connectorId:
+                  type: string
+                dryRun:
+                  type: boolean
+      responses:
+        "202":
+          description: Reconciliation run accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReconciliationRun"
+  /v1/reconciliation/findings:
+    get:
+      tags: [reconciliation]
+      summary: List drift findings.
+      operationId: listDriftFindings
+      parameters:
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, accepted, repairing, resolved]
+      responses:
+        "200":
+          description: Drift findings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "../schemas/drift-finding.schema.json"
+  /v1/audit/events:
+    get:
+      tags: [audit]
+      summary: Search append-only audit events.
+      operationId: searchAuditEvents
+      parameters:
+        - name: subjectId
+          in: query
+          schema:
+            type: string
+        - name: resourceId
+          in: query
+          schema:
+            type: string
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Audit events.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "../schemas/audit-event.schema.json"
+  /v1/evidence/export:
+    get:
+      tags: [evidence]
+      summary: Export ATO evidence for controls and time period.
+      operationId: exportEvidence
+      parameters:
+        - name: framework
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [nist-800-53, fedramp-rev5, custom]
+        - name: controls
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, zip, markdown]
+      responses:
+        "200":
+          description: Evidence export metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/evidence-export.schema.json"
+  /v1/connectors:
+    get:
+      tags: [connectors]
+      summary: List connector registrations and capabilities.
+      operationId: listConnectors
+      responses:
+        "200":
+          description: Connector list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Connector"
+  /v1/connectors/{id}/test:
+    post:
+      tags: [connectors]
+      summary: Test connector health and least-privilege permissions.
+      operationId: testConnector
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: Connector validation result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidationResult"
+  /v1/connectors/{id}/sync:
+    post:
+      tags: [connectors]
+      summary: Run connector discovery, simulation, dry-run, or enforcement sync.
+      operationId: syncConnector
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [mode]
+              properties:
+                mode:
+                  type: string
+                  enum: [read_only, simulation, dry_run, enforcement]
+      responses:
+        "202":
+          description: Connector sync accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReconciliationRun"
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+    PageToken:
+      name: pageToken
+      in: query
+      schema:
+        type: string
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 500
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: Object was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    DecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [subjectId, action, resourceId]
+      properties:
+        subjectId:
+          type: string
+        action:
+          type: string
+        resourceId:
+          type: string
+        context:
+          type: object
+          additionalProperties: true
+        policyVersion:
+          type: string
+        relationshipVersion:
+          type: string
+    AccessView:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "../schemas/decision.schema.json"
+    PolicyDraft:
+      type: object
+      additionalProperties: false
+      required: [name, model, tests]
+      properties:
+        name:
+          type: string
+        model:
+          type: object
+          additionalProperties: true
+        tests:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    PolicySummary:
+      type: object
+      additionalProperties: false
+      required: [id, version, status, createdAt]
+      properties:
+        id:
+          type: string
+        version:
+          type: string
+        status:
+          type: string
+          enum: [draft, validated, approved, published, rolled_back]
+        createdAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+    ValidationResult:
+      type: object
+      additionalProperties: false
+      required: [valid, checks]
+      properties:
+        valid:
+          type: boolean
+        checks:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, status]
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+                enum: [pass, fail]
+              message:
+                type: string
+    ProvisioningJob:
+      type: object
+      additionalProperties: false
+      required: [id, planId, status, createdAt]
+      properties:
+        id:
+          type: string
+        planId:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, completed, failed, rolled_back]
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+    ReconciliationRun:
+      type: object
+      additionalProperties: false
+      required: [id, connectorId, mode, status, createdAt]
+      properties:
+        id:
+          type: string
+        connectorId:
+          type: string
+        mode:
+          type: string
+          enum: [read_only, simulation, dry_run, enforcement]
+        status:
+          type: string
+          enum: [queued, running, completed, failed]
+        createdAt:
+          type: string
+          format: date-time
+    Connector:
+      type: object
+      additionalProperties: false
+      required: [id, mode, capabilities]
+      properties:
+        id:
+          type: string
+        mode:
+          type: string
+          enum: [read_only, simulation, dry_run, enforcement]
+        capabilities:
+          type: object
+          additionalProperties: false
+          required:
+            - supportsDiscovery
+            - supportsProvisioning
+            - supportsReconciliation
+            - supportsDirectPermissions
+            - supportsInheritedPermissions
+            - supportsExternalUsers
+            - supportsTimeBoundAccess
+          properties:
+            supportsDiscovery:
+              type: boolean
+            supportsProvisioning:
+              type: boolean
+            supportsReconciliation:
+              type: boolean
+            supportsDirectPermissions:
+              type: boolean
+            supportsInheritedPermissions:
+              type: boolean
+            supportsExternalUsers:
+              type: boolean
+            supportsTimeBoundAccess:
+              type: boolean
+    Error:
+      type: object
+      additionalProperties: false
+      required: [code, message, correlationId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        correlationId:
+          type: string

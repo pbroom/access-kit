@@ -1,0 +1,19 @@
+{
+  "id": "document:case-plan",
+  "type": "document",
+  "displayName": "Case Plan",
+  "sourceSystem": "mock",
+  "ownerId": "user:owner",
+  "dataStewardId": "user:steward",
+  "technicalOwnerId": "user:tech-owner",
+  "classification": "internal",
+  "lifecycleState": "active",
+  "parentId": "workspace:case",
+  "attributes": {
+    "containsPii": false,
+    "systemBoundary": "rebac-foundation"
+  },
+  "version": "resource:v1",
+  "createdAt": "2026-05-21T17:00:00.000Z",
+  "lastSeenAt": "2026-05-21T17:00:00.000Z"
+}

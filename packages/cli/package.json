@@ -1,0 +1,19 @@
+{
+  "name": "@access-kit/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "rebac": "./src/bin.ts"
+  },
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "commander": "^14.0.2"
+  },
+  "scripts": {
+    "build": "tsc -p ../../tsconfig.json --noEmit"
+  }
+}

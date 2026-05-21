@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/audit-event.schema.json",
+  "title": "AuditEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["eventId", "eventType", "occurredAt", "actor", "correlationId", "payloadHash", "payload"],
+  "properties": {
+    "eventId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "subject.created",
+        "subject.updated",
+        "subject.suspended",
+        "subject.terminated",
+        "resource.discovered",
+        "resource.classified",
+        "relationship.created",
+        "relationship.deleted",
+        "policy.published",
+        "policy.approved",
+        "decision.allowed",
+        "decision.denied",
+        "provisioning.requested",
+        "provisioning.completed",
+        "provisioning.failed",
+        "access.expired",
+        "access.revoked",
+        "drift.detected",
+        "drift.remediated",
+        "breakglass.used",
+        "admin.action_performed",
+        "connector.permission_changed",
+        "evidence.generated"
+      ]
+    },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "actor": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "correlationId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "policyVersion": { "type": "string", "minLength": 1 },
+    "relationshipVersion": { "type": "string", "minLength": 1 },
+    "payloadHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "previousEventHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "payload": { "type": "object", "additionalProperties": true }
+  }
+}

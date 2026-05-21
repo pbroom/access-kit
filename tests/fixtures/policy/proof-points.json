@@ -1,0 +1,181 @@
+[
+  {
+    "kind": "decision",
+    "name": "deny by default without relationship path",
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "relationships": [],
+    "subjectStatus": "active",
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "deny",
+    "expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+  },
+  {
+    "kind": "decision",
+    "name": "allow through relationship path",
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "relationships": [
+      {
+        "id": "relationship:alice-case-team",
+        "subjectId": "user:alice",
+        "relation": "member_of",
+        "objectId": "group:case-team",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      },
+      {
+        "id": "relationship:case-team-workspace",
+        "subjectId": "group:case-team",
+        "relation": "contributor_to",
+        "objectId": "workspace:case",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      },
+      {
+        "id": "relationship:workspace-document",
+        "subjectId": "workspace:case",
+        "relation": "contains",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      }
+    ],
+    "subjectStatus": "active",
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "allow",
+    "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
+  },
+  {
+    "kind": "decision",
+    "name": "deny override beats allow path",
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "relationships": [
+      {
+        "id": "relationship:alice-document-reader",
+        "subjectId": "user:alice",
+        "relation": "reader_of",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      },
+      {
+        "id": "relationship:alice-document-deny",
+        "subjectId": "user:alice",
+        "relation": "denied",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      }
+    ],
+    "subjectStatus": "active",
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "deny",
+    "expectedReasonCode": "DENY_EXPLICIT_OVERRIDE"
+  },
+  {
+    "kind": "decision",
+    "name": "expired access is denied",
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "relationships": [
+      {
+        "id": "relationship:alice-document-reader-expired",
+        "subjectId": "user:alice",
+        "relation": "reader_of",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-01T00:00:00.000Z",
+        "expiresAt": "2026-05-20T00:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-01T00:00:00.000Z"
+      }
+    ],
+    "subjectStatus": "active",
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "deny",
+    "expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+  },
+  {
+    "kind": "decision",
+    "name": "suspended user is denied",
+    "subjectId": "user:bob",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "relationships": [
+      {
+        "id": "relationship:bob-document-reader",
+        "subjectId": "user:bob",
+        "relation": "reader_of",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      }
+    ],
+    "subjectStatus": "suspended",
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "deny",
+    "expectedReasonCode": "DENY_SUBJECT_NOT_ACTIVE"
+  },
+  {
+    "kind": "idempotency",
+    "name": "duplicate event idempotency is specified",
+    "idempotencyKey": "idem:grant-alice-read-case-plan",
+    "operations": [
+      {
+        "id": "op:001",
+        "idempotencyKey": "idem:grant-alice-read-case-plan",
+        "operation": "grant"
+      },
+      {
+        "id": "op:002",
+        "idempotencyKey": "idem:grant-alice-read-case-plan",
+        "operation": "grant"
+      }
+    ],
+    "expectEffectiveOperations": 1
+  },
+  {
+    "kind": "drift",
+    "name": "drift is represented as security finding",
+    "finding": {
+      "id": "drift:001",
+      "resourceId": "document:case-plan",
+      "subjectId": "user:external",
+      "nativeAccess": "owner",
+      "intendedAccess": "none",
+      "severity": "high",
+      "detectedAt": "2026-05-21T17:00:00.000Z",
+      "sourceConnectorId": "mock",
+      "recommendedAction": "revoke",
+      "status": "open",
+      "version": "drift:v1",
+      "createdAt": "2026-05-21T17:00:00.000Z"
+    },
+    "expect": "valid_drift_finding"
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "exportId": "evidence:may-2026-ac-au",
+  "framework": "nist-800-53",
+  "controls": ["AC-2", "AC-3", "AC-6", "AU-2", "AU-6", "CM-3", "CA-7"],
+  "periodStart": "2026-05-01T00:00:00.000Z",
+  "periodEnd": "2026-05-31T23:59:59.000Z",
+  "generatedAt": "2026-05-21T17:00:00.000Z",
+  "evidenceTypes": ["audit_events", "decision_logs", "provisioning_plans", "drift_findings"],
+  "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+  "responsibleRole": "ISSO",
+  "format": "json"
+}

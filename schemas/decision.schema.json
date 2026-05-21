@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/decision.schema.json",
+  "title": "DecisionResult",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "decisionId",
+    "decision",
+    "subjectId",
+    "action",
+    "resourceId",
+    "reasonCode",
+    "policyVersion",
+    "relationshipVersion",
+    "relationshipPath",
+    "constraints",
+    "evaluatedAt"
+  ],
+  "properties": {
+    "decisionId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "decision": { "type": "string", "enum": ["allow", "deny"] },
+    "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "action": { "type": "string", "minLength": 1 },
+    "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "reasonCode": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+    "policyVersion": { "type": "string", "minLength": 1 },
+    "relationshipVersion": { "type": "string", "minLength": 1 },
+    "relationshipPath": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subjectId", "relation", "objectId"],
+        "properties": {
+          "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+          "relation": { "type": "string", "minLength": 1 },
+          "objectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        }
+      }
+    },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "evaluatedAt": { "type": "string", "format": "date-time" }
+  }
+}

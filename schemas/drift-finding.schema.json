@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/drift-finding.schema.json",
+  "title": "DriftFinding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "resourceId",
+    "subjectId",
+    "nativeAccess",
+    "intendedAccess",
+    "severity",
+    "detectedAt",
+    "sourceConnectorId",
+    "recommendedAction",
+    "status",
+    "version",
+    "createdAt"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "nativeAccess": { "type": "string", "minLength": 1 },
+    "intendedAccess": { "type": "string", "minLength": 1 },
+    "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+    "detectedAt": { "type": "string", "format": "date-time" },
+    "sourceConnectorId": { "type": "string", "minLength": 1 },
+    "recommendedAction": { "type": "string", "enum": ["revoke", "exception", "repair", "review"] },
+    "status": { "type": "string", "enum": ["open", "accepted", "repairing", "resolved"] },
+    "version": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

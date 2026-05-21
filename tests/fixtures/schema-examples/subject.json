@@ -1,0 +1,18 @@
+{
+  "id": "user:alice",
+  "type": "user",
+  "displayName": "Alice Example",
+  "sourceSystem": "mock",
+  "lifecycleState": "active",
+  "identifiers": {
+    "employeeId": "E-0001",
+    "entraObjectId": "00000000-0000-0000-0000-000000000001"
+  },
+  "attributes": {
+    "employmentType": "employee",
+    "mfaRequired": true
+  },
+  "version": "subject:v1",
+  "createdAt": "2026-05-21T17:00:00.000Z",
+  "lastSeenAt": "2026-05-21T17:00:00.000Z"
+}
