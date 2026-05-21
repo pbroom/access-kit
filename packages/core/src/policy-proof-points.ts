@@ -147,6 +147,10 @@ function findAllowPath(
       break;
     }
 
+    if (bestGrantByNode.get(next.currentId) === true && !next.hasActionGrant) {
+      continue;
+    }
+
     for (const relationship of relationships) {
       if (relationship.subjectId !== next.currentId) {
         continue;

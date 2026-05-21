@@ -10,6 +10,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "subject sync", description: "Sync subjects from a connector.", apiSurface: "POST /v1/connectors/{id}/sync" },
   { path: "subject get", description: "Inspect a canonical subject.", apiSurface: "GET /v1/subjects/{id}" },
   { path: "subject access", description: "Explain current subject access.", apiSurface: "GET /v1/subjects/{id}/access" },
+  // Discovery-oriented commands share the connector sync endpoint until provider-specific inventory endpoints land.
   { path: "resource discover", description: "Discover resources from a connector.", apiSurface: "POST /v1/connectors/{id}/sync" },
   { path: "resource get", description: "Inspect a canonical resource.", apiSurface: "GET /v1/resources/{id}" },
   { path: "resource access", description: "Explain resource access paths.", apiSurface: "GET /v1/resources/{id}/access" },

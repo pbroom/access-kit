@@ -20,12 +20,10 @@ const schemaByExample = new Map<string, string>([
 ]);
 
 const root = process.cwd();
-const schemas = new Map<string, unknown>();
 
 for (const schemaPath of schemaManifest) {
   const schema = await readJsonFile<AnySchema>(join(root, schemaPath));
   ajv.addSchema(schema, schemaPath);
-  schemas.set(schemaPath, schema);
 }
 
 const exampleFiles = await listJsonFiles(join(root, "tests/fixtures/schema-examples"));
@@ -57,8 +55,8 @@ for (const exampleFile of exampleFiles) {
 }
 
 for (const schemaPath of schemaManifest) {
-  if (!schemas.has(schemaPath)) {
-    throw new Error(`Schema manifest entry was not loaded: ${schemaPath}`);
+  if (!ajv.getSchema(schemaPath)) {
+    throw new Error(`Schema manifest entry was not registered: ${schemaPath}`);
   }
 }
 
