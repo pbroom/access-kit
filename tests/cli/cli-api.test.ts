@@ -73,6 +73,35 @@ describe("CLI API wrapper", () => {
     expect(keys[0]).not.toBe(keys[1]);
   });
 
+  it("uses one timestamp for relationship asserted and created times", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      {
+        now: sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:00:01.000Z")
+      },
+      "relation",
+      "set",
+      "user:alice",
+      "member_of",
+      "group:case-team"
+    );
+
+    expect(requests.at(-1)?.body).toMatchObject({
+      assertedAt: "2026-05-21T17:00:00.000Z",
+      createdAt: "2026-05-21T17:00:00.000Z"
+    });
+  });
+
+  it("omits the audit search query marker when no filters are set", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(requests, "audit", "search");
+
+    expect(requests.at(-1)?.url).toBe("http://api.example/v1/audit/events");
+  });
+
   it("distinguishes policy validate from policy test payloads", async () => {
     const requests: CapturedRequest[] = [];
 
@@ -125,7 +154,19 @@ async function runCli(...args: string[]): Promise<void> {
   await program.parseAsync(["node", "rebac", ...args]);
 }
 
-async function runCliWithFetch(requests: CapturedRequest[], ...args: string[]): Promise<void> {
+interface RunCliOptions {
+  now?: () => string;
+}
+
+async function runCliWithFetch(requests: CapturedRequest[], ...args: string[]): Promise<void>;
+async function runCliWithFetch(requests: CapturedRequest[], options: RunCliOptions, ...args: string[]): Promise<void>;
+async function runCliWithFetch(
+  requests: CapturedRequest[],
+  optionsOrFirstArg: RunCliOptions | string,
+  ...rest: string[]
+): Promise<void> {
+  const options = typeof optionsOrFirstArg === "string" ? {} : optionsOrFirstArg;
+  const args = typeof optionsOrFirstArg === "string" ? [optionsOrFirstArg, ...rest] : rest;
   const program = buildCli({
     apiUrl: "http://api.example",
     fetch: async (input, init) => {
@@ -141,10 +182,15 @@ async function runCliWithFetch(requests: CapturedRequest[], ...args: string[]): 
       });
     },
     writeJson: (value) => output.push(value),
-    now: () => "2026-05-21T17:00:00.000Z"
+    now: options.now ?? (() => "2026-05-21T17:00:00.000Z")
   });
   program.exitOverride();
   await program.parseAsync(["node", "rebac", ...args]);
+}
+
+function sequenceNow(...timestamps: string[]): () => string {
+  let index = 0;
+  return () => timestamps[index++] ?? timestamps.at(-1) ?? "2026-05-21T17:00:00.000Z";
 }
 
 function lastOutput(): Record<string, unknown> {

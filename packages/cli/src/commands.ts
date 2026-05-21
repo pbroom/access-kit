@@ -155,16 +155,17 @@ function addRelationCommands(program: Command, context: CliContext): void {
   const set = relation.command("set").argument("<subject>").argument("<relation>").argument("<object>");
   set.action(withApi(context, set, (client, args) => {
     const [subjectId, relationName, objectId] = readStrings(args, ["subject", "relation", "object"]);
+    const timestamp = context.now();
     return client.put("/v1/relationships", {
       id: relationshipId(subjectId, relationName, objectId),
       subjectId,
       relation: relationName,
       objectId,
       sourceSystem: "cli",
-      assertedAt: context.now(),
+      assertedAt: timestamp,
       status: "active",
       version: "tuple:cli-v1",
-      createdAt: context.now()
+      createdAt: timestamp
     });
   }));
 
@@ -285,7 +286,8 @@ function addAuditCommands(program: Command, context: CliContext): void {
     if (options.subject) params.set("subjectId", options.subject);
     if (options.resource) params.set("resourceId", options.resource);
     if (options.from) params.set("from", options.from);
-    return client.get(`/v1/audit/events?${params.toString()}`);
+    const query = params.toString();
+    return client.get(`/v1/audit/events${query ? `?${query}` : ""}`);
   }));
 }
 
