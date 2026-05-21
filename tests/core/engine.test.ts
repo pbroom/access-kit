@@ -28,6 +28,21 @@ describe("RebacDecisionEngine", () => {
     ]);
   });
 
+  it("denies unsupported actions even when a read path exists", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "delete",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+    expect(result.relationshipPath).toEqual([]);
+  });
+
   it("denies by default when no relationship path exists", () => {
     const store = new InMemoryRebacStore(createLocalEngineSeed());
     store.upsertResource({
@@ -84,6 +99,53 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_EXPLICIT_OVERRIDE");
   });
 
+  it("gives group-level deny paths precedence over allow paths", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      relationships: [
+        ...(seed.relationships ?? []),
+        tuple("relationship:case-team-denied-document", "group:case-team", "denied_read", "document:case-plan")
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_EXPLICIT_OVERRIDE");
+    expect(result.relationshipPath).toEqual([
+      { subjectId: "user:alice", relation: "member_of", objectId: "group:case-team" },
+      { subjectId: "group:case-team", relation: "denied_read", objectId: "document:case-plan" }
+    ]);
+  });
+
+  it("does not traverse past a target reached by a disallowed relation", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      relationships: [
+        tuple("relationship:alice-viewer-workspace", "user:alice", "viewer_of", "workspace:case"),
+        tuple("relationship:workspace-document", "workspace:case", "contains", "document:case-plan"),
+        tuple("relationship:document-contributor-workspace", "document:case-plan", "contributor_to", "workspace:case")
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "write",
+      resourceId: "workspace:case"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
   it("denies suspended subjects even when they have a direct grant", () => {
     const seed = createLocalEngineSeed();
     const direct: RelationshipTuple = {
@@ -126,4 +188,36 @@ describe("RebacDecisionEngine", () => {
     expect(events[1]?.eventType).toBe("decision.denied");
     expect(events[1]?.previousEventHash).toBe(events[0]?.payloadHash);
   });
+
+  it("continues the audit hash chain after an engine restart", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const firstEngine = new RebacDecisionEngine(store, { now: () => now });
+    firstEngine.check({ subjectId: "user:alice", action: "read", resourceId: "document:case-plan" });
+
+    const restartedEngine = new RebacDecisionEngine(store, { now: () => now });
+    restartedEngine.check({ subjectId: "user:alice", action: "read", resourceId: "workspace:unknown" });
+
+    const events = store.listAuditEvents();
+    expect(events).toHaveLength(2);
+    expect(events[1]?.previousEventHash).toBe(events[0]?.payloadHash);
+  });
 });
+
+function tuple(
+  id: string,
+  subjectId: string,
+  relation: string,
+  objectId: string
+): RelationshipTuple {
+  return {
+    id,
+    subjectId,
+    relation,
+    objectId,
+    sourceSystem: "mock",
+    assertedAt: now,
+    status: "active",
+    version: "tuple:v1",
+    createdAt: now
+  };
+}

@@ -38,11 +38,13 @@ const traversableRelations = new Set([
 ]);
 
 const actionAllowRelations = new Map<string, Set<string>>([
-  ["read", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of", "contains"])],
-  ["view", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of", "contains"])],
+  ["read", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
+  ["view", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
   ["write", new Set(["contributor_to", "owner_of", "admin_of"])],
   ["contribute", new Set(["contributor_to", "owner_of", "admin_of"])],
-  ["admin", new Set(["owner_of", "admin_of"])]
+  ["admin", new Set(["owner_of", "admin_of"])],
+  ["administer", new Set(["owner_of", "admin_of"])],
+  ["manage", new Set(["owner_of", "admin_of"])]
 ]);
 
 export class RebacDecisionEngine {
@@ -52,7 +54,7 @@ export class RebacDecisionEngine {
 
   constructor(store: InMemoryRebacStore, options: DecisionEngineOptions = {}) {
     this.#store = store;
-    this.#auditRecorder = options.auditRecorder ?? new AuditRecorder();
+    this.#auditRecorder = options.auditRecorder ?? new AuditRecorder(store.listAuditEvents());
     this.#options = {
       policyVersion: options.policyVersion ?? "policy:local-v1",
       relationshipVersion: options.relationshipVersion ?? "tuple-set:local-v1",
@@ -129,15 +131,10 @@ export class RebacDecisionEngine {
     const activeRelationships = this.#store
       .listRelationships()
       .filter((relationship) => isActiveRelationship(relationship, evaluatedAt));
-    const explicitDeny = activeRelationships.find(
-      (relationship) =>
-        relationship.subjectId === request.subjectId &&
-        relationship.objectId === request.resourceId &&
-        denyRelations.has(relationship.relation)
-    );
+    const explicitDeny = findDenyPath(activeRelationships, request.subjectId, request.resourceId);
 
-    if (explicitDeny) {
-      return denied("DENY_EXPLICIT_OVERRIDE", [toPathStep(explicitDeny)]);
+    if (explicitDeny.length > 0) {
+      return denied("DENY_EXPLICIT_OVERRIDE", explicitDeny);
     }
 
     const relationshipPath = findAllowPath(activeRelationships, request.subjectId, request.resourceId, request.action);
@@ -215,8 +212,10 @@ function findAllowPath(
   resourceId: string,
   action: string
 ): RelationshipPathStep[] {
-  const allowedRelations = actionAllowRelations.get(action) ?? actionAllowRelations.get("read") ?? new Set<string>();
-  const queue: Array<{ currentId: string; path: RelationshipPathStep[] }> = [{ currentId: subjectId, path: [] }];
+  const allowedRelations = actionAllowRelations.get(action.toLowerCase()) ?? new Set<string>();
+  const queue: Array<{ currentId: string; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
+    { currentId: subjectId, hasActionGrant: false, path: [] }
+  ];
   const visited = new Set<string>([subjectId]);
 
   while (queue.length > 0) {
@@ -233,9 +232,67 @@ function findAllowPath(
 
       const step = toPathStep(relationship);
       const path = [...next.path, step];
+      const relationGrantsAction = allowedRelations.has(relationship.relation);
 
-      if (relationship.objectId === resourceId && allowedRelations.has(relationship.relation)) {
+      if (relationship.objectId === resourceId && relationGrantsAction) {
         return path;
+      }
+
+      if (
+        relationship.relation === "contains" &&
+        relationship.objectId === resourceId &&
+        next.hasActionGrant
+      ) {
+        return path;
+      }
+
+      if (relationship.objectId === resourceId) {
+        continue;
+      }
+
+      if (!visited.has(relationship.objectId)) {
+        visited.add(relationship.objectId);
+        queue.push({
+          currentId: relationship.objectId,
+          hasActionGrant: next.hasActionGrant || relationGrantsAction,
+          path
+        });
+      }
+    }
+  }
+
+  return [];
+}
+
+function findDenyPath(
+  relationships: RelationshipTuple[],
+  subjectId: string,
+  resourceId: string
+): RelationshipPathStep[] {
+  const queue: Array<{ currentId: string; path: RelationshipPathStep[] }> = [{ currentId: subjectId, path: [] }];
+  const visited = new Set<string>([subjectId]);
+
+  while (queue.length > 0) {
+    const next = queue.shift();
+
+    if (!next) {
+      break;
+    }
+
+    for (const relationship of relationships) {
+      if (relationship.subjectId !== next.currentId) {
+        continue;
+      }
+
+      const step = toPathStep(relationship);
+      const path = [...next.path, step];
+
+      if (relationship.objectId === resourceId && denyRelations.has(relationship.relation)) {
+        return path;
+      }
+
+      if (relationship.objectId === resourceId || !traversableRelations.has(relationship.relation)) {
+        continue;
       }
 
       if (!visited.has(relationship.objectId)) {

@@ -15,6 +15,10 @@ export interface AuditEventInput {
 export class AuditRecorder {
   readonly #events: AuditEvent[] = [];
 
+  constructor(seedEvents: AuditEvent[] = []) {
+    this.#events.push(...seedEvents);
+  }
+
   record(input: AuditEventInput, occurredAt: string): AuditEvent {
     const previousEventHash = this.#events.at(-1)?.payloadHash;
     const payloadHash = sha256(input.payload);
