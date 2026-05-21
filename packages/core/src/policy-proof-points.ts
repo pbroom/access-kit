@@ -53,6 +53,7 @@ const traversableRelations = new Set([
   "member_of",
   "contributor_to",
   "viewer_of",
+  "reader_of",
   "owner_of",
   "admin_of"
 ]);
@@ -164,6 +165,10 @@ function findAllowPath(
         next.hasActionGrant
       ) {
         return path;
+      }
+
+      if (relationship.objectId === resourceId) {
+        continue;
       }
 
       if (traversableRelations.has(relationship.relation)) {

@@ -83,6 +83,52 @@
   },
   {
     "kind": "decision",
+    "name": "allow through transitive reader relationship path",
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "relationships": [
+      {
+        "id": "relationship:alice-case-team-reader",
+        "subjectId": "user:alice",
+        "relation": "member_of",
+        "objectId": "group:case-team",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      },
+      {
+        "id": "relationship:case-team-workspace-reader",
+        "subjectId": "group:case-team",
+        "relation": "reader_of",
+        "objectId": "workspace:case",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      },
+      {
+        "id": "relationship:workspace-document-reader",
+        "subjectId": "workspace:case",
+        "relation": "contains",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      }
+    ],
+    "subjectStatus": "active",
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "allow",
+    "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
+  },
+  {
+    "kind": "decision",
     "name": "allow through admin relationship path",
     "subjectId": "user:alice",
     "action": "read",
