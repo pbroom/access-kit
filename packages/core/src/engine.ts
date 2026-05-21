@@ -114,7 +114,7 @@ export class RebacDecisionEngine {
       return denied("DENY_SUBJECT_NOT_FOUND");
     }
 
-    if (subject.lifecycleState === "suspended" || subject.lifecycleState === "terminated" || subject.lifecycleState === "deleted") {
+    if (subject.lifecycleState !== "active") {
       return denied("DENY_SUBJECT_NOT_ACTIVE");
     }
 

@@ -175,6 +175,26 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_SUBJECT_NOT_ACTIVE");
   });
 
+  it("denies inactive subjects even when they have an allow path", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.map((subject) =>
+        subject.id === "user:alice" ? { ...subject, lifecycleState: "inactive" } : subject
+      )
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_SUBJECT_NOT_ACTIVE");
+  });
+
   it("emits append-only audit events for every decision", () => {
     const store = new InMemoryRebacStore(createLocalEngineSeed());
     const engine = new RebacDecisionEngine(store, { now: () => now });
