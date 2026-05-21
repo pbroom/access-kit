@@ -20,8 +20,9 @@ export class AuditRecorder {
   }
 
   record(input: AuditEventInput, occurredAt: string): AuditEvent {
-    const previousEventHash = this.#events.at(-1)?.payloadHash;
-    const payloadHash = sha256(input.payload);
+    const previousEvent = this.#events.at(-1);
+    const previousEventHash = previousEvent ? auditEventHash(previousEvent) : undefined;
+    const payloadHash = hashReference(input.payload);
     const event: AuditEvent = {
       eventId: `evt:${sha256({ ...input, occurredAt }).slice(0, 24)}`,
       eventType: input.eventType,
@@ -48,6 +49,14 @@ export class AuditRecorder {
 
 export function sha256(value: unknown): string {
   return createHash("sha256").update(stableStringify(value)).digest("hex");
+}
+
+export function auditEventHash(event: AuditEvent): string {
+  return hashReference(event);
+}
+
+function hashReference(value: unknown): string {
+  return `sha256:${sha256(value)}`;
 }
 
 export function stableStringify(value: unknown): string {

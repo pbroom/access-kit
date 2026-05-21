@@ -216,7 +216,7 @@ function findAllowPath(
   const queue: Array<{ currentId: string; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
     { currentId: subjectId, hasActionGrant: false, path: [] }
   ];
-  const visited = new Set<string>([subjectId]);
+  const bestGrantByNode = new Map<string, boolean>([[subjectId, false]]);
 
   while (queue.length > 0) {
     const next = queue.shift();
@@ -250,11 +250,14 @@ function findAllowPath(
         continue;
       }
 
-      if (!visited.has(relationship.objectId)) {
-        visited.add(relationship.objectId);
+      const hasActionGrant = next.hasActionGrant || relationGrantsAction;
+      const previousBest = bestGrantByNode.get(relationship.objectId);
+
+      if (previousBest !== true && previousBest !== hasActionGrant) {
+        bestGrantByNode.set(relationship.objectId, hasActionGrant);
         queue.push({
           currentId: relationship.objectId,
-          hasActionGrant: next.hasActionGrant || relationGrantsAction,
+          hasActionGrant,
           path
         });
       }

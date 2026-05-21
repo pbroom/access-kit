@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  AuditRecorder,
+  auditEventHash,
   createLocalEngineSeed,
   InMemoryRebacStore,
   RebacDecisionEngine,
@@ -146,6 +148,31 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
   });
 
+  it("upgrades queued graph nodes when a later path carries an action grant", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      relationships: [
+        tuple("relationship:alice-member-workspace", "user:alice", "member_of", "workspace:case"),
+        tuple("relationship:alice-contributor-workspace", "user:alice", "contributor_to", "workspace:case"),
+        tuple("relationship:workspace-document", "workspace:case", "contains", "document:case-plan")
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "write",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("allow");
+    expect(result.relationshipPath).toEqual([
+      { subjectId: "user:alice", relation: "contributor_to", objectId: "workspace:case" },
+      { subjectId: "workspace:case", relation: "contains", objectId: "document:case-plan" }
+    ]);
+  });
+
   it("denies suspended subjects even when they have a direct grant", () => {
     const seed = createLocalEngineSeed();
     const direct: RelationshipTuple = {
@@ -206,7 +233,8 @@ describe("RebacDecisionEngine", () => {
     expect(events).toHaveLength(2);
     expect(events[0]?.eventType).toBe("decision.allowed");
     expect(events[1]?.eventType).toBe("decision.denied");
-    expect(events[1]?.previousEventHash).toBe(events[0]?.payloadHash);
+    expect(events[0]?.payloadHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(events[1]?.previousEventHash).toBe(auditEventHash(events[0]!));
   });
 
   it("continues the audit hash chain after an engine restart", () => {
@@ -219,7 +247,28 @@ describe("RebacDecisionEngine", () => {
 
     const events = store.listAuditEvents();
     expect(events).toHaveLength(2);
-    expect(events[1]?.previousEventHash).toBe(events[0]?.payloadHash);
+    expect(events[1]?.previousEventHash).toBe(auditEventHash(events[0]!));
+  });
+
+  it("chains audit events using full previous event metadata", () => {
+    const input = {
+      eventType: "decision.allowed",
+      actor: "service:decision-engine",
+      subjectId: "user:alice",
+      resourceId: "document:case-plan",
+      correlationId: "corr:test",
+      payload: {
+        decisionId: "decision:test"
+      }
+    } as const;
+    const recorder = new AuditRecorder();
+    const first = recorder.record(input, now);
+    const second = recorder.record({ ...input, eventType: "decision.denied" }, now);
+    const tamperedRecorder = new AuditRecorder([{ ...first, actor: "service:tampered" }]);
+    const afterTamper = tamperedRecorder.record({ ...input, eventType: "decision.denied" }, now);
+
+    expect(second.previousEventHash).toBe(auditEventHash(first));
+    expect(afterTamper.previousEventHash).not.toBe(second.previousEventHash);
   });
 });
 
