@@ -126,6 +126,31 @@ describe("RebacDecisionEngine", () => {
     ]);
   });
 
+  it("does not follow containment while searching for explicit deny paths", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      relationships: [
+        ...(seed.relationships ?? []),
+        tuple("relationship:document-quarantined-workspace", "document:case-plan", "quarantined_from", "workspace:case")
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "workspace:case"
+    });
+
+    expect(result.decision).toBe("allow");
+    expect(result.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
+    expect(result.relationshipPath).toEqual([
+      { subjectId: "user:alice", relation: "member_of", objectId: "group:case-team" },
+      { subjectId: "group:case-team", relation: "contributor_to", objectId: "workspace:case" }
+    ]);
+  });
+
   it("does not traverse past a target reached by a disallowed relation", () => {
     const seed = createLocalEngineSeed();
     const store = new InMemoryRebacStore({
@@ -296,6 +321,19 @@ describe("RebacDecisionEngine", () => {
     expect(events[1]?.eventType).toBe("decision.denied");
     expect(events[0]?.payloadHash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(events[1]?.previousEventHash).toBe(auditEventHash(events[0]!));
+  });
+
+  it("keeps check and explain decisions distinct for the same request timestamp", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+    const request = { subjectId: "user:alice", action: "read", resourceId: "document:case-plan" };
+
+    const check = engine.check(request);
+    const explain = engine.explain(request);
+
+    expect(check.decisionId).not.toBe(explain.decisionId);
+    expect(store.listDecisions()).toHaveLength(2);
+    expect(store.listAuditEvents()).toHaveLength(2);
   });
 
   it("continues the audit hash chain after an engine restart", () => {

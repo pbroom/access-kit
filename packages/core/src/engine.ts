@@ -168,7 +168,8 @@ function toDecisionResult(context: DecisionContext, explain: boolean): DecisionR
     policyVersion: context.policyVersion,
     relationshipVersion: context.relationshipVersion,
     decision: context.decision,
-    reasonCode: context.reasonCode
+    reasonCode: context.reasonCode,
+    explain
   }).slice(0, 24);
 
   return {
@@ -329,7 +330,7 @@ function canTraverseRelationship(
 }
 
 function canTraverseDenyRelationship(relationship: RelationshipTuple): boolean {
-  return membershipRelations.has(relationship.relation) || containmentRelations.has(relationship.relation);
+  return membershipRelations.has(relationship.relation);
 }
 
 function isActiveGraphNode(store: InMemoryRebacStore, id: string): boolean {
