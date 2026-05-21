@@ -27,15 +27,8 @@ interface DecisionContext {
 }
 
 const denyRelations = new Set(["denied", "denied_read", "quarantined_from"]);
-const traversableRelations = new Set([
-  "member_of",
-  "contributor_to",
-  "viewer_of",
-  "reader_of",
-  "owner_of",
-  "admin_of",
-  "contains"
-]);
+const membershipRelations = new Set(["member_of"]);
+const containmentRelations = new Set(["contains"]);
 
 const actionAllowRelations = new Map<string, Set<string>>([
   ["read", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
@@ -131,13 +124,13 @@ export class RebacDecisionEngine {
     const activeRelationships = this.#store
       .listRelationships()
       .filter((relationship) => isActiveRelationship(relationship, evaluatedAt));
-    const explicitDeny = findDenyPath(activeRelationships, request.subjectId, request.resourceId);
+    const explicitDeny = findDenyPath(this.#store, activeRelationships, request.subjectId, request.resourceId);
 
     if (explicitDeny.length > 0) {
       return denied("DENY_EXPLICIT_OVERRIDE", explicitDeny);
     }
 
-    const relationshipPath = findAllowPath(activeRelationships, request.subjectId, request.resourceId, request.action);
+    const relationshipPath = findAllowPath(this.#store, activeRelationships, request.subjectId, request.resourceId, request.action);
 
     if (relationshipPath.length === 0) {
       return denied("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
@@ -207,6 +200,7 @@ function isActiveRelationship(relationship: RelationshipTuple, now: string): boo
 }
 
 function findAllowPath(
+  store: InMemoryRebacStore,
   relationships: RelationshipTuple[],
   subjectId: string,
   resourceId: string,
@@ -226,13 +220,14 @@ function findAllowPath(
     }
 
     for (const relationship of relationships) {
-      if (relationship.subjectId !== next.currentId || !traversableRelations.has(relationship.relation)) {
+      if (relationship.subjectId !== next.currentId) {
         continue;
       }
 
       const step = toPathStep(relationship);
       const path = [...next.path, step];
       const relationGrantsAction = allowedRelations.has(relationship.relation);
+      const traversable = canTraverseRelationship(relationship, relationGrantsAction, next.hasActionGrant);
 
       if (relationship.objectId === resourceId && relationGrantsAction) {
         return path;
@@ -247,6 +242,10 @@ function findAllowPath(
       }
 
       if (relationship.objectId === resourceId) {
+        continue;
+      }
+
+      if (!traversable || !isActiveGraphNode(store, relationship.objectId)) {
         continue;
       }
 
@@ -268,6 +267,7 @@ function findAllowPath(
 }
 
 function findDenyPath(
+  store: InMemoryRebacStore,
   relationships: RelationshipTuple[],
   subjectId: string,
   resourceId: string
@@ -294,7 +294,11 @@ function findDenyPath(
         return path;
       }
 
-      if (relationship.objectId === resourceId || !traversableRelations.has(relationship.relation)) {
+      if (
+        relationship.objectId === resourceId ||
+        !canTraverseDenyRelationship(relationship) ||
+        !isActiveGraphNode(store, relationship.objectId)
+      ) {
         continue;
       }
 
@@ -306,6 +310,40 @@ function findDenyPath(
   }
 
   return [];
+}
+
+function canTraverseRelationship(
+  relationship: RelationshipTuple,
+  relationGrantsAction: boolean,
+  hasActionGrant: boolean
+): boolean {
+  if (membershipRelations.has(relationship.relation)) {
+    return true;
+  }
+
+  if (containmentRelations.has(relationship.relation)) {
+    return hasActionGrant;
+  }
+
+  return relationGrantsAction;
+}
+
+function canTraverseDenyRelationship(relationship: RelationshipTuple): boolean {
+  return membershipRelations.has(relationship.relation) || containmentRelations.has(relationship.relation);
+}
+
+function isActiveGraphNode(store: InMemoryRebacStore, id: string): boolean {
+  const subject = store.getSubject(id);
+  if (subject) {
+    return subject.lifecycleState === "active";
+  }
+
+  const resource = store.getResource(id);
+  if (resource) {
+    return resource.lifecycleState === "active";
+  }
+
+  return true;
 }
 
 function toPathStep(relationship: RelationshipTuple): RelationshipPathStep {

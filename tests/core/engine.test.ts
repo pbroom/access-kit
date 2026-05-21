@@ -222,6 +222,67 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_SUBJECT_NOT_ACTIVE");
   });
 
+  it("does not allow through inactive intermediate graph nodes", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.map((subject) =>
+        subject.id === "group:case-team" ? { ...subject, lifecycleState: "deleted" } : subject
+      )
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
+  it("does not allow through inactive intermediate containers", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      resources: seed.resources?.map((resource) =>
+        resource.id === "workspace:case" ? { ...resource, lifecycleState: "deleted" } : resource
+      )
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
+  it("does not treat lower-privilege permission edges as traversal hops", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      relationships: [
+        tuple("relationship:alice-viewer-case-team", "user:alice", "viewer_of", "group:case-team"),
+        tuple("relationship:case-team-admin-document", "group:case-team", "admin_of", "document:case-plan")
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "admin",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
   it("emits append-only audit events for every decision", () => {
     const store = new InMemoryRebacStore(createLocalEngineSeed());
     const engine = new RebacDecisionEngine(store, { now: () => now });
