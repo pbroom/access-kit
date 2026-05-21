@@ -13,6 +13,30 @@
   },
   {
     "kind": "decision",
+    "name": "deny unsupported action despite read relationship",
+    "subjectId": "user:alice",
+    "action": "delete",
+    "resourceId": "document:case-plan",
+    "relationships": [
+      {
+        "id": "relationship:alice-document-reader",
+        "subjectId": "user:alice",
+        "relation": "reader_of",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      }
+    ],
+    "subjectStatus": "active",
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "deny",
+    "expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+  },
+  {
+    "kind": "decision",
     "name": "allow through relationship path",
     "subjectId": "user:alice",
     "action": "read",

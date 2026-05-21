@@ -26,6 +26,7 @@ describe("policy proof points", () => {
     const names = proofPoints.map((proof) => proof.name);
 
     expect(names).toContain("deny by default without relationship path");
+    expect(names).toContain("deny unsupported action despite read relationship");
     expect(names).toContain("allow through relationship path");
     expect(names).toContain("allow through admin relationship path");
     expect(names).toContain("deny override beats allow path");

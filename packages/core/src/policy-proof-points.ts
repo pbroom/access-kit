@@ -39,12 +39,14 @@ export type PolicyProofPoint =
   | IdempotencyProofPoint
   | DriftProofPoint;
 
-const directAllowRelations = new Set([
-  "viewer_of",
-  "reader_of",
-  "contributor_to",
-  "owner_of",
-  "admin_of"
+const allowRelationsByAction = new Map([
+  ["read", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
+  ["view", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
+  ["write", new Set(["contributor_to", "owner_of", "admin_of"])],
+  ["contribute", new Set(["contributor_to", "owner_of", "admin_of"])],
+  ["admin", new Set(["owner_of", "admin_of"])],
+  ["administer", new Set(["owner_of", "admin_of"])],
+  ["manage", new Set(["owner_of", "admin_of"])]
 ]);
 
 const traversableRelations = new Set([
@@ -81,7 +83,7 @@ export function evaluateDecisionProofPoint(proof: DecisionProofPoint): DecisionR
     return decision(proof, "deny", "DENY_EXPLICIT_OVERRIDE", [toPathStep(explicitDeny)]);
   }
 
-  const path = findAllowPath(activeRelationships, proof.subjectId, proof.resourceId);
+  const path = findAllowPath(activeRelationships, proof.subjectId, proof.resourceId, proof.action);
 
   if (path.length > 0) {
     return decision(proof, "allow", "ALLOW_VIA_RELATIONSHIP_PATH", path);
@@ -127,10 +129,12 @@ function decision(
 function findAllowPath(
   relationships: RelationshipTuple[],
   subjectId: string,
-  resourceId: string
+  resourceId: string,
+  action: string
 ): RelationshipPathStep[] {
-  const queue: Array<{ currentId: string; path: RelationshipPathStep[] }> = [
-    { currentId: subjectId, path: [] }
+  const allowedRelations = allowRelationsByAction.get(action.toLowerCase()) ?? new Set<string>();
+  const queue: Array<{ currentId: string; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
+    { currentId: subjectId, hasActionGrant: false, path: [] }
   ];
   const visited = new Set<string>([subjectId]);
 
@@ -148,19 +152,28 @@ function findAllowPath(
 
       const step = toPathStep(relationship);
       const path = [...next.path, step];
+      const relationGrantsAction = allowedRelations.has(relationship.relation);
 
-      if (relationship.objectId === resourceId && directAllowRelations.has(relationship.relation)) {
+      if (relationship.objectId === resourceId && relationGrantsAction) {
         return path;
       }
 
-      if (relationship.relation === "contains" && relationship.objectId === resourceId) {
+      if (
+        relationship.relation === "contains" &&
+        relationship.objectId === resourceId &&
+        next.hasActionGrant
+      ) {
         return path;
       }
 
       if (traversableRelations.has(relationship.relation)) {
         if (!visited.has(relationship.objectId)) {
           visited.add(relationship.objectId);
-          queue.push({ currentId: relationship.objectId, path });
+          queue.push({
+            currentId: relationship.objectId,
+            hasActionGrant: next.hasActionGrant || relationGrantsAction,
+            path
+          });
         }
       }
     }
