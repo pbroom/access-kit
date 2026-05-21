@@ -315,6 +315,11 @@ async function routeReconciliation(
 ): Promise<void> {
   if (segments[2] === "run" && request.method === "POST") {
     const body = await readJson<{ connectorId: string }>(request);
+
+    if (typeof body.connectorId !== "string" || !body.connectorId) {
+      throw new HttpError(400, "MISSING_CONNECTOR_ID", "connectorId is required");
+    }
+
     const findings = await runReconciliation(app, body.connectorId);
     sendJson(response, 202, {
       id: `reconciliation:${body.connectorId}`,

@@ -176,6 +176,18 @@ describe("ReBAC API runtime", () => {
     expect(reconciliation.status).toBe("completed");
     expect(reconciliation.findings).toHaveLength(1);
   });
+
+  it("validates reconciliation run connector IDs", async () => {
+    const response = await fetch(`${baseUrl}/v1/reconciliation/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({})
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("MISSING_CONNECTOR_ID");
+  });
 });
 
 async function startServer(options: RebacApiServerOptions): Promise<void> {
