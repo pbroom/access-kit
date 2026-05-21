@@ -4,6 +4,7 @@ import {
   createProvisioningPlan,
   createRebacLocalApp,
   createResource,
+  createRevocationPlan,
   createSubject,
   deleteRelationship,
   explainDecision,
@@ -20,7 +21,12 @@ export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
 }
 
-interface ProvisioningPlanRequest extends DecisionRequest {
+interface ProvisioningPlanRequest {
+  subjectId?: unknown;
+  action?: unknown;
+  resourceId?: unknown;
+  context?: unknown;
+  grantId?: unknown;
   connectorId?: unknown;
 }
 
@@ -110,7 +116,25 @@ async function routeRequest(
     }
 
     const connectorId = typeof body.connectorId === "string" ? body.connectorId : undefined;
-    sendJson(response, 201, await createProvisioningPlan(app, body, connectorId));
+    if (body.grantId !== undefined) {
+      if (typeof body.grantId !== "string" || !body.grantId) {
+        throw new HttpError(400, "INVALID_GRANT_ID", "grantId must be a non-empty string");
+      }
+
+      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId));
+      return;
+    }
+
+    const decisionRequest = parseDecisionRequest(body);
+    if (!decisionRequest) {
+      throw new HttpError(
+        400,
+        "INVALID_PROVISIONING_REQUEST",
+        "Provisioning plans require subjectId, action, and resourceId or a grantId"
+      );
+    }
+
+    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId));
     return;
   }
 

@@ -43,6 +43,17 @@ describe("CLI API wrapper", () => {
     });
   });
 
+  it("keeps relationship ids distinct for tuples that sanitize to the same text", async () => {
+    await runCli("relation", "set", "user:alice", "denied", "document:case-plan");
+    await runCli("relation", "set", "user:alice:denied", "document", "case-plan");
+    await runCli("explain", "user:alice", "read", "document:case-plan");
+
+    expect(lastOutput()).toMatchObject({
+      decision: "deny",
+      reasonCode: "DENY_EXPLICIT_OVERRIDE"
+    });
+  });
+
   it("runs mock connector sync through the API", async () => {
     await runCli("connector", "sync", "mock", "--mode", "read_only");
 
@@ -59,6 +70,34 @@ describe("CLI API wrapper", () => {
     await runCliWithFetch(requests, "reconcile", "findings", "--severity", "high");
 
     expect(requests.at(-1)?.url).toContain("/v1/reconciliation/findings?severity=high");
+  });
+
+  it("runs reconciliation in dry-run mode by default", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(requests, "reconcile", "run", "--connector", "mock");
+
+    expect(requests.at(-1)?.body).toEqual({ connectorId: "mock", dryRun: true });
+  });
+
+  it("creates a targeted revocation plan for a native grant", async () => {
+    await runCli("provision", "revoke", "native-grant:document:case-plan:alice");
+
+    expect(lastOutput()).toMatchObject({
+      id: "plan:revoke:native-grant:document:case-plan:alice",
+      subjectId: "user:alice",
+      resourceId: "document:case-plan",
+      action: "read",
+      actions: [
+        {
+          operation: "revoke",
+          requestedState: {
+            nativeGrantId: "native-grant:document:case-plan:alice",
+            status: "revoked"
+          }
+        }
+      ]
+    });
   });
 
   it("sends distinct idempotency keys for different mutations", async () => {
@@ -130,6 +169,34 @@ describe("CLI API wrapper", () => {
       await expect(program.parseAsync(["node", "rebac", "check", "user:alice", "read", "document:case-plan"])).resolves.toBe(program);
       expect(process.exitCode).toBe(1);
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("API request failed"));
+      expect(output).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("reports non-JSON API failures without masking the response body", async () => {
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const program = buildCli({
+      apiUrl: baseUrl,
+      fetch: async () =>
+        new Response("temporarily unavailable", {
+          status: 503,
+          headers: { "content-type": "text/plain" }
+        }),
+      writeJson: (value) => output.push(value)
+    });
+    program.exitOverride();
+
+    try {
+      await expect(program.parseAsync(["node", "rebac", "check", "user:alice", "read", "document:case-plan"])).resolves.toBe(program);
+      const stderr = errorSpy.mock.calls.map((call) => String(call[0])).join("");
+      expect(process.exitCode).toBe(1);
+      expect(stderr).toContain("API request failed: 503");
+      expect(stderr).toContain("temporarily unavailable");
+      expect(stderr).not.toContain("Unexpected token");
       expect(output).toEqual([]);
     } finally {
       process.exitCode = previousExitCode;

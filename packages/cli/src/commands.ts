@@ -116,7 +116,9 @@ function addSubjectCommands(program: Command, context: CliContext): void {
   const sync = subject.command("sync").requiredOption("--connector <id>");
   sync.action(withApi(context, sync, async (client) => {
     const options = sync.opts<CommandWithConnector>();
-    return client.post(`/v1/connectors/${required(options.connector, "connector")}/sync`, { mode: "read_only" });
+    return client.post(`/v1/connectors/${encodeURIComponent(required(options.connector, "connector"))}/sync`, {
+      mode: "read_only"
+    });
   }));
 
   const get = subject.command("get").argument("<subject-id>");
@@ -135,7 +137,9 @@ function addResourceCommands(program: Command, context: CliContext): void {
   const discover = resource.command("discover").requiredOption("--connector <id>");
   discover.action(withApi(context, discover, async (client) => {
     const options = discover.opts<CommandWithConnector>();
-    return client.post(`/v1/connectors/${required(options.connector, "connector")}/sync`, { mode: "read_only" });
+    return client.post(`/v1/connectors/${encodeURIComponent(required(options.connector, "connector"))}/sync`, {
+      mode: "read_only"
+    });
   }));
 
   const get = resource.command("get").argument("<resource-id>");
@@ -263,7 +267,7 @@ function addReconciliationCommands(program: Command, context: CliContext): void 
     const options = run.opts<ReconcileRunOptions>();
     return client.post("/v1/reconciliation/run", {
       connectorId: required(options.connector, "connector"),
-      dryRun: Boolean(options.dryRun)
+      dryRun: options.dryRun ?? true
     });
   }));
 
@@ -376,7 +380,7 @@ class ApiClient {
       },
       body: body === undefined ? undefined : JSON.stringify(body)
     });
-    const payload = await response.json();
+    const payload = parseResponseBody(await response.text());
 
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status} ${JSON.stringify(payload)}`);
@@ -394,6 +398,18 @@ function createIdempotencyKey(method: string, path: string, body: unknown): stri
   return `idem:cli:${method.toLowerCase()}:${hash}`;
 }
 
+function parseResponseBody(body: string): unknown {
+  if (!body) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(body);
+  } catch {
+    return body;
+  }
+}
+
 function formatCliError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -408,7 +424,11 @@ function getApiUrl(command: Command): string {
 }
 
 function relationshipId(subjectId: string, relation: string, objectId: string): string {
-  return `relationship:${subjectId}:${relation}:${objectId}`.replaceAll(/[^a-z0-9_:-]/gi, "-").toLowerCase();
+  const hash = createHash("sha256")
+    .update(JSON.stringify({ objectId, relation, subjectId }))
+    .digest("hex")
+    .slice(0, 32);
+  return `relationship:cli:${hash}`;
 }
 
 function readString(args: unknown[], index: number, name: string): string {
