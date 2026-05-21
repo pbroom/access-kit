@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import { Command } from "commander";
 
 export interface CliCommandSpec {
@@ -80,6 +81,10 @@ interface CommandWithMode {
 
 interface ReconcileRunOptions extends CommandWithConnector {
   dryRun?: boolean;
+}
+
+interface ReconcileFindingsOptions {
+  severity?: string;
 }
 
 interface AuditSearchOptions {
@@ -181,12 +186,20 @@ function addPolicyCommands(program: Command, context: CliContext): void {
 
   const validate = policy.command("validate").argument("<policy-file>");
   validate.action(withApi(context, validate, (client, args) => {
-    return client.post(`/v1/policies/${encodeURIComponent(readString(args, 0, "policy-file"))}/validate`, {});
+    const policyFile = readString(args, 0, "policy-file");
+    return client.post(`/v1/policies/${encodeURIComponent(policyFile)}/validate`, {
+      mode: "validate",
+      policyFile
+    });
   }));
 
   const test = policy.command("test").argument("<test-file>");
   test.action(withApi(context, test, (client, args) => {
-    return client.post(`/v1/policies/${encodeURIComponent(readString(args, 0, "test-file"))}/validate`, {});
+    const testFile = readString(args, 0, "test-file");
+    return client.post(`/v1/policies/${encodeURIComponent(testFile)}/validate`, {
+      mode: "test",
+      testFile
+    });
   }));
 
   const publish = policy.command("publish").argument("<policy-file>").requiredOption("--change-ticket <id>");
@@ -254,7 +267,13 @@ function addReconciliationCommands(program: Command, context: CliContext): void 
   }));
 
   const findings = reconcile.command("findings").option("--severity <severity>");
-  findings.action(withApi(context, findings, (client) => client.get("/v1/reconciliation/findings")));
+  findings.action(withApi(context, findings, (client) => {
+    const options = findings.opts<ReconcileFindingsOptions>();
+    const params = new URLSearchParams();
+    if (options.severity) params.set("severity", options.severity);
+    const query = params.toString();
+    return client.get(`/v1/reconciliation/findings${query ? `?${query}` : ""}`);
+  }));
 }
 
 function addAuditCommands(program: Command, context: CliContext): void {
@@ -314,8 +333,13 @@ function withApi(
   handler: (client: ApiClient, args: unknown[]) => Promise<unknown>
 ): (...args: unknown[]) => Promise<void> {
   return async (...args: unknown[]) => {
-    const client = new ApiClient(getApiUrl(command), context.fetch);
-    context.writeJson(await handler(client, args));
+    try {
+      const client = new ApiClient(getApiUrl(command), context.fetch);
+      context.writeJson(await handler(client, args));
+    } catch (error) {
+      process.stderr.write(`error: ${formatCliError(error)}\n`);
+      process.exitCode = 1;
+    }
   };
 }
 
@@ -346,7 +370,7 @@ class ApiClient {
       method,
       headers: {
         "content-type": "application/json",
-        "idempotency-key": "idem:cli"
+        "idempotency-key": createIdempotencyKey(method, path, body)
       },
       body: body === undefined ? undefined : JSON.stringify(body)
     });
@@ -358,6 +382,18 @@ class ApiClient {
 
     return payload;
   }
+}
+
+function createIdempotencyKey(method: string, path: string, body: unknown): string {
+  const hash = createHash("sha256")
+    .update(JSON.stringify({ method, path, body, nonce: randomUUID() }))
+    .digest("hex")
+    .slice(0, 32);
+  return `idem:cli:${method.toLowerCase()}:${hash}`;
+}
+
+function formatCliError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function getApiUrl(command: Command): string {
