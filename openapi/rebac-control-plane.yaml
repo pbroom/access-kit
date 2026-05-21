@@ -482,7 +482,10 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [subjectId, resourceId, action, dryRun]
+              required: [dryRun]
+              oneOf:
+                - required: [subjectId, resourceId, action]
+                - required: [grantId]
               properties:
                 subjectId:
                   type: string
@@ -490,6 +493,13 @@ paths:
                   type: string
                 action:
                   type: string
+                connectorId:
+                  type: string
+                grantId:
+                  type: string
+                context:
+                  type: object
+                  additionalProperties: true
                 dryRun:
                   type: boolean
                   const: true
@@ -503,7 +513,7 @@ paths:
   /v1/provisioning/jobs:
     post:
       tags: [provisioning]
-      summary: Apply an approved provisioning plan.
+      summary: Run a dry-run provisioning job for a plan.
       operationId: createProvisioningJob
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -514,12 +524,15 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [planId, approverId]
+              required: [planId, approverId, dryRun]
               properties:
                 planId:
                   type: string
                 approverId:
                   type: string
+                dryRun:
+                  type: boolean
+                  const: true
       responses:
         "202":
           description: Provisioning job accepted.
@@ -904,25 +917,123 @@ components:
     ProvisioningJob:
       type: object
       additionalProperties: false
-      required: [id, planId, status, createdAt]
+      required:
+        - id
+        - planId
+        - connectorId
+        - mode
+        - dryRun
+        - status
+        - approverId
+        - idempotencyKey
+        - actionResults
+        - verification
+        - auditEventIds
+        - startedAt
+        - version
+        - createdAt
       properties:
         id:
           type: string
         planId:
           type: string
+        connectorId:
+          type: string
+        mode:
+          type: string
+          enum: [dry_run]
+        dryRun:
+          type: boolean
+          const: true
         status:
           type: string
           enum: [queued, running, completed, failed, rolled_back]
+        approverId:
+          type: string
+        idempotencyKey:
+          type: string
+        actionResults:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [actionId, operation, status, dryRun, idempotencyKey, message, verification]
+            properties:
+              actionId:
+                type: string
+              operation:
+                type: string
+                enum: [grant, revoke, expire, repair, verify]
+              status:
+                type: string
+                enum: [planned, skipped, verified, failed]
+              dryRun:
+                type: boolean
+              idempotencyKey:
+                type: string
+              message:
+                type: string
+              verification:
+                $ref: "#/components/schemas/ProvisioningVerification"
+              compensation:
+                $ref: "#/components/schemas/ProvisioningCompensation"
+        verification:
+          $ref: "#/components/schemas/ProvisioningVerification"
+        auditEventIds:
+          type: array
+          items:
+            type: string
+        startedAt:
+          type: string
+          format: date-time
         createdAt:
           type: string
           format: date-time
         completedAt:
           type: string
           format: date-time
+        version:
+          type: string
+    ProvisioningVerification:
+      type: object
+      additionalProperties: false
+      required: [status, method, expectedState]
+      properties:
+        status:
+          type: string
+          enum: [pending, verified, skipped, failed]
+        method:
+          type: string
+        expectedState:
+          type: object
+          additionalProperties: true
+        readbackState:
+          type: object
+          additionalProperties: true
+        checkedAt:
+          type: string
+          format: date-time
+        message:
+          type: string
+    ProvisioningCompensation:
+      type: object
+      additionalProperties: false
+      required: [operation, reason, status, idempotencyKey]
+      properties:
+        operation:
+          type: string
+          enum: [grant, revoke, expire, repair, verify]
+        reason:
+          type: string
+        status:
+          type: string
+          enum: [planned, not_required, skipped, failed]
+        idempotencyKey:
+          type: string
     ReconciliationRun:
       type: object
       additionalProperties: false
-      required: [id, connectorId, mode, status, createdAt]
+      required: [id, connectorId, mode, dryRun, status, findings, counts, auditEventIds, version, createdAt]
       properties:
         id:
           type: string
@@ -930,13 +1041,40 @@ components:
           type: string
         mode:
           type: string
-          enum: [read_only, simulation, dry_run, enforcement]
+          enum: [dry_run]
+        dryRun:
+          type: boolean
+          const: true
         status:
           type: string
-          enum: [queued, running, completed, failed]
+          enum: [completed, failed]
+        findings:
+          type: array
+          items:
+            $ref: "../schemas/drift-finding.schema.json"
+        counts:
+          type: object
+          additionalProperties: false
+          required: [findings, highOrCritical]
+          properties:
+            findings:
+              type: integer
+              minimum: 0
+            highOrCritical:
+              type: integer
+              minimum: 0
+        auditEventIds:
+          type: array
+          items:
+            type: string
         createdAt:
           type: string
           format: date-time
+        completedAt:
+          type: string
+          format: date-time
+        version:
+          type: string
     Connector:
       type: object
       additionalProperties: false

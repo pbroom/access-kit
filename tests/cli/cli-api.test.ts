@@ -132,11 +132,13 @@ describe("CLI API wrapper", () => {
     expect(lastOutput()).toMatchObject({
       planId: plan.id,
       approverId: "user:cli-operator",
-      status: "succeeded",
-      plan: {
-        id: plan.id,
-        status: "applied"
-      }
+      status: "completed",
+      dryRun: true,
+      actionResults: [
+        expect.objectContaining({
+          status: "skipped"
+        })
+      ]
     });
   });
 
@@ -196,6 +198,26 @@ describe("CLI API wrapper", () => {
       process.exitCode = previousExitCode;
       errorSpy.mockRestore();
     }
+  });
+
+  it("passes connector and dry-run fields for provisioning commands", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(requests, "provision", "plan", "user:alice", "document:case-plan", "read", "--connector", "mock");
+    await runCliWithFetch(requests, "provision", "apply", "plan:mock:decision");
+
+    expect(requests[0]?.body).toEqual({
+      subjectId: "user:alice",
+      resourceId: "document:case-plan",
+      action: "read",
+      connectorId: "mock",
+      dryRun: true
+    });
+    expect(requests[1]?.body).toEqual({
+      planId: "plan:mock:decision",
+      approverId: "user:cli-operator",
+      dryRun: true
+    });
   });
 
   it("sends distinct idempotency keys for different mutations", async () => {

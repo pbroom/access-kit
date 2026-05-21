@@ -245,6 +245,7 @@ export class MockConnector implements ConnectorAdapter {
   async revokeAccess(nativeGrantId: string): Promise<ProvisioningPlan> {
     return {
       id: `plan:revoke:${nativeGrantId}`,
+      connectorId: this.id,
       subjectId: "user:alice",
       resourceId: "document:case-plan",
       action: "read",
@@ -258,7 +259,19 @@ export class MockConnector implements ConnectorAdapter {
           targetObjectId: "document:case-plan",
           requestedState: { nativeGrantId, status: "revoked" },
           dryRun: true,
-          idempotencyKey: `revoke:${nativeGrantId}`
+          idempotencyKey: `revoke:${nativeGrantId}`,
+          status: "planned",
+          verification: {
+            status: "pending",
+            method: "connector.current_access_readback",
+            expectedState: { nativeGrantId, status: "revoked" }
+          },
+          compensation: {
+            operation: "grant",
+            reason: "Restore previous native grant if revocation verification fails after enforcement is enabled.",
+            status: "planned",
+            idempotencyKey: `compensate:grant:${nativeGrantId}`
+          }
         }
       ],
       version: "plan:v1",
@@ -528,6 +541,7 @@ function createDryRunPlan(request: DecisionResult, connectorId: string, targetOb
   return {
     id: `plan:${connectorId}:${request.decisionId}`,
     sourceDecisionId: request.decisionId,
+    connectorId,
     subjectId: request.subjectId,
     resourceId: request.resourceId,
     action: request.action,
@@ -541,7 +555,19 @@ function createDryRunPlan(request: DecisionResult, connectorId: string, targetOb
         targetObjectId,
         requestedState: { subjectId: request.subjectId, permission: request.action },
         dryRun: true,
-        idempotencyKey: `${connectorId}:${request.subjectId}:${request.action}:${request.resourceId}:${request.policyVersion}`
+        idempotencyKey: `${connectorId}:${request.subjectId}:${request.action}:${request.resourceId}:${request.policyVersion}`,
+        status: "planned",
+        verification: {
+          status: "pending",
+          method: "connector.current_access_readback",
+          expectedState: { subjectId: request.subjectId, permission: request.action }
+        },
+        compensation: {
+          operation: request.decision === "allow" ? "revoke" : "grant",
+          reason: "Reverse provider state if later enforcement does not verify cleanly.",
+          status: "planned",
+          idempotencyKey: `compensate:${connectorId}:${request.subjectId}:${request.action}:${request.resourceId}:${request.policyVersion}`
+        }
       }
     ],
     version: "plan:v1",
@@ -552,6 +578,7 @@ function createDryRunPlan(request: DecisionResult, connectorId: string, targetOb
 function createRevocationPlan(connectorId: string, nativeGrantId: string, resourceId: string): ProvisioningPlan {
   return {
     id: `plan:revoke:${connectorId}:${nativeGrantId}`,
+    connectorId,
     subjectId: "subject:unknown",
     resourceId,
     action: "revoke",
@@ -565,7 +592,19 @@ function createRevocationPlan(connectorId: string, nativeGrantId: string, resour
         targetObjectId: resourceId,
         requestedState: { nativeGrantId, status: "revoked" },
         dryRun: true,
-        idempotencyKey: `revoke:${connectorId}:${nativeGrantId}`
+        idempotencyKey: `revoke:${connectorId}:${nativeGrantId}`,
+        status: "planned",
+        verification: {
+          status: "pending",
+          method: "connector.current_access_readback",
+          expectedState: { nativeGrantId, status: "revoked" }
+        },
+        compensation: {
+          operation: "grant",
+          reason: "Restore previous native grant if revocation verification fails after enforcement is enabled.",
+          status: "planned",
+          idempotencyKey: `compensate:${connectorId}:${nativeGrantId}`
+        }
       }
     ],
     version: "plan:v1",

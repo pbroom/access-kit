@@ -30,6 +30,16 @@
 
 `GET /v1/resources/{id}/native-access` returns observed `NativeGrant` records from the latest discovery data. It supports connector, subject, native permission, grant type, and principal type filters. These records represent provider readback only; they are not intended grants and do not create authorization decisions.
 
+## Phase 3 Dry-Run Provisioning
+
+`POST /v1/provisioning/plans` requires `dryRun: true`. A plan records connector ID, action idempotency keys, pending verification metadata, and compensation intent. Revocation plans use `grantId`; grant/repair plans use subject, resource, and action.
+
+`POST /v1/provisioning/jobs` also requires `dryRun: true` and `Idempotency-Key`. The local runtime returns the same job for repeated submissions with the same idempotency key. Jobs do not call provider write APIs; they mark actions as skipped, run connector verification hooks, and emit provisioning audit events.
+
+`GET /v1/provisioning/jobs/{id}` returns the dry-run job evidence.
+
+`POST /v1/reconciliation/run` remains dry-run only and returns findings, counts, and audit event IDs.
+
 ## Write Requirements
 
 Every write operation must:

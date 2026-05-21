@@ -417,13 +417,18 @@ describe("ReBAC API runtime", () => {
   });
 
   it("runs dry-run reconciliation", async () => {
-    const reconciliation = await post<{ status: string; findings: unknown[] }>("/v1/reconciliation/run", {
-      connectorId: "mock",
-      dryRun: true
-    });
+    const reconciliation = await post<{ status: string; findings: unknown[]; counts: { findings: number; highOrCritical: number }; auditEventIds: string[] }>(
+      "/v1/reconciliation/run",
+      {
+        connectorId: "mock",
+        dryRun: true
+      }
+    );
 
     expect(reconciliation.status).toBe("completed");
     expect(reconciliation.findings).toHaveLength(1);
+    expect(reconciliation.counts).toEqual({ findings: 1, highOrCritical: 1 });
+    expect(reconciliation.auditEventIds).toHaveLength(2);
   });
 
   it("filters reconciliation findings by severity", async () => {
@@ -479,54 +484,127 @@ describe("ReBAC API runtime", () => {
     app.connectors.set("renamed-mock", connector);
     await restartServer({ app });
 
-    const plan = await post<{ status: string; actions: unknown[] }>("/v1/provisioning/plans", {
+    const plan = await post<{ status: string; connectorId: string; actions: unknown[] }>("/v1/provisioning/plans", {
       subjectId: "user:alice",
       action: "read",
-      resourceId: "document:case-plan"
+      resourceId: "document:case-plan",
+      connectorId: "renamed-mock",
+      dryRun: true
     });
 
     expect(plan.status).toBe("planned");
+    expect(plan.connectorId).toBe("renamed-mock");
     expect(plan.actions).toHaveLength(1);
   });
 
-  it("applies provisioning plans through the jobs route", async () => {
-    const plan = await post<{ id: string }>("/v1/provisioning/plans", {
+  it("creates dry-run provisioning jobs with verification and idempotent replay", async () => {
+    const plan = await post<{
+      id: string;
+      connectorId: string;
+      actions: Array<{
+        status: string;
+        verification: { status: string; method: string };
+        compensation: { status: string; operation: string };
+      }>;
+    }>("/v1/provisioning/plans", {
       subjectId: "user:alice",
       action: "read",
-      resourceId: "document:case-plan"
+      resourceId: "document:case-plan",
+      connectorId: "mock",
+      dryRun: true
     });
-    const job = await post<{
-      planId: string;
-      approverId: string;
+    const first = await postWithIdempotency<{
+      id: string;
       status: string;
-      plan: { id: string; status: string };
-    }>("/v1/provisioning/jobs", {
+      dryRun: boolean;
+      connectorId: string;
+      actionResults: Array<{ status: string; message: string; verification: { status: string }; compensation: { status: string } }>;
+      verification: { status: string; readbackState: { providerWrite: boolean } };
+      auditEventIds: string[];
+    }>("/v1/provisioning/jobs", "idem-phase3-job", {
       planId: plan.id,
-      approverId: "user:cli-operator"
+      approverId: "user:approver",
+      dryRun: true
     });
+    const replay = await postWithIdempotency<{ id: string }>("/v1/provisioning/jobs", "idem-phase3-job", {
+      planId: plan.id,
+      approverId: "user:approver",
+      dryRun: true
+    });
+    const fetched = await get<{ id: string }>(`/v1/provisioning/jobs/${encodeURIComponent(first.id)}`);
     const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
 
-    expect(job).toMatchObject({
-      planId: plan.id,
-      approverId: "user:cli-operator",
-      status: "succeeded",
-      plan: {
-        id: plan.id,
-        status: "applied"
+    expect(plan.connectorId).toBe("mock");
+    expect(plan.actions[0]).toMatchObject({
+      status: "planned",
+      verification: { status: "pending", method: "connector.current_access_readback" },
+      compensation: { status: "planned", operation: "revoke" }
+    });
+    expect(first).toMatchObject({
+      status: "completed",
+      dryRun: true,
+      connectorId: "mock",
+      verification: {
+        status: "verified",
+        readbackState: { providerWrite: false }
       }
     });
-    expect(audit.items.map((event) => event.eventType)).toContain("provisioning.applied");
+    expect(first.actionResults).toEqual([
+      expect.objectContaining({
+        status: "skipped",
+        message: "Dry-run only: provider write was not executed.",
+        verification: expect.objectContaining({ status: "verified" }),
+        compensation: expect.objectContaining({ status: "planned" })
+      })
+    ]);
+    expect(first.auditEventIds.length).toBeGreaterThanOrEqual(3);
+    expect(replay.id).toBe(first.id);
+    expect(fetched.id).toBe(first.id);
+    expect(audit.items.map((event) => event.eventType)).toEqual(expect.arrayContaining([
+      "provisioning.planned",
+      "provisioning.compensation_planned",
+      "provisioning.skipped",
+      "provisioning.verified",
+      "provisioning.completed"
+    ]));
+  });
+
+  it("requires provisioning dry-run mode for plans and jobs", async () => {
+    const planResponse = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-plan-dry-run-required" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        dryRun: false
+      })
+    });
+    const jobResponse = await fetch(`${baseUrl}/v1/provisioning/jobs`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-job-dry-run-required" },
+      body: JSON.stringify({
+        planId: "plan:missing",
+        approverId: "user:approver"
+      })
+    });
+
+    expect(planResponse.status).toBe(400);
+    await expect(planResponse.json()).resolves.toMatchObject({ code: "DRY_RUN_REQUIRED" });
+    expect(jobResponse.status).toBe(400);
+    await expect(jobResponse.json()).resolves.toMatchObject({ code: "DRY_RUN_REQUIRED" });
   });
 
   it("validates provisioning connector IDs when provided", async () => {
     const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "idempotency-key": "idem-invalid-connector" },
       body: JSON.stringify({
         subjectId: "user:alice",
         action: "read",
         resourceId: "document:case-plan",
-        connectorId: ""
+        connectorId: "",
+        dryRun: true
       })
     });
     const body = (await response.json()) as { code: string };
@@ -577,9 +655,13 @@ function sequenceNow(...timestamps: string[]): () => string {
 }
 
 async function post<T extends JsonObject>(path: string, body: unknown): Promise<T> {
+  return postWithIdempotency(path, "idem-test", body);
+}
+
+async function postWithIdempotency<T extends JsonObject>(path: string, idempotencyKey: string, body: unknown): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json", "idempotency-key": "idem-test" },
+    headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
     body: JSON.stringify(body)
   });
 

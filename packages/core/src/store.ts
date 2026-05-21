@@ -5,7 +5,9 @@ import type {
   DiscoveryRun,
   DriftFinding,
   NativeGrant,
+  ProvisioningJob,
   ProvisioningPlan,
+  ReconciliationRun,
   RelationshipTuple,
   Resource,
   Subject
@@ -18,7 +20,9 @@ export interface RebacSeedData {
   nativeGrants?: NativeGrant[];
   discoveryRuns?: DiscoveryRun[];
   provisioningPlans?: ProvisioningPlan[];
+  provisioningJobs?: ProvisioningJob[];
   driftFindings?: DriftFinding[];
+  reconciliationRuns?: ReconciliationRun[];
   decisions?: DecisionResult[];
   auditEvents?: AuditEvent[];
 }
@@ -30,7 +34,9 @@ export class InMemoryRebacStore {
   readonly #nativeGrants = new Map<CanonicalId, NativeGrant>();
   readonly #discoveryRuns = new Map<CanonicalId, DiscoveryRun>();
   readonly #provisioningPlans = new Map<CanonicalId, ProvisioningPlan>();
+  readonly #provisioningJobs = new Map<CanonicalId, ProvisioningJob>();
   readonly #driftFindings = new Map<CanonicalId, DriftFinding>();
+  readonly #reconciliationRuns = new Map<CanonicalId, ReconciliationRun>();
   readonly #decisions = new Map<CanonicalId, DecisionResult>();
   readonly #auditEvents: AuditEvent[] = [];
 
@@ -41,7 +47,9 @@ export class InMemoryRebacStore {
     seed.nativeGrants?.forEach((grant) => this.upsertNativeGrant(grant));
     seed.discoveryRuns?.forEach((run) => this.recordDiscoveryRun(run));
     seed.provisioningPlans?.forEach((plan) => this.upsertProvisioningPlan(plan));
+    seed.provisioningJobs?.forEach((job) => this.upsertProvisioningJob(job));
     seed.driftFindings?.forEach((finding) => this.upsertDriftFinding(finding));
+    seed.reconciliationRuns?.forEach((run) => this.recordReconciliationRun(run));
     seed.decisions?.forEach((decision) => this.recordDecision(decision));
     seed.auditEvents?.forEach((event) => this.recordAuditEvent(event));
   }
@@ -157,6 +165,23 @@ export class InMemoryRebacStore {
     return plan;
   }
 
+  getProvisioningJob(id: CanonicalId): ProvisioningJob | undefined {
+    return this.#provisioningJobs.get(id);
+  }
+
+  getProvisioningJobByIdempotencyKey(idempotencyKey: string): ProvisioningJob | undefined {
+    return [...this.#provisioningJobs.values()].find((job) => job.idempotencyKey === idempotencyKey);
+  }
+
+  listProvisioningJobs(): ProvisioningJob[] {
+    return [...this.#provisioningJobs.values()];
+  }
+
+  upsertProvisioningJob(job: ProvisioningJob): ProvisioningJob {
+    this.#provisioningJobs.set(job.id, job);
+    return job;
+  }
+
   listDriftFindings(filter: Partial<Pick<DriftFinding, "severity">> = {}): DriftFinding[] {
     return [...this.#driftFindings.values()].filter((finding) => {
       return !filter.severity || finding.severity === filter.severity;
@@ -166,6 +191,15 @@ export class InMemoryRebacStore {
   upsertDriftFinding(finding: DriftFinding): DriftFinding {
     this.#driftFindings.set(finding.id, finding);
     return finding;
+  }
+
+  recordReconciliationRun(run: ReconciliationRun): ReconciliationRun {
+    this.#reconciliationRuns.set(run.id, run);
+    return run;
+  }
+
+  listReconciliationRuns(): ReconciliationRun[] {
+    return [...this.#reconciliationRuns.values()];
   }
 
   recordDecision(decision: DecisionResult): DecisionResult {

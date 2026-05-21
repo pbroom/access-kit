@@ -32,7 +32,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "check", description: "Run a fast allow/deny decision.", apiSurface: "POST /v1/decision/check" },
   { path: "explain", description: "Run an explainable decision.", apiSurface: "POST /v1/decision/explain" },
   { path: "provision plan", description: "Create a dry-run provisioning plan.", apiSurface: "POST /v1/provisioning/plans" },
-  { path: "provision apply", description: "Apply an approved provisioning plan.", apiSurface: "POST /v1/provisioning/jobs" },
+  { path: "provision apply", description: "Run a dry-run provisioning job for a plan.", apiSurface: "POST /v1/provisioning/jobs" },
   { path: "provision revoke", description: "Create a revocation plan.", apiSurface: "POST /v1/provisioning/plans" },
   { path: "reconcile run", description: "Run reconciliation for a connector.", apiSurface: "POST /v1/reconciliation/run" },
   { path: "reconcile findings", description: "List drift findings.", apiSurface: "GET /v1/reconciliation/findings" },
@@ -100,6 +100,8 @@ interface NativeAccessOptions extends CommandWithConnector {
   grantType?: string;
   principalType?: string;
 }
+
+type ProvisioningOptions = CommandWithConnector;
 
 interface AuditSearchOptions {
   subject?: string;
@@ -271,24 +273,34 @@ function addDecisionCommands(program: Command, context: CliContext): void {
 function addProvisioningCommands(program: Command, context: CliContext): void {
   const provision = program.command("provision").description("Provisioning plan and job commands.");
 
-  const plan = provision.command("plan").argument("<subject>").argument("<resource>").argument("<action>");
+  const plan = provision.command("plan").argument("<subject>").argument("<resource>").argument("<action>").option("--connector <id>");
   plan.action(withApi(context, plan, (client, args) => {
+    const options = plan.opts<ProvisioningOptions>();
     const [subjectId, resourceId, action] = readStrings(args, ["subject", "resource", "action"]);
-    return client.post("/v1/provisioning/plans", { subjectId, resourceId, action, dryRun: true });
+    return client.post("/v1/provisioning/plans", {
+      subjectId,
+      resourceId,
+      action,
+      connectorId: options.connector,
+      dryRun: true
+    });
   }));
 
   const apply = provision.command("apply").argument("<plan-id>");
   apply.action(withApi(context, apply, (client, args) => {
     return client.post("/v1/provisioning/jobs", {
       planId: readString(args, 0, "plan-id"),
-      approverId: "user:cli-operator"
+      approverId: "user:cli-operator",
+      dryRun: true
     });
   }));
 
-  const revoke = provision.command("revoke").argument("<grant-id>");
+  const revoke = provision.command("revoke").argument("<grant-id>").option("--connector <id>");
   revoke.action(withApi(context, revoke, (client, args) => {
+    const options = revoke.opts<ProvisioningOptions>();
     return client.post("/v1/provisioning/plans", {
       grantId: readString(args, 0, "grant-id"),
+      connectorId: options.connector,
       action: "revoke",
       dryRun: true
     });

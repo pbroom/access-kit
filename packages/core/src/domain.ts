@@ -50,6 +50,9 @@ export type NativePrincipalType =
   | "external_user"
   | "unknown";
 export type ValidationCheckStatus = "pass" | "warn" | "fail";
+export type ProvisioningStepStatus = "planned" | "skipped" | "verified" | "failed";
+export type ProvisioningVerificationStatus = "pending" | "verified" | "skipped" | "failed";
+export type ProvisioningCompensationStatus = "planned" | "not_required" | "skipped" | "failed";
 
 export interface VersionedEntity {
   id: CanonicalId;
@@ -202,16 +205,62 @@ export interface ProvisioningAction {
   previousState?: JsonRecord;
   dryRun: boolean;
   idempotencyKey: string;
+  status: ProvisioningStepStatus;
+  verification: ProvisioningVerification;
+  compensation?: ProvisioningCompensation;
+}
+
+export interface ProvisioningVerification {
+  status: ProvisioningVerificationStatus;
+  method: string;
+  expectedState: JsonRecord;
+  readbackState?: JsonRecord;
+  checkedAt?: IsoDateTime;
+  message?: string;
+}
+
+export interface ProvisioningCompensation {
+  operation: ProvisioningAction["operation"];
+  reason: string;
+  status: ProvisioningCompensationStatus;
+  idempotencyKey: string;
 }
 
 export interface ProvisioningPlan extends VersionedEntity {
   sourceDecisionId?: CanonicalId;
+  connectorId: string;
   subjectId: CanonicalId;
   resourceId: CanonicalId;
   action: string;
   mode: "dry_run" | "enforcement";
   status: "planned" | "approved" | "applied" | "failed" | "rolled_back";
   actions: ProvisioningAction[];
+}
+
+export interface ProvisioningActionResult {
+  actionId: CanonicalId;
+  operation: ProvisioningAction["operation"];
+  status: ProvisioningStepStatus;
+  dryRun: boolean;
+  idempotencyKey: string;
+  message: string;
+  verification: ProvisioningVerification;
+  compensation?: ProvisioningCompensation;
+}
+
+export interface ProvisioningJob extends VersionedEntity {
+  planId: CanonicalId;
+  connectorId: string;
+  mode: "dry_run";
+  dryRun: true;
+  status: "queued" | "running" | "completed" | "failed" | "rolled_back";
+  approverId: CanonicalId;
+  idempotencyKey: string;
+  actionResults: ProvisioningActionResult[];
+  verification: ProvisioningVerification;
+  auditEventIds: CanonicalId[];
+  startedAt: IsoDateTime;
+  completedAt?: IsoDateTime;
 }
 
 export interface DriftFinding extends VersionedEntity {
@@ -224,6 +273,20 @@ export interface DriftFinding extends VersionedEntity {
   sourceConnectorId: string;
   recommendedAction: "revoke" | "exception" | "repair" | "review";
   status: "open" | "accepted" | "repairing" | "resolved";
+}
+
+export interface ReconciliationRun extends VersionedEntity {
+  connectorId: string;
+  mode: "dry_run";
+  dryRun: true;
+  status: "completed" | "failed";
+  findings: DriftFinding[];
+  counts: {
+    findings: number;
+    highOrCritical: number;
+  };
+  auditEventIds: CanonicalId[];
+  completedAt?: IsoDateTime;
 }
 
 export interface AuditEvent {

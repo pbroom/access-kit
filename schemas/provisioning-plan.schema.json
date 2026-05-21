@@ -6,6 +6,7 @@
   "additionalProperties": false,
   "required": [
     "id",
+    "connectorId",
     "subjectId",
     "resourceId",
     "action",
@@ -18,6 +19,7 @@
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "sourceDecisionId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "connectorId": { "type": "string", "minLength": 1 },
     "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "action": { "type": "string", "minLength": 1 },
@@ -29,7 +31,17 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["actionId", "operation", "targetPlatform", "targetObjectId", "requestedState", "dryRun", "idempotencyKey"],
+        "required": [
+          "actionId",
+          "operation",
+          "targetPlatform",
+          "targetObjectId",
+          "requestedState",
+          "dryRun",
+          "idempotencyKey",
+          "status",
+          "verification"
+        ],
         "properties": {
           "actionId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
           "operation": { "type": "string", "enum": ["grant", "revoke", "expire", "repair", "verify"] },
@@ -38,12 +50,41 @@
           "requestedState": { "type": "object", "additionalProperties": true },
           "previousState": { "type": "object", "additionalProperties": true },
           "dryRun": { "type": "boolean" },
-          "idempotencyKey": { "type": "string", "minLength": 1 }
+          "idempotencyKey": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["planned", "skipped", "verified", "failed"] },
+          "verification": { "$ref": "#/$defs/provisioningVerification" },
+          "compensation": { "$ref": "#/$defs/provisioningCompensation" }
         }
       }
     },
     "version": { "type": "string", "minLength": 1 },
     "createdAt": { "type": "string", "format": "date-time" },
     "updatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "provisioningVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "method", "expectedState"],
+      "properties": {
+        "status": { "type": "string", "enum": ["pending", "verified", "skipped", "failed"] },
+        "method": { "type": "string", "minLength": 1 },
+        "expectedState": { "type": "object", "additionalProperties": true },
+        "readbackState": { "type": "object", "additionalProperties": true },
+        "checkedAt": { "type": "string", "format": "date-time" },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    },
+    "provisioningCompensation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "reason", "status", "idempotencyKey"],
+      "properties": {
+        "operation": { "type": "string", "enum": ["grant", "revoke", "expire", "repair", "verify"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["planned", "not_required", "skipped", "failed"] },
+        "idempotencyKey": { "type": "string", "minLength": 1 }
+      }
+    }
   }
 }
