@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-21T21:07:47.842Z
+Generated at: 2026-05-21T22:23:49.369Z
 
-Branch: codex/rebac-phase2-discovery
+Branch: codex/rebac-ci-contracts
 
 Node: v24.4.1
 
@@ -18,6 +18,7 @@ All proof-point validation commands passed.
 | schema validation | `corepack pnpm validate:schemas` | PASS |
 | OpenAPI validation | `corepack pnpm validate:openapi` | PASS |
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
+| CLI command contract | `corepack pnpm validate:cli-contract` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
@@ -27,14 +28,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-ci-contracts
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-ci-contracts
 > tsx scripts/validate-schemas.ts
 
 Validated 10 schemas and 10 example fixtures.
@@ -53,17 +54,17 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-ci-contracts
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-phase2-discovery/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-ci-contracts/openapi/rebac-control-plane.yaml.
 PASS 23 required API path groups are present.
 ```
 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-ci-contracts
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -80,52 +81,68 @@ PASS duplicate event idempotency is specified
 PASS drift is represented as security finding
 ```
 
+### CLI command contract
+
+```text
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> vitest run tests/cli/cli-contract.test.ts
+
+
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-ci-contracts
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  18:23:46
+   Duration  145ms (transform 29ms, setup 0ms, import 44ms, tests 6ms, environment 0ms)
+```
+
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-ci-contracts
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-ci-contracts
 
 
  Test Files  2 passed (2)
-      Tests  16 passed (16)
-   Start at  17:07:45
-   Duration  171ms (transform 87ms, setup 0ms, import 118ms, tests 9ms, environment 0ms)
+      Tests  21 passed (21)
+   Start at  18:23:47
+   Duration  177ms (transform 95ms, setup 0ms, import 128ms, tests 11ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-ci-contracts
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-ci-contracts
 
 
  Test Files  1 passed (1)
-      Tests  15 passed (15)
-   Start at  17:07:46
-   Duration  231ms (transform 54ms, setup 0ms, import 81ms, tests 59ms, environment 0ms)
+      Tests  19 passed (19)
+   Start at  18:23:47
+   Duration  265ms (transform 61ms, setup 0ms, import 89ms, tests 77ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-ci-contracts
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase2-discovery
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-ci-contracts
 
 
  Test Files  2 passed (2)
-      Tests  15 passed (15)
-   Start at  17:07:47
-   Duration  241ms (transform 96ms, setup 0ms, import 143ms, tests 50ms, environment 0ms)
+      Tests  19 passed (19)
+   Start at  18:23:48
+   Duration  266ms (transform 107ms, setup 0ms, import 155ms, tests 62ms, environment 0ms)
 ```
 
 
@@ -135,6 +152,7 @@ PASS drift is represented as security finding
 - JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, provisioning plan, audit event, drift finding, and evidence export examples.
 - OpenAPI validation for required decision, inventory, native access, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
+- CLI command contract mapping each operator command to an API surface.
 - Local core engine tests for deterministic check/explain and decision audit emission.
 - API runtime tests for health, decision, relationship write audit, read-only mock connector discovery, native access, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, and assessor surfaces calling the API.

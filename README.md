@@ -37,11 +37,12 @@ pnpm validate
 pnpm evidence:generate
 ```
 
-`pnpm validate` runs type checking, JSON Schema validation, OpenAPI validation, policy fixture validation, and the core/API/CLI test suite.
+`pnpm validate` runs type checking, first-class contract validation, CI workflow validation, and the core/API/CLI test suite. `pnpm ci:check` adds lint, build, and evidence freshness checks for pre-submit confidence.
 
 ## Repository Map
 
 - `docs/` - architecture, domain, API, CLI, security, ATO evidence, and outstanding requirements.
+- `.github/workflows/` - CI, contract validation, and security checks.
 - `adrs/` - architecture decision records for the foundation.
 - `openapi/` - ReBAC control-plane OpenAPI contract.
 - `schemas/` - JSON Schemas for public domain contracts.
