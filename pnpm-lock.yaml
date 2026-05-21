@@ -54,7 +54,11 @@ importers:
         specifier: ^14.0.2
         version: 14.0.3
 
-  packages/connectors-mock: {}
+  packages/connectors-mock:
+    dependencies:
+      '@access-kit/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/core: {}
 

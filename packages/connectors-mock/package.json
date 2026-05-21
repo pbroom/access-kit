@@ -7,6 +7,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "dependencies": {
+    "@access-kit/core": "workspace:*"
+  },
   "scripts": {
     "build": "tsc -p ../../tsconfig.json --noEmit"
   }

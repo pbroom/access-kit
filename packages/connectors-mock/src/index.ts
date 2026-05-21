@@ -9,7 +9,7 @@ import type {
   RelationshipTuple,
   Resource,
   Subject
-} from "../../core/src/index.js";
+} from "@access-kit/core";
 
 const now = "2026-05-21T17:00:00.000Z";
 

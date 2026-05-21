@@ -47,6 +47,14 @@ const directAllowRelations = new Set([
   "admin_of"
 ]);
 
+const traversableRelations = new Set([
+  "member_of",
+  "contributor_to",
+  "viewer_of",
+  "owner_of",
+  "admin_of"
+]);
+
 const denyRelations = new Set(["denied", "denied_read", "quarantined_from"]);
 
 export function evaluateDecisionProofPoint(proof: DecisionProofPoint): DecisionResult {
@@ -149,12 +157,7 @@ function findAllowPath(
         return path;
       }
 
-      if (
-        relationship.relation === "member_of" ||
-        relationship.relation === "contributor_to" ||
-        relationship.relation === "viewer_of" ||
-        relationship.relation === "owner_of"
-      ) {
+      if (traversableRelations.has(relationship.relation)) {
         if (!visited.has(relationship.objectId)) {
           visited.add(relationship.objectId);
           queue.push({ currentId: relationship.objectId, path });

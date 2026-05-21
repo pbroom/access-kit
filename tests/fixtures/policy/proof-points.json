@@ -59,6 +59,52 @@
   },
   {
     "kind": "decision",
+    "name": "allow through admin relationship path",
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "relationships": [
+      {
+        "id": "relationship:alice-case-team-admin",
+        "subjectId": "user:alice",
+        "relation": "admin_of",
+        "objectId": "group:case-team",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      },
+      {
+        "id": "relationship:case-team-workspace",
+        "subjectId": "group:case-team",
+        "relation": "contributor_to",
+        "objectId": "workspace:case",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      },
+      {
+        "id": "relationship:workspace-document",
+        "subjectId": "workspace:case",
+        "relation": "contains",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      }
+    ],
+    "subjectStatus": "active",
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "allow",
+    "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
+  },
+  {
+    "kind": "decision",
     "name": "deny override beats allow path",
     "subjectId": "user:alice",
     "action": "read",

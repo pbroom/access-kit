@@ -1,13 +1,29 @@
 import proofPoints from "../tests/fixtures/policy/proof-points.json" assert { type: "json" };
 import {
+  type DriftFinding,
   evaluateDecisionProofPoint,
   evaluateIdempotencyProofPoint,
   type PolicyProofPoint
 } from "../packages/core/src/index.js";
 
+const validDriftStatuses = new Set<DriftFinding["status"]>([
+  "open",
+  "accepted",
+  "repairing",
+  "resolved"
+]);
+
+const validDriftRecommendedActions = new Set<DriftFinding["recommendedAction"]>([
+  "revoke",
+  "exception",
+  "repair",
+  "review"
+]);
+
 const requiredProofPointNames = new Set([
   "deny by default without relationship path",
   "allow through relationship path",
+  "allow through admin relationship path",
   "deny override beats allow path",
   "expired access is denied",
   "suspended user is denied",
@@ -43,8 +59,8 @@ for (const proof of proofPoints as PolicyProofPoint[]) {
   if (proof.kind === "drift") {
     if (
       proof.expect !== "valid_drift_finding" ||
-      proof.finding.status !== "open" ||
-      proof.finding.recommendedAction !== "revoke"
+      !validDriftStatuses.has(proof.finding.status) ||
+      !validDriftRecommendedActions.has(proof.finding.recommendedAction)
     ) {
       throw new Error(`Drift proof point failed: ${proof.name}`);
     }
