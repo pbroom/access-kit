@@ -85,6 +85,29 @@ describe("ReBAC API runtime", () => {
     }
   });
 
+  it("derives decision provenance from server state", async () => {
+    const decision = await post<{ policyVersion: string; relationshipVersion: string }>("/v1/decision/explain", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      policyVersion: "policy:forged",
+      relationshipVersion: "tuple-set:forged"
+    });
+    const audit = await get<{
+      items: Array<{ eventType: string; policyVersion?: string; relationshipVersion?: string }>;
+    }>("/v1/audit/events");
+    const decisionEvent = audit.items.find((event) => event.eventType === "decision.allowed");
+
+    expect(decision).toMatchObject({
+      policyVersion: "policy:local-v1",
+      relationshipVersion: "tuple-set:local-v1"
+    });
+    expect(decisionEvent).toMatchObject({
+      policyVersion: "policy:local-v1",
+      relationshipVersion: "tuple-set:local-v1"
+    });
+  });
+
   it("uses the configured actor for decision audit events", async () => {
     await restartServer({
       now: () => "2026-05-21T17:00:00.000Z",
@@ -168,6 +191,14 @@ describe("ReBAC API runtime", () => {
     expect(evidence.generatedAt).toBe("2026-05-21T17:00:00.000Z");
   });
 
+  it("validates evidence export format", async () => {
+    const response = await fetch(`${baseUrl}/v1/evidence/export?format=html`);
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("INVALID_EVIDENCE_FORMAT");
+  });
+
   it("runs mock connector sync and dry-run reconciliation", async () => {
     const sync = await post<{ connectorId: string; subjects: number }>("/v1/connectors/mock/sync", { mode: "read_only" });
     const reconciliation = await post<{ status: string; findings: unknown[] }>("/v1/reconciliation/run", {
@@ -179,6 +210,32 @@ describe("ReBAC API runtime", () => {
     expect(sync.subjects).toBeGreaterThan(0);
     expect(reconciliation.status).toBe("completed");
     expect(reconciliation.findings).toHaveLength(1);
+  });
+
+  it("requires explicit dry-run reconciliation", async () => {
+    for (const body of [{ connectorId: "mock" }, { connectorId: "mock", dryRun: false }]) {
+      const response = await fetch(`${baseUrl}/v1/reconciliation/run`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const payload = (await response.json()) as { code: string };
+
+      expect(response.status).toBe(400);
+      expect(payload.code).toBe("DRY_RUN_REQUIRED");
+    }
+  });
+
+  it("validates connector sync mode", async () => {
+    const response = await fetch(`${baseUrl}/v1/connectors/mock/sync`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "root" })
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("INVALID_CONNECTOR_MODE");
   });
 
   it("uses the registered connector map for provisioning plans", async () => {

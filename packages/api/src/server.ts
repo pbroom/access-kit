@@ -25,6 +25,8 @@ interface ProvisioningPlanRequest extends DecisionRequest {
 }
 
 const maxRequestBodyBytes = 1024 * 1024;
+const evidenceFormats = new Set(["json", "zip", "markdown"]);
+const connectorModes = new Set(["read_only", "simulation", "dry_run", "enforcement"]);
 
 class HttpError extends Error {
   constructor(
@@ -127,7 +129,11 @@ async function routeRequest(
       .split(",")
       .map((control) => control.trim())
       .filter(Boolean);
-    const format = (url.searchParams.get("format") ?? "json") as "json" | "zip" | "markdown";
+    const format = url.searchParams.get("format") ?? "json";
+    if (!isEvidenceFormat(format)) {
+      throw new HttpError(400, "INVALID_EVIDENCE_FORMAT", "format must be one of json, zip, or markdown");
+    }
+
     sendJson(response, 200, exportEvidence(app, controls, format));
     return;
   }
@@ -152,21 +158,20 @@ async function routeDecision(
   }
 
   if (segments[2] === "check") {
-    const body = await readJson<DecisionRequest>(request);
-    sendJson(response, 200, checkDecision(app, body));
+    sendJson(response, 200, checkDecision(app, await readDecisionRequest(request)));
     return;
   }
 
   if (segments[2] === "explain") {
-    const body = await readJson<DecisionRequest>(request);
-    sendJson(response, 200, explainDecision(app, body));
+    sendJson(response, 200, explainDecision(app, await readDecisionRequest(request)));
     return;
   }
 
   if (segments[2] === "batch-check") {
     const batch = await readJson<unknown>(request);
+    const requests = parseDecisionBatch(batch);
 
-    if (!isDecisionBatch(batch)) {
+    if (!requests) {
       sendJson(response, 400, {
         code: "INVALID_BATCH_REQUESTS",
         message: "batch-check requires a requests array of decision requests",
@@ -175,7 +180,7 @@ async function routeDecision(
       return;
     }
 
-    sendJson(response, 200, { results: batch.requests.map((item) => checkDecision(app, item)) });
+    sendJson(response, 200, { results: requests.map((item) => checkDecision(app, item)) });
     return;
   }
 
@@ -324,10 +329,14 @@ async function routeReconciliation(
   segments: string[]
 ): Promise<void> {
   if (segments[2] === "run" && request.method === "POST") {
-    const body = await readJson<{ connectorId: string }>(request);
+    const body = await readJson<{ connectorId: string; dryRun?: unknown }>(request);
 
     if (typeof body.connectorId !== "string" || !body.connectorId) {
       throw new HttpError(400, "MISSING_CONNECTOR_ID", "connectorId is required");
+    }
+
+    if (body.dryRun !== true) {
+      throw new HttpError(400, "DRY_RUN_REQUIRED", "Local reconciliation only supports dryRun: true");
     }
 
     const findings = await runReconciliation(app, body.connectorId);
@@ -387,8 +396,18 @@ async function routeConnectors(
   }
 
   if (segments[3] === "sync" && request.method === "POST") {
-    const body = await readJson<{ mode?: ConnectorAdapter["mode"] }>(request);
-    sendJson(response, 202, await syncConnector(app, connectorId, body.mode ?? "read_only"));
+    const body = await readJson<{ mode?: unknown }>(request);
+    const mode = body.mode ?? "read_only";
+
+    if (!isConnectorMode(mode)) {
+      throw new HttpError(
+        400,
+        "INVALID_CONNECTOR_MODE",
+        "mode must be one of read_only, simulation, dry_run, or enforcement"
+      );
+    }
+
+    sendJson(response, 202, await syncConnector(app, connectorId, mode));
     return;
   }
 
@@ -419,25 +438,57 @@ async function readJson<T>(request: IncomingMessage): Promise<T> {
   }
 }
 
-function isDecisionBatch(value: unknown): value is { requests: DecisionRequest[] } {
-  if (!isRecord(value) || !Array.isArray(value.requests)) {
-    return false;
+async function readDecisionRequest(request: IncomingMessage): Promise<DecisionRequest> {
+  const parsed = parseDecisionRequest(await readJson<unknown>(request));
+
+  if (!parsed) {
+    throw new HttpError(400, "INVALID_DECISION_REQUEST", "Decision requests require subjectId, action, and resourceId");
   }
 
-  return value.requests.every(isDecisionRequest);
+  return parsed;
 }
 
-function isDecisionRequest(value: unknown): value is DecisionRequest {
-  return (
-    isRecord(value) &&
-    typeof value.subjectId === "string" &&
-    typeof value.action === "string" &&
-    typeof value.resourceId === "string"
-  );
+function parseDecisionBatch(value: unknown): DecisionRequest[] | undefined {
+  if (!isRecord(value) || !Array.isArray(value.requests)) {
+    return undefined;
+  }
+
+  const requests = value.requests.map(parseDecisionRequest);
+  return requests.every((item) => item !== undefined) ? requests : undefined;
+}
+
+function parseDecisionRequest(value: unknown): DecisionRequest | undefined {
+  if (
+    !isRecord(value) ||
+    typeof value.subjectId !== "string" ||
+    typeof value.action !== "string" ||
+    typeof value.resourceId !== "string"
+  ) {
+    return undefined;
+  }
+
+  if (value.context !== undefined && !isRecord(value.context)) {
+    return undefined;
+  }
+
+  return {
+    subjectId: value.subjectId,
+    action: value.action,
+    resourceId: value.resourceId,
+    context: value.context
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isEvidenceFormat(value: unknown): value is "json" | "zip" | "markdown" {
+  return typeof value === "string" && evidenceFormats.has(value);
+}
+
+function isConnectorMode(value: unknown): value is ConnectorAdapter["mode"] {
+  return typeof value === "string" && connectorModes.has(value);
 }
 
 function sendJson(response: ServerResponse, statusCode: number, body: unknown): void {
