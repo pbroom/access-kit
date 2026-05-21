@@ -16,7 +16,9 @@ const commands: Array<{ name: string; args: string[] }> = [
   { name: "schema validation", args: ["validate:schemas"] },
   { name: "OpenAPI validation", args: ["validate:openapi"] },
   { name: "policy fixture validation", args: ["validate:policy"] },
-  { name: "CLI contract smoke tests", args: ["test:cli"] }
+  { name: "core engine tests", args: ["test:core"] },
+  { name: "API runtime tests", args: ["test:api"] },
+  { name: "CLI API smoke tests", args: ["test:cli"] }
 ];
 
 const results = commands.map(runPnpm);
@@ -63,12 +65,14 @@ ${trimOutput(result.output)}
 - JSON Schema validation for subject, resource, relationship, decision, provisioning plan, audit event, drift finding, and evidence export examples.
 - OpenAPI validation for required decision, inventory, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
-- CLI command contract smoke tests for operator, CI/CD, and assessor surfaces.
+- Local core engine tests for deterministic check/explain and decision audit emission.
+- API runtime tests for health, decision, relationship write audit, mock connector sync, and reconciliation.
+- CLI API smoke tests for operator, CI/CD, and assessor surfaces calling the API.
 
 ## Outstanding Requirements
 
 - Implement a persistent relationship graph and policy model store.
-- Implement API runtime handlers behind the OpenAPI contract.
+- Replace the local in-memory API runtime with production-ready persistence and deployment packaging.
 - Implement durable append-only audit storage with tamper-evidence and SIEM export.
 - Add live read-only connector discovery for Entra ID, SharePoint, and AWS after connector security review.
 - Add dry-run provisioning and reconciliation job execution with queueing, retries, and dead-letter handling.

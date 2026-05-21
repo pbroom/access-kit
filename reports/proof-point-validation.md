@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-21T17:36:39.325Z
+Generated at: 2026-05-21T18:35:48.981Z
 
-Branch: codex/rebac-foundation-specs
+Branch: codex/rebac-phase1-cli
 
 Node: v24.4.1
 
@@ -18,7 +18,9 @@ All proof-point validation commands passed.
 | schema validation | `corepack pnpm validate:schemas` | PASS |
 | OpenAPI validation | `corepack pnpm validate:openapi` | PASS |
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
-| CLI contract smoke tests | `corepack pnpm test:cli` | PASS |
+| core engine tests | `corepack pnpm test:core` | PASS |
+| API runtime tests | `corepack pnpm test:api` | PASS |
+| CLI API smoke tests | `corepack pnpm test:cli` | PASS |
 
 ## Command Output
 
@@ -62,9 +64,10 @@ PASS 22 required API path groups are present.
 > access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-foundation-specs
 > tsx scripts/validate-policy-fixtures.ts
 
-Validated 7 policy proof points.
+Validated 8 policy proof points.
 PASS deny by default without relationship path
 PASS allow through relationship path
+PASS allow through admin relationship path
 PASS deny override beats allow path
 PASS expired access is denied
 PASS suspended user is denied
@@ -72,7 +75,39 @@ PASS duplicate event idempotency is specified
 PASS drift is represented as security finding
 ```
 
-### CLI contract smoke tests
+### core engine tests
+
+```text
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> vitest run tests/core
+
+
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-foundation-specs
+
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  14:35:46
+   Duration  175ms (transform 91ms, setup 0ms, import 122ms, tests 7ms, environment 0ms)
+```
+
+### API runtime tests
+
+```text
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> vitest run tests/api
+
+
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-foundation-specs
+
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  14:35:47
+   Duration  217ms (transform 52ms, setup 0ms, import 81ms, tests 40ms, environment 0ms)
+```
+
+### CLI API smoke tests
 
 ```text
 > access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-foundation-specs
@@ -82,10 +117,10 @@ PASS drift is represented as security finding
  RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-foundation-specs
 
 
- Test Files  1 passed (1)
-      Tests  3 passed (3)
-   Start at  13:36:38
-   Duration  146ms (transform 24ms, setup 0ms, import 37ms, tests 6ms, environment 0ms)
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+   Start at  14:35:48
+   Duration  238ms (transform 99ms, setup 0ms, import 146ms, tests 39ms, environment 0ms)
 ```
 
 
@@ -95,12 +130,14 @@ PASS drift is represented as security finding
 - JSON Schema validation for subject, resource, relationship, decision, provisioning plan, audit event, drift finding, and evidence export examples.
 - OpenAPI validation for required decision, inventory, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
-- CLI command contract smoke tests for operator, CI/CD, and assessor surfaces.
+- Local core engine tests for deterministic check/explain and decision audit emission.
+- API runtime tests for health, decision, relationship write audit, mock connector sync, and reconciliation.
+- CLI API smoke tests for operator, CI/CD, and assessor surfaces calling the API.
 
 ## Outstanding Requirements
 
 - Implement a persistent relationship graph and policy model store.
-- Implement API runtime handlers behind the OpenAPI contract.
+- Replace the local in-memory API runtime with production-ready persistence and deployment packaging.
 - Implement durable append-only audit storage with tamper-evidence and SIEM export.
 - Add live read-only connector discovery for Entra ID, SharePoint, and AWS after connector security review.
 - Add dry-run provisioning and reconciliation job execution with queueing, retries, and dead-letter handling.
