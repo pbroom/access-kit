@@ -12,6 +12,7 @@ import {
   type DriftFinding,
   type EvidenceExport,
   type JsonRecord,
+  type NativeGrant,
   type ProvisioningPlan,
   type RelationshipTuple,
   type Resource,
@@ -31,6 +32,8 @@ export interface RebacLocalApp {
   now: () => string;
   actor: string;
 }
+
+type NativeAccessFilter = Partial<Pick<NativeGrant, "sourceConnectorId" | "subjectId" | "nativePermission">>;
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
@@ -115,14 +118,12 @@ export function deleteRelationship(app: RebacLocalApp, relationshipId: string): 
 export async function syncConnector(
   app: RebacLocalApp,
   connectorId: string,
-  mode: ConnectorAdapter["mode"]
+  mode: "read_only"
 ): Promise<DiscoveryRun> {
-  if (mode !== "read_only") {
-    throw new Error("Phase 2 connector discovery supports read_only mode only");
-  }
-
   const connector = getConnector(app, connectorId);
   const startedAt = app.now();
+  const runSequence = app.store.listDiscoveryRuns({ connectorId }).length + 1;
+  const runKey = `${connectorId}:${compactTimestamp(startedAt)}:${runSequence}`;
   connector.mode = mode;
   const subjects = await connector.discoverSubjects();
   const resources = await connector.discoverResources();
@@ -141,7 +142,7 @@ export async function syncConnector(
 
   const completedAt = app.now();
   const run: DiscoveryRun = {
-    id: `discovery:${connectorId}:${compactTimestamp(startedAt)}`,
+    id: `discovery:${runKey}`,
     connectorId,
     mode: "read_only",
     status: "completed",
@@ -162,7 +163,7 @@ export async function syncConnector(
   const auditEvent = recordAudit(app, {
     eventType: "connector.discovery_completed",
     actor: app.actor,
-    correlationId: `corr:connector-discovery:${connectorId}:${compactTimestamp(startedAt)}`,
+    correlationId: `corr:connector-discovery:${runKey}`,
     payload: {
       action: "connector.discovery.read_only",
       connectorId,
@@ -176,6 +177,28 @@ export async function syncConnector(
   const completedRun = { ...run, auditEventIds: [auditEvent.eventId] };
   app.store.recordDiscoveryRun(completedRun);
   return completedRun;
+}
+
+export function readNativeAccess(app: RebacLocalApp, resourceId: string, filter: NativeAccessFilter = {}): NativeGrant[] {
+  const grants = app.store.listNativeGrants({
+    targetObjectId: resourceId,
+    ...filter
+  });
+
+  recordAudit(app, {
+    eventType: "connector.current_access_read",
+    actor: app.actor,
+    resourceId,
+    correlationId: `corr:connector-current-access:${resourceId}:${compactTimestamp(app.now())}`,
+    payload: {
+      action: "connector.current_access.read",
+      resourceId,
+      filters: filter,
+      resultCount: grants.length
+    }
+  });
+
+  return grants;
 }
 
 export async function createProvisioningPlan(

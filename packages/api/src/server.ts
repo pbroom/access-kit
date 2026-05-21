@@ -11,6 +11,7 @@ import {
   explainDecision,
   exportEvidence,
   putRelationship,
+  readNativeAccess,
   runReconciliation,
   syncConnector,
   type RebacLocalApp,
@@ -398,8 +399,7 @@ async function routeResources(
 
   if (segments[3] === "native-access" && request.method === "GET") {
     sendJson(response, 200, {
-      items: app.store.listNativeGrants({
-        targetObjectId: resourceId,
+      items: readNativeAccess(app, resourceId, {
         sourceConnectorId: url.searchParams.get("connectorId") ?? undefined,
         subjectId: url.searchParams.get("subjectId") ?? undefined,
         nativePermission: url.searchParams.get("nativePermission") ?? undefined

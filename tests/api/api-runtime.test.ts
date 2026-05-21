@@ -284,6 +284,19 @@ describe("ReBAC API runtime", () => {
       })
     ]);
     expect(audit.items.map((event) => event.eventType)).toContain("connector.discovery_completed");
+    expect(audit.items.map((event) => event.eventType)).toContain("connector.current_access_read");
+  });
+
+  it("keeps repeated discovery runs distinct under fixed timestamps", async () => {
+    const app = createRebacLocalApp({ now: () => "2026-05-21T17:00:00.000Z" });
+    await restartServer({ app });
+
+    const first = await post<{ id: string }>("/v1/connectors/mock/sync", { mode: "read_only" });
+    const second = await post<{ id: string }>("/v1/connectors/mock/sync", { mode: "read_only" });
+    const runs = app.store.listDiscoveryRuns({ connectorId: "mock" });
+
+    expect(first.id).not.toBe(second.id);
+    expect(runs.map((run) => run.id)).toEqual([first.id, second.id]);
   });
 
   it("rejects connector sync modes outside Phase 2 read-only discovery", async () => {
