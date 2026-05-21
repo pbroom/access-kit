@@ -20,6 +20,18 @@ export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
 }
 
+const maxRequestBodyBytes = 1024 * 1024;
+
+class HttpError extends Error {
+  constructor(
+    readonly statusCode: number,
+    readonly code: string,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
 export function createRebacApiServer(options: RebacApiServerOptions = {}): Server {
   const app = options.app ?? createRebacLocalApp(options);
 
@@ -27,6 +39,15 @@ export function createRebacApiServer(options: RebacApiServerOptions = {}): Serve
     try {
       await routeRequest(app, request, response);
     } catch (error) {
+      if (error instanceof HttpError) {
+        sendJson(response, error.statusCode, {
+          code: error.code,
+          message: error.message,
+          correlationId: "corr:bad-request"
+        });
+        return;
+      }
+
       sendJson(response, 500, {
         code: "INTERNAL_ERROR",
         message: error instanceof Error ? error.message : "Unknown error",
@@ -133,7 +154,17 @@ async function routeDecision(
   }
 
   if (segments[2] === "batch-check") {
-    const batch = await readJson<{ requests: DecisionRequest[] }>(request);
+    const batch = await readJson<unknown>(request);
+
+    if (!isDecisionBatch(batch)) {
+      sendJson(response, 400, {
+        code: "INVALID_BATCH_REQUESTS",
+        message: "batch-check requires a requests array of decision requests",
+        correlationId: "corr:bad-request"
+      });
+      return;
+    }
+
     sendJson(response, 200, { results: batch.requests.map((item) => checkDecision(app, item)) });
     return;
   }
@@ -351,13 +382,47 @@ async function routeConnectors(
 
 async function readJson<T>(request: IncomingMessage): Promise<T> {
   const chunks: Buffer[] = [];
+  let bytesRead = 0;
 
   for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    bytesRead += buffer.byteLength;
+
+    if (bytesRead > maxRequestBodyBytes) {
+      throw new HttpError(413, "REQUEST_BODY_TOO_LARGE", `Request body exceeds ${maxRequestBodyBytes} bytes`);
+    }
+
+    chunks.push(buffer);
   }
 
   const body = Buffer.concat(chunks).toString("utf8");
-  return (body ? JSON.parse(body) : {}) as T;
+
+  try {
+    return (body ? JSON.parse(body) : {}) as T;
+  } catch {
+    throw new HttpError(400, "INVALID_JSON", "Request body must be valid JSON");
+  }
+}
+
+function isDecisionBatch(value: unknown): value is { requests: DecisionRequest[] } {
+  if (!isRecord(value) || !Array.isArray(value.requests)) {
+    return false;
+  }
+
+  return value.requests.every(isDecisionRequest);
+}
+
+function isDecisionRequest(value: unknown): value is DecisionRequest {
+  return (
+    isRecord(value) &&
+    typeof value.subjectId === "string" &&
+    typeof value.action === "string" &&
+    typeof value.resourceId === "string"
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function sendJson(response: ServerResponse, statusCode: number, body: unknown): void {

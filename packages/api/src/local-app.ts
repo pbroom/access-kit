@@ -45,7 +45,7 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
   const actor = options.actor ?? "service:api";
   const store = new InMemoryRebacStore(createLocalEngineSeed());
   const auditRecorder = new AuditRecorder();
-  const engine = new RebacDecisionEngine(store, { now, actor: "service:decision-api", auditRecorder });
+  const engine = new RebacDecisionEngine(store, { now, actor, auditRecorder });
   const connectors = new Map<string, ConnectorAdapter>([["mock", new MockConnector()]]);
 
   return {
@@ -203,14 +203,19 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
 }
 
 export function exportEvidence(app: RebacLocalApp, controls: string[], format: EvidenceExport["format"]): EvidenceExport {
+  const generatedAt = app.now();
   const events = app.store.listAuditEvents();
+  const periodStart = events
+    .map((event) => event.occurredAt)
+    .sort()
+    .at(0) ?? generatedAt;
   const exportMetadata: EvidenceExport = {
-    exportId: `evidence:${app.now().replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`,
+    exportId: `evidence:${generatedAt.replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`,
     framework: "nist-800-53",
     controls,
-    periodStart: "2026-05-01T00:00:00.000Z",
-    periodEnd: app.now(),
-    generatedAt: app.now(),
+    periodStart,
+    periodEnd: generatedAt,
+    generatedAt,
     evidenceTypes: ["audit_events", "decision_logs", "provisioning_plans", "drift_findings"],
     sourceEventIds: events.map((event) => event.eventId),
     responsibleRole: "ISSO",
