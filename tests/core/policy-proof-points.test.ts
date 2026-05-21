@@ -29,6 +29,7 @@ describe("policy proof points", () => {
     expect(names).toContain("deny unsupported action despite read relationship");
     expect(names).toContain("allow through relationship path");
     expect(names).toContain("allow through transitive reader relationship path");
+    expect(names).toContain("allow through nested container relationship path");
     expect(names).toContain("allow through admin relationship path");
     expect(names).toContain("deny override beats allow path");
     expect(names).toContain("expired access is denied");

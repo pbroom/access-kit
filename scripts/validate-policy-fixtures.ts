@@ -22,7 +22,10 @@ const validDriftRecommendedActions = new Set<DriftFinding["recommendedAction"]>(
 
 const requiredProofPointNames = new Set([
   "deny by default without relationship path",
+  "deny unsupported action despite read relationship",
   "allow through relationship path",
+  "allow through transitive reader relationship path",
+  "allow through nested container relationship path",
   "allow through admin relationship path",
   "deny override beats allow path",
   "expired access is denied",
