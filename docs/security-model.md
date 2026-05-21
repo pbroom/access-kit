@@ -16,6 +16,10 @@ Internal administration must be governed by the same deterministic ReBAC model. 
 
 Live connector credentials are not part of this milestone. Future connector credentials must use managed identities where possible, vault-backed secrets where needed, documented rotation, and no secret material in logs, fixtures, reports, or CI variables.
 
+## Read-Only Discovery
+
+Phase 2 connector sync is restricted to `read_only`. It may discover inventory and observed native grants through connector adapters, but it must not apply provider mutations, create native grants, revoke native grants, or treat provider readback as intended access.
+
 ## Fail Behavior
 
 - Sensitive resources fail closed when the decision service is unavailable.

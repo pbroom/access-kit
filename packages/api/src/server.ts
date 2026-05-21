@@ -16,7 +16,7 @@ import {
   type RebacLocalApp,
   type RebacLocalAppOptions
 } from "./local-app.js";
-import type { ConnectorAdapter, DecisionRequest, DriftSeverity, RelationshipTuple, Resource, Subject } from "@access-kit/core";
+import type { DecisionRequest, DriftSeverity, RelationshipTuple, Resource, Subject } from "@access-kit/core";
 
 export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
@@ -38,7 +38,6 @@ interface ProvisioningJobRequest {
 
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
-const connectorModes = new Set(["read_only", "simulation", "dry_run", "enforcement"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
 
 class HttpError extends Error {
@@ -106,7 +105,7 @@ async function routeRequest(
   }
 
   if (segments[1] === "resources") {
-    await routeResources(app, request, response, segments);
+    await routeResources(app, request, response, url, segments);
     return;
   }
 
@@ -361,6 +360,7 @@ async function routeResources(
   app: RebacLocalApp,
   request: IncomingMessage,
   response: ServerResponse,
+  url: URL,
   segments: string[]
 ): Promise<void> {
   if (segments.length === 2 && request.method === "GET") {
@@ -392,6 +392,18 @@ async function routeResources(
   if (segments[3] === "access" && request.method === "GET") {
     sendJson(response, 200, {
       items: app.store.listDecisions().filter((decision) => decision.resourceId === resourceId)
+    });
+    return;
+  }
+
+  if (segments[3] === "native-access" && request.method === "GET") {
+    sendJson(response, 200, {
+      items: app.store.listNativeGrants({
+        targetObjectId: resourceId,
+        sourceConnectorId: url.searchParams.get("connectorId") ?? undefined,
+        subjectId: url.searchParams.get("subjectId") ?? undefined,
+        nativePermission: url.searchParams.get("nativePermission") ?? undefined
+      })
     });
     return;
   }
@@ -526,17 +538,7 @@ async function routeConnectors(
 
   if (segments[3] === "sync" && request.method === "POST") {
     const body = await readJson<{ mode?: unknown }>(request);
-    const mode = body.mode ?? "read_only";
-
-    if (!isConnectorMode(mode)) {
-      throw new HttpError(
-        400,
-        "INVALID_CONNECTOR_MODE",
-        "mode must be one of read_only, simulation, dry_run, or enforcement"
-      );
-    }
-
-    sendJson(response, 202, await syncConnector(app, connectorId, mode));
+    sendJson(response, 202, await syncConnector(app, connectorId, readDiscoveryMode(body.mode)));
     return;
   }
 
@@ -664,16 +666,24 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return isRecord(value) && Object.values(value).every((item) => typeof item === "string");
 }
 
+function readDiscoveryMode(mode: unknown): "read_only" {
+  if (mode === "read_only") {
+    return "read_only";
+  }
+
+  if (mode === undefined) {
+    throw new HttpError(400, "MISSING_CONNECTOR_MODE", "connector sync mode is required and must be read_only");
+  }
+
+  throw new HttpError(400, "UNSUPPORTED_CONNECTOR_MODE", "Phase 2 connector sync supports read_only mode only");
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function isEvidenceFormat(value: unknown): value is "json" | "zip" | "markdown" {
   return typeof value === "string" && evidenceFormats.has(value);
-}
-
-function isConnectorMode(value: unknown): value is ConnectorAdapter["mode"] {
-  return typeof value === "string" && connectorModes.has(value);
 }
 
 function readDriftSeverity(value: string | null): DriftSeverity | undefined {
@@ -697,7 +707,7 @@ function readOptionalDateTime(value: string | null, name: string): string | unde
     throw new HttpError(400, "INVALID_AUDIT_FILTER", `${name} must be a valid date-time`);
   }
 
-  return value;
+  return new Date(value).toISOString();
 }
 
 function sendJson(response: ServerResponse, statusCode: number, body: unknown): void {

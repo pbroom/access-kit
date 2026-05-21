@@ -15,7 +15,7 @@ const now = "2026-05-21T17:00:00.000Z";
 
 export class MockConnector implements ConnectorAdapter {
   id = "mock";
-  mode = "dry_run" as const;
+  mode: ConnectorAdapter["mode"] = "read_only";
   capabilities = {
     supportsDiscovery: true,
     supportsProvisioning: true,

@@ -8,6 +8,7 @@ import {
   type AuditEventInput,
   type ConnectorAdapter,
   type DecisionRequest,
+  type DiscoveryRun,
   type DriftFinding,
   type EvidenceExport,
   type JsonRecord,
@@ -29,15 +30,6 @@ export interface RebacLocalApp {
   connectors: Map<string, ConnectorAdapter>;
   now: () => string;
   actor: string;
-}
-
-export interface ConnectorSyncResult {
-  connectorId: string;
-  mode: ConnectorAdapter["mode"];
-  subjects: number;
-  resources: number;
-  relationships: number;
-  nativeGrants: number;
 }
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
@@ -124,8 +116,13 @@ export async function syncConnector(
   app: RebacLocalApp,
   connectorId: string,
   mode: ConnectorAdapter["mode"]
-): Promise<ConnectorSyncResult> {
+): Promise<DiscoveryRun> {
+  if (mode !== "read_only") {
+    throw new Error("Phase 2 connector discovery supports read_only mode only");
+  }
+
   const connector = getConnector(app, connectorId);
+  const startedAt = app.now();
   connector.mode = mode;
   const subjects = await connector.discoverSubjects();
   const resources = await connector.discoverResources();
@@ -142,26 +139,43 @@ export async function syncConnector(
     nativeGrants += grants.length;
   }
 
-  const result = {
+  const completedAt = app.now();
+  const run: DiscoveryRun = {
+    id: `discovery:${connectorId}:${compactTimestamp(startedAt)}`,
     connectorId,
-    mode,
-    subjects: subjects.length,
-    resources: resources.length,
-    relationships: relationships.length,
-    nativeGrants
+    mode: "read_only",
+    status: "completed",
+    startedAt,
+    completedAt,
+    counts: {
+      subjects: subjects.length,
+      resources: resources.length,
+      relationships: relationships.length,
+      nativeGrants
+    },
+    auditEventIds: [],
+    version: "discovery-run:v1",
+    createdAt: startedAt,
+    updatedAt: completedAt
   };
 
-  recordAudit(app, {
-    eventType: "admin.action_performed",
+  const auditEvent = recordAudit(app, {
+    eventType: "connector.discovery_completed",
     actor: app.actor,
-    correlationId: `corr:connector-sync:${connectorId}:${app.now()}`,
+    correlationId: `corr:connector-discovery:${connectorId}:${compactTimestamp(startedAt)}`,
     payload: {
-      action: "connector.sync",
-      result
+      action: "connector.discovery.read_only",
+      connectorId,
+      mode: run.mode,
+      status: run.status,
+      counts: run.counts,
+      discoveryRunId: run.id
     }
   });
 
-  return result;
+  const completedRun = { ...run, auditEventIds: [auditEvent.eventId] };
+  app.store.recordDiscoveryRun(completedRun);
+  return completedRun;
 }
 
 export async function createProvisioningPlan(
@@ -301,4 +315,8 @@ function getDefaultConnectorId(app: RebacLocalApp): string {
 
 function asJsonRecord(value: object): JsonRecord {
   return value as unknown as JsonRecord;
+}
+
+function compactTimestamp(timestamp: string): string {
+  return timestamp.replaceAll(/[^0-9a-z]/gi, "").toLowerCase();
 }

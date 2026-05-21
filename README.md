@@ -1,6 +1,6 @@
 # Access Kit
 
-Access Kit is the foundation for an ATO-ready ReBAC authorization control plane. This first milestone is intentionally API-first and CLI-first: it defines the contracts, domain model, validation evidence, and mock connector boundary before any live Entra ID, Active Directory, SharePoint, AWS, Power Platform, or dashboard work.
+Access Kit is the foundation for an ATO-ready ReBAC authorization control plane. The foundation is intentionally API-first and CLI-first: it defines the contracts, domain model, validation evidence, and mock connector boundary before any live Entra ID, Active Directory, SharePoint, AWS, Power Platform, or dashboard work.
 
 ## First Milestone
 
@@ -11,7 +11,7 @@ This repository currently delivers:
 - JSON Schemas for core domain and evidence objects.
 - CLI command contract for operators, CI/CD, and assessors.
 - Mock connector interface and deterministic sample implementation.
-- Local in-memory API runtime for Phase 1 check, explain, inventory, relationship, connector sync, reconciliation, audit, and evidence flows.
+- Local in-memory API runtime for check, explain, inventory, relationship, read-only connector discovery, native-grant readback, reconciliation, audit, and evidence flows.
 - CLI commands that call the API instead of evaluating authorization locally.
 - Policy proof-point fixtures for deny/default, relationship allow, deny override, expiration, suspension, idempotency, and drift.
 - Architecture, security, ATO evidence, CLI, API, and ADR documentation.

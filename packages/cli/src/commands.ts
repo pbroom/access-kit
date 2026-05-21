@@ -22,6 +22,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "resource discover", description: "Discover resources from a connector.", apiSurface: "POST /v1/connectors/{id}/sync" },
   { path: "resource get", description: "Inspect a canonical resource.", apiSurface: "GET /v1/resources/{id}" },
   { path: "resource access", description: "Explain resource access paths.", apiSurface: "GET /v1/resources/{id}/access" },
+  { path: "resource native-access", description: "Inspect observed native grants for a resource.", apiSurface: "GET /v1/resources/{id}/native-access" },
   { path: "relation set", description: "Create or replace a relationship tuple.", apiSurface: "PUT /v1/relationships" },
   { path: "relation delete", description: "Delete a relationship tuple.", apiSurface: "DELETE /v1/relationships" },
   { path: "relation path", description: "Show relationship paths between subject and resource.", apiSurface: "GET /v1/relationships" },
@@ -87,6 +88,11 @@ interface ReconcileFindingsOptions {
   severity?: string;
 }
 
+interface NativeAccessOptions extends CommandWithConnector {
+  subject?: string;
+  permission?: string;
+}
+
 interface AuditSearchOptions {
   subject?: string;
   resource?: string;
@@ -150,6 +156,24 @@ function addResourceCommands(program: Command, context: CliContext): void {
   const access = resource.command("access").argument("<resource-id>");
   access.action(withApi(context, access, (client, args) => {
     return client.get(`/v1/resources/${encodeURIComponent(readString(args, 0, "resource-id"))}/access`);
+  }));
+
+  const nativeAccess = resource
+    .command("native-access")
+    .argument("<resource-id>")
+    .option("--connector <id>")
+    .option("--subject <id>")
+    .option("--permission <permission>");
+  nativeAccess.action(withApi(context, nativeAccess, (client, args) => {
+    const options = nativeAccess.opts<NativeAccessOptions>();
+    const params = new URLSearchParams();
+    if (options.connector) params.set("connectorId", options.connector);
+    if (options.subject) params.set("subjectId", options.subject);
+    if (options.permission) params.set("nativePermission", options.permission);
+    const query = params.toString();
+    return client.get(
+      `/v1/resources/${encodeURIComponent(readString(args, 0, "resource-id"))}/native-access${query ? `?${query}` : ""}`
+    );
   }));
 }
 

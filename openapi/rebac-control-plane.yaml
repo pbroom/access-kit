@@ -4,9 +4,9 @@ info:
   version: 0.1.0
   summary: API-first contract for an ATO-ready ReBAC authorization control plane.
   description: >
-    Deterministic, explainable, versioned ReBAC control-plane API. The first milestone
-    defines contracts only; live Microsoft, AWS, SharePoint, AD, and Power Platform
-    enforcement are deferred.
+    Deterministic, explainable, versioned ReBAC control-plane API. The foundation
+    supports local decisions and read-only mock discovery; live Microsoft, AWS,
+    SharePoint, AD, and Power Platform enforcement are deferred.
 servers:
   - url: https://rebac.example.gov
     description: Placeholder production boundary
@@ -257,6 +257,32 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AccessView"
+  /v1/resources/{id}/native-access:
+    get:
+      tags: [resources]
+      summary: Inspect observed native grants discovered for a resource.
+      operationId: getResourceNativeAccess
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: connectorId
+          in: query
+          schema:
+            type: string
+        - name: subjectId
+          in: query
+          schema:
+            type: string
+        - name: nativePermission
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Observed native access readback.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NativeAccessView"
   /v1/relationships:
     get:
       tags: [relationships]
@@ -672,7 +698,7 @@ paths:
   /v1/connectors/{id}/sync:
     post:
       tags: [connectors]
-      summary: Run connector discovery, simulation, dry-run, or enforcement sync.
+      summary: Run read-only connector discovery and current-access readback.
       operationId: syncConnector
       parameters:
         - $ref: "#/components/parameters/Id"
@@ -688,14 +714,14 @@ paths:
               properties:
                 mode:
                   type: string
-                  enum: [read_only, simulation, dry_run, enforcement]
+                  enum: [read_only]
       responses:
         "202":
-          description: Connector sync accepted.
+          description: Connector discovery completed.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReconciliationRun"
+                $ref: "#/components/schemas/DiscoveryRun"
 components:
   parameters:
     Id:
@@ -764,6 +790,19 @@ components:
           type: array
           items:
             $ref: "../schemas/decision.schema.json"
+    NativeAccessView:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/NativeGrant"
+    NativeGrant:
+      $ref: "../schemas/native-grant.schema.json"
+    DiscoveryRun:
+      $ref: "../schemas/discovery-run.schema.json"
     PolicyDraft:
       type: object
       additionalProperties: false

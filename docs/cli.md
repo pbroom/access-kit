@@ -14,6 +14,7 @@ rebac subject access user:123
 rebac resource discover --connector sharepoint
 rebac resource get document:case-plan
 rebac resource access document:case-plan
+rebac resource native-access document:case-plan --connector mock
 
 rebac relation set user:123 member_of group:case-team
 rebac relation delete user:123 member_of group:case-team
@@ -41,6 +42,8 @@ rebac connector test mock
 rebac connector sync mock --mode read_only
 ```
 
-## Phase 1 Runtime
+## Phase 2 Runtime
 
 The package exposes the command tree and calls the API over HTTP. Use `--api-url` or `REBAC_API_URL` to point the CLI at a running local or deployed control-plane API. Authorization logic stays in the API/core engine; the CLI is only an operator wrapper.
+
+Read-only discovery uses `rebac connector sync mock --mode read_only`. Provider readback can then be inspected with `rebac resource native-access`, which returns observed native grants rather than intended grants or policy decisions.

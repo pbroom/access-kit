@@ -1,0 +1,12 @@
+{
+  "id": "native-grant:document:case-plan:alice",
+  "targetPlatform": "mock",
+  "targetObjectId": "document:case-plan",
+  "subjectId": "user:alice",
+  "nativePermission": "read",
+  "sourceConnectorId": "mock",
+  "status": "observed",
+  "observedAt": "2026-05-21T17:00:00.000Z",
+  "version": "native-grant:v1",
+  "createdAt": "2026-05-21T17:00:00.000Z"
+}

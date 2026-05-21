@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/discovery-run.schema.json",
+  "title": "DiscoveryRun",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "connectorId",
+    "mode",
+    "status",
+    "startedAt",
+    "counts",
+    "auditEventIds",
+    "version",
+    "createdAt"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "connectorId": { "type": "string", "minLength": 1 },
+    "mode": { "type": "string", "enum": ["read_only"] },
+    "status": { "type": "string", "enum": ["queued", "running", "completed", "failed"] },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subjects", "resources", "relationships", "nativeGrants"],
+      "properties": {
+        "subjects": { "type": "integer", "minimum": 0 },
+        "resources": { "type": "integer", "minimum": 0 },
+        "relationships": { "type": "integer", "minimum": 0 },
+        "nativeGrants": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "auditEventIds": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+    },
+    "version": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}

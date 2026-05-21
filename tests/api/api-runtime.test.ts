@@ -255,15 +255,67 @@ describe("ReBAC API runtime", () => {
     expect(body.code).toBe("INVALID_EVIDENCE_FORMAT");
   });
 
-  it("runs mock connector sync and dry-run reconciliation", async () => {
-    const sync = await post<{ connectorId: string; subjects: number }>("/v1/connectors/mock/sync", { mode: "read_only" });
+  it("runs read-only mock connector discovery and exposes native access readback", async () => {
+    const sync = await post<{
+      connectorId: string;
+      mode: string;
+      status: string;
+      counts: { subjects: number; resources: number; relationships: number; nativeGrants: number };
+      auditEventIds: string[];
+    }>("/v1/connectors/mock/sync", { mode: "read_only" });
+    const nativeAccess = await get<{ items: Array<{ subjectId: string; nativePermission: string; sourceConnectorId: string }> }>(
+      "/v1/resources/document%3Acase-plan/native-access?connectorId=mock"
+    );
+    const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(sync.connectorId).toBe("mock");
+    expect(sync.mode).toBe("read_only");
+    expect(sync.status).toBe("completed");
+    expect(sync.counts.subjects).toBeGreaterThan(0);
+    expect(sync.counts.resources).toBeGreaterThan(0);
+    expect(sync.counts.relationships).toBeGreaterThan(0);
+    expect(sync.counts.nativeGrants).toBe(1);
+    expect(sync.auditEventIds).toHaveLength(1);
+    expect(nativeAccess.items).toEqual([
+      expect.objectContaining({
+        subjectId: "user:alice",
+        nativePermission: "read",
+        sourceConnectorId: "mock"
+      })
+    ]);
+    expect(audit.items.map((event) => event.eventType)).toContain("connector.discovery_completed");
+  });
+
+  it("rejects connector sync modes outside Phase 2 read-only discovery", async () => {
+    const response = await fetch(`${baseUrl}/v1/connectors/mock/sync`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "enforcement" })
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("UNSUPPORTED_CONNECTOR_MODE");
+  });
+
+  it("requires connector sync callers to request read-only mode explicitly", async () => {
+    const response = await fetch(`${baseUrl}/v1/connectors/mock/sync`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({})
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("MISSING_CONNECTOR_MODE");
+  });
+
+  it("runs dry-run reconciliation", async () => {
     const reconciliation = await post<{ status: string; findings: unknown[] }>("/v1/reconciliation/run", {
       connectorId: "mock",
       dryRun: true
     });
 
-    expect(sync.connectorId).toBe("mock");
-    expect(sync.subjects).toBeGreaterThan(0);
     expect(reconciliation.status).toBe("completed");
     expect(reconciliation.findings).toHaveLength(1);
   });

@@ -60,7 +60,26 @@ describe("CLI API wrapper", () => {
     expect(lastOutput()).toMatchObject({
       connectorId: "mock",
       mode: "read_only",
-      subjects: 1
+      counts: {
+        subjects: 1,
+        nativeGrants: 1
+      }
+    });
+  });
+
+  it("inspects observed native access through the API", async () => {
+    await runCli("connector", "sync", "mock", "--mode", "read_only");
+    await runCli("resource", "native-access", "document:case-plan", "--connector", "mock");
+
+    expect(lastOutput()).toMatchObject({
+      items: [
+        {
+          targetObjectId: "document:case-plan",
+          subjectId: "user:alice",
+          nativePermission: "read",
+          sourceConnectorId: "mock"
+        }
+      ]
     });
   });
 
@@ -115,6 +134,42 @@ describe("CLI API wrapper", () => {
         status: "applied"
       }
     });
+  });
+
+  it("forwards native access filters to the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      "resource",
+      "native-access",
+      "document:case-plan",
+      "--connector",
+      "mock",
+      "--subject",
+      "user:alice",
+      "--permission",
+      "read"
+    );
+
+    expect(requests.at(-1)?.url).toBe(
+      "http://api.example/v1/resources/document%3Acase-plan/native-access?connectorId=mock&subjectId=user%3Aalice&nativePermission=read"
+    );
+  });
+
+  it("reports unsupported connector sync modes through the CLI", async () => {
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    try {
+      await runCli("connector", "sync", "mock", "--mode", "enforcement");
+
+      expect(process.exitCode).toBe(1);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("UNSUPPORTED_CONNECTOR_MODE"));
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
   });
 
   it("sends distinct idempotency keys for different mutations", async () => {

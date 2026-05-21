@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/native-grant.schema.json",
+  "title": "NativeGrant",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "targetPlatform",
+    "targetObjectId",
+    "subjectId",
+    "nativePermission",
+    "sourceConnectorId",
+    "status",
+    "observedAt",
+    "version",
+    "createdAt"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "targetPlatform": { "type": "string", "minLength": 1 },
+    "targetObjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "nativePermission": { "type": "string", "minLength": 1 },
+    "sourceConnectorId": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["observed", "managed", "revoked", "unknown"] },
+    "observedAt": { "type": "string", "format": "date-time" },
+    "version": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" }
+  }
+}
