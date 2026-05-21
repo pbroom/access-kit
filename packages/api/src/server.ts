@@ -20,6 +20,10 @@ export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
 }
 
+interface ProvisioningPlanRequest extends DecisionRequest {
+  connectorId?: unknown;
+}
+
 const maxRequestBodyBytes = 1024 * 1024;
 
 class HttpError extends Error {
@@ -97,8 +101,14 @@ async function routeRequest(
   }
 
   if (segments[1] === "provisioning" && segments[2] === "plans" && method === "POST") {
-    const body = await readJson<DecisionRequest>(request);
-    sendJson(response, 201, await createProvisioningPlan(app, body));
+    const body = await readJson<ProvisioningPlanRequest>(request);
+
+    if (body.connectorId !== undefined && (typeof body.connectorId !== "string" || !body.connectorId)) {
+      throw new HttpError(400, "INVALID_CONNECTOR_ID", "connectorId must be a non-empty string when provided");
+    }
+
+    const connectorId = typeof body.connectorId === "string" ? body.connectorId : undefined;
+    sendJson(response, 201, await createProvisioningPlan(app, body, connectorId));
     return;
   }
 

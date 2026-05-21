@@ -2,7 +2,11 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createRebacApiServer, type RebacApiServerOptions } from "../../packages/api/src/index.js";
+import {
+  createRebacApiServer,
+  createRebacLocalApp,
+  type RebacApiServerOptions
+} from "../../packages/api/src/index.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -175,6 +179,46 @@ describe("ReBAC API runtime", () => {
     expect(sync.subjects).toBeGreaterThan(0);
     expect(reconciliation.status).toBe("completed");
     expect(reconciliation.findings).toHaveLength(1);
+  });
+
+  it("uses the registered connector map for provisioning plans", async () => {
+    const app = createRebacLocalApp({ now: () => "2026-05-21T17:00:00.000Z" });
+    const connector = app.connectors.get("mock");
+    expect(connector).toBeDefined();
+
+    if (!connector) {
+      return;
+    }
+
+    app.connectors.delete("mock");
+    app.connectors.set("renamed-mock", connector);
+    await restartServer({ app });
+
+    const plan = await post<{ status: string; actions: unknown[] }>("/v1/provisioning/plans", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(plan.status).toBe("planned");
+    expect(plan.actions).toHaveLength(1);
+  });
+
+  it("validates provisioning connector IDs when provided", async () => {
+    const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        connectorId: ""
+      })
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("INVALID_CONNECTOR_ID");
   });
 
   it("validates reconciliation run connector IDs", async () => {

@@ -166,9 +166,10 @@ export async function syncConnector(
 
 export async function createProvisioningPlan(
   app: RebacLocalApp,
-  request: DecisionRequest
+  request: DecisionRequest,
+  connectorId = getDefaultConnectorId(app)
 ): Promise<ProvisioningPlan> {
-  const connector = getConnector(app, "mock");
+  const connector = getConnector(app, connectorId);
   const decision = app.engine.explain(request);
   const plan = await connector.planProvisioningChange(decision);
   app.store.upsertProvisioningPlan(plan);
@@ -246,6 +247,16 @@ function getConnector(app: RebacLocalApp, connectorId: string): ConnectorAdapter
   }
 
   return connector;
+}
+
+function getDefaultConnectorId(app: RebacLocalApp): string {
+  const connectorId = app.connectors.keys().next().value;
+
+  if (!connectorId) {
+    throw new Error("No connectors are registered");
+  }
+
+  return connectorId;
 }
 
 function asJsonRecord(value: object): JsonRecord {
