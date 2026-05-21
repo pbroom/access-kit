@@ -1,6 +1,6 @@
 # Outstanding Requirements
 
-The current implementation supports local policy decisions, mock connector read-only discovery, observed native-grant readback, dry-run planning, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
+The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run planning, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
 
 ## Runtime
 
@@ -13,9 +13,8 @@ The current implementation supports local policy decisions, mock connector read-
 ## Connectors
 
 - Complete security review for connector identity and least-privilege scopes.
-- Add read-only Entra ID discovery.
-- Add read-only SharePoint discovery.
-- Add read-only AWS discovery.
+- Replace synthetic Entra ID, SharePoint, and AWS-style adapters with live read-only connectors after security review.
+- Define live connector consent, tenant boundary, pagination, throttling, and deletion semantics.
 - Persist discovery runs and native grants outside the local in-memory store.
 - Add simulation and dry-run reconciliation before enforcement.
 - Add controlled enforcement only after approvals, verification, rollback, and operational runbooks exist.

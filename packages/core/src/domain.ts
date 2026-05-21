@@ -37,7 +37,19 @@ export type LifecycleState =
 export type DecisionValue = "allow" | "deny";
 export type DriftSeverity = "low" | "medium" | "high" | "critical";
 export type ConnectorMode = "read_only" | "simulation" | "dry_run" | "enforcement";
-export type DiscoveryRunStatus = "queued" | "running" | "completed" | "failed";
+export type DiscoveryRunStatus = "queued" | "running" | "completed" | "completed_with_warnings" | "failed";
+export type DiscoveryWarningSeverity = "info" | "warning" | "error";
+export type DiscoveryWarningScope = "connector" | "subjects" | "resources" | "relationships" | "native_grants";
+export type NativeGrantType = "direct" | "inherited" | "group";
+export type NativePrincipalType =
+  | "user"
+  | "group"
+  | "service_account"
+  | "service_principal"
+  | "managed_identity"
+  | "external_user"
+  | "unknown";
+export type ValidationCheckStatus = "pass" | "warn" | "fail";
 
 export interface VersionedEntity {
   id: CanonicalId;
@@ -126,10 +138,15 @@ export interface NativeGrant extends VersionedEntity {
   targetPlatform: string;
   targetObjectId: CanonicalId;
   subjectId: CanonicalId;
+  principalType: NativePrincipalType;
   nativePermission: string;
+  grantType: NativeGrantType;
   sourceConnectorId: string;
   status: "observed" | "managed" | "revoked" | "unknown";
   observedAt: IsoDateTime;
+  inheritedFromObjectId?: CanonicalId;
+  expiresAt?: IsoDateTime;
+  attributes?: JsonRecord;
 }
 
 export interface DiscoveryRunCounts {
@@ -137,6 +154,30 @@ export interface DiscoveryRunCounts {
   resources: number;
   relationships: number;
   nativeGrants: number;
+  warnings: number;
+}
+
+export interface DiscoveryRunWarning {
+  code: string;
+  message: string;
+  severity: DiscoveryWarningSeverity;
+  scope: DiscoveryWarningScope;
+  retryable: boolean;
+  objectId?: CanonicalId;
+}
+
+export interface DiscoveryCursor {
+  startedFrom?: string;
+  next?: string;
+  highWatermark: string;
+  deletedObjectBehavior: "mark_deleted" | "ignore" | "unsupported";
+}
+
+export interface DiscoveryEvidence {
+  readOnly: boolean;
+  schemas: string[];
+  connectorCapabilities: string[];
+  nativeAccessReadback: boolean;
 }
 
 export interface DiscoveryRun extends VersionedEntity {
@@ -146,6 +187,9 @@ export interface DiscoveryRun extends VersionedEntity {
   startedAt: IsoDateTime;
   completedAt?: IsoDateTime;
   counts: DiscoveryRunCounts;
+  warnings: DiscoveryRunWarning[];
+  cursor?: DiscoveryCursor;
+  evidence: DiscoveryEvidence;
   auditEventIds: CanonicalId[];
 }
 
@@ -220,14 +264,35 @@ export interface ConnectorCapabilities {
   supportsTimeBoundAccess: boolean;
 }
 
+export interface ConnectorHealthCheck {
+  name: string;
+  status: ValidationCheckStatus;
+  message?: string;
+  evidence?: JsonRecord;
+}
+
+export interface ConnectorDiscoveryMetadata {
+  provider: string;
+  tenantBoundary: string;
+  requiredReadScopes: string[];
+  synthetic: boolean;
+  warnings: DiscoveryRunWarning[];
+  cursor?: DiscoveryCursor;
+}
+
 export interface ConnectorAdapter {
   id: string;
   mode: ConnectorMode;
   capabilities: ConnectorCapabilities;
+  provider?: string;
+  tenantBoundary?: string;
+  requiredReadScopes?: string[];
   discoverSubjects(): Promise<Subject[]>;
   discoverResources(): Promise<Resource[]>;
   discoverRelationships(): Promise<RelationshipTuple[]>;
   readCurrentAccess(resourceId: CanonicalId): Promise<NativeGrant[]>;
+  testReadOnlyAccess?(): Promise<ConnectorHealthCheck[]>;
+  getDiscoveryMetadata?(): ConnectorDiscoveryMetadata;
   planProvisioningChange(request: DecisionResult): Promise<ProvisioningPlan>;
   applyProvisioningChange(plan: ProvisioningPlan): Promise<ProvisioningPlan>;
   verifyProvisioningChange(plan: ProvisioningPlan): Promise<boolean>;

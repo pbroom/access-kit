@@ -22,6 +22,7 @@ describe("CLI contract", () => {
     expect(paths).toContain("policy publish");
     expect(paths).toContain("provision plan");
     expect(paths).toContain("reconcile run");
+    expect(paths).toContain("discovery runs");
     expect(paths).toContain("audit search");
     expect(paths).toContain("evidence export");
     expect(paths).toContain("connector sync");
@@ -37,6 +38,7 @@ describe("CLI contract", () => {
     expect(help).toContain("policy");
     expect(help).toContain("provision");
     expect(help).toContain("reconcile");
+    expect(help).toContain("discovery");
     expect(help).toContain("audit");
     expect(help).toContain("evidence");
     expect(help).toContain("connector");

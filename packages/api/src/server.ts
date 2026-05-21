@@ -10,14 +10,25 @@ import {
   deleteRelationship,
   explainDecision,
   exportEvidence,
+  listDiscoveryRuns,
   putRelationship,
   readNativeAccess,
   runReconciliation,
   syncConnector,
+  testConnector,
   type RebacLocalApp,
   type RebacLocalAppOptions
 } from "./local-app.js";
-import type { DecisionRequest, DriftSeverity, RelationshipTuple, Resource, Subject } from "@access-kit/core";
+import type {
+  DecisionRequest,
+  DiscoveryRunStatus,
+  DriftSeverity,
+  NativeGrantType,
+  NativePrincipalType,
+  RelationshipTuple,
+  Resource,
+  Subject
+} from "@access-kit/core";
 
 export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
@@ -40,6 +51,9 @@ interface ProvisioningJobRequest {
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
+const discoveryStatuses = new Set(["queued", "running", "completed", "completed_with_warnings", "failed"]);
+const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
+const nativePrincipalTypes = new Set(["user", "group", "service_account", "service_principal", "managed_identity", "external_user", "unknown"]);
 
 class HttpError extends Error {
   constructor(
@@ -179,6 +193,11 @@ async function routeRequest(
 
   if (segments[1] === "reconciliation") {
     await routeReconciliation(app, request, response, url, segments);
+    return;
+  }
+
+  if (segments[1] === "discovery") {
+    await routeDiscovery(app, request, response, url, segments);
     return;
   }
 
@@ -402,7 +421,9 @@ async function routeResources(
       items: readNativeAccess(app, resourceId, {
         sourceConnectorId: url.searchParams.get("connectorId") ?? undefined,
         subjectId: url.searchParams.get("subjectId") ?? undefined,
-        nativePermission: url.searchParams.get("nativePermission") ?? undefined
+        nativePermission: url.searchParams.get("nativePermission") ?? undefined,
+        grantType: readNativeGrantType(url.searchParams.get("grantType")),
+        principalType: readNativePrincipalType(url.searchParams.get("principalType"))
       })
     });
     return;
@@ -499,6 +520,26 @@ async function routeReconciliation(
   notFound(response);
 }
 
+async function routeDiscovery(
+  app: RebacLocalApp,
+  request: IncomingMessage,
+  response: ServerResponse,
+  url: URL,
+  segments: string[]
+): Promise<void> {
+  if (segments[2] === "runs" && request.method === "GET") {
+    sendJson(response, 200, {
+      items: listDiscoveryRuns(app, {
+        connectorId: url.searchParams.get("connectorId") ?? undefined,
+        status: readDiscoveryStatus(url.searchParams.get("status"))
+      })
+    });
+    return;
+  }
+
+  notFound(response);
+}
+
 async function routeConnectors(
   app: RebacLocalApp,
   request: IncomingMessage,
@@ -510,6 +551,9 @@ async function routeConnectors(
       items: [...app.connectors.values()].map((connector) => ({
         id: connector.id,
         mode: connector.mode,
+        provider: connector.provider ?? connector.id,
+        tenantBoundary: connector.tenantBoundary ?? "synthetic:unknown",
+        requiredReadScopes: connector.requiredReadScopes ?? [],
         capabilities: connector.capabilities
       }))
     });
@@ -523,16 +567,7 @@ async function routeConnectors(
   }
 
   if (segments[3] === "test" && request.method === "POST") {
-    const connector = app.connectors.get(connectorId);
-    sendJson(response, 200, {
-      valid: Boolean(connector),
-      checks: [
-        {
-          name: "connector_registered",
-          status: connector ? "pass" : "fail"
-        }
-      ]
-    });
+    sendJson(response, 200, await testConnector(app, connectorId));
     return;
   }
 
@@ -676,6 +711,42 @@ function readDiscoveryMode(mode: unknown): "read_only" {
   }
 
   throw new HttpError(400, "UNSUPPORTED_CONNECTOR_MODE", "Phase 2 connector sync supports read_only mode only");
+}
+
+function readDiscoveryStatus(status: string | null): DiscoveryRunStatus | undefined {
+  if (!status) {
+    return undefined;
+  }
+
+  if (discoveryStatuses.has(status)) {
+    return status as DiscoveryRunStatus;
+  }
+
+  throw new HttpError(400, "INVALID_DISCOVERY_STATUS", "status must be a valid discovery run status");
+}
+
+function readNativeGrantType(grantType: string | null): NativeGrantType | undefined {
+  if (!grantType) {
+    return undefined;
+  }
+
+  if (nativeGrantTypes.has(grantType)) {
+    return grantType as NativeGrantType;
+  }
+
+  throw new HttpError(400, "INVALID_NATIVE_GRANT_TYPE", "grantType must be direct, inherited, or group");
+}
+
+function readNativePrincipalType(principalType: string | null): NativePrincipalType | undefined {
+  if (!principalType) {
+    return undefined;
+  }
+
+  if (nativePrincipalTypes.has(principalType)) {
+    return principalType as NativePrincipalType;
+  }
+
+  throw new HttpError(400, "INVALID_NATIVE_PRINCIPAL_TYPE", "principalType is not supported");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -1,10 +1,10 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-22T10:41:49.797Z
+Generated at: 2026-05-22T01:05:13.791Z
 
-Branch: codex/rebac-ci-contracts
+Branch: codex/rebac-phase2-complete
 
-Node: v24.4.1
+Node: v24.14.0
 
 pnpm: 10.30.3
 
@@ -28,14 +28,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-phase2-complete
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-phase2-complete
 > tsx scripts/validate-schemas.ts
 
 Validated 10 schemas and 10 example fixtures.
@@ -54,17 +54,17 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-phase2-complete
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-ci-contracts/openapi/rebac-control-plane.yaml.
-PASS 23 required API path groups are present.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-phase2-complete/openapi/rebac-control-plane.yaml.
+PASS 24 required API path groups are present.
 ```
 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-phase2-complete
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -84,65 +84,65 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-phase2-complete
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-ci-contracts
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase2-complete
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  06:41:46
-   Duration  147ms (transform 31ms, setup 0ms, import 46ms, tests 5ms, environment 0ms)
+   Start at  21:05:11
+   Duration  138ms (transform 28ms, setup 0ms, import 43ms, tests 5ms, environment 0ms)
 ```
 
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-phase2-complete
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-ci-contracts
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase2-complete
 
 
  Test Files  2 passed (2)
-      Tests  24 passed (24)
-   Start at  06:41:47
-   Duration  189ms (transform 102ms, setup 0ms, import 137ms, tests 12ms, environment 0ms)
+      Tests  22 passed (22)
+   Start at  21:05:12
+   Duration  146ms (transform 80ms, setup 0ms, import 109ms, tests 9ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-phase2-complete
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-ci-contracts
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase2-complete
 
 
  Test Files  1 passed (1)
-      Tests  24 passed (24)
-   Start at  06:41:48
-   Duration  295ms (transform 72ms, setup 0ms, import 103ms, tests 91ms, environment 0ms)
+      Tests  22 passed (22)
+   Start at  21:05:12
+   Duration  236ms (transform 57ms, setup 0ms, import 82ms, tests 71ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-ci-contracts
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-phase2-complete
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-ci-contracts
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase2-complete
 
 
  Test Files  2 passed (2)
-      Tests  21 passed (21)
-   Start at  06:41:49
-   Duration  279ms (transform 111ms, setup 0ms, import 162ms, tests 71ms, environment 0ms)
+      Tests  20 passed (20)
+   Start at  21:05:13
+   Duration  234ms (transform 98ms, setup 0ms, import 143ms, tests 62ms, environment 0ms)
 ```
 
 
@@ -150,11 +150,11 @@ PASS drift is represented as security finding
 
 - TypeScript strict type checking.
 - JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, provisioning plan, audit event, drift finding, and evidence export examples.
-- OpenAPI validation for required decision, inventory, native access, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
+- OpenAPI validation for required decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Local core engine tests for deterministic check/explain and decision audit emission.
-- API runtime tests for health, decision, relationship write audit, read-only mock connector discovery, native access, and reconciliation.
+- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, and assessor surfaces calling the API.
 
 ## Outstanding Requirements
@@ -162,7 +162,7 @@ PASS drift is represented as security finding
 - Implement a persistent relationship graph and policy model store.
 - Replace the local in-memory API runtime with production-ready persistence and deployment packaging.
 - Implement durable append-only audit storage with tamper-evidence and SIEM export.
-- Add live read-only connector discovery for Entra ID, SharePoint, and AWS after connector security review.
+- Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Persist discovery runs and native-grant readback outside the local in-memory store.
 - Add dry-run provisioning and reconciliation job execution with queueing, retries, and dead-letter handling.
 - Add controlled enforcement only after approval workflow, rollback, and connector least-privilege review are complete.

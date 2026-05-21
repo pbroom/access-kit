@@ -9,7 +9,9 @@
     "targetPlatform",
     "targetObjectId",
     "subjectId",
+    "principalType",
     "nativePermission",
+    "grantType",
     "sourceConnectorId",
     "status",
     "observedAt",
@@ -21,10 +23,18 @@
     "targetPlatform": { "type": "string", "minLength": 1 },
     "targetObjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "principalType": {
+      "type": "string",
+      "enum": ["user", "group", "service_account", "service_principal", "managed_identity", "external_user", "unknown"]
+    },
     "nativePermission": { "type": "string", "minLength": 1 },
+    "grantType": { "type": "string", "enum": ["direct", "inherited", "group"] },
     "sourceConnectorId": { "type": "string", "minLength": 1 },
     "status": { "type": "string", "enum": ["observed", "managed", "revoked", "unknown"] },
     "observedAt": { "type": "string", "format": "date-time" },
+    "inheritedFromObjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "expiresAt": { "type": "string", "format": "date-time" },
+    "attributes": { "type": "object", "additionalProperties": true },
     "version": { "type": "string", "minLength": 1 },
     "createdAt": { "type": "string", "format": "date-time" },
     "updatedAt": { "type": "string", "format": "date-time" }

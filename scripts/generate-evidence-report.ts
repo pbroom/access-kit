@@ -109,11 +109,11 @@ ${trimOutput(result.output)}
 
 - TypeScript strict type checking.
 - JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, provisioning plan, audit event, drift finding, and evidence export examples.
-- OpenAPI validation for required decision, inventory, native access, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
+- OpenAPI validation for required decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Local core engine tests for deterministic check/explain and decision audit emission.
-- API runtime tests for health, decision, relationship write audit, read-only mock connector discovery, native access, and reconciliation.
+- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, and assessor surfaces calling the API.
 
 ## Outstanding Requirements
@@ -121,7 +121,7 @@ ${trimOutput(result.output)}
 - Implement a persistent relationship graph and policy model store.
 - Replace the local in-memory API runtime with production-ready persistence and deployment packaging.
 - Implement durable append-only audit storage with tamper-evidence and SIEM export.
-- Add live read-only connector discovery for Entra ID, SharePoint, and AWS after connector security review.
+- Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Persist discovery runs and native-grant readback outside the local in-memory store.
 - Add dry-run provisioning and reconciliation job execution with queueing, retries, and dead-letter handling.
 - Add controlled enforcement only after approval workflow, rollback, and connector least-privilege review are complete.
