@@ -16,7 +16,9 @@
 
 `DiscoveryRun` records a read-only connector inventory pass. It has connector ID, mode, status, start and completion times, object counts, warnings, cursor/high-watermark details, read-only evidence, and audit event references. It is evidence that provider readback happened without turning native grants into intended access.
 
-`ProvisioningPlan` is the auditable plan that converts a decision or request into dry-run or enforcement actions. Decisions must not directly mutate providers.
+`ProvisioningPlan` is the auditable plan that converts a decision or request into dry-run or enforcement actions. It records connector ID, action idempotency keys, verification expectations, and compensation intent. Decisions must not directly mutate providers.
+
+`ProvisioningJob` records execution evidence for a plan. In Phase 3, jobs are dry-run only: provider writes are skipped, verification hooks are run, compensation remains planned, and idempotent replay returns the same job.
 
 `DriftFinding` records a difference between intended access and native access. It has severity, source connector, recommended action, status, and timestamps.
 
@@ -31,6 +33,7 @@
 - Intended grants are not native grants.
 - Discovery runs are not provisioning jobs.
 - Provisioning plans are not provisioning jobs.
+- Dry-run provisioning jobs are not provider writes.
 - Drift findings are security objects, not incidental errors.
 - Audit evidence is not a mutable operational table.
 

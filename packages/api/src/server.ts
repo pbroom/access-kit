@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
-  applyProvisioningPlan,
   checkDecision,
+  createProvisioningJob,
   createProvisioningPlan,
   createRebacLocalApp,
   createResource,
@@ -10,12 +10,14 @@ import {
   deleteRelationship,
   explainDecision,
   exportEvidence,
+  getProvisioningJob,
   listDiscoveryRuns,
   putRelationship,
   readNativeAccess,
   runReconciliation,
   syncConnector,
   testConnector,
+  RebacLocalAppError,
   type RebacLocalApp,
   type RebacLocalAppOptions
 } from "./local-app.js";
@@ -39,6 +41,7 @@ interface ProvisioningPlanRequest {
   action?: unknown;
   resourceId?: unknown;
   context?: unknown;
+  dryRun?: unknown;
   grantId?: unknown;
   connectorId?: unknown;
 }
@@ -46,6 +49,7 @@ interface ProvisioningPlanRequest {
 interface ProvisioningJobRequest {
   planId?: unknown;
   approverId?: unknown;
+  dryRun?: unknown;
 }
 
 const maxRequestBodyBytes = 1024 * 1024;
@@ -73,6 +77,15 @@ export function createRebacApiServer(options: RebacApiServerOptions = {}): Serve
       await routeRequest(app, request, response);
     } catch (error) {
       if (error instanceof HttpError) {
+        sendJson(response, error.statusCode, {
+          code: error.code,
+          message: error.message,
+          correlationId: "corr:bad-request"
+        });
+        return;
+      }
+
+      if (error instanceof RebacLocalAppError) {
         sendJson(response, error.statusCode, {
           code: error.code,
           message: error.message,
@@ -134,60 +147,8 @@ async function routeRequest(
     return;
   }
 
-  if (segments[1] === "provisioning" && segments[2] === "plans" && method === "POST") {
-    const body = await readJson<ProvisioningPlanRequest>(request);
-
-    if (body.connectorId !== undefined && (typeof body.connectorId !== "string" || !body.connectorId)) {
-      throw new HttpError(400, "INVALID_CONNECTOR_ID", "connectorId must be a non-empty string when provided");
-    }
-
-    const connectorId = typeof body.connectorId === "string" ? body.connectorId : undefined;
-    if (body.grantId !== undefined) {
-      if (typeof body.grantId !== "string" || !body.grantId) {
-        throw new HttpError(400, "INVALID_GRANT_ID", "grantId must be a non-empty string");
-      }
-
-      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId));
-      return;
-    }
-
-    const decisionRequest = parseDecisionRequest(body);
-    if (!decisionRequest) {
-      throw new HttpError(
-        400,
-        "INVALID_PROVISIONING_REQUEST",
-        "Provisioning plans require subjectId, action, and resourceId or a grantId"
-      );
-    }
-
-    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId));
-    return;
-  }
-
-  if (segments[1] === "provisioning" && segments[2] === "jobs" && method === "POST") {
-    const body = await readJson<ProvisioningJobRequest>(request);
-
-    if (typeof body.planId !== "string" || !body.planId) {
-      throw new HttpError(400, "INVALID_PROVISIONING_JOB_REQUEST", "provisioning jobs require planId");
-    }
-
-    if (typeof body.approverId !== "string" || !body.approverId) {
-      throw new HttpError(400, "INVALID_PROVISIONING_JOB_REQUEST", "provisioning jobs require approverId");
-    }
-
-    const plan = await applyProvisioningPlan(app, body.planId);
-    if (!plan) {
-      notFound(response);
-      return;
-    }
-
-    sendJson(response, 202, {
-      id: `job:${plan.id}:applied`,
-      planId: plan.id,
-      approverId: body.approverId,
-      status: "succeeded",
-      plan
-    });
+  if (segments[1] === "provisioning") {
+    await routeProvisioning(app, request, response, segments);
     return;
   }
 
@@ -501,19 +462,98 @@ async function routeReconciliation(
       throw new HttpError(400, "DRY_RUN_REQUIRED", "Local reconciliation only supports dryRun: true");
     }
 
-    const findings = await runReconciliation(app, body.connectorId);
-    sendJson(response, 202, {
-      id: `reconciliation:${body.connectorId}`,
-      connectorId: body.connectorId,
-      mode: "dry_run",
-      status: "completed",
-      findings
-    });
+    sendJson(response, 202, await runReconciliation(app, body.connectorId));
     return;
   }
 
   if (segments[2] === "findings" && request.method === "GET") {
     sendJson(response, 200, { items: app.store.listDriftFindings({ severity: readDriftSeverity(url.searchParams.get("severity")) }) });
+    return;
+  }
+
+  notFound(response);
+}
+
+async function routeProvisioning(
+  app: RebacLocalApp,
+  request: IncomingMessage,
+  response: ServerResponse,
+  segments: string[]
+): Promise<void> {
+  if (segments[2] === "plans" && segments.length === 3 && request.method === "POST") {
+    const idempotencyKey = readIdempotencyKey(request);
+    const body = await readJson<ProvisioningPlanRequest>(request);
+
+    if (body.dryRun !== true) {
+      throw new HttpError(400, "DRY_RUN_REQUIRED", "Phase 3 provisioning plans require dryRun: true");
+    }
+
+    if (body.connectorId !== undefined && (typeof body.connectorId !== "string" || !body.connectorId)) {
+      throw new HttpError(400, "INVALID_CONNECTOR_ID", "connectorId must be a non-empty string when provided");
+    }
+
+    const connectorId = typeof body.connectorId === "string" ? body.connectorId : undefined;
+    if (body.grantId !== undefined) {
+      if (typeof body.grantId !== "string" || !body.grantId) {
+        throw new HttpError(400, "INVALID_GRANT_ID", "grantId must be a non-empty string");
+      }
+
+      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId, idempotencyKey));
+      return;
+    }
+
+    const decisionRequest = parseDecisionRequest(body);
+    if (!decisionRequest) {
+      throw new HttpError(
+        400,
+        "INVALID_PROVISIONING_REQUEST",
+        "Provisioning plans require subjectId, action, and resourceId or a grantId"
+      );
+    }
+
+    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId, idempotencyKey));
+    return;
+  }
+
+  if (segments[2] === "jobs" && segments.length === 3 && request.method === "POST") {
+    const body = await readJson<ProvisioningJobRequest>(request);
+
+    if (typeof body.planId !== "string" || !body.planId) {
+      throw new HttpError(400, "MISSING_PLAN_ID", "planId is required");
+    }
+
+    if (typeof body.approverId !== "string" || !body.approverId) {
+      throw new HttpError(400, "MISSING_APPROVER_ID", "approverId is required");
+    }
+
+    if (body.dryRun !== true) {
+      throw new HttpError(400, "DRY_RUN_REQUIRED", "Phase 3 provisioning jobs require dryRun: true");
+    }
+
+    const job = await createProvisioningJob(app, {
+      planId: body.planId,
+      approverId: body.approverId,
+      idempotencyKey: readIdempotencyKey(request)
+    });
+
+    if (!job) {
+      notFound(response);
+      return;
+    }
+
+    sendJson(response, 202, job);
+    return;
+  }
+
+  if (segments[2] === "jobs" && segments.length === 4 && request.method === "GET") {
+    const job = getProvisioningJob(app, segments[3] ?? "");
+
+    if (!job) {
+      notFound(response);
+      return;
+    }
+
+    sendJson(response, 200, job);
     return;
   }
 
@@ -711,6 +751,16 @@ function readDiscoveryMode(mode: unknown): "read_only" {
   }
 
   throw new HttpError(400, "UNSUPPORTED_CONNECTOR_MODE", "Phase 2 connector sync supports read_only mode only");
+}
+
+function readIdempotencyKey(request: IncomingMessage): string {
+  const value = request.headers["idempotency-key"];
+
+  if (typeof value === "string" && value.length >= 8) {
+    return value;
+  }
+
+  throw new HttpError(400, "MISSING_IDEMPOTENCY_KEY", "Idempotency-Key header is required");
 }
 
 function readDiscoveryStatus(status: string | null): DiscoveryRunStatus | undefined {

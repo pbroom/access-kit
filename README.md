@@ -12,7 +12,7 @@ This repository currently delivers:
 - CLI command contract for operators, CI/CD, and assessors.
 - Mock connector interface and deterministic sample implementation.
 - Synthetic Entra ID, SharePoint, and AWS-style read-only connector fixtures with no real tenant access.
-- Local in-memory API runtime for check, explain, inventory, relationship, read-only connector discovery, discovery run history, native-grant readback, reconciliation, audit, and evidence flows.
+- Local in-memory API runtime for check, explain, inventory, relationship, read-only connector discovery, discovery run history, native-grant readback, dry-run provisioning jobs, reconciliation, audit, and evidence flows.
 - CLI commands that call the API instead of evaluating authorization locally.
 - Policy proof-point fixtures for deny/default, relationship allow, deny override, expiration, suspension, idempotency, and drift.
 - Architecture, security, ATO evidence, CLI, API, and ADR documentation.

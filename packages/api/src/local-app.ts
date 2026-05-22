@@ -9,19 +9,23 @@ import {
   createLocalEngineSeed,
   InMemoryRebacStore,
   RebacDecisionEngine,
+  sha256,
   type AuditEvent,
   type AuditEventInput,
   type ConnectorAdapter,
   type ConnectorHealthCheck,
   type DecisionRequest,
   type DiscoveryRun,
-  type DriftFinding,
   type EvidenceExport,
   type JsonRecord,
   type NativeGrant,
   type NativeGrantType,
   type NativePrincipalType,
+  type ProvisioningActionResult,
+  type ProvisioningJob,
   type ProvisioningPlan,
+  type ProvisioningVerification,
+  type ReconciliationRun,
   type RelationshipTuple,
   type Resource,
   type Subject
@@ -30,6 +34,16 @@ import {
 export interface RebacLocalAppOptions {
   now?: () => string;
   actor?: string;
+}
+
+export class RebacLocalAppError extends Error {
+  constructor(
+    readonly statusCode: number,
+    readonly code: string,
+    message: string
+  ) {
+    super(message);
+  }
 }
 
 export interface RebacLocalApp {
@@ -280,11 +294,29 @@ export async function testConnector(app: RebacLocalApp, connectorId: string): Pr
 export async function createProvisioningPlan(
   app: RebacLocalApp,
   request: DecisionRequest,
-  connectorId = getDefaultConnectorId(app)
+  connectorId = getDefaultConnectorId(app),
+  idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
   const connector = getConnector(app, connectorId);
+  const existing = idempotencyKey ? app.store.getProvisioningPlanByIdempotencyKey(idempotencyKey) : undefined;
+
+  if (existing) {
+    if (!planMatchesDecisionRequest(existing, request, connectorId)) {
+      throw new RebacLocalAppError(
+        409,
+        "IDEMPOTENCY_KEY_REUSED",
+        "Idempotency-Key was already used for a different provisioning plan request."
+      );
+    }
+
+    return existing;
+  }
+
   const decision = app.engine.explain(request);
-  const plan = await connector.planProvisioningChange(decision);
+  const plan = {
+    ...normalizePlanConnector(await connector.planProvisioningChange(decision), connectorId),
+    idempotencyKey
+  };
   app.store.upsertProvisioningPlan(plan);
   recordAudit(app, {
     eventType: "provisioning.requested",
@@ -294,16 +326,50 @@ export async function createProvisioningPlan(
     correlationId: `corr:${plan.id}`,
     payload: asJsonRecord(plan)
   });
+  recordAudit(app, {
+    eventType: "provisioning.planned",
+    actor: app.actor,
+    subjectId: plan.subjectId,
+    resourceId: plan.resourceId,
+    correlationId: `corr:${plan.id}:planned`,
+    payload: {
+      planId: plan.id,
+      connectorId: plan.connectorId,
+      mode: plan.mode,
+      status: plan.status,
+      actionIds: plan.actions.map((action) => action.actionId),
+      idempotencyKeys: plan.actions.map((action) => action.idempotencyKey)
+    }
+  });
+  recordCompensationAudit(app, plan);
   return plan;
 }
 
 export async function createRevocationPlan(
   app: RebacLocalApp,
   nativeGrantId: string,
-  connectorId = getDefaultConnectorId(app)
+  connectorId = getDefaultConnectorId(app),
+  idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
   const connector = getConnector(app, connectorId);
-  const plan = await connector.revokeAccess(nativeGrantId);
+  const existing = idempotencyKey ? app.store.getProvisioningPlanByIdempotencyKey(idempotencyKey) : undefined;
+
+  if (existing) {
+    if (!planMatchesRevocationRequest(existing, nativeGrantId, connectorId)) {
+      throw new RebacLocalAppError(
+        409,
+        "IDEMPOTENCY_KEY_REUSED",
+        "Idempotency-Key was already used for a different provisioning plan request."
+      );
+    }
+
+    return existing;
+  }
+
+  const plan = {
+    ...normalizePlanConnector(await connector.revokeAccess(nativeGrantId), connectorId),
+    idempotencyKey
+  };
   app.store.upsertProvisioningPlan(plan);
   recordAudit(app, {
     eventType: "provisioning.requested",
@@ -313,37 +379,147 @@ export async function createRevocationPlan(
     correlationId: `corr:${plan.id}`,
     payload: asJsonRecord(plan)
   });
+  recordAudit(app, {
+    eventType: "provisioning.planned",
+    actor: app.actor,
+    subjectId: plan.subjectId,
+    resourceId: plan.resourceId,
+    correlationId: `corr:${plan.id}:planned`,
+    payload: {
+      planId: plan.id,
+      connectorId: plan.connectorId,
+      mode: plan.mode,
+      status: plan.status,
+      actionIds: plan.actions.map((action) => action.actionId),
+      idempotencyKeys: plan.actions.map((action) => action.idempotencyKey)
+    }
+  });
+  recordCompensationAudit(app, plan);
   return plan;
 }
 
-export async function applyProvisioningPlan(app: RebacLocalApp, planId: string): Promise<ProvisioningPlan | undefined> {
-  const plan = app.store.getProvisioningPlan(planId);
+export async function createProvisioningJob(
+  app: RebacLocalApp,
+  request: { planId: string; approverId: string; idempotencyKey: string }
+): Promise<ProvisioningJob | undefined> {
+  const existing = app.store.getProvisioningJobByIdempotencyKey(request.idempotencyKey);
+
+  if (existing) {
+    if (existing.planId !== request.planId || existing.approverId !== request.approverId) {
+      throw new RebacLocalAppError(
+        409,
+        "IDEMPOTENCY_KEY_REUSED",
+        "Idempotency-Key was already used for a different provisioning job request."
+      );
+    }
+
+    return existing;
+  }
+
+  const plan = app.store.getProvisioningPlan(request.planId);
 
   if (!plan) {
     return undefined;
   }
 
-  const connector = getConnector(app, getDefaultConnectorId(app));
-  const appliedPlan = await connector.applyProvisioningChange(plan);
-  app.store.upsertProvisioningPlan(appliedPlan);
-  recordAudit(app, {
-    eventType: "provisioning.applied",
-    actor: app.actor,
-    subjectId: appliedPlan.subjectId,
-    resourceId: appliedPlan.resourceId,
-    correlationId: `corr:${appliedPlan.id}:applied`,
-    payload: asJsonRecord(appliedPlan)
-  });
-  return appliedPlan;
+  const connector = getConnector(app, plan.connectorId);
+  const startedAt = app.now();
+  const jobId = `job:${sha256({ planId: request.planId, idempotencyKey: request.idempotencyKey }).slice(0, 24)}`;
+  const verification = await buildDryRunVerification(connector, plan, app.now);
+  const completedAt = verification.checkedAt ?? app.now();
+  const actionResults = plan.actions.map((action): ProvisioningActionResult => ({
+    actionId: action.actionId,
+    operation: action.operation,
+    status: "skipped",
+    dryRun: true,
+    idempotencyKey: action.idempotencyKey,
+    message: "Dry-run only: provider write was not executed.",
+    verification: {
+      ...action.verification,
+      status: verification.status,
+      readbackState: verification.readbackState,
+      checkedAt: verification.checkedAt,
+      message: verification.message
+    },
+    compensation: action.compensation
+  }));
+  const jobWithoutAuditIds: ProvisioningJob = {
+    id: jobId,
+    planId: plan.id,
+    connectorId: plan.connectorId,
+    mode: "dry_run",
+    dryRun: true,
+    status: "completed",
+    approverId: request.approverId,
+    idempotencyKey: request.idempotencyKey,
+    actionResults,
+    verification,
+    auditEventIds: [],
+    version: "provisioning-job:v1",
+    createdAt: startedAt,
+    startedAt,
+    completedAt
+  };
+  const auditEventIds = [
+    ...actionResults.map((result) =>
+      recordAudit(app, {
+        eventType: "provisioning.skipped",
+        actor: app.actor,
+        subjectId: plan.subjectId,
+        resourceId: plan.resourceId,
+        correlationId: `corr:${jobId}:${result.actionId}:skipped`,
+        payload: {
+          jobId,
+          planId: plan.id,
+          actionId: result.actionId,
+          operation: result.operation,
+          dryRun: true,
+          reason: result.message,
+          providerWrite: false
+        }
+      }).eventId
+    ),
+    recordAudit(app, {
+      eventType: "provisioning.verified",
+      actor: app.actor,
+      subjectId: plan.subjectId,
+      resourceId: plan.resourceId,
+      correlationId: `corr:${jobId}:verified`,
+      payload: {
+        jobId,
+        planId: plan.id,
+        connectorId: plan.connectorId,
+        verification
+      }
+    }).eventId,
+    recordAudit(app, {
+      eventType: "provisioning.completed",
+      actor: app.actor,
+      subjectId: plan.subjectId,
+      resourceId: plan.resourceId,
+      correlationId: `corr:${jobId}:completed`,
+      payload: asJsonRecord(jobWithoutAuditIds)
+    }).eventId
+  ];
+  const job = { ...jobWithoutAuditIds, auditEventIds };
+  app.store.upsertProvisioningJob(job);
+  return job;
 }
 
-export async function runReconciliation(app: RebacLocalApp, connectorId: string): Promise<DriftFinding[]> {
+export function getProvisioningJob(app: RebacLocalApp, jobId: string): ProvisioningJob | undefined {
+  return app.store.getProvisioningJob(jobId);
+}
+
+export async function runReconciliation(app: RebacLocalApp, connectorId: string): Promise<ReconciliationRun> {
   const connector = getConnector(app, connectorId);
+  const startedAt = app.now();
+  const runSequence = app.store.listReconciliationRuns().filter((run) => run.connectorId === connectorId).length + 1;
   const findings = await connector.detectDrift();
+  const auditEventIds: string[] = [];
 
   for (const finding of findings) {
     app.store.upsertDriftFinding(finding);
-    recordAudit(app, {
+    const event = recordAudit(app, {
       eventType: "drift.detected",
       actor: app.actor,
       subjectId: finding.subjectId,
@@ -351,9 +527,41 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
       correlationId: `corr:${finding.id}`,
       payload: asJsonRecord(finding)
     });
+    auditEventIds.push(event.eventId);
   }
 
-  return findings;
+  const completedAt = app.now();
+  const run: ReconciliationRun = {
+    id: `reconciliation:${connectorId}:${compactTimestamp(startedAt)}:${runSequence}`,
+    connectorId,
+    mode: "dry_run",
+    dryRun: true,
+    status: "completed",
+    findings,
+    counts: {
+      findings: findings.length,
+      highOrCritical: findings.filter((finding) => finding.severity === "high" || finding.severity === "critical").length
+    },
+    auditEventIds,
+    version: "reconciliation-run:v1",
+    createdAt: startedAt,
+    completedAt
+  };
+  const completedEvent = recordAudit(app, {
+    eventType: "reconciliation.completed",
+    actor: app.actor,
+    correlationId: `corr:${run.id}:completed`,
+    payload: {
+      runId: run.id,
+      connectorId,
+      dryRun: true,
+      counts: run.counts,
+      findingIds: findings.map((finding) => finding.id)
+    }
+  });
+  const completedRun = { ...run, auditEventIds: [...auditEventIds, completedEvent.eventId] };
+  app.store.recordReconciliationRun(completedRun);
+  return completedRun;
 }
 
 export function exportEvidence(app: RebacLocalApp, controls: string[], format: EvidenceExport["format"]): EvidenceExport {
@@ -418,4 +626,91 @@ function asJsonRecord(value: object): JsonRecord {
 
 function compactTimestamp(timestamp: string): string {
   return timestamp.replaceAll(/[^0-9a-z]/gi, "").toLowerCase();
+}
+
+function normalizePlanConnector(plan: ProvisioningPlan, connectorId: string): ProvisioningPlan {
+  return {
+    ...plan,
+    connectorId
+  };
+}
+
+function planMatchesDecisionRequest(plan: ProvisioningPlan, request: DecisionRequest, connectorId: string): boolean {
+  return (
+    plan.connectorId === connectorId &&
+    plan.subjectId === request.subjectId &&
+    plan.resourceId === request.resourceId &&
+    plan.action === request.action
+  );
+}
+
+function planMatchesRevocationRequest(plan: ProvisioningPlan, nativeGrantId: string, connectorId: string): boolean {
+  return (
+    plan.connectorId === connectorId &&
+    plan.actions.some((action) => action.operation === "revoke" && action.requestedState.nativeGrantId === nativeGrantId)
+  );
+}
+
+function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
+  for (const action of plan.actions) {
+    if (!action.compensation) {
+      continue;
+    }
+
+    recordAudit(app, {
+      eventType: "provisioning.compensation_planned",
+      actor: app.actor,
+      subjectId: plan.subjectId,
+      resourceId: plan.resourceId,
+      correlationId: `corr:${plan.id}:${action.actionId}:compensation`,
+      payload: {
+        planId: plan.id,
+        actionId: action.actionId,
+        compensation: action.compensation
+      }
+    });
+  }
+}
+
+async function buildDryRunVerification(
+  connector: ConnectorAdapter,
+  plan: ProvisioningPlan,
+  now: () => string
+): Promise<ProvisioningVerification> {
+  const verified = await connector.verifyProvisioningChange(plan);
+  const checkedAt = now();
+
+  if (verified) {
+    return {
+      status: "verified",
+      method: "connector.verifyProvisioningChange",
+      expectedState: {
+        planId: plan.id,
+        actionCount: plan.actions.length
+      },
+      readbackState: {
+        dryRun: true,
+        providerWrite: false,
+        verificationHook: true
+      },
+      checkedAt,
+      message: "Dry-run verification hook completed without provider mutation."
+    };
+  }
+
+  return {
+    status: "skipped",
+    method: "connector.verifyProvisioningChange",
+    expectedState: {
+      planId: plan.id,
+      actionCount: plan.actions.length
+    },
+    readbackState: {
+      dryRun: true,
+      providerWrite: false,
+      verificationHook: false
+    },
+    checkedAt,
+    message: "Connector did not provide positive dry-run verification; provider write remains skipped."
+  };
 }

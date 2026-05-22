@@ -1,6 +1,7 @@
 {
   "id": "plan:decision:allow-alice-read-case-plan",
   "sourceDecisionId": "decision:allow-alice-read-case-plan",
+  "connectorId": "mock",
   "subjectId": "user:alice",
   "resourceId": "document:case-plan",
   "action": "read",
@@ -17,7 +18,22 @@
         "permission": "read"
       },
       "dryRun": true,
-      "idempotencyKey": "user:alice:read:document:case-plan:policy:test-v1"
+      "idempotencyKey": "user:alice:read:document:case-plan:policy:test-v1",
+      "status": "planned",
+      "verification": {
+        "status": "pending",
+        "method": "connector.current_access_readback",
+        "expectedState": {
+          "subjectId": "user:alice",
+          "permission": "read"
+        }
+      },
+      "compensation": {
+        "operation": "revoke",
+        "reason": "Reverse provider state if later enforcement does not verify cleanly.",
+        "status": "planned",
+        "idempotencyKey": "compensate:mock:user:alice:read:document:case-plan:policy:test-v1"
+      }
     }
   ],
   "version": "plan:v1",

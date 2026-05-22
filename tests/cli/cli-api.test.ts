@@ -132,11 +132,13 @@ describe("CLI API wrapper", () => {
     expect(lastOutput()).toMatchObject({
       planId: plan.id,
       approverId: "user:cli-operator",
-      status: "succeeded",
-      plan: {
-        id: plan.id,
-        status: "applied"
-      }
+      status: "completed",
+      dryRun: true,
+      actionResults: [
+        expect.objectContaining({
+          status: "skipped"
+        })
+      ]
     });
   });
 
@@ -198,6 +200,26 @@ describe("CLI API wrapper", () => {
     }
   });
 
+  it("passes connector and dry-run fields for provisioning commands", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(requests, "provision", "plan", "user:alice", "document:case-plan", "read", "--connector", "mock");
+    await runCliWithFetch(requests, "provision", "apply", "plan:mock:decision");
+
+    expect(requests[0]?.body).toEqual({
+      subjectId: "user:alice",
+      resourceId: "document:case-plan",
+      action: "read",
+      connectorId: "mock",
+      dryRun: true
+    });
+    expect(requests[1]?.body).toEqual({
+      planId: "plan:mock:decision",
+      approverId: "user:cli-operator",
+      dryRun: true
+    });
+  });
+
   it("sends distinct idempotency keys for different mutations", async () => {
     const requests: CapturedRequest[] = [];
 
@@ -208,6 +230,15 @@ describe("CLI API wrapper", () => {
     expect(keys[0]).toMatch(/^idem:cli:put:/);
     expect(keys[1]).toMatch(/^idem:cli:put:/);
     expect(keys[0]).not.toBe(keys[1]);
+  });
+
+  it("sends stable idempotency keys for retried mutations", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(requests, "provision", "apply", "plan:mock:decision");
+    await runCliWithFetch(requests, "provision", "apply", "plan:mock:decision");
+
+    expect(requests[0]?.headers["idempotency-key"]).toBe(requests[1]?.headers["idempotency-key"]);
   });
 
   it("uses one timestamp for relationship asserted and created times", async () => {

@@ -1,6 +1,6 @@
 # Outstanding Requirements
 
-The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run planning, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
+The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
 
 ## Runtime
 
@@ -8,7 +8,7 @@ The current implementation supports local policy decisions, mock and synthetic p
 - Add persistent graph storage for subjects, resources, and relationship tuples.
 - Add policy model parsing, publication, rollback, and versioned test execution.
 - Add durable append-only audit/event storage with hash chaining.
-- Add queue-backed provisioning jobs, retries, backoff, dead-letter handling, and connector health states.
+- Replace local provisioning jobs with queue-backed jobs, retries, backoff, dead-letter handling, and connector health states.
 
 ## Connectors
 
@@ -16,7 +16,7 @@ The current implementation supports local policy decisions, mock and synthetic p
 - Replace synthetic Entra ID, SharePoint, and AWS-style adapters with live read-only connectors after security review.
 - Define live connector consent, tenant boundary, pagination, throttling, and deletion semantics.
 - Persist discovery runs and native grants outside the local in-memory store.
-- Add simulation and dry-run reconciliation before enforcement.
+- Persist reconciliation runs and dry-run job evidence outside the local in-memory store.
 - Add controlled enforcement only after approvals, verification, rollback, and operational runbooks exist.
 
 ## ATO And Operations
