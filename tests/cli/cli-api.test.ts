@@ -151,6 +151,23 @@ describe("CLI API wrapper", () => {
     expect(requests[1]?.body).toEqual({ mode: "test", testFile: "policy:tests" });
   });
 
+  it("runs policy commands through the local API", async () => {
+    await runCli("policy", "validate", "policy:model");
+    expect(lastOutput()).toMatchObject({
+      policyId: "policy:model",
+      mode: "validate",
+      status: "valid"
+    });
+
+    await runCli("policy", "publish", "policy:model", "--change-ticket", "chg:policy");
+    expect(lastOutput()).toMatchObject({
+      policyId: "policy:model",
+      status: "published",
+      changeTicket: "chg:policy",
+      approverId: "user:cli-operator"
+    });
+  });
+
   it("reports API failures through Commander errors instead of raw rejections", async () => {
     const previousExitCode = process.exitCode;
     const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);

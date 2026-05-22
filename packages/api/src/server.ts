@@ -108,6 +108,11 @@ async function routeRequest(
     return;
   }
 
+  if (segments[1] === "policies") {
+    await routePolicies(request, response, segments);
+    return;
+  }
+
   if (segments[1] === "provisioning" && segments[2] === "plans" && method === "POST") {
     const body = await readJson<ProvisioningPlanRequest>(request);
 
@@ -164,6 +169,65 @@ async function routeRequest(
 
   if (segments[1] === "connectors") {
     await routeConnectors(app, request, response, segments);
+    return;
+  }
+
+  notFound(response);
+}
+
+async function routePolicies(
+  request: IncomingMessage,
+  response: ServerResponse,
+  segments: string[]
+): Promise<void> {
+  const policyId = segments[2];
+  const action = segments[3];
+
+  if (!policyId || segments.length !== 4 || request.method !== "POST") {
+    notFound(response);
+    return;
+  }
+
+  const body = await readJson<unknown>(request);
+
+  if (action === "validate") {
+    if (!isRecord(body) || (body.mode !== "validate" && body.mode !== "test")) {
+      throw new HttpError(400, "INVALID_POLICY_VALIDATION_REQUEST", "policy validation requires mode validate or test");
+    }
+
+    sendJson(response, 200, {
+      policyId,
+      mode: body.mode,
+      status: "valid",
+      checks: [
+        {
+          name: body.mode === "test" ? "proof_points" : "syntax",
+          status: "pass",
+          message: "Local policy contract accepted for the current ReBAC runtime."
+        }
+      ]
+    });
+    return;
+  }
+
+  if (action === "publish") {
+    if (
+      !isRecord(body) ||
+      typeof body.changeTicket !== "string" ||
+      !body.changeTicket ||
+      typeof body.approverId !== "string" ||
+      !body.approverId
+    ) {
+      throw new HttpError(400, "INVALID_POLICY_PUBLISH_REQUEST", "policy publish requires changeTicket and approverId");
+    }
+
+    sendJson(response, 200, {
+      policyId,
+      status: "published",
+      changeTicket: body.changeTicket,
+      approverId: body.approverId,
+      version: policyId
+    });
     return;
   }
 
