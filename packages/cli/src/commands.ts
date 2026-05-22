@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { Command } from "commander";
 
 export interface CliCommandSpec {
@@ -453,7 +453,7 @@ class ApiClient {
 
 function createIdempotencyKey(method: string, path: string, body: unknown): string {
   const hash = createHash("sha256")
-    .update(JSON.stringify({ method, path, body, nonce: randomUUID() }))
+    .update(JSON.stringify({ method, path, body }))
     .digest("hex")
     .slice(0, 32);
   return `idem:cli:${method.toLowerCase()}:${hash}`;

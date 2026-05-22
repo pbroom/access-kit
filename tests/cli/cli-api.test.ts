@@ -232,6 +232,15 @@ describe("CLI API wrapper", () => {
     expect(keys[0]).not.toBe(keys[1]);
   });
 
+  it("sends stable idempotency keys for retried mutations", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(requests, "provision", "apply", "plan:mock:decision");
+    await runCliWithFetch(requests, "provision", "apply", "plan:mock:decision");
+
+    expect(requests[0]?.headers["idempotency-key"]).toBe(requests[1]?.headers["idempotency-key"]);
+  });
+
   it("uses one timestamp for relationship asserted and created times", async () => {
     const requests: CapturedRequest[] = [];
 

@@ -160,6 +160,10 @@ export class InMemoryRebacStore {
     return this.#provisioningPlans.get(id);
   }
 
+  getProvisioningPlanByIdempotencyKey(idempotencyKey: string): ProvisioningPlan | undefined {
+    return [...this.#provisioningPlans.values()].find((plan) => plan.idempotencyKey === idempotencyKey);
+  }
+
   upsertProvisioningPlan(plan: ProvisioningPlan): ProvisioningPlan {
     this.#provisioningPlans.set(plan.id, plan);
     return plan;

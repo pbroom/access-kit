@@ -228,6 +228,7 @@ export interface ProvisioningCompensation {
 
 export interface ProvisioningPlan extends VersionedEntity {
   sourceDecisionId?: CanonicalId;
+  idempotencyKey?: string;
   connectorId: string;
   subjectId: CanonicalId;
   resourceId: CanonicalId;

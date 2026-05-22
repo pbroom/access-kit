@@ -17,6 +17,7 @@ import {
   runReconciliation,
   syncConnector,
   testConnector,
+  RebacLocalAppError,
   type RebacLocalApp,
   type RebacLocalAppOptions
 } from "./local-app.js";
@@ -76,6 +77,15 @@ export function createRebacApiServer(options: RebacApiServerOptions = {}): Serve
       await routeRequest(app, request, response);
     } catch (error) {
       if (error instanceof HttpError) {
+        sendJson(response, error.statusCode, {
+          code: error.code,
+          message: error.message,
+          correlationId: "corr:bad-request"
+        });
+        return;
+      }
+
+      if (error instanceof RebacLocalAppError) {
         sendJson(response, error.statusCode, {
           code: error.code,
           message: error.message,
@@ -471,7 +481,7 @@ async function routeProvisioning(
   segments: string[]
 ): Promise<void> {
   if (segments[2] === "plans" && segments.length === 3 && request.method === "POST") {
-    readIdempotencyKey(request);
+    const idempotencyKey = readIdempotencyKey(request);
     const body = await readJson<ProvisioningPlanRequest>(request);
 
     if (body.dryRun !== true) {
@@ -488,7 +498,7 @@ async function routeProvisioning(
         throw new HttpError(400, "INVALID_GRANT_ID", "grantId must be a non-empty string");
       }
 
-      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId));
+      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId, idempotencyKey));
       return;
     }
 
@@ -501,7 +511,7 @@ async function routeProvisioning(
       );
     }
 
-    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId));
+    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId, idempotencyKey));
     return;
   }
 

@@ -501,6 +501,7 @@ describe("ReBAC API runtime", () => {
     const plan = await post<{
       id: string;
       connectorId: string;
+      idempotencyKey: string;
       actions: Array<{
         status: string;
         verification: { status: string; method: string };
@@ -535,6 +536,7 @@ describe("ReBAC API runtime", () => {
     const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
 
     expect(plan.connectorId).toBe("mock");
+    expect(plan.idempotencyKey).toBe("idem-test");
     expect(plan.actions[0]).toMatchObject({
       status: "planned",
       verification: { status: "pending", method: "connector.current_access_readback" },
@@ -567,6 +569,67 @@ describe("ReBAC API runtime", () => {
       "provisioning.verified",
       "provisioning.completed"
     ]));
+  });
+
+  it("replays provisioning plans by idempotency key and rejects conflicting reuse", async () => {
+    const requestBody = {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      connectorId: "mock",
+      dryRun: true
+    };
+    const first = await postWithIdempotency<{ id: string }>("/v1/provisioning/plans", "idem-phase3-plan-replay", requestBody);
+    const replay = await postWithIdempotency<{ id: string }>("/v1/provisioning/plans", "idem-phase3-plan-replay", requestBody);
+    const conflict = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-phase3-plan-replay" },
+      body: JSON.stringify({
+        ...requestBody,
+        resourceId: "workspace:case"
+      })
+    });
+    const body = (await conflict.json()) as { code: string };
+
+    expect(replay.id).toBe(first.id);
+    expect(conflict.status).toBe(409);
+    expect(body.code).toBe("IDEMPOTENCY_KEY_REUSED");
+  });
+
+  it("rejects idempotent provisioning job replay for a different plan", async () => {
+    const firstPlan = await postWithIdempotency<{ id: string }>("/v1/provisioning/plans", "idem-phase3-plan-one", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      connectorId: "mock",
+      dryRun: true
+    });
+    const secondPlan = await postWithIdempotency<{ id: string }>("/v1/provisioning/plans", "idem-phase3-plan-two", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "workspace:case",
+      connectorId: "mock",
+      dryRun: true
+    });
+
+    await postWithIdempotency<{ id: string }>("/v1/provisioning/jobs", "idem-phase3-shared-job", {
+      planId: firstPlan.id,
+      approverId: "user:approver",
+      dryRun: true
+    });
+    const response = await fetch(`${baseUrl}/v1/provisioning/jobs`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-phase3-shared-job" },
+      body: JSON.stringify({
+        planId: secondPlan.id,
+        approverId: "user:approver",
+        dryRun: true
+      })
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(409);
+    expect(body.code).toBe("IDEMPOTENCY_KEY_REUSED");
   });
 
   it("requires provisioning dry-run mode for plans and jobs", async () => {

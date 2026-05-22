@@ -36,6 +36,16 @@ export interface RebacLocalAppOptions {
   actor?: string;
 }
 
+export class RebacLocalAppError extends Error {
+  constructor(
+    readonly statusCode: number,
+    readonly code: string,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
 export interface RebacLocalApp {
   store: InMemoryRebacStore;
   engine: RebacDecisionEngine;
@@ -284,11 +294,29 @@ export async function testConnector(app: RebacLocalApp, connectorId: string): Pr
 export async function createProvisioningPlan(
   app: RebacLocalApp,
   request: DecisionRequest,
-  connectorId = getDefaultConnectorId(app)
+  connectorId = getDefaultConnectorId(app),
+  idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
   const connector = getConnector(app, connectorId);
+  const existing = idempotencyKey ? app.store.getProvisioningPlanByIdempotencyKey(idempotencyKey) : undefined;
+
+  if (existing) {
+    if (!planMatchesDecisionRequest(existing, request, connectorId)) {
+      throw new RebacLocalAppError(
+        409,
+        "IDEMPOTENCY_KEY_REUSED",
+        "Idempotency-Key was already used for a different provisioning plan request."
+      );
+    }
+
+    return existing;
+  }
+
   const decision = app.engine.explain(request);
-  const plan = normalizePlanConnector(await connector.planProvisioningChange(decision), connectorId);
+  const plan = {
+    ...normalizePlanConnector(await connector.planProvisioningChange(decision), connectorId),
+    idempotencyKey
+  };
   app.store.upsertProvisioningPlan(plan);
   recordAudit(app, {
     eventType: "provisioning.requested",
@@ -320,10 +348,28 @@ export async function createProvisioningPlan(
 export async function createRevocationPlan(
   app: RebacLocalApp,
   nativeGrantId: string,
-  connectorId = getDefaultConnectorId(app)
+  connectorId = getDefaultConnectorId(app),
+  idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
   const connector = getConnector(app, connectorId);
-  const plan = normalizePlanConnector(await connector.revokeAccess(nativeGrantId), connectorId);
+  const existing = idempotencyKey ? app.store.getProvisioningPlanByIdempotencyKey(idempotencyKey) : undefined;
+
+  if (existing) {
+    if (!planMatchesRevocationRequest(existing, nativeGrantId, connectorId)) {
+      throw new RebacLocalAppError(
+        409,
+        "IDEMPOTENCY_KEY_REUSED",
+        "Idempotency-Key was already used for a different provisioning plan request."
+      );
+    }
+
+    return existing;
+  }
+
+  const plan = {
+    ...normalizePlanConnector(await connector.revokeAccess(nativeGrantId), connectorId),
+    idempotencyKey
+  };
   app.store.upsertProvisioningPlan(plan);
   recordAudit(app, {
     eventType: "provisioning.requested",
@@ -359,6 +405,14 @@ export async function createProvisioningJob(
   const existing = app.store.getProvisioningJobByIdempotencyKey(request.idempotencyKey);
 
   if (existing) {
+    if (existing.planId !== request.planId || existing.approverId !== request.approverId) {
+      throw new RebacLocalAppError(
+        409,
+        "IDEMPOTENCY_KEY_REUSED",
+        "Idempotency-Key was already used for a different provisioning job request."
+      );
+    }
+
     return existing;
   }
 
@@ -371,8 +425,8 @@ export async function createProvisioningJob(
   const connector = getConnector(app, plan.connectorId);
   const startedAt = app.now();
   const jobId = `job:${sha256({ planId: request.planId, idempotencyKey: request.idempotencyKey }).slice(0, 24)}`;
-  const completedAt = app.now();
-  const verification = await buildDryRunVerification(connector, plan, completedAt);
+  const verification = await buildDryRunVerification(connector, plan, app.now);
+  const completedAt = verification.checkedAt ?? app.now();
   const actionResults = plan.actions.map((action): ProvisioningActionResult => ({
     actionId: action.actionId,
     operation: action.operation,
@@ -581,6 +635,22 @@ function normalizePlanConnector(plan: ProvisioningPlan, connectorId: string): Pr
   };
 }
 
+function planMatchesDecisionRequest(plan: ProvisioningPlan, request: DecisionRequest, connectorId: string): boolean {
+  return (
+    plan.connectorId === connectorId &&
+    plan.subjectId === request.subjectId &&
+    plan.resourceId === request.resourceId &&
+    plan.action === request.action
+  );
+}
+
+function planMatchesRevocationRequest(plan: ProvisioningPlan, nativeGrantId: string, connectorId: string): boolean {
+  return (
+    plan.connectorId === connectorId &&
+    plan.actions.some((action) => action.operation === "revoke" && action.requestedState.nativeGrantId === nativeGrantId)
+  );
+}
+
 function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
   for (const action of plan.actions) {
     if (!action.compensation) {
@@ -605,9 +675,10 @@ function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): vo
 async function buildDryRunVerification(
   connector: ConnectorAdapter,
   plan: ProvisioningPlan,
-  checkedAt: string
+  now: () => string
 ): Promise<ProvisioningVerification> {
   const verified = await connector.verifyProvisioningChange(plan);
+  const checkedAt = now();
 
   if (verified) {
     return {

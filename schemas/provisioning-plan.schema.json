@@ -19,6 +19,7 @@
   "properties": {
     "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "sourceDecisionId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
     "connectorId": { "type": "string", "minLength": 1 },
     "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
