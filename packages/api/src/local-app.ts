@@ -30,6 +30,7 @@ import {
   type EvidenceExport,
   type EvidenceFramework,
   type EvidencePackageRepository,
+  type EvidenceStorageReceipt,
   type JsonRecord,
   type PoamItem,
   type NativeGrant,
@@ -114,7 +115,7 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     now,
     actor,
     auditRecorder,
-    onAuditEvent: (event) => options.auditRepository?.appendAuditEvent(event, event.occurredAt)
+    onAuditEvent: (event) => appendAuditEvent(options.auditRepository, event, event.occurredAt)
   });
   const connectorList: ConnectorAdapter[] = [
     new MockConnector(),
@@ -880,7 +881,7 @@ export function exportEvidencePackage(
     payload: asJsonRecord(exportMetadata)
   });
 
-  const storageReceipt = app.evidenceRepository?.writeEvidenceExport(exportMetadata, evidenceEvent.occurredAt);
+  const storageReceipt = writeEvidenceExport(app.evidenceRepository, exportMetadata, evidenceEvent.occurredAt);
   return storageReceipt ? { ...exportMetadata, storageReceipt } : exportMetadata;
 }
 
@@ -902,8 +903,28 @@ export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
 export function recordAudit(app: RebacLocalApp, input: AuditEventInput): AuditEvent {
   const event = app.auditRecorder.record(input, app.now());
   app.store.recordAuditEvent(event);
-  app.auditRepository?.appendAuditEvent(event, event.occurredAt);
+  appendAuditEvent(app.auditRepository, event, event.occurredAt);
   return event;
+}
+
+function appendAuditEvent(repository: AuditEventRepository | undefined, event: AuditEvent, storedAt: string): void {
+  try {
+    repository?.appendAuditEvent(event, storedAt);
+  } catch {
+    // Local repositories are proof-point persistence only; API operations should still return computed results.
+  }
+}
+
+function writeEvidenceExport(
+  repository: EvidencePackageRepository | undefined,
+  exportMetadata: EvidenceExport,
+  storedAt: string
+): EvidenceStorageReceipt | undefined {
+  try {
+    return repository?.writeEvidenceExport(exportMetadata, storedAt);
+  } catch {
+    return undefined;
+  }
 }
 
 interface ControlImplementationDefinition {

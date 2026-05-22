@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-22T10:21:56.766Z
+Generated at: 2026-05-22T10:22:39.119Z
 
 Branch: 
 
@@ -97,8 +97,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  06:21:54
-   Duration  142ms (transform 31ms, setup 0ms, import 48ms, tests 6ms, environment 0ms)
+   Start at  06:22:36
+   Duration  138ms (transform 29ms, setup 0ms, import 42ms, tests 6ms, environment 0ms)
 ```
 
 ### core engine tests
@@ -113,8 +113,8 @@ PASS drift is represented as security finding
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  06:21:54
-   Duration  258ms (transform 93ms, setup 0ms, import 131ms, tests 11ms, environment 0ms)
+   Start at  06:22:37
+   Duration  167ms (transform 101ms, setup 0ms, import 136ms, tests 10ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -128,9 +128,9 @@ PASS drift is represented as security finding
 
 
  Test Files  1 passed (1)
-      Tests  45 passed (45)
-   Start at  06:21:55
-   Duration  361ms (transform 98ms, setup 0ms, import 131ms, tests 140ms, environment 0ms)
+      Tests  47 passed (47)
+   Start at  06:22:37
+   Duration  360ms (transform 97ms, setup 0ms, import 131ms, tests 141ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -145,8 +145,8 @@ PASS drift is represented as security finding
 
  Test Files  2 passed (2)
       Tests  27 passed (27)
-   Start at  06:21:56
-   Duration  286ms (transform 124ms, setup 0ms, import 184ms, tests 75ms, environment 0ms)
+   Start at  06:22:38
+   Duration  281ms (transform 124ms, setup 0ms, import 182ms, tests 75ms, environment 0ms)
 ```
 
 

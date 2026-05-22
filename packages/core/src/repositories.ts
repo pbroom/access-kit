@@ -48,7 +48,7 @@ export class LocalFileEvidenceRepository implements AuditEventRepository, Eviden
       previousEventHash: event.previousEventHash,
       storedAt,
       backend: "local_file",
-      location: this.#auditPath,
+      location: "audit-events.jsonl",
       immutable: false,
       version: "audit-storage-receipt:v1"
     };
@@ -72,14 +72,15 @@ export class LocalFileEvidenceRepository implements AuditEventRepository, Eviden
   }
 
   writeEvidenceExport(evidence: EvidenceExport, storedAt: string): EvidenceStorageReceipt {
-    const location = join(this.#evidenceDir, `${sanitizeFileSegment(evidence.exportId)}.json`);
+    const filename = `${sanitizeFileSegment(evidence.exportId)}.json`;
+    const location = join(this.#evidenceDir, filename);
     const packageHash = `sha256:${stableHash(evidence)}`;
     const receipt: EvidenceStorageReceipt = {
       exportId: evidence.exportId,
       packageHash,
       storedAt,
       backend: "local_file",
-      location,
+      location: `evidence-packages/${filename}`,
       immutable: false,
       version: "evidence-storage-receipt:v1"
     };
@@ -104,7 +105,7 @@ export class LocalFileEvidenceRepository implements AuditEventRepository, Eviden
 }
 
 function sanitizeFileSegment(value: string): string {
-  return value.replaceAll(/[^a-z0-9_:-]/gi, "_");
+  return value.replaceAll(/[^a-z0-9_-]/gi, "_");
 }
 
 function stableHash(value: unknown): string {

@@ -28,7 +28,7 @@
 
 `AuditIntegrityReport` verifies the append-only audit event chain. It records event count, first and last event identifiers, first and last event hashes, findings, status, and version.
 
-`AuditStorageReceipt` and `EvidenceStorageReceipt` record where local proof-point evidence was persisted, the hash of the stored event or package, backend type, storage time, and whether the backend claims immutability. The local file-backed proof point sets `immutable: false`; production WORM storage remains future work.
+`AuditStorageReceipt` and `EvidenceStorageReceipt` record where local proof-point evidence was persisted, the hash of the stored event or package, backend type, storage time, and whether the backend claims immutability. Local file-backed receipts expose repository-relative locations, not host filesystem paths, and set `immutable: false`; production WORM storage remains future work.
 
 `EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, format, audit integrity, control mappings, generated artifacts, continuous-monitoring metrics, POA&M inputs, and SIEM export metadata.
 

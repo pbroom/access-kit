@@ -95,7 +95,11 @@ export class RebacDecisionEngine {
       evaluatedAt
     );
     this.#store.recordAuditEvent(auditEvent);
-    this.#onAuditEvent?.(auditEvent);
+    try {
+      this.#onAuditEvent?.(auditEvent);
+    } catch {
+      // Persistence callbacks are best-effort; the computed decision remains authoritative.
+    }
     return result;
   }
 

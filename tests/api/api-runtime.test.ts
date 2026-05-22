@@ -5,7 +5,15 @@ import type { Server } from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { ConnectorAdapter, EnforcementControl, EnforcementReadinessReport } from "../../packages/core/src/index.js";
+import type {
+  AuditEvent,
+  AuditEventRepository,
+  AuditIntegrityReport,
+  ConnectorAdapter,
+  EnforcementControl,
+  EnforcementReadinessReport,
+  EvidencePackageRepository
+} from "../../packages/core/src/index.js";
 import {
   checkEnforcementReadiness,
   createRebacApiServer,
@@ -401,8 +409,51 @@ describe("ReBAC API runtime", () => {
       immutable: false
     });
     expect(evidence.storageReceipt.packageHash).toMatch(/^sha256:[a-f0-9]{64}$/);
-    expect(evidence.storageReceipt.location).toContain(storageRoot);
+    expect(evidence.storageReceipt.location).toMatch(/^evidence-packages\/evidence_[a-z0-9]+\.json$/);
+    expect(evidence.storageReceipt.location).not.toContain(storageRoot);
     expect(storedEvidence?.storageReceipt?.packageHash).toBe(evidence.storageReceipt.packageHash);
+    expect(storedEvidence?.storageReceipt?.location).toBe(evidence.storageReceipt.location);
+  });
+
+  it("returns computed audit results when proof-point storage append fails", async () => {
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => TEST_NOW,
+        auditRepository: new ThrowingAuditRepository()
+      })
+    });
+
+    const decision = await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    const integrity = await get<{ status: string; eventCount: number; auditEventId: string }>("/v1/audit/integrity");
+    const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(decision.decision).toBe("allow");
+    expect(integrity).toMatchObject({ status: "verified", eventCount: 0 });
+    expect(integrity.auditEventId).toMatch(/^evt:/);
+    expect(audit.items.map((event) => event.eventType)).toEqual(["decision.allowed", "audit.integrity_verified"]);
+  });
+
+  it("returns evidence exports without exposing failed storage details", async () => {
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => TEST_NOW,
+        evidenceRepository: new ThrowingEvidenceRepository()
+      })
+    });
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const evidence = await get<{ exportId: string; storageReceipt?: unknown }>("/v1/evidence/export");
+
+    expect(evidence.exportId).toMatch(/^evidence:/);
+    expect(evidence.storageReceipt).toBeUndefined();
   });
 
   it("runs read-only mock connector discovery and exposes native access readback", async () => {
@@ -1390,6 +1441,36 @@ function connectorWithProvisioningDelay(
     detectDrift: () => connector.detectDrift(),
     emitEvidence: (events) => connector.emitEvidence(events)
   };
+}
+
+class ThrowingAuditRepository implements AuditEventRepository {
+  appendAuditEvent(): never {
+    throw new Error("disk full");
+  }
+
+  listAuditEvents(): AuditEvent[] {
+    return [];
+  }
+
+  verifyIntegrity(verifiedAt: string): AuditIntegrityReport {
+    return {
+      status: "verified",
+      eventCount: 0,
+      verifiedAt,
+      findings: [],
+      version: "audit-integrity:v1"
+    };
+  }
+}
+
+class ThrowingEvidenceRepository implements EvidencePackageRepository {
+  writeEvidenceExport(): never {
+    throw new Error("read-only volume");
+  }
+
+  readEvidenceExport(): undefined {
+    return undefined;
+  }
 }
 
 async function startServer(options: RebacApiServerOptions): Promise<void> {
