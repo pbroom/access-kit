@@ -16,13 +16,16 @@ import {
   type ConnectorHealthCheck,
   type DecisionRequest,
   type DiscoveryRun,
+  type EnforcementControl,
   type EvidenceExport,
   type JsonRecord,
   type NativeGrant,
   type NativeGrantType,
   type NativePrincipalType,
+  type ProvisioningApproval,
   type ProvisioningActionResult,
   type ProvisioningJob,
+  type ProvisioningMode,
   type ProvisioningPlan,
   type ProvisioningVerification,
   type ReconciliationRun,
@@ -61,6 +64,12 @@ type NativeAccessFilter = Partial<
     principalType: NativePrincipalType;
   }
 >;
+
+interface ProvisioningExecutionOptions {
+  mode?: ProvisioningMode;
+  approval?: ProvisioningApproval;
+  control?: EnforcementControl;
+}
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
@@ -295,13 +304,14 @@ export async function createProvisioningPlan(
   app: RebacLocalApp,
   request: DecisionRequest,
   connectorId = getDefaultConnectorId(app),
+  options: ProvisioningExecutionOptions = {},
   idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
   const connector = getConnector(app, connectorId);
   const existing = idempotencyKey ? app.store.getProvisioningPlanByIdempotencyKey(idempotencyKey) : undefined;
 
   if (existing) {
-    if (!planMatchesDecisionRequest(existing, request, connectorId)) {
+    if (!planMatchesDecisionRequest(existing, request, connectorId, options)) {
       throw new RebacLocalAppError(
         409,
         "IDEMPOTENCY_KEY_REUSED",
@@ -314,7 +324,12 @@ export async function createProvisioningPlan(
 
   const decision = app.engine.explain(request);
   const plan = {
-    ...normalizePlanConnector(await connector.planProvisioningChange(decision), connectorId),
+    ...prepareProvisioningPlan(
+      app,
+      connector,
+      normalizePlanConnector(await connector.planProvisioningChange(decision), connectorId),
+      options
+    ),
     idempotencyKey
   };
   app.store.upsertProvisioningPlan(plan);
@@ -341,6 +356,7 @@ export async function createProvisioningPlan(
       idempotencyKeys: plan.actions.map((action) => action.idempotencyKey)
     }
   });
+  recordPlanApprovalAudit(app, plan);
   recordCompensationAudit(app, plan);
   return plan;
 }
@@ -349,13 +365,14 @@ export async function createRevocationPlan(
   app: RebacLocalApp,
   nativeGrantId: string,
   connectorId = getDefaultConnectorId(app),
+  options: ProvisioningExecutionOptions = {},
   idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
   const connector = getConnector(app, connectorId);
   const existing = idempotencyKey ? app.store.getProvisioningPlanByIdempotencyKey(idempotencyKey) : undefined;
 
   if (existing) {
-    if (!planMatchesRevocationRequest(existing, nativeGrantId, connectorId)) {
+    if (!planMatchesRevocationRequest(existing, nativeGrantId, connectorId, options)) {
       throw new RebacLocalAppError(
         409,
         "IDEMPOTENCY_KEY_REUSED",
@@ -367,7 +384,7 @@ export async function createRevocationPlan(
   }
 
   const plan = {
-    ...normalizePlanConnector(await connector.revokeAccess(nativeGrantId), connectorId),
+    ...prepareProvisioningPlan(app, connector, normalizePlanConnector(await connector.revokeAccess(nativeGrantId), connectorId), options),
     idempotencyKey
   };
   app.store.upsertProvisioningPlan(plan);
@@ -394,13 +411,21 @@ export async function createRevocationPlan(
       idempotencyKeys: plan.actions.map((action) => action.idempotencyKey)
     }
   });
+  recordPlanApprovalAudit(app, plan);
   recordCompensationAudit(app, plan);
   return plan;
 }
 
 export async function createProvisioningJob(
   app: RebacLocalApp,
-  request: { planId: string; approverId: string; idempotencyKey: string }
+  request: {
+    planId: string;
+    approverId: string;
+    idempotencyKey: string;
+    mode?: ProvisioningMode;
+    approval?: ProvisioningApproval;
+    control?: EnforcementControl;
+  }
 ): Promise<ProvisioningJob | undefined> {
   const existing = app.store.getProvisioningJobByIdempotencyKey(request.idempotencyKey);
 
@@ -425,6 +450,20 @@ export async function createProvisioningJob(
   const connector = getConnector(app, plan.connectorId);
   const startedAt = app.now();
   const jobId = `job:${sha256({ planId: request.planId, idempotencyKey: request.idempotencyKey }).slice(0, 24)}`;
+  const requestedMode = request.mode ?? plan.mode;
+
+  if (requestedMode !== plan.mode) {
+    throw new RebacLocalAppError(400, "PROVISIONING_MODE_MISMATCH", `Plan ${plan.id} is ${plan.mode}, not ${requestedMode}.`);
+  }
+
+  if (requestedMode === "enforcement") {
+    return createControlledEnforcementJob(app, connector, plan, {
+      ...request,
+      jobId,
+      startedAt
+    });
+  }
+
   const verification = await buildDryRunVerification(connector, plan, app.now);
   const completedAt = verification.checkedAt ?? app.now();
   const actionResults = plan.actions.map((action): ProvisioningActionResult => ({
@@ -502,6 +541,125 @@ export async function createProvisioningJob(
     }).eventId
   ];
   const job = { ...jobWithoutAuditIds, auditEventIds };
+  app.store.upsertProvisioningJob(job);
+  return job;
+}
+
+async function createControlledEnforcementJob(
+  app: RebacLocalApp,
+  connector: ConnectorAdapter,
+  plan: ProvisioningPlan,
+  request: {
+    planId: string;
+    approverId: string;
+    idempotencyKey: string;
+    jobId: string;
+    startedAt: string;
+    approval?: ProvisioningApproval;
+    control?: EnforcementControl;
+  }
+): Promise<ProvisioningJob> {
+  assertJobControlsMatchPlan(plan, request.approval, request.control);
+  const approval = request.approval ?? plan.approval;
+  const control = request.control ?? plan.control;
+  assertControlledEnforcementAllowed(app, connector, approval, control, request.approverId);
+
+  const appliedPlan = await connector.applyProvisioningChange(plan);
+  const completedAt = app.now();
+  const verification = await buildEnforcementVerification(connector, appliedPlan, completedAt);
+  const completed = appliedPlan.status === "applied" && verification.status === "verified";
+  const actionResults = plan.actions.map((action): ProvisioningActionResult => ({
+    actionId: action.actionId,
+    operation: action.operation,
+    status: completed ? "applied" : "failed",
+    dryRun: false,
+    idempotencyKey: action.idempotencyKey,
+    message: completed
+      ? "Controlled synthetic enforcement executed through the mock connector and verified by readback."
+      : "Controlled enforcement did not verify; rollback or compensation is required.",
+    verification: {
+      ...action.verification,
+      status: verification.status,
+      readbackState: verification.readbackState,
+      checkedAt: verification.checkedAt,
+      message: verification.message
+    },
+    compensation: action.compensation
+  }));
+  const jobWithoutAuditIds: ProvisioningJob = {
+    id: request.jobId,
+    planId: plan.id,
+    connectorId: plan.connectorId,
+    mode: "enforcement",
+    dryRun: false,
+    status: completed ? "completed" : "failed",
+    approverId: request.approverId,
+    idempotencyKey: request.idempotencyKey,
+    actionResults,
+    verification,
+    auditEventIds: [],
+    approval,
+    control,
+    version: "provisioning-job:v1",
+    createdAt: request.startedAt,
+    startedAt: request.startedAt,
+    completedAt
+  };
+  const auditEventIds = [
+    ...actionResults.map((result) =>
+      recordAudit(app, {
+        eventType: "connector.permission_changed",
+        actor: app.actor,
+        subjectId: plan.subjectId,
+        resourceId: plan.resourceId,
+        correlationId: `corr:${request.jobId}:${result.actionId}:permission-changed`,
+        payload: {
+          jobId: request.jobId,
+          planId: plan.id,
+          connectorId: plan.connectorId,
+          actionId: result.actionId,
+          operation: result.operation,
+          dryRun: false,
+          syntheticProviderWrite: true,
+          liveProviderWrite: false,
+          providerWrite: false,
+          approval,
+          control
+        }
+      }).eventId
+    ),
+    recordAudit(app, {
+      eventType: "provisioning.verified",
+      actor: app.actor,
+      subjectId: plan.subjectId,
+      resourceId: plan.resourceId,
+      correlationId: `corr:${request.jobId}:verified`,
+      payload: {
+        jobId: request.jobId,
+        planId: plan.id,
+        connectorId: plan.connectorId,
+        verification
+      }
+    }).eventId
+  ];
+
+  if (!completed) {
+    auditEventIds.push(...recordRollbackPlannedAudit(app, request.jobId, plan));
+  }
+
+  auditEventIds.push(
+    recordAudit(app, {
+      eventType: completed ? "provisioning.completed" : "provisioning.failed",
+      actor: app.actor,
+      subjectId: plan.subjectId,
+      resourceId: plan.resourceId,
+      correlationId: `corr:${request.jobId}:${completed ? "completed" : "failed"}`,
+      payload: asJsonRecord(jobWithoutAuditIds)
+    }).eventId
+  );
+
+  const job = { ...jobWithoutAuditIds, auditEventIds };
+  app.store.upsertProvisioningPlan({ ...plan, status: completed ? "applied" : "failed", updatedAt: completedAt });
   app.store.upsertProvisioningJob(job);
   return job;
 }
@@ -635,20 +793,196 @@ function normalizePlanConnector(plan: ProvisioningPlan, connectorId: string): Pr
   };
 }
 
-function planMatchesDecisionRequest(plan: ProvisioningPlan, request: DecisionRequest, connectorId: string): boolean {
+function planMatchesDecisionRequest(
+  plan: ProvisioningPlan,
+  request: DecisionRequest,
+  connectorId: string,
+  options: ProvisioningExecutionOptions
+): boolean {
   return (
     plan.connectorId === connectorId &&
     plan.subjectId === request.subjectId &&
     plan.resourceId === request.resourceId &&
-    plan.action === request.action
+    plan.action === request.action &&
+    planMatchesExecutionOptions(plan, options)
   );
 }
 
-function planMatchesRevocationRequest(plan: ProvisioningPlan, nativeGrantId: string, connectorId: string): boolean {
+function planMatchesRevocationRequest(
+  plan: ProvisioningPlan,
+  nativeGrantId: string,
+  connectorId: string,
+  options: ProvisioningExecutionOptions
+): boolean {
   return (
     plan.connectorId === connectorId &&
-    plan.actions.some((action) => action.operation === "revoke" && action.requestedState.nativeGrantId === nativeGrantId)
+    plan.actions.some((action) => action.operation === "revoke" && action.requestedState.nativeGrantId === nativeGrantId) &&
+    planMatchesExecutionOptions(plan, options)
   );
+}
+
+function planMatchesExecutionOptions(plan: ProvisioningPlan, options: ProvisioningExecutionOptions): boolean {
+  return (
+    plan.mode === (options.mode ?? "dry_run") &&
+    JSON.stringify(plan.approval ?? null) === JSON.stringify(options.approval ?? null) &&
+    JSON.stringify(plan.control ?? null) === JSON.stringify(options.control ?? null)
+  );
+}
+
+function prepareProvisioningPlan(
+  app: RebacLocalApp,
+  connector: ConnectorAdapter,
+  plan: ProvisioningPlan,
+  options: ProvisioningExecutionOptions
+): ProvisioningPlan {
+  const mode = options.mode ?? "dry_run";
+
+  if (mode === "dry_run") {
+    return {
+      ...plan,
+      mode,
+      status: "planned",
+      actions: plan.actions.map((action) => ({
+        ...action,
+        dryRun: true,
+        status: "planned"
+      }))
+    };
+  }
+
+  assertControlledEnforcementAllowed(app, connector, options.approval, options.control, options.approval?.approverId);
+  return {
+    ...plan,
+    mode,
+    status: "approved",
+    actions: plan.actions.map((action) => ({
+      ...action,
+      dryRun: false,
+      status: "planned"
+    })),
+    approval: options.approval,
+    control: options.control
+  };
+}
+
+function assertControlledEnforcementAllowed(
+  app: RebacLocalApp,
+  connector: ConnectorAdapter,
+  approval: ProvisioningApproval | undefined,
+  control: EnforcementControl | undefined,
+  approverId: string | undefined
+): asserts approval is ProvisioningApproval {
+  if (!approval) {
+    throw new RebacLocalAppError(
+      400,
+      "CONTROLLED_ENFORCEMENT_APPROVAL_REQUIRED",
+      "Controlled enforcement requires an approved change ticket."
+    );
+  }
+
+  if (!control) {
+    throw new RebacLocalAppError(
+      400,
+      "CONTROLLED_ENFORCEMENT_CONTROL_REQUIRED",
+      "Controlled enforcement requires explicit synthetic-only control settings."
+    );
+  }
+
+  if (approval.decision !== "approved" || !approval.approverId || !approval.changeTicket || !approval.approvedAt) {
+    throw new RebacLocalAppError(
+      400,
+      "CONTROLLED_ENFORCEMENT_APPROVAL_INVALID",
+      "Controlled enforcement approval must include decision, approverId, changeTicket, and approvedAt."
+    );
+  }
+
+  if (approverId && approval.approverId !== approverId) {
+    throw new RebacLocalAppError(
+      400,
+      "CONTROLLED_ENFORCEMENT_APPROVER_MISMATCH",
+      "The job approverId must match the approved change ticket."
+    );
+  }
+
+  if (approval.expiresAt && Date.parse(approval.expiresAt) <= Date.parse(app.now())) {
+    throw new RebacLocalAppError(
+      400,
+      "CONTROLLED_ENFORCEMENT_APPROVAL_EXPIRED",
+      "Controlled enforcement approval has expired."
+    );
+  }
+
+  if (!control.syntheticOnly || control.liveProviderWrites || control.breakGlass) {
+    throw new RebacLocalAppError(
+      403,
+      "CONTROLLED_ENFORCEMENT_GUARDRAIL_REQUIRED",
+      "Phase 4 enforcement must be synthetic-only, must not allow live provider writes, and must not use break-glass."
+    );
+  }
+
+  if (control.incidentMode) {
+    throw new RebacLocalAppError(
+      409,
+      "CONTROLLED_ENFORCEMENT_INCIDENT_MODE_BLOCKED",
+      "Controlled enforcement is blocked while incident mode is active."
+    );
+  }
+
+  if (!connector.capabilities.supportsProvisioning) {
+    throw new RebacLocalAppError(403, "CONNECTOR_ENFORCEMENT_DISABLED", `${connector.id} does not support provisioning.`);
+  }
+
+  if (connector.provider !== "mock" || connector.tenantBoundary !== "synthetic:local") {
+    throw new RebacLocalAppError(
+      403,
+      "CONNECTOR_ENFORCEMENT_NOT_ALLOWED",
+      "Phase 4 controlled enforcement is limited to the synthetic mock connector."
+    );
+  }
+}
+
+function assertJobControlsMatchPlan(
+  plan: ProvisioningPlan,
+  approval: ProvisioningApproval | undefined,
+  control: EnforcementControl | undefined
+): void {
+  if (approval && plan.approval && JSON.stringify(approval) !== JSON.stringify(plan.approval)) {
+    throw new RebacLocalAppError(
+      400,
+      "CONTROLLED_ENFORCEMENT_APPROVAL_MISMATCH",
+      "The job approval must match the approved provisioning plan."
+    );
+  }
+
+  if (control && plan.control && JSON.stringify(control) !== JSON.stringify(plan.control)) {
+    throw new RebacLocalAppError(
+      400,
+      "CONTROLLED_ENFORCEMENT_CONTROL_MISMATCH",
+      "The job control settings must match the approved provisioning plan."
+    );
+  }
+}
+
+function recordPlanApprovalAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
+  if (plan.mode !== "enforcement" || !plan.approval || !plan.control) {
+    return;
+  }
+
+  recordAudit(app, {
+    eventType: "provisioning.approved",
+    actor: app.actor,
+    subjectId: plan.subjectId,
+    resourceId: plan.resourceId,
+    correlationId: `corr:${plan.id}:approved`,
+    payload: {
+      planId: plan.id,
+      connectorId: plan.connectorId,
+      mode: plan.mode,
+      status: plan.status,
+      approval: plan.approval,
+      control: plan.control
+    }
+  });
 }
 
 function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
@@ -670,6 +1004,26 @@ function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): vo
       }
     });
   }
+}
+
+function recordRollbackPlannedAudit(app: RebacLocalApp, jobId: string, plan: ProvisioningPlan): string[] {
+  return plan.actions
+    .filter((action) => action.compensation)
+    .map((action) =>
+      recordAudit(app, {
+        eventType: "provisioning.rollback_planned",
+        actor: app.actor,
+        subjectId: plan.subjectId,
+        resourceId: plan.resourceId,
+        correlationId: `corr:${jobId}:${action.actionId}:rollback-planned`,
+        payload: {
+          jobId,
+          planId: plan.id,
+          actionId: action.actionId,
+          compensation: action.compensation
+        }
+      }).eventId
+    );
 }
 
 async function buildDryRunVerification(
@@ -712,5 +1066,53 @@ async function buildDryRunVerification(
     },
     checkedAt,
     message: "Connector did not provide positive dry-run verification; provider write remains skipped."
+  };
+}
+
+async function buildEnforcementVerification(
+  connector: ConnectorAdapter,
+  plan: ProvisioningPlan,
+  checkedAt: string
+): Promise<ProvisioningVerification> {
+  const verified = await connector.verifyProvisioningChange(plan);
+
+  if (verified) {
+    return {
+      status: "verified",
+      method: "connector.verifyProvisioningChange",
+      expectedState: {
+        planId: plan.id,
+        actionCount: plan.actions.length,
+        mode: "enforcement"
+      },
+      readbackState: {
+        dryRun: false,
+        providerWrite: false,
+        syntheticProviderWrite: true,
+        liveProviderWrite: false,
+        verificationHook: true
+      },
+      checkedAt,
+      message: "Controlled synthetic enforcement verified; no live provider mutation occurred."
+    };
+  }
+
+  return {
+    status: "failed",
+    method: "connector.verifyProvisioningChange",
+    expectedState: {
+      planId: plan.id,
+      actionCount: plan.actions.length,
+      mode: "enforcement"
+    },
+    readbackState: {
+      dryRun: false,
+      providerWrite: false,
+      syntheticProviderWrite: false,
+      liveProviderWrite: false,
+      verificationHook: false
+    },
+    checkedAt,
+    message: "Controlled enforcement verification failed; compensation must be reviewed before retry."
   };
 }

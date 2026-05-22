@@ -211,12 +211,97 @@ describe("CLI API wrapper", () => {
       resourceId: "document:case-plan",
       action: "read",
       connectorId: "mock",
+      mode: "dry_run",
       dryRun: true
     });
     expect(requests[1]?.body).toEqual({
       planId: "plan:mock:decision",
       approverId: "user:cli-operator",
+      mode: "dry_run",
       dryRun: true
+    });
+  });
+
+  it("forwards controlled-enforcement approval and guardrail fields", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      {
+        now: () => "2026-05-21T17:00:00.000Z"
+      },
+      "provision",
+      "plan",
+      "user:alice",
+      "document:case-plan",
+      "read",
+      "--connector",
+      "mock",
+      "--mode",
+      "enforcement",
+      "--approver",
+      "user:approver",
+      "--change-ticket",
+      "chg:phase4",
+      "--synthetic-only",
+      "--reason",
+      "Synthetic controlled enforcement proof point"
+    );
+    await runCliWithFetch(
+      requests,
+      {
+        now: () => "2026-05-21T17:00:00.000Z"
+      },
+      "provision",
+      "apply",
+      "plan:mock:decision",
+      "--mode",
+      "enforcement",
+      "--approver",
+      "user:approver",
+      "--change-ticket",
+      "chg:phase4",
+      "--synthetic-only"
+    );
+
+    expect(requests[0]?.body).toEqual({
+      subjectId: "user:alice",
+      resourceId: "document:case-plan",
+      action: "read",
+      connectorId: "mock",
+      mode: "enforcement",
+      dryRun: false,
+      approval: {
+        decision: "approved",
+        approverId: "user:approver",
+        changeTicket: "chg:phase4",
+        approvedAt: "2026-05-21T17:00:00.000Z",
+        reason: "Synthetic controlled enforcement proof point"
+      },
+      control: {
+        syntheticOnly: true,
+        liveProviderWrites: false,
+        incidentMode: false,
+        breakGlass: false
+      }
+    });
+    expect(requests[1]?.body).toEqual({
+      planId: "plan:mock:decision",
+      approverId: "user:approver",
+      mode: "enforcement",
+      dryRun: false,
+      approval: {
+        decision: "approved",
+        approverId: "user:approver",
+        changeTicket: "chg:phase4",
+        approvedAt: "2026-05-21T17:00:00.000Z"
+      },
+      control: {
+        syntheticOnly: true,
+        liveProviderWrites: false,
+        incidentMode: false,
+        breakGlass: false
+      }
     });
   });
 

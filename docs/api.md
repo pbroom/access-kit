@@ -11,7 +11,7 @@
 - Resources: canonical resource registry, decision-derived resource access view, and observed native-access view.
 - Relationships: tuple query, put, and delete.
 - Policies: draft, validate, publish, and rollback.
-- Provisioning: dry-run plans and jobs.
+- Provisioning: dry-run plans, controlled synthetic enforcement plans, and jobs.
 - Reconciliation: connector runs and drift findings.
 - Audit: append-only event search.
 - Evidence: control/time-bounded export.
@@ -30,13 +30,15 @@
 
 `GET /v1/resources/{id}/native-access` returns observed `NativeGrant` records from the latest discovery data. It supports connector, subject, native permission, grant type, and principal type filters. These records represent provider readback only; they are not intended grants and do not create authorization decisions.
 
-## Phase 3 Dry-Run Provisioning
+## Phase 3 And 4 Provisioning
 
-`POST /v1/provisioning/plans` requires `dryRun: true`. A plan records connector ID, action idempotency keys, pending verification metadata, and compensation intent. Revocation plans use `grantId`; grant/repair plans use subject, resource, and action.
+`POST /v1/provisioning/plans` defaults to `mode: "dry_run"` with `dryRun: true`. A plan records connector ID, action idempotency keys, pending verification metadata, and compensation intent. Revocation plans use `grantId`; grant/repair plans use subject, resource, and action.
 
-`POST /v1/provisioning/jobs` also requires `dryRun: true` and `Idempotency-Key`. The local runtime returns the same job for repeated submissions with the same idempotency key. Jobs do not call provider write APIs; they mark actions as skipped, run connector verification hooks, and emit provisioning audit events.
+`POST /v1/provisioning/jobs` also defaults to `mode: "dry_run"` with `dryRun: true` and `Idempotency-Key`. The local runtime returns the same job for repeated submissions with the same idempotency key. Dry-run jobs do not call provider write APIs; they mark actions as skipped, run connector verification hooks, and emit provisioning audit events.
 
-`GET /v1/provisioning/jobs/{id}` returns the dry-run job evidence.
+Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock` connector only. Enforcement requests must include an approval object with `decision: "approved"`, `approverId`, `changeTicket`, and `approvedAt`, plus a control object with `syntheticOnly: true`, `liveProviderWrites: false`, `incidentMode: false`, and `breakGlass: false`. Read-only synthetic provider connectors and any unsafe control settings are rejected before a job is accepted.
+
+`GET /v1/provisioning/jobs/{id}` returns dry-run or controlled-enforcement job evidence.
 
 `POST /v1/reconciliation/run` remains dry-run only and returns findings, counts, and audit event IDs.
 

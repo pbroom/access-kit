@@ -1,16 +1,27 @@
 {
-  "eventId": "evt:decision-allow-alice-read-case-plan",
-  "eventType": "decision.allowed",
+  "eventId": "evt:provisioning-approved-case-plan",
+  "eventType": "provisioning.approved",
   "occurredAt": "2026-05-21T17:00:00.000Z",
   "actor": "service:decision-api",
   "subjectId": "user:alice",
   "resourceId": "document:case-plan",
   "correlationId": "corr:case-plan-read",
-  "policyVersion": "policy:test-v1",
-  "relationshipVersion": "tuple-set:test-v1",
   "payloadHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "payload": {
-    "decisionId": "decision:allow-alice-read-case-plan",
-    "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
+    "planId": "plan:decision:allow-alice-read-case-plan",
+    "connectorId": "mock",
+    "mode": "enforcement",
+    "approval": {
+      "decision": "approved",
+      "approverId": "user:approver",
+      "changeTicket": "chg:phase4-controlled-enforcement",
+      "approvedAt": "2026-05-21T17:00:00.000Z"
+    },
+    "control": {
+      "syntheticOnly": true,
+      "liveProviderWrites": false,
+      "incidentMode": false,
+      "breakGlass": false
+    }
   }
 }

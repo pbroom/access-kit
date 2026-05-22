@@ -18,7 +18,7 @@
 
 `ProvisioningPlan` is the auditable plan that converts a decision or request into dry-run or enforcement actions. It records connector ID, action idempotency keys, verification expectations, and compensation intent. Decisions must not directly mutate providers.
 
-`ProvisioningJob` records execution evidence for a plan. In Phase 3, jobs are dry-run only: provider writes are skipped, verification hooks are run, compensation remains planned, and idempotent replay returns the same job.
+`ProvisioningJob` records execution evidence for a plan. Dry-run jobs skip provider writes, run verification hooks, keep compensation planned, and return the same job on idempotent replay. Controlled enforcement jobs are synthetic-only in Phase 4: they require approval and guardrail controls, apply only through the mock connector, verify readback, and emit permission-change evidence without live provider mutation.
 
 `DriftFinding` records a difference between intended access and native access. It has severity, source connector, recommended action, status, and timestamps.
 
@@ -34,6 +34,7 @@
 - Discovery runs are not provisioning jobs.
 - Provisioning plans are not provisioning jobs.
 - Dry-run provisioning jobs are not provider writes.
+- Controlled enforcement jobs in this milestone are synthetic proof points, not live provider writes.
 - Drift findings are security objects, not incidental errors.
 - Audit evidence is not a mutable operational table.
 

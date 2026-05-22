@@ -22,7 +22,9 @@ Phase 2 connector sync is restricted to `read_only`. It may discover inventory a
 
 The synthetic Entra ID, SharePoint, and AWS-style connectors use synthetic IDs, read scopes, tenant boundaries, subjects, resources, grants, warnings, and cursors. They exist to prove contract shape and security boundaries without secrets, production users, tenant IDs, account IDs, or provider API calls.
 
-Phase 3 provisioning jobs are restricted to `dry_run`. They record skipped provider writes, verification-hook outcomes, compensation intent, and audit events. They must not call live provider write APIs.
+Phase 3 provisioning jobs default to `dry_run`. They record skipped provider writes, verification-hook outcomes, compensation intent, and audit events. They must not call live provider write APIs.
+
+Phase 4 controlled enforcement is restricted to the synthetic `mock` connector. It requires an approved change ticket, matching approver, synthetic-only controls, no live provider writes, no break-glass flag, and incident mode set to false. Synthetic provider read-only connectors cannot enforce even when callers provide approval fields.
 
 ## Fail Behavior
 
