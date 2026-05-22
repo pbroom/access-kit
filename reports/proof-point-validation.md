@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-22T02:35:02.374Z
+Generated at: 2026-05-22T10:44:00.780Z
 
 Branch: codex/rebac-phase4-controlled-enforcement
 
@@ -94,8 +94,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  22:34:59
-   Duration  165ms (transform 35ms, setup 0ms, import 54ms, tests 6ms, environment 0ms)
+   Start at  06:43:57
+   Duration  167ms (transform 35ms, setup 0ms, import 51ms, tests 6ms, environment 0ms)
 ```
 
 ### core engine tests
@@ -110,8 +110,8 @@ PASS drift is represented as security finding
 
  Test Files  2 passed (2)
       Tests  24 passed (24)
-   Start at  22:35:00
-   Duration  181ms (transform 95ms, setup 0ms, import 128ms, tests 12ms, environment 0ms)
+   Start at  06:43:58
+   Duration  210ms (transform 134ms, setup 0ms, import 170ms, tests 12ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -125,9 +125,9 @@ PASS drift is represented as security finding
 
 
  Test Files  1 passed (1)
-      Tests  32 passed (32)
-   Start at  22:35:00
-   Duration  325ms (transform 81ms, setup 0ms, import 113ms, tests 113ms, environment 0ms)
+      Tests  34 passed (34)
+   Start at  06:43:59
+   Duration  375ms (transform 92ms, setup 0ms, import 128ms, tests 140ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -141,9 +141,9 @@ PASS drift is represented as security finding
 
 
  Test Files  2 passed (2)
-      Tests  24 passed (24)
-   Start at  22:35:01
-   Duration  290ms (transform 119ms, setup 0ms, import 178ms, tests 71ms, environment 0ms)
+      Tests  25 passed (25)
+   Start at  06:44:00
+   Duration  312ms (transform 133ms, setup 0ms, import 191ms, tests 79ms, environment 0ms)
 ```
 
 
