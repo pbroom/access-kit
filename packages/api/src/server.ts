@@ -79,6 +79,7 @@ const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
 const evidenceFrameworks = new Set(["nist-800-53", "fedramp-rev5", "custom"]);
+const evidenceControlIdPattern = /^[A-Z]{2}-[0-9]+(?:\([0-9]+\))?$/;
 const discoveryStatuses = new Set(["queued", "running", "completed", "completed_with_warnings", "failed"]);
 const enforcementReadinessStatuses = new Set(["ready", "blocked"]);
 const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
@@ -1053,6 +1054,10 @@ function readEvidenceControls(value: string | null): string[] {
 
   if (controls.length === 0) {
     throw new HttpError(400, "INVALID_EVIDENCE_CONTROLS", "controls must include at least one control id");
+  }
+
+  if (controls.some((control) => !evidenceControlIdPattern.test(control))) {
+    throw new HttpError(400, "INVALID_EVIDENCE_CONTROLS", "controls must be comma-separated control ids such as AC-3 or AU-6(1)");
   }
 
   return controls;

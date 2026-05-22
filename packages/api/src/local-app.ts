@@ -822,7 +822,7 @@ export function exportEvidencePackage(
   const periodEnd = options.periodEnd ?? generatedAt;
   const events = allEvents.filter((event) => event.occurredAt >= periodStart && event.occurredAt <= periodEnd);
   const auditIntegrity = verifyAuditChain(allEvents, generatedAt);
-  const controlMappings = buildControlMappings(controls, events, auditIntegrity);
+  const controlMappings = buildControlMappings(controls, events);
   const conmonMetrics = buildConMonMetrics(app, events, auditIntegrity);
   const poamItems = buildPoamItems(controlMappings, auditIntegrity, generatedAt);
   const exportMetadata: EvidenceExport = {
@@ -942,8 +942,7 @@ const controlImplementationCatalog: Record<string, ControlImplementationDefiniti
 
 function buildControlMappings(
   controls: string[],
-  events: AuditEvent[],
-  auditIntegrity: AuditIntegrityReport
+  events: AuditEvent[]
 ): EvidenceControlMapping[] {
   return controls.map((controlId) => {
     const definition = controlImplementationCatalog[controlId];
@@ -963,8 +962,7 @@ function buildControlMappings(
     const sourceEventIds = events
       .filter((event) => matchesAnyPrefix(event.eventType, definition.eventPrefixes))
       .map((event) => event.eventId);
-    const hasCurrentIntegrityEvidence = controlId === "AU-6" && auditIntegrity.status === "verified";
-    const status = sourceEventIds.length > 0 || hasCurrentIntegrityEvidence ? "implemented" : "partially_implemented";
+    const status = sourceEventIds.length > 0 ? "implemented" : "partially_implemented";
 
     return {
       controlId,
@@ -1030,9 +1028,9 @@ function buildPoamItems(
 
   mappings
     .filter((mapping) => mapping.status !== "implemented")
-    .forEach((mapping, index) => {
+    .forEach((mapping) => {
       items.push({
-        id: `poam:${mapping.controlId.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}:${index + 1}`,
+        id: buildPoamControlId(mapping.controlId),
         controlId: mapping.controlId,
         weakness: mapping.gaps.at(0) ?? "Control implementation evidence is incomplete.",
         status: "planned",
@@ -1043,6 +1041,11 @@ function buildPoamItems(
     });
 
   return items;
+}
+
+function buildPoamControlId(controlId: string): string {
+  const slug = controlId.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/^-|-$/g, "");
+  return `poam:${slug || "control"}`;
 }
 
 function buildEvidenceArtifacts(format: EvidenceExportFormat, eventCount: number): EvidenceArtifact[] {
