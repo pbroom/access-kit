@@ -12,6 +12,7 @@ import {
   explainDecision,
   exportEvidence,
   getProvisioningJob,
+  isSafeChangeTicketPattern,
   listEnforcementReadinessReports,
   listDiscoveryRuns,
   putRelationship,
@@ -650,7 +651,7 @@ async function routeConnectors(
 
   if (segments[3] === "enforcement-readiness" && request.method === "POST") {
     const body = await readJson<EnforcementReadinessRequest>(request);
-    sendJson(response, 200, checkEnforcementReadiness(app, connectorId, readEnforcementReadinessRequest(body)));
+    sendJson(response, 200, await checkEnforcementReadiness(app, connectorId, readEnforcementReadinessRequest(body)));
     return;
   }
 
@@ -947,10 +948,12 @@ function readEnforcementReadinessRequest(value: unknown): {
 }
 
 function assertRegularExpression(pattern: string): void {
-  try {
-    new RegExp(pattern);
-  } catch {
-    throw new HttpError(400, "INVALID_CHANGE_TICKET_PATTERN", "changeTicketPattern must be a valid regular expression");
+  if (!isSafeChangeTicketPattern(pattern)) {
+    throw new HttpError(
+      400,
+      "INVALID_CHANGE_TICKET_PATTERN",
+      "changeTicketPattern must be a valid safe regular expression without groups, alternation, or backreferences"
+    );
   }
 }
 

@@ -2,6 +2,7 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { ConnectorAdapter, EnforcementReadinessReport } from "../../packages/core/src/index.js";
 import {
   createRebacApiServer,
   createRebacLocalApp,
@@ -9,6 +10,7 @@ import {
 } from "../../packages/api/src/index.js";
 
 type JsonObject = Record<string, unknown>;
+type EnforcementReadinessReportJson = JsonObject & EnforcementReadinessReport;
 
 let server: Server | undefined;
 let baseUrl: string;
@@ -759,6 +761,49 @@ describe("ReBAC API runtime", () => {
     expect(audit.items.map((event) => event.eventType)).toContain("connector.enforcement_readiness_checked");
   });
 
+  it("rejects unsafe readiness change-ticket patterns", async () => {
+    const response = await fetch(`${baseUrl}/v1/connectors/mock/enforcement-readiness`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        mode: "enforcement",
+        control: controlledEnforcement(),
+        changeTicketPattern: "^(a+)+$"
+      })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "INVALID_CHANGE_TICKET_PATTERN" });
+  });
+
+  it("blocks readiness when compensation intent cannot be verified", async () => {
+    const app = createRebacLocalApp({ now: () => "2026-05-21T17:00:00.000Z" });
+    const connector = app.connectors.get("mock");
+
+    expect(connector).toBeDefined();
+    if (!connector) {
+      return;
+    }
+
+    const connectorId = "mock-no-compensation";
+    app.connectors.set(connectorId, connectorWithoutCompensation(connector, connectorId));
+    await restartServer({ app });
+
+    const report = await post<EnforcementReadinessReportJson>(`/v1/connectors/${connectorId}/enforcement-readiness`, {
+      mode: "enforcement",
+      control: controlledEnforcement()
+    });
+
+    expect(report.status).toBe("blocked");
+    expect(report.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "rollback_compensation_required",
+        status: "fail",
+        evidence: expect.objectContaining({ actionCount: 1, compensatedActionCount: 0 })
+      })
+    ]));
+  });
+
   it("blocks controlled enforcement without an approval", async () => {
     const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
       method: "POST",
@@ -848,6 +893,45 @@ describe("ReBAC API runtime", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({ code: "ENFORCEMENT_READINESS_CHANGE_TICKET_MISMATCH" });
+  });
+
+  it("reports blocked readiness before matching approval change tickets", async () => {
+    const app = createRebacLocalApp({ now: () => "2026-05-21T17:00:00.000Z" });
+    await restartServer({ app });
+
+    const control = controlledEnforcement();
+    const readiness = await createReadyReadinessReport("mock", control, "^chg:approved-only$");
+    app.store.recordEnforcementReadinessReport({
+      ...readiness,
+      status: "blocked",
+      checks: [
+        ...readiness.checks,
+        {
+          name: "test_blocked_report",
+          status: "fail",
+          message: "Synthetic blocked report for readiness ordering coverage."
+        }
+      ]
+    });
+
+    const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-test-readiness-blocked-first" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        connectorId: "mock",
+        mode: "enforcement",
+        dryRun: false,
+        approval: controlledApproval(),
+        control,
+        readinessReportId: readiness.id
+      })
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({ code: "ENFORCEMENT_READINESS_BLOCKED" });
   });
 
   it("rejects enforcement jobs when approval evidence differs from the approved plan", async () => {
@@ -999,13 +1083,54 @@ async function createReadyReadinessReport(
   connectorId: string,
   control: JsonObject,
   changeTicketPattern = "^chg:[a-z0-9_:-]+$"
-): Promise<{ id: string; connectorId: string; status: string; liveProviderWritesAllowed: boolean; control: JsonObject; checks: Array<{ name: string; status: string }> }> {
+): Promise<EnforcementReadinessReportJson> {
   return post(`/v1/connectors/${encodeURIComponent(connectorId)}/enforcement-readiness`, {
     mode: "enforcement",
     control,
     requiredApproverRole: "access-approver",
     changeTicketPattern
   });
+}
+
+function connectorWithoutCompensation(connector: ConnectorAdapter, connectorId: string): ConnectorAdapter {
+  return {
+    id: connectorId,
+    mode: connector.mode,
+    capabilities: { ...connector.capabilities },
+    provider: connector.provider ?? connector.id,
+    tenantBoundary: connector.tenantBoundary ?? "synthetic:local",
+    requiredReadScopes: connector.requiredReadScopes ?? [],
+    discoverSubjects: () => connector.discoverSubjects(),
+    discoverResources: () => connector.discoverResources(),
+    discoverRelationships: () => connector.discoverRelationships(),
+    readCurrentAccess: (resourceId) => connector.readCurrentAccess(resourceId),
+    testReadOnlyAccess: connector.testReadOnlyAccess ? () => connector.testReadOnlyAccess?.() ?? Promise.resolve([]) : undefined,
+    getDiscoveryMetadata: connector.getDiscoveryMetadata ? () => connector.getDiscoveryMetadata?.() ?? {
+      provider: connector.provider ?? connector.id,
+      tenantBoundary: connector.tenantBoundary ?? "synthetic:local",
+      requiredReadScopes: connector.requiredReadScopes ?? [],
+      synthetic: true,
+      warnings: []
+    } : undefined,
+    planProvisioningChange: async (request) => {
+      const plan = await connector.planProvisioningChange(request);
+
+      return {
+        ...plan,
+        connectorId,
+        actions: plan.actions.map((action) => {
+          const { compensation, ...actionWithoutCompensation } = action;
+          void compensation;
+          return actionWithoutCompensation;
+        })
+      };
+    },
+    applyProvisioningChange: (plan) => connector.applyProvisioningChange(plan),
+    verifyProvisioningChange: (plan) => connector.verifyProvisioningChange(plan),
+    revokeAccess: (nativeGrantId) => connector.revokeAccess(nativeGrantId),
+    detectDrift: () => connector.detectDrift(),
+    emitEvidence: (events) => connector.emitEvidence(events)
+  };
 }
 
 async function startServer(options: RebacApiServerOptions): Promise<void> {

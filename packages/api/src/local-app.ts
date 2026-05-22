@@ -15,6 +15,7 @@ import {
   type ConnectorAdapter,
   type ConnectorHealthCheck,
   type DecisionRequest,
+  type DecisionResult,
   type DiscoveryRun,
   type EnforcementControl,
   type EnforcementReadinessCheck,
@@ -80,6 +81,9 @@ export interface EnforcementReadinessRequest {
   requiredApproverRole?: string;
   changeTicketPattern?: string;
 }
+
+const CHANGE_TICKET_PATTERN_MAX_LENGTH = 128;
+const CHANGE_TICKET_VALUE_MAX_LENGTH = 256;
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
@@ -310,17 +314,17 @@ export async function testConnector(app: RebacLocalApp, connectorId: string): Pr
   };
 }
 
-export function checkEnforcementReadiness(
+export async function checkEnforcementReadiness(
   app: RebacLocalApp,
   connectorId: string,
   request: EnforcementReadinessRequest
-): EnforcementReadinessReport {
+): Promise<EnforcementReadinessReport> {
   const connector = getConnector(app, connectorId);
   const checkedAt = app.now();
   const reports = app.store.listEnforcementReadinessReports({ connectorId });
   const reportId = `readiness:${connectorId}:${compactTimestamp(checkedAt)}:${reports.length + 1}`;
   const control = request.control;
-  const checks = buildEnforcementReadinessChecks(connector, control);
+  const checks = await buildEnforcementReadinessChecks(connector, control, checkedAt);
   const reportWithoutAuditIds: EnforcementReadinessReport = {
     id: reportId,
     connectorId,
@@ -926,7 +930,11 @@ function prepareProvisioningPlan(
   };
 }
 
-function buildEnforcementReadinessChecks(connector: ConnectorAdapter, control: EnforcementControl): EnforcementReadinessCheck[] {
+async function buildEnforcementReadinessChecks(
+  connector: ConnectorAdapter,
+  control: EnforcementControl,
+  checkedAt: string
+): Promise<EnforcementReadinessCheck[]> {
   const provider = connector.provider ?? connector.id;
   const tenantBoundary = connector.tenantBoundary ?? "synthetic:unknown";
   const requiredReadScopes = connector.requiredReadScopes ?? [];
@@ -981,12 +989,7 @@ function buildEnforcementReadinessChecks(connector: ConnectorAdapter, control: E
       message: "Break-glass cannot be used for Phase 4 controlled enforcement readiness.",
       evidence: { breakGlass: control.breakGlass }
     },
-    {
-      name: "rollback_compensation_required",
-      status: "pass",
-      message: "Provisioning plans must carry compensation intent before enforcement jobs can run.",
-      evidence: { compensationRequired: true }
-    },
+    await buildRollbackCompensationReadinessCheck(connector, checkedAt),
     {
       name: "least_privilege_review",
       status: provider === "mock" ? "pass" : "fail",
@@ -998,6 +1001,56 @@ function buildEnforcementReadinessChecks(connector: ConnectorAdapter, control: E
       }
     }
   ];
+}
+
+async function buildRollbackCompensationReadinessCheck(
+  connector: ConnectorAdapter,
+  checkedAt: string
+): Promise<EnforcementReadinessCheck> {
+  try {
+    const plan = await connector.planProvisioningChange(createCompensationProbeDecision(checkedAt));
+    const actionsWithCompensation = plan.actions.filter(
+      (action) =>
+        action.compensation?.status === "planned" &&
+        typeof action.compensation.idempotencyKey === "string" &&
+        action.compensation.idempotencyKey.length > 0
+    );
+    const hasCompensation = plan.actions.length > 0 && actionsWithCompensation.length === plan.actions.length;
+
+    return {
+      name: "rollback_compensation_required",
+      status: hasCompensation ? "pass" : "fail",
+      message: "Provisioning plans must carry compensation intent before enforcement jobs can run.",
+      evidence: {
+        compensationRequired: true,
+        actionCount: plan.actions.length,
+        compensatedActionCount: actionsWithCompensation.length
+      }
+    };
+  } catch (error) {
+    return {
+      name: "rollback_compensation_required",
+      status: "fail",
+      message: "Provisioning compensation readiness could not be verified.",
+      evidence: { error: error instanceof Error ? error.message : "Unknown compensation probe failure" }
+    };
+  }
+}
+
+function createCompensationProbeDecision(evaluatedAt: string): DecisionResult {
+  return {
+    decisionId: "decision:enforcement-readiness-compensation-probe",
+    decision: "allow",
+    subjectId: "user:readiness-probe",
+    action: "read",
+    resourceId: "document:readiness-probe",
+    reasonCode: "ALLOW_READINESS_COMPENSATION_PROBE",
+    policyVersion: "readiness-probe",
+    relationshipVersion: "readiness-probe",
+    relationshipPath: [],
+    constraints: {},
+    evaluatedAt
+  };
 }
 
 function assertEnforcementReadiness(
@@ -1038,22 +1091,6 @@ function assertEnforcementReadiness(
     );
   }
 
-  if (control && JSON.stringify(report.control) !== JSON.stringify(control)) {
-    throw new RebacLocalAppError(
-      400,
-      "ENFORCEMENT_READINESS_CONTROL_MISMATCH",
-      "The readiness report controls must match the provisioning controls."
-    );
-  }
-
-  if (approval && !changeTicketMatches(report.changeTicketPattern, approval.changeTicket)) {
-    throw new RebacLocalAppError(
-      400,
-      "ENFORCEMENT_READINESS_CHANGE_TICKET_MISMATCH",
-      "The approval change ticket must match the readiness report change-ticket pattern."
-    );
-  }
-
   if (report.status !== "ready") {
     throw new RebacLocalAppError(
       403,
@@ -1069,11 +1106,44 @@ function assertEnforcementReadiness(
       "Phase 4 readiness reports must not allow live provider writes."
     );
   }
+
+  if (control && JSON.stringify(report.control) !== JSON.stringify(control)) {
+    throw new RebacLocalAppError(
+      400,
+      "ENFORCEMENT_READINESS_CONTROL_MISMATCH",
+      "The readiness report controls must match the provisioning controls."
+    );
+  }
+
+  if (approval && !changeTicketMatches(report.changeTicketPattern, approval.changeTicket)) {
+    throw new RebacLocalAppError(
+      400,
+      "ENFORCEMENT_READINESS_CHANGE_TICKET_MISMATCH",
+      "The approval change ticket must match the readiness report change-ticket pattern."
+    );
+  }
 }
 
 function changeTicketMatches(pattern: string, value: string): boolean {
+  if (!isSafeChangeTicketPattern(pattern) || value.length > CHANGE_TICKET_VALUE_MAX_LENGTH) {
+    return false;
+  }
+
   try {
     return new RegExp(pattern).test(value);
+  } catch {
+    return false;
+  }
+}
+
+export function isSafeChangeTicketPattern(pattern: string): boolean {
+  if (pattern.length > CHANGE_TICKET_PATTERN_MAX_LENGTH || /[()|]/.test(pattern) || /\\[1-9]/.test(pattern)) {
+    return false;
+  }
+
+  try {
+    new RegExp(pattern);
+    return true;
   } catch {
     return false;
   }
