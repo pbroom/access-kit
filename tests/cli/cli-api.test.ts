@@ -389,6 +389,26 @@ describe("CLI API wrapper", () => {
     expect(requests.at(-1)?.url).toBe("http://api.example/v1/audit/integrity");
   });
 
+  it("forwards audit export windows and targets to the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      "audit",
+      "export",
+      "--from",
+      "2026-05-21T00:00:00.000Z",
+      "--to",
+      "2026-05-22T00:00:00.000Z",
+      "--target",
+      "operator_download"
+    );
+
+    expect(requests.at(-1)?.url).toBe(
+      "http://api.example/v1/audit/export?from=2026-05-21T00%3A00%3A00.000Z&to=2026-05-22T00%3A00%3A00.000Z&target=operator_download"
+    );
+  });
+
   it("forwards ATO evidence export windows to the API", async () => {
     const requests: CapturedRequest[] = [];
 

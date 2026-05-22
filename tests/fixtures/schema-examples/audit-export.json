@@ -1,0 +1,27 @@
+{
+  "exportId": "audit-export:20260521t170000000z",
+  "generatedAt": "2026-05-21T17:00:00.000Z",
+  "periodStart": "2026-05-21T16:55:00.000Z",
+  "periodEnd": "2026-05-21T17:00:00.000Z",
+  "format": "jsonl",
+  "target": "operator_download",
+  "schemaVersion": "audit-event:v1",
+  "includesPayloadHashes": true,
+  "eventCount": 1,
+  "sourceEventIds": ["evt:decision-allowed"],
+  "records": [
+    "{\"actor\":\"service:api\",\"correlationId\":\"corr:decision\",\"eventId\":\"evt:decision-allowed\",\"eventType\":\"decision.allowed\",\"occurredAt\":\"2026-05-21T16:55:00.000Z\",\"payload\":{},\"payloadHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"
+  ],
+  "auditIntegrity": {
+    "status": "verified",
+    "eventCount": 1,
+    "verifiedAt": "2026-05-21T17:00:00.000Z",
+    "firstEventId": "evt:decision-allowed",
+    "lastEventId": "evt:decision-allowed",
+    "firstEventHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "lastEventHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "findings": [],
+    "version": "audit-integrity:v1"
+  },
+  "version": "audit-event-export:v1"
+}

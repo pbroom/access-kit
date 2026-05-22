@@ -10,8 +10,11 @@ import {
   InMemoryRebacStore,
   RebacDecisionEngine,
   sha256,
+  stableStringify,
   verifyAuditChain,
   type AuditEvent,
+  type AuditEventExport,
+  type AuditEventExportTarget,
   type AuditEventRepository,
   type AuditIntegrityReport,
   type AuditEventInput,
@@ -94,6 +97,12 @@ interface EvidenceExportOptions {
   framework?: EvidenceFramework;
   periodStart?: string;
   periodEnd?: string;
+}
+
+interface AuditEventExportOptions {
+  periodStart?: string;
+  periodEnd?: string;
+  target?: AuditEventExportTarget;
 }
 
 export interface EnforcementReadinessRequest {
@@ -819,6 +828,52 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
 
 export function exportEvidence(app: RebacLocalApp, controls: string[], format: EvidenceExport["format"]): EvidenceExport {
   return exportEvidencePackage(app, controls, format, {});
+}
+
+export function exportAuditEvents(app: RebacLocalApp, options: AuditEventExportOptions = {}): AuditEventExport {
+  const generatedAt = app.now();
+  const allEvents = app.auditRepository?.listAuditEvents() ?? app.store.listAuditEvents();
+  const periodStart = options.periodStart ?? allEvents
+    .map((event) => event.occurredAt)
+    .sort()
+    .at(0) ?? generatedAt;
+  const periodEnd = options.periodEnd ?? generatedAt;
+  const events = allEvents.filter((event) => event.occurredAt >= periodStart && event.occurredAt <= periodEnd);
+  const auditIntegrity = verifyAuditChain(allEvents, generatedAt);
+  const exportMetadata: AuditEventExport = {
+    exportId: `audit-export:${compactTimestamp(generatedAt)}`,
+    generatedAt,
+    periodStart,
+    periodEnd,
+    format: "jsonl",
+    target: options.target ?? "operator_download",
+    schemaVersion: "audit-event:v1",
+    includesPayloadHashes: true,
+    eventCount: events.length,
+    sourceEventIds: events.map((event) => event.eventId),
+    records: events.map((event) => stableStringify(event)),
+    auditIntegrity,
+    version: "audit-event-export:v1"
+  };
+
+  recordAudit(app, {
+    eventType: "audit.exported",
+    actor: app.actor,
+    correlationId: `corr:${exportMetadata.exportId}`,
+    payload: asJsonRecord({
+      exportId: exportMetadata.exportId,
+      periodStart: exportMetadata.periodStart,
+      periodEnd: exportMetadata.periodEnd,
+      format: exportMetadata.format,
+      target: exportMetadata.target,
+      eventCount: exportMetadata.eventCount,
+      sourceEventIds: exportMetadata.sourceEventIds,
+      auditIntegrityStatus: exportMetadata.auditIntegrity.status,
+      version: exportMetadata.version
+    })
+  });
+
+  return exportMetadata;
 }
 
 export function exportEvidencePackage(

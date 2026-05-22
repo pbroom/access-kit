@@ -39,6 +39,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "discovery runs", description: "List read-only connector discovery runs.", apiSurface: "GET /v1/discovery/runs" },
   { path: "audit search", description: "Search append-only audit events.", apiSurface: "GET /v1/audit/events" },
   { path: "audit integrity", description: "Verify append-only audit hash-chain integrity.", apiSurface: "GET /v1/audit/integrity" },
+  { path: "audit export", description: "Export SIEM-ready audit events.", apiSurface: "GET /v1/audit/export" },
   { path: "evidence export", description: "Export ATO evidence.", apiSurface: "GET /v1/evidence/export" },
   { path: "connector list", description: "List connectors and capabilities.", apiSurface: "GET /v1/connectors" },
   { path: "connector test", description: "Test connector health and permissions.", apiSurface: "POST /v1/connectors/{id}/test" },
@@ -450,6 +451,21 @@ function addAuditCommands(program: Command, context: CliContext): void {
 
   const integrity = audit.command("integrity");
   integrity.action(withApi(context, integrity, (client) => client.get("/v1/audit/integrity")));
+
+  const exportCommand = audit
+    .command("export")
+    .option("--from <date>")
+    .option("--to <date>")
+    .option("--target <target>", "audit export target", "operator_download");
+  exportCommand.action(withApi(context, exportCommand, (client) => {
+    const options = exportCommand.opts<{ from?: string; to?: string; target?: string }>();
+    const params = new URLSearchParams();
+    if (options.from) params.set("from", options.from);
+    if (options.to) params.set("to", options.to);
+    if (options.target) params.set("target", options.target);
+    const query = params.toString();
+    return client.get(`/v1/audit/export${query ? `?${query}` : ""}`);
+  }));
 }
 
 function addEvidenceCommands(program: Command, context: CliContext): void {

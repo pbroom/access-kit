@@ -10,6 +10,7 @@ import {
   createSubject,
   deleteRelationship,
   explainDecision,
+  exportAuditEvents,
   exportEvidencePackage,
   getProvisioningJob,
   isSafeChangeTicketPattern,
@@ -31,6 +32,7 @@ import type {
   DriftSeverity,
   EnforcementControl,
   EnforcementReadinessReport,
+  AuditEventExportTarget,
   EvidenceFramework,
   NativeGrantType,
   NativePrincipalType,
@@ -80,6 +82,7 @@ const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
 const evidenceFrameworks = new Set(["nist-800-53", "fedramp-rev5", "custom"]);
 const evidenceControlIdPattern = /^[A-Z]{2}-[0-9]+(?:\([0-9]+\))?$/;
+const auditExportTargets = new Set(["operator_download", "siem_forwarder"]);
 const discoveryStatuses = new Set(["queued", "running", "completed", "completed_with_warnings", "failed"]);
 const enforcementReadinessStatuses = new Set(["ready", "blocked"]);
 const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
@@ -189,6 +192,22 @@ async function routeRequest(
   }
 
   if (segments[1] === "audit") {
+    if (segments[2] === "export" && method === "GET") {
+      const periodStart = readOptionalDateTime(url.searchParams.get("from"), "from");
+      const periodEnd = readOptionalDateTime(url.searchParams.get("to"), "to");
+
+      if (periodStart && periodEnd && periodStart > periodEnd) {
+        throw new HttpError(400, "INVALID_AUDIT_EXPORT_PERIOD", "from must be before to");
+      }
+
+      sendJson(response, 200, exportAuditEvents(app, {
+        periodStart,
+        periodEnd,
+        target: readAuditExportTarget(url.searchParams.get("target"))
+      }));
+      return;
+    }
+
     if (segments[2] === "events" && method === "GET") {
       sendJson(response, 200, {
         items: app.store.listAuditEvents({
@@ -1073,6 +1092,18 @@ function readEvidenceFramework(value: string | null): EvidenceFramework {
   }
 
   throw new HttpError(400, "INVALID_EVIDENCE_FRAMEWORK", "framework must be nist-800-53, fedramp-rev5, or custom");
+}
+
+function readAuditExportTarget(value: string | null): AuditEventExportTarget | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (auditExportTargets.has(value)) {
+    return value as AuditEventExportTarget;
+  }
+
+  throw new HttpError(400, "INVALID_AUDIT_EXPORT_TARGET", "target must be operator_download or siem_forwarder");
 }
 
 function readOptionalDateTime(value: string | null, label: string): string | undefined {

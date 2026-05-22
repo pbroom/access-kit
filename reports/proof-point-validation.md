@@ -1,10 +1,10 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-22T10:46:21.224Z
+Generated at: 2026-05-22T10:23:01.757Z
 
-Branch: codex/rebac-phase5-storage
+Branch: 
 
-Node: v24.4.1
+Node: v24.14.0
 
 pnpm: 10.30.3
 
@@ -28,18 +28,19 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-phase5-storage
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-phase5-storage
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 > tsx scripts/validate-schemas.ts
 
-Validated 12 schemas and 12 example fixtures.
+Validated 13 schemas and 13 example fixtures.
 PASS audit-event.json -> schemas/audit-event.schema.json
+PASS audit-export.json -> schemas/audit-export.schema.json
 PASS audit-integrity.json -> schemas/audit-integrity.schema.json
 PASS decision.json -> schemas/decision.schema.json
 PASS discovery-run.json -> schemas/discovery-run.schema.json
@@ -56,19 +57,19 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-phase5-storage
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-phase5-storage/openapi/rebac-control-plane.yaml.
-PASS 26 required API path groups are present.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-phase5-siem-export/openapi/rebac-control-plane.yaml.
+PASS 27 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
-PASS Phase 5 audit integrity and evidence export path groups are present.
+PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.
 ```
 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-phase5-storage
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -88,84 +89,84 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-phase5-storage
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-storage
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  06:46:17
-   Duration  167ms (transform 36ms, setup 0ms, import 52ms, tests 8ms, environment 0ms)
+   Start at  06:22:59
+   Duration  153ms (transform 33ms, setup 0ms, import 50ms, tests 6ms, environment 0ms)
 ```
 
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-phase5-storage
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-storage
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  06:46:18
-   Duration  204ms (transform 118ms, setup 0ms, import 154ms, tests 14ms, environment 0ms)
+   Start at  06:22:59
+   Duration  162ms (transform 97ms, setup 0ms, import 129ms, tests 11ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-phase5-storage
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-storage
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 
 
  Test Files  1 passed (1)
-      Tests  49 passed (49)
-   Start at  06:46:19
-   Duration  420ms (transform 106ms, setup 0ms, import 143ms, tests 172ms, environment 0ms)
+      Tests  48 passed (48)
+   Start at  06:23:00
+   Duration  373ms (transform 102ms, setup 0ms, import 134ms, tests 149ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-phase5-storage
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-storage
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
 
 
  Test Files  2 passed (2)
       Tests  28 passed (28)
-   Start at  06:46:20
-   Duration  348ms (transform 143ms, setup 0ms, import 213ms, tests 92ms, environment 0ms)
+   Start at  06:23:01
+   Duration  282ms (transform 135ms, setup 0ms, import 186ms, tests 75ms, environment 0ms)
 ```
 
 
 ## Covered Proof Points
 
 - TypeScript strict type checking.
-- JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, enforcement-readiness, provisioning plan, audit event, drift finding, audit-integrity, and evidence export examples.
-- OpenAPI validation for required decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, evidence, connector, and enforcement-readiness path groups.
+- JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, and evidence export examples.
+- OpenAPI validation for required decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, and enforcement-readiness path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Local core engine tests for deterministic check/explain and decision audit emission.
-- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, local file-backed audit/evidence storage, ATO evidence packaging, idempotent job replay, and reconciliation.
-- CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
+- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, ATO evidence packaging, idempotent job replay, and reconciliation.
+- CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 
 ## Outstanding Requirements
 
 - Implement a persistent relationship graph and policy model store.
 - Replace the local in-memory API runtime with production-ready persistence and deployment packaging.
-- Replace local audit integrity, file-backed storage proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
+- Replace local audit integrity, SIEM-ready audit exports, file-backed storage proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
 - Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Persist discovery runs and native-grant readback outside the local in-memory store.
 - Replace local dry-run provisioning, controlled synthetic enforcement, readiness gates, and reconciliation jobs with durable queues, retries, and dead-letter handling.

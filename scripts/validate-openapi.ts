@@ -37,6 +37,7 @@ const requiredOperations = new Map<string, string[]>([
   ["/v1/discovery/runs", ["get"]],
   ["/v1/audit/events", ["get"]],
   ["/v1/audit/integrity", ["get"]],
+  ["/v1/audit/export", ["get"]],
   ["/v1/evidence/export", ["get"]],
   ["/v1/connectors", ["get"]],
   ["/v1/connectors/{id}/test", ["post"]],
@@ -88,7 +89,7 @@ for (const schemaName of ["ProvisioningApproval", "EnforcementControl", "Enforce
 console.log(`Validated OpenAPI contract at ${openApiPath}.`);
 console.log(`PASS ${requiredOperations.size} required API path groups are present.`);
 console.log("PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.");
-console.log("PASS Phase 5 audit integrity and evidence export path groups are present.");
+console.log("PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.");
 
 function getRequestSchema(operation: unknown, label: string): Record<string, unknown> {
   const operationRecord = asRecord(operation, `${label} operation`);

@@ -29,6 +29,7 @@ Evidence exports include:
 - evidence type
 - source event IDs
 - audit integrity report
+- SIEM-ready audit event export
 - control implementation mappings
 - continuous-monitoring metrics
 - POA&M inputs
@@ -41,7 +42,7 @@ Evidence exports include:
 
 The first generated evidence artifact is `reports/proof-point-validation.md`. It records tool versions, commit, command results, covered proof points, and outstanding requirements.
 
-The default local Phase 5 evidence package remains metadata-only. A local file-backed repository proof point can persist audit events as JSONL and evidence packages as JSON for validation, but it is not a substitute for production WORM storage, retention, or SIEM forwarding. It proves the contract and auditability shape without exporting production data, tenant identifiers, secrets, or live provider records.
+The default local Phase 5 evidence package remains metadata-only. The local runtime can export bounded audit windows as SIEM-ready JSONL records and a local file-backed repository proof point can persist audit events as JSONL and evidence packages as JSON for validation, but neither path is a substitute for production WORM storage, retention, or SIEM forwarding. It proves the contract and auditability shape without exporting production data, tenant identifiers, secrets, or live provider records.
 
 ## Minimum Evidence Package Later
 

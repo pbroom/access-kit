@@ -419,6 +419,24 @@ export interface SiemExportMetadata {
   target: "operator_download" | "siem_forwarder";
 }
 
+export type AuditEventExportTarget = "operator_download" | "siem_forwarder";
+
+export interface AuditEventExport {
+  exportId: CanonicalId;
+  generatedAt: IsoDateTime;
+  periodStart: IsoDateTime;
+  periodEnd: IsoDateTime;
+  format: "jsonl";
+  target: AuditEventExportTarget;
+  schemaVersion: string;
+  includesPayloadHashes: boolean;
+  eventCount: number;
+  sourceEventIds: CanonicalId[];
+  records: string[];
+  auditIntegrity: AuditIntegrityReport;
+  version: string;
+}
+
 export interface AuditStorageReceipt {
   eventId: CanonicalId;
   sequence: number;
