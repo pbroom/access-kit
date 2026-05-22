@@ -378,7 +378,7 @@ describe("ReBAC API runtime", () => {
       exportId: string;
       format: string;
       target: string;
-      eventCount: number;
+      exportedEventCount: number;
       sourceEventIds: string[];
       records: string[];
       auditIntegrity: { status: string; eventCount: number };
@@ -389,7 +389,7 @@ describe("ReBAC API runtime", () => {
     expect(auditExport).toMatchObject({
       format: "jsonl",
       target: "operator_download",
-      eventCount: 1,
+      exportedEventCount: 1,
       auditIntegrity: { status: "verified", eventCount: 1 }
     });
     expect(auditExport.exportId).toMatch(/^audit-export:/);
@@ -400,6 +400,40 @@ describe("ReBAC API runtime", () => {
       payloadHash: expect.stringMatching(/^sha256:[a-f0-9]{64}$/)
     });
     expect(audit.items.map((event) => event.eventType)).toEqual(["decision.allowed", "audit.exported"]);
+  });
+
+  it("distinguishes bounded audit export counts from full-chain integrity counts", async () => {
+    const times = [
+      "2026-05-20T01:00:00.000Z",
+      "2026-05-21T17:00:00.000Z",
+      "2026-05-21T17:00:01.000Z",
+      "2026-05-21T17:00:02.000Z"
+    ];
+    await restartServer({
+      now: () => times.shift() ?? "2026-05-21T17:00:03.000Z"
+    });
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    await post("/v1/decision/check", {
+      subjectId: "user:bob",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const auditExport = await get<{
+      exportedEventCount: number;
+      sourceEventIds: string[];
+      records: string[];
+      auditIntegrity: { status: string; eventCount: number };
+    }>("/v1/audit/export?from=2026-05-21T00:00:00.000Z&to=2026-05-22T00:00:00.000Z");
+
+    expect(auditExport.exportedEventCount).toBe(1);
+    expect(auditExport.sourceEventIds).toHaveLength(1);
+    expect(auditExport.records).toHaveLength(1);
+    expect(auditExport.auditIntegrity).toMatchObject({ status: "verified", eventCount: 2 });
   });
 
   it("persists audit events and evidence packages through the file-backed repository", async () => {

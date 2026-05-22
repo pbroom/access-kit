@@ -849,7 +849,7 @@ export function exportAuditEvents(app: RebacLocalApp, options: AuditEventExportO
     target: options.target ?? "operator_download",
     schemaVersion: "audit-event:v1",
     includesPayloadHashes: true,
-    eventCount: events.length,
+    exportedEventCount: events.length,
     sourceEventIds: events.map((event) => event.eventId),
     records: events.map((event) => stableStringify(event)),
     auditIntegrity,
@@ -866,7 +866,7 @@ export function exportAuditEvents(app: RebacLocalApp, options: AuditEventExportO
       periodEnd: exportMetadata.periodEnd,
       format: exportMetadata.format,
       target: exportMetadata.target,
-      eventCount: exportMetadata.eventCount,
+      exportedEventCount: exportMetadata.exportedEventCount,
       sourceEventIds: exportMetadata.sourceEventIds,
       auditIntegrityStatus: exportMetadata.auditIntegrity.status,
       version: exportMetadata.version

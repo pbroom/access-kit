@@ -13,7 +13,7 @@
     "target",
     "schemaVersion",
     "includesPayloadHashes",
-    "eventCount",
+    "exportedEventCount",
     "sourceEventIds",
     "records",
     "auditIntegrity",
@@ -28,7 +28,7 @@
     "target": { "type": "string", "enum": ["operator_download", "siem_forwarder"] },
     "schemaVersion": { "type": "string", "const": "audit-event:v1" },
     "includesPayloadHashes": { "type": "boolean", "const": true },
-    "eventCount": { "type": "integer", "minimum": 0 },
+    "exportedEventCount": { "type": "integer", "minimum": 0 },
     "sourceEventIds": {
       "type": "array",
       "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }

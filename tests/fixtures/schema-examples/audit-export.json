@@ -7,7 +7,7 @@
   "target": "operator_download",
   "schemaVersion": "audit-event:v1",
   "includesPayloadHashes": true,
-  "eventCount": 1,
+  "exportedEventCount": 1,
   "sourceEventIds": ["evt:decision-allowed"],
   "records": [
     "{\"actor\":\"service:api\",\"correlationId\":\"corr:decision\",\"eventId\":\"evt:decision-allowed\",\"eventType\":\"decision.allowed\",\"occurredAt\":\"2026-05-21T16:55:00.000Z\",\"payload\":{},\"payloadHash\":\"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}"

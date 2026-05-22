@@ -411,15 +411,15 @@ export interface PoamItem {
   source: string;
 }
 
+export type AuditEventExportTarget = "operator_download" | "siem_forwarder";
+
 export interface SiemExportMetadata {
   format: "jsonl";
   eventCount: number;
   schemaVersion: string;
   includesPayloadHashes: boolean;
-  target: "operator_download" | "siem_forwarder";
+  target: AuditEventExportTarget;
 }
-
-export type AuditEventExportTarget = "operator_download" | "siem_forwarder";
 
 export interface AuditEventExport {
   exportId: CanonicalId;
@@ -430,7 +430,7 @@ export interface AuditEventExport {
   target: AuditEventExportTarget;
   schemaVersion: string;
   includesPayloadHashes: boolean;
-  eventCount: number;
+  exportedEventCount: number;
   sourceEventIds: CanonicalId[];
   records: string[];
   auditIntegrity: AuditIntegrityReport;

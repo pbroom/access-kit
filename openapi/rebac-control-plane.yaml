@@ -694,6 +694,7 @@ paths:
           schema:
             type: string
             enum: [operator_download, siem_forwarder]
+            default: operator_download
       responses:
         "200":
           description: SIEM-ready audit event export.
