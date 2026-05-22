@@ -1,5 +1,6 @@
 import { AuditRecorder, sha256 } from "./audit.js";
 import type {
+  AuditEvent,
   DecisionRequest,
   DecisionResult,
   DecisionValue,
@@ -14,6 +15,7 @@ export interface DecisionEngineOptions {
   actor?: string;
   now?: () => string;
   auditRecorder?: AuditRecorder;
+  onAuditEvent?: (event: AuditEvent) => void;
 }
 
 interface DecisionContext {
@@ -42,12 +44,14 @@ const actionAllowRelations = new Map<string, Set<string>>([
 
 export class RebacDecisionEngine {
   readonly #auditRecorder: AuditRecorder;
+  readonly #onAuditEvent?: (event: AuditEvent) => void;
   readonly #store: InMemoryRebacStore;
-  readonly #options: Required<Omit<DecisionEngineOptions, "auditRecorder">>;
+  readonly #options: Required<Omit<DecisionEngineOptions, "auditRecorder" | "onAuditEvent">>;
 
   constructor(store: InMemoryRebacStore, options: DecisionEngineOptions = {}) {
     this.#store = store;
     this.#auditRecorder = options.auditRecorder ?? new AuditRecorder(store.listAuditEvents());
+    this.#onAuditEvent = options.onAuditEvent;
     this.#options = {
       policyVersion: options.policyVersion ?? "policy:local-v1",
       relationshipVersion: options.relationshipVersion ?? "tuple-set:local-v1",
@@ -71,27 +75,27 @@ export class RebacDecisionEngine {
     const context = this.#buildDecisionContext(request, evaluatedAt, policyVersion, relationshipVersion);
     const result = toDecisionResult(context, explain);
     this.#store.recordDecision(result);
-    this.#store.recordAuditEvent(
-      this.#auditRecorder.record(
-        {
-          eventType: result.decision === "allow" ? "decision.allowed" : "decision.denied",
-          actor: this.#options.actor,
-          subjectId: result.subjectId,
-          resourceId: result.resourceId,
-          correlationId: `corr:${result.decisionId}`,
-          policyVersion: result.policyVersion,
-          relationshipVersion: result.relationshipVersion,
-          payload: {
-            decisionId: result.decisionId,
-            decision: result.decision,
-            reasonCode: result.reasonCode,
-            explain,
-            relationshipPath: result.relationshipPath
-          }
-        },
-        evaluatedAt
-      )
+    const auditEvent = this.#auditRecorder.record(
+      {
+        eventType: result.decision === "allow" ? "decision.allowed" : "decision.denied",
+        actor: this.#options.actor,
+        subjectId: result.subjectId,
+        resourceId: result.resourceId,
+        correlationId: `corr:${result.decisionId}`,
+        policyVersion: result.policyVersion,
+        relationshipVersion: result.relationshipVersion,
+        payload: {
+          decisionId: result.decisionId,
+          decision: result.decision,
+          reasonCode: result.reasonCode,
+          explain,
+          relationshipPath: result.relationshipPath
+        }
+      },
+      evaluatedAt
     );
+    this.#store.recordAuditEvent(auditEvent);
+    this.#onAuditEvent?.(auditEvent);
     return result;
   }
 

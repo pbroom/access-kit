@@ -1,13 +1,13 @@
 # Outstanding Requirements
 
-The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, audit integrity reports, metadata-only ATO evidence packages, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
+The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, audit integrity reports, metadata-only ATO evidence packages, local file-backed audit/evidence repository proof points, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
 
 ## Runtime
 
 - Replace local in-memory API handlers with deployable production service packaging.
 - Add persistent graph storage for subjects, resources, and relationship tuples.
 - Add policy model parsing, publication, rollback, and versioned test execution.
-- Replace local in-memory audit hash chaining with durable append-only audit/event storage, immutability controls, retention, and recovery procedures.
+- Replace local in-memory and local file-backed audit proof points with durable append-only audit/event storage, immutability controls, retention, and recovery procedures.
 - Replace local provisioning jobs with queue-backed jobs, retries, backoff, dead-letter handling, and connector health states.
 
 ## Connectors

@@ -50,7 +50,7 @@ Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock`
 
 `GET /v1/audit/integrity` verifies the append-only audit event hash chain. The report includes event count, first and last event identifiers, first and last event hashes, findings, and an audit event ID for the verification action.
 
-`GET /v1/evidence/export` accepts `framework`, `controls`, `from`, `to`, and `format`. The response remains metadata-only in the local runtime, but now includes an ATO package manifest shape: audit integrity, control mappings, generated artifacts, continuous-monitoring metrics, POA&M inputs, and JSONL-ready SIEM export metadata. The export emits `evidence.generated` audit evidence.
+`GET /v1/evidence/export` accepts `framework`, `controls`, `from`, `to`, and `format`. The response remains metadata-only in the default local runtime, but now includes an ATO package manifest shape: audit integrity, control mappings, generated artifacts, continuous-monitoring metrics, POA&M inputs, and JSONL-ready SIEM export metadata. When an evidence repository is configured, the response also includes a storage receipt for the persisted package. The export emits `evidence.generated` audit evidence.
 
 ## Write Requirements
 

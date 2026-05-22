@@ -78,5 +78,14 @@
     "schemaVersion": "audit-event:v1",
     "includesPayloadHashes": true,
     "target": "operator_download"
+  },
+  "storageReceipt": {
+    "exportId": "evidence:may-2026-ac-au",
+    "packageHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "storedAt": "2026-05-21T17:00:00.000Z",
+    "backend": "local_file",
+    "location": "/tmp/access-kit/evidence-packages/evidence:may-2026-ac-au.json",
+    "immutable": false,
+    "version": "evidence-storage-receipt:v1"
   }
 }
