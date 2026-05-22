@@ -6,6 +6,7 @@ type WorkflowJob = Record<string, unknown>;
 
 interface WorkflowDocument {
   name?: unknown;
+  concurrency?: Record<string, unknown>;
   jobs?: Record<string, WorkflowJob>;
 }
 
@@ -26,10 +27,11 @@ requireJob(ci, "quality", [
 ]);
 requireJob(ci, "evidence", ["pnpm evidence:check"]);
 requireJob(security, "dependency-audit", ["pnpm audit --audit-level high"]);
-requireJob(security, "secret-scan", ["gitleaks/gitleaks-action@v2"]);
+requireSecurityConcurrency(security);
+requireJob(security, "secret-scan", ["gitleaks/gitleaks-action"]);
 requireJob(security, "codeql", [
-  "github/codeql-action/init@v3",
-  "github/codeql-action/analyze@v3",
+  "github/codeql-action/init",
+  "github/codeql-action/analyze",
   "pnpm build"
 ]);
 
@@ -63,5 +65,13 @@ function requireJob(workflow: WorkflowDocument, jobName: string, needles: string
 
   if (missing.length > 0) {
     throw new Error(`Workflow job ${jobName} is missing required entry: ${missing.join(", ")}`);
+  }
+}
+
+function requireSecurityConcurrency(workflow: WorkflowDocument): void {
+  const cancelInProgress = workflow.concurrency?.["cancel-in-progress"];
+
+  if (cancelInProgress !== false) {
+    throw new Error("Security workflow must not cancel in-progress scheduled scans");
   }
 }
