@@ -194,7 +194,7 @@ async function routeRequest(
         items: app.store.listAuditEvents({
           subjectId: url.searchParams.get("subjectId") ?? undefined,
           resourceId: url.searchParams.get("resourceId") ?? undefined,
-          from: readOptionalDateTime(url.searchParams.get("from"), "from")
+          from: readAuditFilterDateTime(url.searchParams.get("from"), "from")
         })
       });
       return;
@@ -1103,7 +1103,7 @@ function readDriftSeverity(value: string | null): DriftSeverity | undefined {
   return value as DriftSeverity;
 }
 
-function readOptionalDateTime(value: string | null, name: string): string | undefined {
+function readAuditFilterDateTime(value: string | null, name: string): string | undefined {
   if (!value) {
     return undefined;
   }
