@@ -1,6 +1,6 @@
 # Outstanding Requirements
 
-The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, audit integrity reports, metadata-only ATO evidence packages, local file-backed audit/evidence repository proof points, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
+The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, audit integrity reports, SIEM-ready local audit exports, metadata-only ATO evidence packages, local file-backed audit/evidence repository proof points, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
 
 ## Runtime
 
@@ -25,7 +25,7 @@ The current implementation supports local policy decisions, mock and synthetic p
 - Produce system boundary and data flow diagrams for the deployed target environment.
 - Expand starter control implementation mappings into a reviewed NIST/FedRAMP baseline with assessor-approved statements.
 - Add SBOM, dependency scanning, SAST/DAST, vulnerability scan, and configuration baseline evidence.
-- Replace local SIEM export metadata with an approved SIEM forwarder, retention policy, and replay procedure.
+- Replace local SIEM-ready audit exports and SIEM export metadata with an approved SIEM forwarder, retention policy, delivery monitoring, and replay procedure.
 - Add break-glass and incident mode workflows.
 - Add backup/restore and contingency evidence.
 - Add access review and exception workflow evidence.

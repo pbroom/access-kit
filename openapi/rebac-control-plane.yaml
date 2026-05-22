@@ -673,6 +673,35 @@ paths:
             application/json:
               schema:
                 $ref: "../schemas/audit-integrity.schema.json"
+  /v1/audit/export:
+    get:
+      tags: [audit]
+      summary: Export SIEM-ready audit events as JSONL records.
+      operationId: exportAuditEvents
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: target
+          in: query
+          schema:
+            type: string
+            enum: [operator_download, siem_forwarder]
+            default: operator_download
+      responses:
+        "200":
+          description: SIEM-ready audit event export.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/audit-export.schema.json"
   /v1/evidence/export:
     get:
       tags: [evidence]
