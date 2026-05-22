@@ -21,6 +21,7 @@
     "incidentMode": false,
     "breakGlass": false
   },
+  "readinessReportId": "readiness:mock:20260521t170000000z:1",
   "actions": [
     {
       "actionId": "action:grant-alice-read-case-plan",

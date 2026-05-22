@@ -39,6 +39,7 @@ const requiredOperations = new Map<string, string[]>([
   ["/v1/evidence/export", ["get"]],
   ["/v1/connectors", ["get"]],
   ["/v1/connectors/{id}/test", ["post"]],
+  ["/v1/connectors/{id}/enforcement-readiness", ["get", "post"]],
   ["/v1/connectors/{id}/sync", ["post"]]
 ]);
 
@@ -57,8 +58,14 @@ for (const [path, methods] of requiredOperations) {
 }
 
 const planRequestSchema = getRequestSchema(parsed.paths["/v1/provisioning/plans"]?.post, "/v1/provisioning/plans");
-assertProperties(planRequestSchema, ["mode", "dryRun", "approval", "control"], "provisioning plan request");
+assertProperties(planRequestSchema, ["mode", "dryRun", "approval", "control", "readinessReportId"], "provisioning plan request");
 assertEnumIncludes(getProperty(planRequestSchema, "mode"), "enforcement", "provisioning plan request mode");
+
+const readinessRequestSchema = getRequestSchema(
+  parsed.paths["/v1/connectors/{id}/enforcement-readiness"]?.post,
+  "/v1/connectors/{id}/enforcement-readiness"
+);
+assertProperties(readinessRequestSchema, ["mode", "control", "requiredApproverRole", "changeTicketPattern"], "enforcement readiness request");
 
 const jobRequestSchema = getRequestSchema(parsed.paths["/v1/provisioning/jobs"]?.post, "/v1/provisioning/jobs");
 assertProperties(jobRequestSchema, ["mode", "dryRun", "approval", "control"], "provisioning job request");
@@ -71,7 +78,7 @@ const actionResults = getProperty(provisioningJob, "actionResults");
 const actionItems = asRecord(asRecord(actionResults, "ProvisioningJob.actionResults").items, "ProvisioningJob.actionResults.items");
 assertEnumIncludes(getProperty(actionItems, "status"), "applied", "ProvisioningJob action result status");
 
-for (const schemaName of ["ProvisioningApproval", "EnforcementControl"]) {
+for (const schemaName of ["ProvisioningApproval", "EnforcementControl", "EnforcementReadinessReport"]) {
   if (!parsed.components.schemas[schemaName]) {
     throw new Error(`OpenAPI contract is missing required component schema: ${schemaName}`);
   }
@@ -79,7 +86,7 @@ for (const schemaName of ["ProvisioningApproval", "EnforcementControl"]) {
 
 console.log(`Validated OpenAPI contract at ${openApiPath}.`);
 console.log(`PASS ${requiredOperations.size} required API path groups are present.`);
-console.log("PASS Phase 4 controlled-enforcement request and job fields are present.");
+console.log("PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.");
 
 function getRequestSchema(operation: unknown, label: string): Record<string, unknown> {
   const operationRecord = asRecord(operation, `${label} operation`);

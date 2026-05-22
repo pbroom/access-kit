@@ -1,6 +1,6 @@
 # Outstanding Requirements
 
-The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
+The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
 
 ## Runtime
 
@@ -17,7 +17,8 @@ The current implementation supports local policy decisions, mock and synthetic p
 - Define live connector consent, tenant boundary, pagination, throttling, and deletion semantics.
 - Persist discovery runs and native grants outside the local in-memory store.
 - Persist reconciliation runs and dry-run job evidence outside the local in-memory store.
-- Extend controlled enforcement beyond the synthetic mock proof point only after approvals, verification, rollback, least-privilege connector review, and operational runbooks exist.
+- Extend controlled enforcement beyond the synthetic mock proof point only after live connector write scopes, approvals, verification, rollback, least-privilege connector review, operational runbooks, and emergency revocation behavior are reviewed and evidenced.
+- Promote enforcement-readiness reports from local proof-point records to durable release gates for each connector/version pair.
 
 ## ATO And Operations
 

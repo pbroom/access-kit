@@ -1,0 +1,41 @@
+{
+  "id": "readiness:mock:20260521t170000000z:1",
+  "connectorId": "mock",
+  "provider": "mock",
+  "tenantBoundary": "synthetic:local",
+  "mode": "enforcement",
+  "status": "ready",
+  "checkedAt": "2026-05-21T17:00:00.000Z",
+  "control": {
+    "syntheticOnly": true,
+    "liveProviderWrites": false,
+    "incidentMode": false,
+    "breakGlass": false
+  },
+  "checks": [
+    {
+      "name": "mock_enforcement_boundary",
+      "status": "pass",
+      "message": "Phase 4 enforcement readiness is limited to the synthetic mock connector.",
+      "evidence": {
+        "provider": "mock",
+        "tenantBoundary": "synthetic:local"
+      }
+    },
+    {
+      "name": "least_privilege_review",
+      "status": "pass",
+      "message": "Live connector least-privilege review remains incomplete for Phase 4.",
+      "evidence": {
+        "provider": "mock",
+        "liveWriteScopesReviewed": false
+      }
+    }
+  ],
+  "requiredApproverRole": "access-approver",
+  "changeTicketPattern": "^chg:[a-z0-9_:-]+$",
+  "liveProviderWritesAllowed": false,
+  "auditEventIds": ["evt:readiness:mock"],
+  "version": "enforcement-readiness:v1",
+  "createdAt": "2026-05-21T17:00:00.000Z"
+}

@@ -243,6 +243,8 @@ describe("CLI API wrapper", () => {
       "user:approver",
       "--change-ticket",
       "chg:phase4",
+      "--readiness-report",
+      "readiness:mock:phase4",
       "--synthetic-only",
       "--reason",
       "Synthetic controlled enforcement proof point"
@@ -261,6 +263,8 @@ describe("CLI API wrapper", () => {
       "user:approver",
       "--change-ticket",
       "chg:phase4",
+      "--readiness-report",
+      "readiness:mock:phase4",
       "--synthetic-only"
     );
 
@@ -278,6 +282,7 @@ describe("CLI API wrapper", () => {
         approvedAt: "2026-05-21T17:00:00.000Z",
         reason: "Synthetic controlled enforcement proof point"
       },
+      readinessReportId: "readiness:mock:phase4",
       control: {
         syntheticOnly: true,
         liveProviderWrites: false,
@@ -291,6 +296,39 @@ describe("CLI API wrapper", () => {
       mode: "enforcement",
       dryRun: false
     });
+  });
+
+  it("forwards connector enforcement readiness checks to the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      "connector",
+      "readiness",
+      "mock",
+      "--mode",
+      "enforcement",
+      "--synthetic-only",
+      "--approver-role",
+      "access-approver",
+      "--change-ticket-pattern",
+      "^chg:[a-z0-9_:-]+$"
+    );
+    await runCliWithFetch(requests, "connector", "readiness", "mock", "--status", "ready");
+
+    expect(requests[0]?.url).toBe("http://api.example/v1/connectors/mock/enforcement-readiness");
+    expect(requests[0]?.body).toEqual({
+      mode: "enforcement",
+      control: {
+        syntheticOnly: true,
+        liveProviderWrites: false,
+        incidentMode: false,
+        breakGlass: false
+      },
+      requiredApproverRole: "access-approver",
+      changeTicketPattern: "^chg:[a-z0-9_:-]+$"
+    });
+    expect(requests[1]?.url).toBe("http://api.example/v1/connectors/mock/enforcement-readiness?status=ready");
   });
 
   it("sends distinct idempotency keys for different mutations", async () => {

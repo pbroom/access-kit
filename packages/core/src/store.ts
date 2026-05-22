@@ -3,6 +3,7 @@ import type {
   CanonicalId,
   DecisionResult,
   DiscoveryRun,
+  EnforcementReadinessReport,
   DriftFinding,
   NativeGrant,
   ProvisioningJob,
@@ -19,6 +20,7 @@ export interface RebacSeedData {
   relationships?: RelationshipTuple[];
   nativeGrants?: NativeGrant[];
   discoveryRuns?: DiscoveryRun[];
+  enforcementReadinessReports?: EnforcementReadinessReport[];
   provisioningPlans?: ProvisioningPlan[];
   provisioningJobs?: ProvisioningJob[];
   driftFindings?: DriftFinding[];
@@ -33,6 +35,7 @@ export class InMemoryRebacStore {
   readonly #relationships = new Map<CanonicalId, RelationshipTuple>();
   readonly #nativeGrants = new Map<CanonicalId, NativeGrant>();
   readonly #discoveryRuns = new Map<CanonicalId, DiscoveryRun>();
+  readonly #enforcementReadinessReports = new Map<CanonicalId, EnforcementReadinessReport>();
   readonly #provisioningPlans = new Map<CanonicalId, ProvisioningPlan>();
   readonly #provisioningJobs = new Map<CanonicalId, ProvisioningJob>();
   readonly #driftFindings = new Map<CanonicalId, DriftFinding>();
@@ -46,6 +49,7 @@ export class InMemoryRebacStore {
     seed.relationships?.forEach((relationship) => this.upsertRelationship(relationship));
     seed.nativeGrants?.forEach((grant) => this.upsertNativeGrant(grant));
     seed.discoveryRuns?.forEach((run) => this.recordDiscoveryRun(run));
+    seed.enforcementReadinessReports?.forEach((report) => this.recordEnforcementReadinessReport(report));
     seed.provisioningPlans?.forEach((plan) => this.upsertProvisioningPlan(plan));
     seed.provisioningJobs?.forEach((job) => this.upsertProvisioningJob(job));
     seed.driftFindings?.forEach((finding) => this.upsertDriftFinding(finding));
@@ -150,6 +154,24 @@ export class InMemoryRebacStore {
         (!filter.status || run.status === filter.status)
       );
     });
+  }
+
+  getEnforcementReadinessReport(id: CanonicalId): EnforcementReadinessReport | undefined {
+    return this.#enforcementReadinessReports.get(id);
+  }
+
+  listEnforcementReadinessReports(filter: Partial<Pick<EnforcementReadinessReport, "connectorId" | "status">> = {}): EnforcementReadinessReport[] {
+    return [...this.#enforcementReadinessReports.values()].filter((report) => {
+      return (
+        (!filter.connectorId || report.connectorId === filter.connectorId) &&
+        (!filter.status || report.status === filter.status)
+      );
+    });
+  }
+
+  recordEnforcementReadinessReport(report: EnforcementReadinessReport): EnforcementReadinessReport {
+    this.#enforcementReadinessReports.set(report.id, report);
+    return report;
   }
 
   listProvisioningPlans(): ProvisioningPlan[] {

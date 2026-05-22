@@ -54,6 +54,7 @@ export type ProvisioningMode = "dry_run" | "enforcement";
 export type ProvisioningStepStatus = "planned" | "skipped" | "verified" | "applied" | "failed";
 export type ProvisioningVerificationStatus = "pending" | "verified" | "skipped" | "failed";
 export type ProvisioningCompensationStatus = "planned" | "not_required" | "skipped" | "failed";
+export type EnforcementReadinessStatus = "ready" | "blocked";
 
 export interface VersionedEntity {
   id: CanonicalId;
@@ -243,6 +244,28 @@ export interface EnforcementControl {
   breakGlass: boolean;
 }
 
+export interface EnforcementReadinessCheck {
+  name: string;
+  status: ValidationCheckStatus;
+  message: string;
+  evidence?: JsonRecord;
+}
+
+export interface EnforcementReadinessReport extends VersionedEntity {
+  connectorId: string;
+  provider: string;
+  tenantBoundary: string;
+  mode: "enforcement";
+  status: EnforcementReadinessStatus;
+  checkedAt: IsoDateTime;
+  control: EnforcementControl;
+  checks: EnforcementReadinessCheck[];
+  requiredApproverRole: string;
+  changeTicketPattern: string;
+  liveProviderWritesAllowed: boolean;
+  auditEventIds: CanonicalId[];
+}
+
 export interface ProvisioningPlan extends VersionedEntity {
   sourceDecisionId?: CanonicalId;
   idempotencyKey?: string;
@@ -255,6 +278,7 @@ export interface ProvisioningPlan extends VersionedEntity {
   actions: ProvisioningAction[];
   approval?: ProvisioningApproval;
   control?: EnforcementControl;
+  readinessReportId?: CanonicalId;
 }
 
 export interface ProvisioningActionResult {
