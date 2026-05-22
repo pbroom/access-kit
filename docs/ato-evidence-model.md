@@ -10,8 +10,8 @@ The first milestone maps the domain and API contracts to these NIST/FedRAMP-rele
 
 - AC: deny by default, least privilege, automated revocation, approved access paths, separation of duties.
 - IA: federated identity assumptions, service identity inventory, admin identity controls.
-- AU: decision logs, provisioning logs, admin logs, connector logs, tamper-evidence.
-- CM: versioned policy models, connector configuration, approved baselines, drift findings.
+- AU: decision logs, provisioning logs, readiness-check logs, admin logs, connector logs, tamper-evidence.
+- CM: versioned policy models, connector configuration, enforcement-readiness reports, approved baselines, drift findings.
 - CA: evidence exports, validation reports, access review results, continuous monitoring.
 - RA/SI: vulnerability and dependency evidence, anomaly/drift findings, remediation tracking.
 - SC: encryption, API security, key management, secure data flows.
@@ -47,6 +47,7 @@ The first generated evidence artifact is `reports/proof-point-validation.md`. It
 - policy model versions
 - access review results
 - decision log samples
+- enforcement-readiness reports
 - provisioning log samples
 - admin activity logs
 - configuration baseline

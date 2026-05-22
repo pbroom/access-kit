@@ -17,6 +17,8 @@ import {
   type DecisionRequest,
   type DiscoveryRun,
   type EnforcementControl,
+  type EnforcementReadinessCheck,
+  type EnforcementReadinessReport,
   type EvidenceExport,
   type JsonRecord,
   type NativeGrant,
@@ -69,6 +71,14 @@ interface ProvisioningExecutionOptions {
   mode?: ProvisioningMode;
   approval?: ProvisioningApproval;
   control?: EnforcementControl;
+  readinessReportId?: string;
+}
+
+export interface EnforcementReadinessRequest {
+  mode?: "enforcement";
+  control: EnforcementControl;
+  requiredApproverRole?: string;
+  changeTicketPattern?: string;
 }
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
@@ -298,6 +308,54 @@ export async function testConnector(app: RebacLocalApp, connectorId: string): Pr
     valid: checks.every((check) => check.status !== "fail"),
     checks
   };
+}
+
+export function checkEnforcementReadiness(
+  app: RebacLocalApp,
+  connectorId: string,
+  request: EnforcementReadinessRequest
+): EnforcementReadinessReport {
+  const connector = getConnector(app, connectorId);
+  const checkedAt = app.now();
+  const reports = app.store.listEnforcementReadinessReports({ connectorId });
+  const reportId = `readiness:${connectorId}:${compactTimestamp(checkedAt)}:${reports.length + 1}`;
+  const control = request.control;
+  const checks = buildEnforcementReadinessChecks(connector, control);
+  const reportWithoutAuditIds: EnforcementReadinessReport = {
+    id: reportId,
+    connectorId,
+    provider: connector.provider ?? connector.id,
+    tenantBoundary: connector.tenantBoundary ?? "synthetic:unknown",
+    mode: "enforcement",
+    status: checks.some((check) => check.status === "fail") ? "blocked" : "ready",
+    checkedAt,
+    control,
+    checks,
+    requiredApproverRole: request.requiredApproverRole ?? "access-approver",
+    changeTicketPattern: request.changeTicketPattern ?? "^chg:[a-z0-9_:-]+$",
+    liveProviderWritesAllowed: false,
+    auditEventIds: [],
+    version: "enforcement-readiness:v1",
+    createdAt: checkedAt
+  };
+  const auditEvent = recordAudit(app, {
+    eventType: "connector.enforcement_readiness_checked",
+    actor: app.actor,
+    correlationId: `corr:${reportId}`,
+    payload: asJsonRecord(reportWithoutAuditIds)
+  });
+  const report = { ...reportWithoutAuditIds, auditEventIds: [auditEvent.eventId] };
+  app.store.recordEnforcementReadinessReport(report);
+  return report;
+}
+
+export function listEnforcementReadinessReports(
+  app: RebacLocalApp,
+  connectorId: string,
+  status?: EnforcementReadinessReport["status"]
+): EnforcementReadinessReport[] {
+  getConnector(app, connectorId);
+  return app.store.listEnforcementReadinessReports({ connectorId, status });
 }
 
 export async function createProvisioningPlan(
@@ -563,6 +621,7 @@ async function createControlledEnforcementJob(
   const approval = request.approval ?? plan.approval;
   const control = request.control ?? plan.control;
   assertControlledEnforcementAllowed(app, connector, approval, control, request.approverId);
+  assertEnforcementReadiness(app, plan.connectorId, plan.readinessReportId, approval, control);
 
   const appliedPlan = await connector.applyProvisioningChange(plan);
   const completedAt = app.now();
@@ -851,6 +910,7 @@ function prepareProvisioningPlan(
   }
 
   assertControlledEnforcementAllowed(app, connector, options.approval, options.control, options.approval?.approverId);
+  assertEnforcementReadiness(app, plan.connectorId, options.readinessReportId, options.approval, options.control);
   return {
     ...plan,
     mode,
@@ -861,8 +921,162 @@ function prepareProvisioningPlan(
       status: "planned"
     })),
     approval: options.approval,
-    control: options.control
+    control: options.control,
+    readinessReportId: options.readinessReportId
   };
+}
+
+function buildEnforcementReadinessChecks(connector: ConnectorAdapter, control: EnforcementControl): EnforcementReadinessCheck[] {
+  const provider = connector.provider ?? connector.id;
+  const tenantBoundary = connector.tenantBoundary ?? "synthetic:unknown";
+  const requiredReadScopes = connector.requiredReadScopes ?? [];
+
+  return [
+    {
+      name: "connector_registered",
+      status: "pass",
+      message: `${connector.id} is registered.`,
+      evidence: { connectorId: connector.id, provider, tenantBoundary }
+    },
+    {
+      name: "synthetic_only_guardrail",
+      status: control.syntheticOnly && !control.liveProviderWrites ? "pass" : "fail",
+      message: "Phase 4 readiness requires synthetic-only enforcement with live provider writes disabled.",
+      evidence: {
+        syntheticOnly: control.syntheticOnly,
+        liveProviderWrites: control.liveProviderWrites
+      }
+    },
+    {
+      name: "mock_enforcement_boundary",
+      status: provider === "mock" && tenantBoundary === "synthetic:local" ? "pass" : "fail",
+      message: "Phase 4 enforcement readiness is limited to the synthetic mock connector.",
+      evidence: { provider, tenantBoundary }
+    },
+    {
+      name: "provisioning_capability",
+      status: connector.capabilities.supportsProvisioning ? "pass" : "fail",
+      message: "Connector must declare provisioning support before enforcement can be planned.",
+      evidence: { supportsProvisioning: connector.capabilities.supportsProvisioning }
+    },
+    {
+      name: "readback_capability",
+      status: connector.capabilities.supportsDiscovery && connector.capabilities.supportsReconciliation ? "pass" : "fail",
+      message: "Connector must support discovery and reconciliation readback for enforcement verification.",
+      evidence: {
+        supportsDiscovery: connector.capabilities.supportsDiscovery,
+        supportsReconciliation: connector.capabilities.supportsReconciliation,
+        requiredReadScopes
+      }
+    },
+    {
+      name: "incident_mode_clear",
+      status: control.incidentMode ? "fail" : "pass",
+      message: "Incident mode must be clear before controlled enforcement can be planned.",
+      evidence: { incidentMode: control.incidentMode }
+    },
+    {
+      name: "break_glass_disabled",
+      status: control.breakGlass ? "fail" : "pass",
+      message: "Break-glass cannot be used for Phase 4 controlled enforcement readiness.",
+      evidence: { breakGlass: control.breakGlass }
+    },
+    {
+      name: "rollback_compensation_required",
+      status: "pass",
+      message: "Provisioning plans must carry compensation intent before enforcement jobs can run.",
+      evidence: { compensationRequired: true }
+    },
+    {
+      name: "least_privilege_review",
+      status: provider === "mock" ? "pass" : "fail",
+      message: "Live connector least-privilege review remains incomplete for Phase 4.",
+      evidence: {
+        provider,
+        requiredReadScopes,
+        liveWriteScopesReviewed: false
+      }
+    }
+  ];
+}
+
+function assertEnforcementReadiness(
+  app: RebacLocalApp,
+  connectorId: string,
+  readinessReportId: string | undefined,
+  approval: ProvisioningApproval | undefined,
+  control: EnforcementControl | undefined
+): asserts readinessReportId is string {
+  if (!readinessReportId) {
+    throw new RebacLocalAppError(
+      400,
+      "ENFORCEMENT_READINESS_REQUIRED",
+      "Controlled enforcement requires a ready connector readiness report."
+    );
+  }
+
+  const report = app.store.getEnforcementReadinessReport(readinessReportId);
+  const connector = getConnector(app, connectorId);
+
+  if (!report) {
+    throw new RebacLocalAppError(400, "ENFORCEMENT_READINESS_NOT_FOUND", `Readiness report ${readinessReportId} was not found.`);
+  }
+
+  if (report.connectorId !== connectorId) {
+    throw new RebacLocalAppError(
+      400,
+      "ENFORCEMENT_READINESS_CONNECTOR_MISMATCH",
+      "The readiness report connector must match the provisioning connector."
+    );
+  }
+
+  if (report.provider !== (connector.provider ?? connector.id) || report.tenantBoundary !== (connector.tenantBoundary ?? "synthetic:unknown")) {
+    throw new RebacLocalAppError(
+      400,
+      "ENFORCEMENT_READINESS_BOUNDARY_MISMATCH",
+      "The readiness report provider boundary must match the current connector registration."
+    );
+  }
+
+  if (control && JSON.stringify(report.control) !== JSON.stringify(control)) {
+    throw new RebacLocalAppError(
+      400,
+      "ENFORCEMENT_READINESS_CONTROL_MISMATCH",
+      "The readiness report controls must match the provisioning controls."
+    );
+  }
+
+  if (approval && !changeTicketMatches(report.changeTicketPattern, approval.changeTicket)) {
+    throw new RebacLocalAppError(
+      400,
+      "ENFORCEMENT_READINESS_CHANGE_TICKET_MISMATCH",
+      "The approval change ticket must match the readiness report change-ticket pattern."
+    );
+  }
+
+  if (report.status !== "ready") {
+    throw new RebacLocalAppError(
+      403,
+      "ENFORCEMENT_READINESS_BLOCKED",
+      "The connector readiness report is blocked and cannot authorize controlled enforcement."
+    );
+  }
+
+  if (report.liveProviderWritesAllowed) {
+    throw new RebacLocalAppError(
+      403,
+      "ENFORCEMENT_READINESS_LIVE_WRITES_BLOCKED",
+      "Phase 4 readiness reports must not allow live provider writes."
+    );
+  }
+}
+
+function changeTicketMatches(pattern: string, value: string): boolean {
+  try {
+    return new RegExp(pattern).test(value);
+  } catch {
+    return false;
+  }
 }
 
 function assertControlledEnforcementAllowed(

@@ -41,6 +41,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "evidence export", description: "Export ATO evidence.", apiSurface: "GET /v1/evidence/export" },
   { path: "connector list", description: "List connectors and capabilities.", apiSurface: "GET /v1/connectors" },
   { path: "connector test", description: "Test connector health and permissions.", apiSurface: "POST /v1/connectors/{id}/test" },
+  { path: "connector readiness", description: "Check controlled-enforcement readiness for a connector.", apiSurface: "POST /v1/connectors/{id}/enforcement-readiness" },
   { path: "connector sync", description: "Run connector discovery or reconciliation.", apiSurface: "POST /v1/connectors/{id}/sync" }
 ];
 
@@ -109,6 +110,17 @@ interface ProvisioningOptions extends CommandWithConnector {
   syntheticOnly?: boolean;
   incidentMode?: boolean;
   breakGlass?: boolean;
+  readinessReport?: string;
+}
+
+interface ConnectorReadinessOptions {
+  mode?: "enforcement";
+  syntheticOnly?: boolean;
+  incidentMode?: boolean;
+  breakGlass?: boolean;
+  approverRole?: string;
+  changeTicketPattern?: string;
+  status?: string;
 }
 
 interface AuditSearchOptions {
@@ -323,6 +335,7 @@ function addControlledEnforcementOptions(command: Command): Command {
     .option("--mode <mode>", "dry_run")
     .option("--approver <id>")
     .option("--change-ticket <id>")
+    .option("--readiness-report <id>")
     .option("--reason <text>")
     .option("--synthetic-only")
     .option("--incident-mode")
@@ -374,6 +387,7 @@ function buildProvisioningExecutionPayload(options: ProvisioningOptions, context
       approvedAt: context.now(),
       reason: options.reason
     },
+    readinessReportId: required(options.readinessReport, "readiness-report"),
     control: {
       syntheticOnly: options.syntheticOnly === true,
       liveProviderWrites: false,
@@ -459,6 +473,37 @@ function addConnectorCommands(program: Command, context: CliContext): void {
   const test = connector.command("test").argument("<connector-id>");
   test.action(withApi(context, test, (client, args) => {
     return client.post(`/v1/connectors/${encodeURIComponent(readString(args, 0, "connector-id"))}/test`, {});
+  }));
+
+  const readiness = connector
+    .command("readiness")
+    .argument("<connector-id>")
+    .option("--mode <mode>", "enforcement")
+    .option("--synthetic-only")
+    .option("--incident-mode")
+    .option("--break-glass")
+    .option("--approver-role <role>")
+    .option("--change-ticket-pattern <pattern>")
+    .option("--status <status>");
+  readiness.action(withApi(context, readiness, (client, args) => {
+    const options = readiness.opts<ConnectorReadinessOptions>();
+    const connectorId = encodeURIComponent(readString(args, 0, "connector-id"));
+
+    if (options.status) {
+      return client.get(`/v1/connectors/${connectorId}/enforcement-readiness?status=${encodeURIComponent(options.status)}`);
+    }
+
+    return client.post(`/v1/connectors/${connectorId}/enforcement-readiness`, {
+      mode: options.mode ?? "enforcement",
+      control: {
+        syntheticOnly: options.syntheticOnly === true,
+        liveProviderWrites: false,
+        incidentMode: options.incidentMode === true,
+        breakGlass: options.breakGlass === true
+      },
+      requiredApproverRole: options.approverRole,
+      changeTicketPattern: options.changeTicketPattern
+    });
   }));
 
   const sync = connector.command("sync").argument("<connector-id>").option("--mode <mode>", "read_only");

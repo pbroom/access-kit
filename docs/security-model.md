@@ -24,13 +24,14 @@ The synthetic Entra ID, SharePoint, and AWS-style connectors use synthetic IDs, 
 
 Phase 3 provisioning jobs default to `dry_run`. They record skipped provider writes, verification-hook outcomes, compensation intent, and audit events. They must not call live provider write APIs.
 
-Phase 4 controlled enforcement is restricted to the synthetic `mock` connector. It requires an approved change ticket, matching approver, synthetic-only controls, no live provider writes, no break-glass flag, and incident mode set to false. Synthetic provider read-only connectors cannot enforce even when callers provide approval fields.
+Phase 4 controlled enforcement is restricted to the synthetic `mock` connector. It requires a ready connector enforcement-readiness report, an approved change ticket, matching approver, synthetic-only controls, no live provider writes, no break-glass flag, and incident mode set to false. The readiness report records provider boundary, readback capability, provisioning capability, rollback/compensation expectation, incident-mode clearance, break-glass clearance, least-privilege review status, and change-ticket policy. Plan creation requires that the report match the current connector boundary, submitted controls, and approval change-ticket pattern. Synthetic provider read-only connectors cannot enforce even when callers provide approval fields.
 
 ## Fail Behavior
 
 - Sensitive resources fail closed when the decision service is unavailable.
 - Low-risk cached reads may use short-lived cached decisions only when policy explicitly permits it.
 - Provisioning never assumes success and must verify target state after every write.
+- Enforcement planning fails closed when the caller omits readiness evidence or presents a blocked, missing, mismatched, or live-write-enabled readiness report.
 - Connector outages queue work, mark the connector degraded, and must not silently skip revocations.
 - Revocation and quarantine actions have priority over new grants.
 

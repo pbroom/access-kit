@@ -43,6 +43,8 @@ rebac evidence export --framework nist-800-53 --controls AC-2,AC-3,AU-2 --format
 
 rebac connector list
 rebac connector test mock
+rebac connector readiness mock --mode enforcement --synthetic-only --approver-role access-approver --change-ticket-pattern '^chg:[a-z0-9_:-]+$'
+rebac connector readiness mock --status ready
 rebac connector sync mock --mode read_only
 ```
 
@@ -54,4 +56,4 @@ Read-only discovery uses `rebac connector sync <connector-id> --mode read_only`.
 
 Dry-run provisioning uses `rebac provision plan` followed by `rebac provision apply`. By default, `apply` creates a dry-run job: provider writes are skipped, verification hooks run, compensation intent is recorded, and audit evidence is emitted.
 
-Controlled enforcement is available only as a synthetic Phase 4 proof point against the `mock` connector. The CLI can send `--mode enforcement --approver <id> --change-ticket <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.
+Controlled enforcement is available only as a synthetic Phase 4 proof point against the `mock` connector. Operators first run `rebac connector readiness mock --mode enforcement --synthetic-only` and pass the resulting report ID into provisioning with `--readiness-report <id>`. The CLI can then send `--mode enforcement --approver <id> --change-ticket <id> --readiness-report <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.

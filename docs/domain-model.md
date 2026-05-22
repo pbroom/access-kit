@@ -18,6 +18,8 @@
 
 `ProvisioningPlan` is the auditable plan that converts a decision or request into dry-run or enforcement actions. It records connector ID, action idempotency keys, verification expectations, and compensation intent. Decisions must not directly mutate providers.
 
+`EnforcementReadinessReport` is the precondition evidence for controlled enforcement. It records connector identity, provider boundary, requested guardrail controls, readiness status, readiness checks, approver-role expectation, change-ticket pattern, and audit event references. In Phase 4 it can mark only the synthetic `mock` connector as ready; synthetic Entra ID, SharePoint, and AWS-style connectors remain blocked because live write review is incomplete.
+
 `ProvisioningJob` records execution evidence for a plan. Dry-run jobs skip provider writes, run verification hooks, keep compensation planned, and return the same job on idempotent replay. Controlled enforcement jobs are synthetic-only in Phase 4: they require approval and guardrail controls, apply only through the mock connector, verify readback, and emit permission-change evidence without live provider mutation.
 
 `DriftFinding` records a difference between intended access and native access. It has severity, source connector, recommended action, status, and timestamps.
@@ -32,9 +34,10 @@
 - Decisions are not grants.
 - Intended grants are not native grants.
 - Discovery runs are not provisioning jobs.
+- Enforcement readiness reports are not approvals and are not provisioning plans.
 - Provisioning plans are not provisioning jobs.
 - Dry-run provisioning jobs are not provider writes.
-- Controlled enforcement jobs in this milestone are synthetic proof points, not live provider writes.
+- Controlled enforcement jobs in this milestone require a matching ready enforcement-readiness report and remain synthetic proof points, not live provider writes.
 - Drift findings are security objects, not incidental errors.
 - Audit evidence is not a mutable operational table.
 

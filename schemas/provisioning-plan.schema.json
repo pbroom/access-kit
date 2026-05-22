@@ -28,6 +28,7 @@
     "status": { "type": "string", "enum": ["planned", "approved", "applied", "failed", "rolled_back"] },
     "approval": { "$ref": "#/$defs/provisioningApproval" },
     "control": { "$ref": "#/$defs/enforcementControl" },
+    "readinessReportId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "actions": {
       "type": "array",
       "minItems": 1,

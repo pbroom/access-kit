@@ -509,6 +509,8 @@ paths:
                   $ref: "#/components/schemas/ProvisioningApproval"
                 control:
                   $ref: "#/components/schemas/EnforcementControl"
+                readinessReportId:
+                  type: string
       responses:
         "201":
           description: Provisioning plan.
@@ -732,6 +734,62 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ValidationResult"
+  /v1/connectors/{id}/enforcement-readiness:
+    get:
+      tags: [connectors]
+      summary: List connector enforcement readiness reports.
+      operationId: listConnectorEnforcementReadiness
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ready, blocked]
+      responses:
+        "200":
+          description: Connector enforcement readiness report list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EnforcementReadinessReport"
+    post:
+      tags: [connectors]
+      summary: Check controlled-enforcement readiness for a connector.
+      operationId: checkConnectorEnforcementReadiness
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [control]
+              properties:
+                mode:
+                  type: string
+                  enum: [enforcement]
+                control:
+                  $ref: "#/components/schemas/EnforcementControl"
+                requiredApproverRole:
+                  type: string
+                changeTicketPattern:
+                  type: string
+      responses:
+        "200":
+          description: Connector enforcement readiness report.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnforcementReadinessReport"
   /v1/connectors/{id}/sync:
     post:
       tags: [connectors]
@@ -1042,6 +1100,81 @@ components:
           type: boolean
         breakGlass:
           type: boolean
+    EnforcementReadinessReport:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - connectorId
+        - provider
+        - tenantBoundary
+        - mode
+        - status
+        - checkedAt
+        - control
+        - checks
+        - requiredApproverRole
+        - changeTicketPattern
+        - liveProviderWritesAllowed
+        - auditEventIds
+        - version
+        - createdAt
+      properties:
+        id:
+          type: string
+        connectorId:
+          type: string
+        provider:
+          type: string
+        tenantBoundary:
+          type: string
+        mode:
+          type: string
+          enum: [enforcement]
+        status:
+          type: string
+          enum: [ready, blocked]
+        checkedAt:
+          type: string
+          format: date-time
+        control:
+          $ref: "#/components/schemas/EnforcementControl"
+        checks:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, status, message]
+            properties:
+              name:
+                type: string
+              status:
+                type: string
+                enum: [pass, warn, fail]
+              message:
+                type: string
+              evidence:
+                type: object
+                additionalProperties: true
+        requiredApproverRole:
+          type: string
+        changeTicketPattern:
+          type: string
+        liveProviderWritesAllowed:
+          type: boolean
+          const: false
+        auditEventIds:
+          type: array
+          items:
+            type: string
+        version:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     ProvisioningVerification:
       type: object
       additionalProperties: false

@@ -16,13 +16,17 @@
 - Audit: append-only event search.
 - Evidence: control/time-bounded export.
 - Discovery: read-only discovery run history.
-- Connectors: capability listing, health/permission test, and read-only discovery sync.
+- Connectors: capability listing, health/permission test, enforcement-readiness checks, and read-only discovery sync.
 
 ## Phase 2 Read-Only Discovery
 
 `GET /v1/connectors` returns the registered connector adapters, including provider, tenant boundary, required read scopes, and capability flags. Phase 2 registers synthetic `mock`, `entra-readonly`, `sharepoint-readonly`, and `aws-readonly` connectors. These are contract fixtures, not live tenant integrations.
 
 `POST /v1/connectors/{id}/test` returns connector health and permission checks. Check statuses are `pass`, `warn`, or `fail`; only failures make the response invalid.
+
+`POST /v1/connectors/{id}/enforcement-readiness` returns an `EnforcementReadinessReport`. Phase 4 readiness is synthetic-only: the mock connector can return `ready` when live writes are disabled, incident mode is clear, break-glass is disabled, and provisioning/readback capabilities are present. Synthetic provider read-only connectors return `blocked` because live least-privilege write review is intentionally incomplete. The check emits `connector.enforcement_readiness_checked` audit evidence.
+
+`GET /v1/connectors/{id}/enforcement-readiness` lists readiness reports and supports filtering by `status`.
 
 `POST /v1/connectors/{id}/sync` accepts `mode: "read_only"` and returns a `DiscoveryRun`. The run records counts for discovered subjects, resources, relationship tuples, native grants, and warnings. It can include warnings, cursor/high-watermark metadata, and read-only evidence. It also emits `connector.discovery_completed` audit evidence.
 
@@ -36,7 +40,7 @@
 
 `POST /v1/provisioning/jobs` also defaults to `mode: "dry_run"` with `dryRun: true` and `Idempotency-Key`. The local runtime returns the same job for repeated submissions with the same idempotency key. Dry-run jobs do not call provider write APIs; they mark actions as skipped, run connector verification hooks, and emit provisioning audit events.
 
-Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock` connector only. Enforcement requests must include an approval object with `decision: "approved"`, `approverId`, `changeTicket`, and `approvedAt`, plus a control object with `syntheticOnly: true`, `liveProviderWrites: false`, `incidentMode: false`, and `breakGlass: false`. Read-only synthetic provider connectors and any unsafe control settings are rejected before a job is accepted.
+Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock` connector only. Enforcement requests must include an approval object with `decision: "approved"`, `approverId`, `changeTicket`, and `approvedAt`, a control object with `syntheticOnly: true`, `liveProviderWrites: false`, `incidentMode: false`, and `breakGlass: false`, and a ready `readinessReportId` from the matching connector. The readiness report must match the current connector boundary, the submitted controls, and the approval change-ticket pattern. Read-only synthetic provider connectors, missing readiness evidence, and unsafe control settings are rejected before a job is accepted.
 
 `GET /v1/provisioning/jobs/{id}` returns dry-run or controlled-enforcement job evidence.
 

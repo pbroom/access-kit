@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
   checkDecision,
+  checkEnforcementReadiness,
   createProvisioningJob,
   createProvisioningPlan,
   createRebacLocalApp,
@@ -11,6 +12,7 @@ import {
   explainDecision,
   exportEvidence,
   getProvisioningJob,
+  listEnforcementReadinessReports,
   listDiscoveryRuns,
   putRelationship,
   readNativeAccess,
@@ -26,6 +28,7 @@ import type {
   DiscoveryRunStatus,
   DriftSeverity,
   EnforcementControl,
+  EnforcementReadinessReport,
   NativeGrantType,
   NativePrincipalType,
   ProvisioningApproval,
@@ -50,6 +53,7 @@ interface ProvisioningPlanRequest {
   connectorId?: unknown;
   approval?: unknown;
   control?: unknown;
+  readinessReportId?: unknown;
 }
 
 interface ProvisioningJobRequest {
@@ -61,10 +65,18 @@ interface ProvisioningJobRequest {
   control?: unknown;
 }
 
+interface EnforcementReadinessRequest {
+  mode?: unknown;
+  control?: unknown;
+  requiredApproverRole?: unknown;
+  changeTicketPattern?: unknown;
+}
+
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
 const discoveryStatuses = new Set(["queued", "running", "completed", "completed_with_warnings", "failed"]);
+const enforcementReadinessStatuses = new Set(["ready", "blocked"]);
 const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
 const nativePrincipalTypes = new Set(["user", "group", "service_account", "service_principal", "managed_identity", "external_user", "unknown"]);
 
@@ -495,6 +507,7 @@ async function routeProvisioning(
     const mode = readProvisioningMode(body.mode, body.dryRun);
     const approval = readProvisioningApproval(body.approval);
     const control = readEnforcementControl(body.control);
+    const readinessReportId = readReadinessReportId(body.readinessReportId);
 
     if (body.connectorId !== undefined && (typeof body.connectorId !== "string" || !body.connectorId)) {
       throw new HttpError(400, "INVALID_CONNECTOR_ID", "connectorId must be a non-empty string when provided");
@@ -506,7 +519,11 @@ async function routeProvisioning(
         throw new HttpError(400, "INVALID_GRANT_ID", "grantId must be a non-empty string");
       }
 
-      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId, { mode, approval, control }, idempotencyKey));
+      sendJson(
+        response,
+        201,
+        await createRevocationPlan(app, body.grantId, connectorId, { mode, approval, control, readinessReportId }, idempotencyKey)
+      );
       return;
     }
 
@@ -519,7 +536,11 @@ async function routeProvisioning(
       );
     }
 
-    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId, { mode, approval, control }, idempotencyKey));
+    sendJson(
+      response,
+      201,
+      await createProvisioningPlan(app, decisionRequest, connectorId, { mode, approval, control, readinessReportId }, idempotencyKey)
+    );
     return;
   }
 
@@ -617,6 +638,19 @@ async function routeConnectors(
 
   if (segments[3] === "test" && request.method === "POST") {
     sendJson(response, 200, await testConnector(app, connectorId));
+    return;
+  }
+
+  if (segments[3] === "enforcement-readiness" && request.method === "GET") {
+    sendJson(response, 200, {
+      items: listEnforcementReadinessReports(app, connectorId, readEnforcementReadinessStatus(new URL(request.url ?? "/", "http://localhost").searchParams.get("status")))
+    });
+    return;
+  }
+
+  if (segments[3] === "enforcement-readiness" && request.method === "POST") {
+    const body = await readJson<EnforcementReadinessRequest>(request);
+    sendJson(response, 200, checkEnforcementReadiness(app, connectorId, readEnforcementReadinessRequest(body)));
     return;
   }
 
@@ -868,6 +902,70 @@ function readEnforcementControl(value: unknown): EnforcementControl | undefined 
   };
 }
 
+function readRequiredEnforcementControl(value: unknown): EnforcementControl {
+  const control = readEnforcementControl(value);
+
+  if (!control) {
+    throw new HttpError(400, "INVALID_ENFORCEMENT_CONTROL", "control is required for enforcement readiness checks");
+  }
+
+  return control;
+}
+
+function readEnforcementReadinessRequest(value: unknown): {
+  mode: "enforcement";
+  control: EnforcementControl;
+  requiredApproverRole?: string;
+  changeTicketPattern?: string;
+} {
+  if (!isRecord(value)) {
+    throw new HttpError(400, "INVALID_ENFORCEMENT_READINESS_REQUEST", "enforcement readiness requests require an object body");
+  }
+
+  if (value.mode !== undefined && value.mode !== "enforcement") {
+    throw new HttpError(400, "INVALID_ENFORCEMENT_READINESS_MODE", "enforcement readiness mode must be enforcement");
+  }
+
+  if (value.requiredApproverRole !== undefined && (typeof value.requiredApproverRole !== "string" || !value.requiredApproverRole)) {
+    throw new HttpError(400, "INVALID_APPROVER_ROLE", "requiredApproverRole must be a non-empty string when provided");
+  }
+
+  if (value.changeTicketPattern !== undefined && (typeof value.changeTicketPattern !== "string" || !value.changeTicketPattern)) {
+    throw new HttpError(400, "INVALID_CHANGE_TICKET_PATTERN", "changeTicketPattern must be a non-empty string when provided");
+  }
+
+  if (typeof value.changeTicketPattern === "string") {
+    assertRegularExpression(value.changeTicketPattern);
+  }
+
+  return {
+    mode: "enforcement",
+    control: readRequiredEnforcementControl(value.control),
+    requiredApproverRole: value.requiredApproverRole,
+    changeTicketPattern: value.changeTicketPattern
+  };
+}
+
+function assertRegularExpression(pattern: string): void {
+  try {
+    new RegExp(pattern);
+  } catch {
+    throw new HttpError(400, "INVALID_CHANGE_TICKET_PATTERN", "changeTicketPattern must be a valid regular expression");
+  }
+}
+
+function readReadinessReportId(value: unknown): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string" || !value) {
+    throw new HttpError(400, "INVALID_READINESS_REPORT_ID", "readinessReportId must be a non-empty string when provided");
+  }
+
+  return value;
+}
+
 function readIdempotencyKey(request: IncomingMessage): string {
   const value = request.headers["idempotency-key"];
 
@@ -888,6 +986,18 @@ function readDiscoveryStatus(status: string | null): DiscoveryRunStatus | undefi
   }
 
   throw new HttpError(400, "INVALID_DISCOVERY_STATUS", "status must be a valid discovery run status");
+}
+
+function readEnforcementReadinessStatus(status: string | null): EnforcementReadinessReport["status"] | undefined {
+  if (!status) {
+    return undefined;
+  }
+
+  if (enforcementReadinessStatuses.has(status)) {
+    return status as EnforcementReadinessReport["status"];
+  }
+
+  throw new HttpError(400, "INVALID_ENFORCEMENT_READINESS_STATUS", "status must be ready or blocked");
 }
 
 function readNativeGrantType(grantType: string | null): NativeGrantType | undefined {

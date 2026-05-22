@@ -41,6 +41,7 @@
         "admin.action_performed",
         "connector.discovery_completed",
         "connector.current_access_read",
+        "connector.enforcement_readiness_checked",
         "connector.permission_changed",
         "evidence.generated"
       ]

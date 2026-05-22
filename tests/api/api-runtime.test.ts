@@ -638,12 +638,14 @@ describe("ReBAC API runtime", () => {
   it("runs controlled mock enforcement with approval, verification, and audit evidence", async () => {
     const approval = controlledApproval();
     const control = controlledEnforcement();
+    const readiness = await createReadyReadinessReport("mock", control);
     const plan = await post<{
       id: string;
       mode: string;
       status: string;
       approval: { changeTicket: string };
       control: { syntheticOnly: boolean; liveProviderWrites: boolean };
+      readinessReportId: string;
       actions: Array<{ dryRun: boolean; status: string }>;
     }>("/v1/provisioning/plans", {
       subjectId: "user:alice",
@@ -653,7 +655,8 @@ describe("ReBAC API runtime", () => {
       mode: "enforcement",
       dryRun: false,
       approval,
-      control
+      control,
+      readinessReportId: readiness.id
     });
     const job = await postWithIdempotency<{
       mode: string;
@@ -678,7 +681,8 @@ describe("ReBAC API runtime", () => {
       mode: "enforcement",
       status: "approved",
       approval: { changeTicket: "chg:phase4-controlled-enforcement" },
-      control: { syntheticOnly: true, liveProviderWrites: false }
+      control: { syntheticOnly: true, liveProviderWrites: false },
+      readinessReportId: readiness.id
     });
     expect(plan.actions).toEqual([expect.objectContaining({ dryRun: false, status: "planned" })]);
     expect(job).toMatchObject({
@@ -707,6 +711,7 @@ describe("ReBAC API runtime", () => {
       "provisioning.requested",
       "provisioning.planned",
       "provisioning.approved",
+      "connector.enforcement_readiness_checked",
       "connector.permission_changed",
       "provisioning.verified",
       "provisioning.completed"
@@ -716,6 +721,42 @@ describe("ReBAC API runtime", () => {
       liveProviderWrite: false,
       providerWrite: false
     });
+  });
+
+  it("records connector enforcement readiness and exposes readiness history", async () => {
+    const ready = await createReadyReadinessReport("mock", controlledEnforcement());
+    const blocked = await post<{
+      id: string;
+      connectorId: string;
+      status: string;
+      checks: Array<{ name: string; status: string }>;
+    }>("/v1/connectors/sharepoint-readonly/enforcement-readiness", {
+      mode: "enforcement",
+      control: controlledEnforcement()
+    });
+    const readyReports = await get<{ items: Array<{ id: string; status: string }> }>("/v1/connectors/mock/enforcement-readiness?status=ready");
+    const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(ready).toMatchObject({
+      connectorId: "mock",
+      status: "ready",
+      liveProviderWritesAllowed: false,
+      control: { syntheticOnly: true, liveProviderWrites: false }
+    });
+    expect(ready.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "mock_enforcement_boundary", status: "pass" }),
+      expect.objectContaining({ name: "least_privilege_review", status: "pass" })
+    ]));
+    expect(blocked).toMatchObject({
+      connectorId: "sharepoint-readonly",
+      status: "blocked"
+    });
+    expect(blocked.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "mock_enforcement_boundary", status: "fail" }),
+      expect.objectContaining({ name: "provisioning_capability", status: "fail" })
+    ]));
+    expect(readyReports.items).toEqual([expect.objectContaining({ id: ready.id, status: "ready" })]);
+    expect(audit.items.map((event) => event.eventType)).toContain("connector.enforcement_readiness_checked");
   });
 
   it("blocks controlled enforcement without an approval", async () => {
@@ -766,8 +807,53 @@ describe("ReBAC API runtime", () => {
     }
   });
 
+  it("blocks controlled enforcement without a ready connector readiness report", async () => {
+    const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-test-cccc" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        connectorId: "mock",
+        mode: "enforcement",
+        dryRun: false,
+        approval: controlledApproval(),
+        control: controlledEnforcement()
+      })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "ENFORCEMENT_READINESS_REQUIRED" });
+  });
+
+  it("rejects controlled enforcement when readiness ticket policy does not match approval", async () => {
+    const control = controlledEnforcement();
+    const readiness = await createReadyReadinessReport("mock", control, "^chg:approved-only$");
+    const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-test-dddd" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        connectorId: "mock",
+        mode: "enforcement",
+        dryRun: false,
+        approval: controlledApproval(),
+        control,
+        readinessReportId: readiness.id
+      })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "ENFORCEMENT_READINESS_CHANGE_TICKET_MISMATCH" });
+  });
+
   it("rejects enforcement jobs when approval evidence differs from the approved plan", async () => {
     const approval = controlledApproval();
+    const control = controlledEnforcement();
+    const readiness = await createReadyReadinessReport("mock", control);
     const plan = await post<{ id: string }>("/v1/provisioning/plans", {
       subjectId: "user:alice",
       action: "read",
@@ -776,7 +862,8 @@ describe("ReBAC API runtime", () => {
       mode: "enforcement",
       dryRun: false,
       approval,
-      control: controlledEnforcement()
+      control,
+      readinessReportId: readiness.id
     });
     const response = await fetch(`${baseUrl}/v1/provisioning/jobs`, {
       method: "POST",
@@ -787,7 +874,7 @@ describe("ReBAC API runtime", () => {
         mode: "enforcement",
         dryRun: false,
         approval: { ...approval, changeTicket: "chg:different" },
-        control: controlledEnforcement()
+        control
       })
     });
 
@@ -906,6 +993,19 @@ function controlledEnforcement(): JsonObject {
     incidentMode: false,
     breakGlass: false
   };
+}
+
+async function createReadyReadinessReport(
+  connectorId: string,
+  control: JsonObject,
+  changeTicketPattern = "^chg:[a-z0-9_:-]+$"
+): Promise<{ id: string; connectorId: string; status: string; liveProviderWritesAllowed: boolean; control: JsonObject; checks: Array<{ name: string; status: string }> }> {
+  return post(`/v1/connectors/${encodeURIComponent(connectorId)}/enforcement-readiness`, {
+    mode: "enforcement",
+    control,
+    requiredApproverRole: "access-approver",
+    changeTicketPattern
+  });
 }
 
 async function startServer(options: RebacApiServerOptions): Promise<void> {
