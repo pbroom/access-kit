@@ -184,6 +184,46 @@ export async function createProvisioningPlan(
   return plan;
 }
 
+export async function createRevocationPlan(
+  app: RebacLocalApp,
+  nativeGrantId: string,
+  connectorId = getDefaultConnectorId(app)
+): Promise<ProvisioningPlan> {
+  const connector = getConnector(app, connectorId);
+  const plan = await connector.revokeAccess(nativeGrantId);
+  app.store.upsertProvisioningPlan(plan);
+  recordAudit(app, {
+    eventType: "provisioning.requested",
+    actor: app.actor,
+    subjectId: plan.subjectId,
+    resourceId: plan.resourceId,
+    correlationId: `corr:${plan.id}`,
+    payload: asJsonRecord(plan)
+  });
+  return plan;
+}
+
+export async function applyProvisioningPlan(app: RebacLocalApp, planId: string): Promise<ProvisioningPlan | undefined> {
+  const plan = app.store.getProvisioningPlan(planId);
+
+  if (!plan) {
+    return undefined;
+  }
+
+  const connector = getConnector(app, getDefaultConnectorId(app));
+  const appliedPlan = await connector.applyProvisioningChange(plan);
+  app.store.upsertProvisioningPlan(appliedPlan);
+  recordAudit(app, {
+    eventType: "provisioning.applied",
+    actor: app.actor,
+    subjectId: appliedPlan.subjectId,
+    resourceId: appliedPlan.resourceId,
+    correlationId: `corr:${appliedPlan.id}:applied`,
+    payload: asJsonRecord(appliedPlan)
+  });
+  return appliedPlan;
+}
+
 export async function runReconciliation(app: RebacLocalApp, connectorId: string): Promise<DriftFinding[]> {
   const connector = getConnector(app, connectorId);
   const findings = await connector.detectDrift();

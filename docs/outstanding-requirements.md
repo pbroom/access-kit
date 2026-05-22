@@ -4,7 +4,7 @@ This first milestone intentionally stops at contracts, documentation, mock bound
 
 ## Runtime
 
-- Implement API handlers behind the OpenAPI contract.
+- Replace local in-memory API handlers with deployable production service packaging.
 - Add persistent graph storage for subjects, resources, and relationship tuples.
 - Add policy model parsing, publication, rollback, and versioned test execution.
 - Add durable append-only audit/event storage with hash chaining.

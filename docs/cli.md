@@ -41,6 +41,6 @@ rebac connector test mock
 rebac connector sync mock --mode read_only
 ```
 
-## Current Milestone
+## Phase 1 Runtime
 
-The package exposes the command tree and a contract smoke test. Commands currently return the API surface they map to; runtime API calls will be implemented in a later milestone.
+The package exposes the command tree and calls the API over HTTP. Use `--api-url` or `REBAC_API_URL` to point the CLI at a running local or deployed control-plane API. Authorization logic stays in the API/core engine; the CLI is only an operator wrapper.

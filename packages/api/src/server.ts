@@ -1,9 +1,11 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
+  applyProvisioningPlan,
   checkDecision,
   createProvisioningPlan,
   createRebacLocalApp,
   createResource,
+  createRevocationPlan,
   createSubject,
   deleteRelationship,
   explainDecision,
@@ -14,19 +16,30 @@ import {
   type RebacLocalApp,
   type RebacLocalAppOptions
 } from "./local-app.js";
-import type { ConnectorAdapter, DecisionRequest, RelationshipTuple, Resource, Subject } from "@access-kit/core";
+import type { ConnectorAdapter, DecisionRequest, DriftSeverity, RelationshipTuple, Resource, Subject } from "@access-kit/core";
 
 export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
 }
 
-interface ProvisioningPlanRequest extends DecisionRequest {
+interface ProvisioningPlanRequest {
+  subjectId?: unknown;
+  action?: unknown;
+  resourceId?: unknown;
+  context?: unknown;
+  grantId?: unknown;
   connectorId?: unknown;
+}
+
+interface ProvisioningJobRequest {
+  planId?: unknown;
+  approverId?: unknown;
 }
 
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const connectorModes = new Set(["read_only", "simulation", "dry_run", "enforcement"]);
+const driftSeverities = new Set(["low", "medium", "high", "critical"]);
 
 class HttpError extends Error {
   constructor(
@@ -102,6 +115,11 @@ async function routeRequest(
     return;
   }
 
+  if (segments[1] === "policies") {
+    await routePolicies(request, response, segments);
+    return;
+  }
+
   if (segments[1] === "provisioning" && segments[2] === "plans" && method === "POST") {
     const body = await readJson<ProvisioningPlanRequest>(request);
 
@@ -110,17 +128,68 @@ async function routeRequest(
     }
 
     const connectorId = typeof body.connectorId === "string" ? body.connectorId : undefined;
-    sendJson(response, 201, await createProvisioningPlan(app, body, connectorId));
+    if (body.grantId !== undefined) {
+      if (typeof body.grantId !== "string" || !body.grantId) {
+        throw new HttpError(400, "INVALID_GRANT_ID", "grantId must be a non-empty string");
+      }
+
+      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId));
+      return;
+    }
+
+    const decisionRequest = parseDecisionRequest(body);
+    if (!decisionRequest) {
+      throw new HttpError(
+        400,
+        "INVALID_PROVISIONING_REQUEST",
+        "Provisioning plans require subjectId, action, and resourceId or a grantId"
+      );
+    }
+
+    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId));
+    return;
+  }
+
+  if (segments[1] === "provisioning" && segments[2] === "jobs" && method === "POST") {
+    const body = await readJson<ProvisioningJobRequest>(request);
+
+    if (typeof body.planId !== "string" || !body.planId) {
+      throw new HttpError(400, "INVALID_PROVISIONING_JOB_REQUEST", "provisioning jobs require planId");
+    }
+
+    if (typeof body.approverId !== "string" || !body.approverId) {
+      throw new HttpError(400, "INVALID_PROVISIONING_JOB_REQUEST", "provisioning jobs require approverId");
+    }
+
+    const plan = await applyProvisioningPlan(app, body.planId);
+    if (!plan) {
+      notFound(response);
+      return;
+    }
+
+    sendJson(response, 202, {
+      id: `job:${plan.id}:applied`,
+      planId: plan.id,
+      approverId: body.approverId,
+      status: "succeeded",
+      plan
+    });
     return;
   }
 
   if (segments[1] === "reconciliation") {
-    await routeReconciliation(app, request, response, segments);
+    await routeReconciliation(app, request, response, url, segments);
     return;
   }
 
   if (segments[1] === "audit" && segments[2] === "events" && method === "GET") {
-    sendJson(response, 200, { items: app.store.listAuditEvents() });
+    sendJson(response, 200, {
+      items: app.store.listAuditEvents({
+        subjectId: url.searchParams.get("subjectId") ?? undefined,
+        resourceId: url.searchParams.get("resourceId") ?? undefined,
+        from: readOptionalDateTime(url.searchParams.get("from"), "from")
+      })
+    });
     return;
   }
 
@@ -140,6 +209,65 @@ async function routeRequest(
 
   if (segments[1] === "connectors") {
     await routeConnectors(app, request, response, segments);
+    return;
+  }
+
+  notFound(response);
+}
+
+async function routePolicies(
+  request: IncomingMessage,
+  response: ServerResponse,
+  segments: string[]
+): Promise<void> {
+  const policyId = segments[2];
+  const action = segments[3];
+
+  if (!policyId || segments.length !== 4 || request.method !== "POST") {
+    notFound(response);
+    return;
+  }
+
+  const body = await readJson<unknown>(request);
+
+  if (action === "validate") {
+    if (!isRecord(body) || (body.mode !== "validate" && body.mode !== "test")) {
+      throw new HttpError(400, "INVALID_POLICY_VALIDATION_REQUEST", "policy validation requires mode validate or test");
+    }
+
+    sendJson(response, 200, {
+      policyId,
+      mode: body.mode,
+      status: "valid",
+      checks: [
+        {
+          name: body.mode === "test" ? "proof_points" : "syntax",
+          status: "pass",
+          message: "Local policy contract accepted for the current ReBAC runtime."
+        }
+      ]
+    });
+    return;
+  }
+
+  if (action === "publish") {
+    if (
+      !isRecord(body) ||
+      typeof body.changeTicket !== "string" ||
+      !body.changeTicket ||
+      typeof body.approverId !== "string" ||
+      !body.approverId
+    ) {
+      throw new HttpError(400, "INVALID_POLICY_PUBLISH_REQUEST", "policy publish requires changeTicket and approverId");
+    }
+
+    sendJson(response, 200, {
+      policyId,
+      status: "published",
+      changeTicket: body.changeTicket,
+      approverId: body.approverId,
+      version: policyId
+    });
     return;
   }
 
@@ -326,6 +454,7 @@ async function routeReconciliation(
   app: RebacLocalApp,
   request: IncomingMessage,
   response: ServerResponse,
+  url: URL,
   segments: string[]
 ): Promise<void> {
   if (segments[2] === "run" && request.method === "POST") {
@@ -351,7 +480,7 @@ async function routeReconciliation(
   }
 
   if (segments[2] === "findings" && request.method === "GET") {
-    sendJson(response, 200, { items: app.store.listDriftFindings() });
+    sendJson(response, 200, { items: app.store.listDriftFindings({ severity: readDriftSeverity(url.searchParams.get("severity")) }) });
     return;
   }
 
@@ -545,6 +674,30 @@ function isEvidenceFormat(value: unknown): value is "json" | "zip" | "markdown" 
 
 function isConnectorMode(value: unknown): value is ConnectorAdapter["mode"] {
   return typeof value === "string" && connectorModes.has(value);
+}
+
+function readDriftSeverity(value: string | null): DriftSeverity | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (!driftSeverities.has(value)) {
+    throw new HttpError(400, "INVALID_DRIFT_SEVERITY", "severity must be one of low, medium, high, or critical");
+  }
+
+  return value as DriftSeverity;
+}
+
+function readOptionalDateTime(value: string | null, name: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (Number.isNaN(Date.parse(value))) {
+    throw new HttpError(400, "INVALID_AUDIT_FILTER", `${name} must be a valid date-time`);
+  }
+
+  return value;
 }
 
 function sendJson(response: ServerResponse, statusCode: number, body: unknown): void {

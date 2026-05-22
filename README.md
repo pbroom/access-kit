@@ -11,6 +11,8 @@ This repository currently delivers:
 - JSON Schemas for core domain and evidence objects.
 - CLI command contract for operators, CI/CD, and assessors.
 - Mock connector interface and deterministic sample implementation.
+- Local in-memory API runtime for Phase 1 check, explain, inventory, relationship, connector sync, reconciliation, audit, and evidence flows.
+- CLI commands that call the API instead of evaluating authorization locally.
 - Policy proof-point fixtures for deny/default, relationship allow, deny override, expiration, suspension, idempotency, and drift.
 - Architecture, security, ATO evidence, CLI, API, and ADR documentation.
 - Generated proof-point validation report in `reports/proof-point-validation.md`.
@@ -35,7 +37,7 @@ pnpm validate
 pnpm evidence:generate
 ```
 
-`pnpm validate` runs type checking, JSON Schema validation, OpenAPI validation, policy fixture validation, and CLI contract smoke tests.
+`pnpm validate` runs type checking, JSON Schema validation, OpenAPI validation, policy fixture validation, and the core/API/CLI test suite.
 
 ## Repository Map
 
@@ -44,6 +46,7 @@ pnpm evidence:generate
 - `openapi/` - ReBAC control-plane OpenAPI contract.
 - `schemas/` - JSON Schemas for public domain contracts.
 - `packages/core/` - deterministic domain types and proof-point evaluator.
+- `packages/api/` - local in-memory HTTP API runtime.
 - `packages/api-contracts/` - contract and schema manifest exports.
 - `packages/cli/` - CLI command contract and placeholder operator CLI.
 - `packages/connectors-mock/` - mock connector implementing the adapter boundary.
