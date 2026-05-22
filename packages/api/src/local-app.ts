@@ -321,10 +321,9 @@ export async function checkEnforcementReadiness(
 ): Promise<EnforcementReadinessReport> {
   const connector = getConnector(app, connectorId);
   const checkedAt = app.now();
-  const reports = app.store.listEnforcementReadinessReports({ connectorId });
-  const reportId = `readiness:${connectorId}:${compactTimestamp(checkedAt)}:${reports.length + 1}`;
   const control = request.control;
   const checks = await buildEnforcementReadinessChecks(connector, control, checkedAt);
+  const reportId = createEnforcementReadinessReportId(app, connectorId, checkedAt);
   const reportWithoutAuditIds: EnforcementReadinessReport = {
     id: reportId,
     connectorId,
@@ -351,6 +350,11 @@ export async function checkEnforcementReadiness(
   const report = { ...reportWithoutAuditIds, auditEventIds: [auditEvent.eventId] };
   app.store.recordEnforcementReadinessReport(report);
   return report;
+}
+
+function createEnforcementReadinessReportId(app: RebacLocalApp, connectorId: string, checkedAt: string): string {
+  const reports = app.store.listEnforcementReadinessReports({ connectorId });
+  return `readiness:${connectorId}:${compactTimestamp(checkedAt)}:${reports.length + 1}`;
 }
 
 export function listEnforcementReadinessReports(
@@ -888,7 +892,8 @@ function planMatchesExecutionOptions(plan: ProvisioningPlan, options: Provisioni
   return (
     plan.mode === (options.mode ?? "dry_run") &&
     JSON.stringify(plan.approval ?? null) === JSON.stringify(options.approval ?? null) &&
-    JSON.stringify(plan.control ?? null) === JSON.stringify(options.control ?? null)
+    JSON.stringify(plan.control ?? null) === JSON.stringify(options.control ?? null) &&
+    (plan.readinessReportId ?? null) === (options.readinessReportId ?? null)
   );
 }
 
