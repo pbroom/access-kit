@@ -116,13 +116,19 @@ export class InMemoryRebacStore {
     return [...this.#provisioningPlans.values()];
   }
 
+  getProvisioningPlan(id: CanonicalId): ProvisioningPlan | undefined {
+    return this.#provisioningPlans.get(id);
+  }
+
   upsertProvisioningPlan(plan: ProvisioningPlan): ProvisioningPlan {
     this.#provisioningPlans.set(plan.id, plan);
     return plan;
   }
 
-  listDriftFindings(): DriftFinding[] {
-    return [...this.#driftFindings.values()];
+  listDriftFindings(filter: Partial<Pick<DriftFinding, "severity">> = {}): DriftFinding[] {
+    return [...this.#driftFindings.values()].filter((finding) => {
+      return !filter.severity || finding.severity === filter.severity;
+    });
   }
 
   upsertDriftFinding(finding: DriftFinding): DriftFinding {
@@ -144,7 +150,15 @@ export class InMemoryRebacStore {
     return event;
   }
 
-  listAuditEvents(): AuditEvent[] {
-    return [...this.#auditEvents];
+  listAuditEvents(
+    filter: Partial<Pick<AuditEvent, "subjectId" | "resourceId">> & { from?: string } = {}
+  ): AuditEvent[] {
+    return this.#auditEvents.filter((event) => {
+      return (
+        (!filter.subjectId || event.subjectId === filter.subjectId) &&
+        (!filter.resourceId || event.resourceId === filter.resourceId) &&
+        (!filter.from || event.occurredAt >= filter.from)
+      );
+    });
   }
 }

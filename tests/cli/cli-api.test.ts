@@ -100,6 +100,23 @@ describe("CLI API wrapper", () => {
     });
   });
 
+  it("applies provisioning plans through the API", async () => {
+    await runCli("provision", "plan", "user:alice", "document:case-plan", "read");
+    const plan = lastOutput();
+
+    await runCli("provision", "apply", String(plan.id));
+
+    expect(lastOutput()).toMatchObject({
+      planId: plan.id,
+      approverId: "user:cli-operator",
+      status: "succeeded",
+      plan: {
+        id: plan.id,
+        status: "applied"
+      }
+    });
+  });
+
   it("sends distinct idempotency keys for different mutations", async () => {
     const requests: CapturedRequest[] = [];
 

@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-21T18:35:48.981Z
+Generated at: 2026-05-22T10:32:37.611Z
 
 Branch: codex/rebac-phase1-cli
 
@@ -27,14 +27,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-phase1-cli
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-phase1-cli
 > tsx scripts/validate-schemas.ts
 
 Validated 8 schemas and 8 example fixtures.
@@ -51,22 +51,25 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-phase1-cli
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-foundation-specs/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-phase1-cli/openapi/rebac-control-plane.yaml.
 PASS 22 required API path groups are present.
 ```
 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-phase1-cli
 > tsx scripts/validate-policy-fixtures.ts
 
-Validated 8 policy proof points.
+Validated 11 policy proof points.
 PASS deny by default without relationship path
+PASS deny unsupported action despite read relationship
 PASS allow through relationship path
+PASS allow through transitive reader relationship path
+PASS allow through nested container relationship path
 PASS allow through admin relationship path
 PASS deny override beats allow path
 PASS expired access is denied
@@ -78,49 +81,49 @@ PASS drift is represented as security finding
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-phase1-cli
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-foundation-specs
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase1-cli
 
 
  Test Files  2 passed (2)
-      Tests  9 passed (9)
-   Start at  14:35:46
-   Duration  175ms (transform 91ms, setup 0ms, import 122ms, tests 7ms, environment 0ms)
+      Tests  24 passed (24)
+   Start at  06:32:35
+   Duration  182ms (transform 101ms, setup 0ms, import 133ms, tests 11ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-phase1-cli
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-foundation-specs
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase1-cli
 
 
  Test Files  1 passed (1)
-      Tests  4 passed (4)
-   Start at  14:35:47
-   Duration  217ms (transform 52ms, setup 0ms, import 81ms, tests 40ms, environment 0ms)
+      Tests  20 passed (20)
+   Start at  06:32:36
+   Duration  280ms (transform 66ms, setup 0ms, import 95ms, tests 82ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-foundation-specs
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-phase1-cli
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-foundation-specs
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase1-cli
 
 
  Test Files  2 passed (2)
-      Tests  6 passed (6)
-   Start at  14:35:48
-   Duration  238ms (transform 99ms, setup 0ms, import 146ms, tests 39ms, environment 0ms)
+      Tests  18 passed (18)
+   Start at  06:32:36
+   Duration  317ms (transform 127ms, setup 0ms, import 178ms, tests 82ms, environment 0ms)
 ```
 
 

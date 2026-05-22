@@ -174,6 +174,42 @@ describe("ReBAC API runtime", () => {
     expect(audit.items.map((event: { eventType: string }) => event.eventType)).toContain("decision.denied");
   });
 
+  it("filters audit events by subject, resource, and lower time bound", async () => {
+    await restartServer({
+      now: sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:05:00.000Z")
+    });
+    await fetch(`${baseUrl}/v1/relationships`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-audit-filter" },
+      body: JSON.stringify({
+        id: "relationship:alice-filtered-document",
+        subjectId: "user:alice",
+        relation: "reader_of",
+        objectId: "document:case-plan",
+        sourceSystem: "mock",
+        assertedAt: "2026-05-21T17:00:00.000Z",
+        status: "active",
+        version: "tuple:v1",
+        createdAt: "2026-05-21T17:00:00.000Z"
+      })
+    });
+    await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:external",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const aliceEvents = await get<{ items: Array<{ subjectId?: string }> }>("/v1/audit/events?subjectId=user%3Aalice");
+    const documentEvents = await get<{ items: Array<{ resourceId?: string }> }>("/v1/audit/events?resourceId=document%3Acase-plan");
+    const recentEvents = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events?from=2026-05-21T17%3A04%3A00.000Z");
+
+    expect(aliceEvents.items).toHaveLength(1);
+    expect(aliceEvents.items.every((event) => event.subjectId === "user:alice")).toBe(true);
+    expect(documentEvents.items).toHaveLength(2);
+    expect(documentEvents.items.every((event) => event.resourceId === "document:case-plan")).toBe(true);
+    expect(recentEvents.items.map((event) => event.eventType)).toEqual(["decision.denied"]);
+  });
+
   it("exports evidence for the observed audit period", async () => {
     const times = [
       "2026-05-20T01:00:00.000Z",
@@ -232,6 +268,20 @@ describe("ReBAC API runtime", () => {
     expect(reconciliation.findings).toHaveLength(1);
   });
 
+  it("filters reconciliation findings by severity", async () => {
+    await post<{ findings: unknown[] }>("/v1/reconciliation/run", {
+      connectorId: "mock",
+      dryRun: true
+    });
+
+    const highFindings = await get<{ items: Array<{ severity: string }> }>("/v1/reconciliation/findings?severity=high");
+    const mediumFindings = await get<{ items: Array<{ severity: string }> }>("/v1/reconciliation/findings?severity=medium");
+
+    expect(highFindings.items).toHaveLength(1);
+    expect(highFindings.items[0]?.severity).toBe("high");
+    expect(mediumFindings.items).toEqual([]);
+  });
+
   it("requires explicit dry-run reconciliation", async () => {
     for (const body of [{ connectorId: "mock" }, { connectorId: "mock", dryRun: false }]) {
       const response = await fetch(`${baseUrl}/v1/reconciliation/run`, {
@@ -279,6 +329,35 @@ describe("ReBAC API runtime", () => {
 
     expect(plan.status).toBe("planned");
     expect(plan.actions).toHaveLength(1);
+  });
+
+  it("applies provisioning plans through the jobs route", async () => {
+    const plan = await post<{ id: string }>("/v1/provisioning/plans", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    const job = await post<{
+      planId: string;
+      approverId: string;
+      status: string;
+      plan: { id: string; status: string };
+    }>("/v1/provisioning/jobs", {
+      planId: plan.id,
+      approverId: "user:cli-operator"
+    });
+    const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(job).toMatchObject({
+      planId: plan.id,
+      approverId: "user:cli-operator",
+      status: "succeeded",
+      plan: {
+        id: plan.id,
+        status: "applied"
+      }
+    });
+    expect(audit.items.map((event) => event.eventType)).toContain("provisioning.applied");
   });
 
   it("validates provisioning connector IDs when provided", async () => {
@@ -332,6 +411,11 @@ async function stopServer(): Promise<void> {
 async function restartServer(options: RebacApiServerOptions): Promise<void> {
   await stopServer();
   await startServer(options);
+}
+
+function sequenceNow(...timestamps: string[]): () => string {
+  let index = 0;
+  return () => timestamps[index++] ?? timestamps.at(-1) ?? "2026-05-21T17:00:00.000Z";
 }
 
 async function post<T extends JsonObject>(path: string, body: unknown): Promise<T> {
