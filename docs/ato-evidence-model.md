@@ -30,10 +30,16 @@ Evidence exports include:
 - source event IDs
 - audit integrity report
 - SIEM-ready audit event export
+- system boundary and component inventory
+- data-flow evidence
 - control implementation mappings
+- control implementation statements
+- access review evidence
+- exception register
 - continuous-monitoring metrics
 - POA&M inputs
 - artifact manifest
+- operational evidence for SBOM, dependency scanning, vulnerability scanning, configuration baseline, incident response, break-glass, backup, and contingency planning
 - SIEM export metadata
 - storage receipt, when an evidence repository is configured
 - responsible role
@@ -42,12 +48,12 @@ Evidence exports include:
 
 The first generated evidence artifact is `reports/proof-point-validation.md`. It records tool versions, commit, command results, covered proof points, and outstanding requirements.
 
-The default local Phase 5 evidence package remains metadata-only. The local runtime can export bounded audit windows as SIEM-ready JSONL records and a local file-backed repository proof point can persist audit events as JSONL and evidence packages as JSON for validation, but neither path is a substitute for production WORM storage, retention, or SIEM forwarding. It proves the contract and auditability shape without exporting production data, tenant identifiers, secrets, or live provider records.
+The default local Phase 5 evidence package is complete for proof-point validation: it includes boundary, data-flow, control statement, access review, exception, ConMon, POA&M, SIEM-ready, and operational evidence sections. The local runtime can export bounded audit windows as SIEM-ready JSONL records and a local file-backed repository proof point can persist audit events as JSONL and evidence packages as JSON for validation, but neither path is a substitute for production WORM storage, retention, approved SIEM forwarding, deployment runbooks, or assessor-approved control statements. It proves the contract and auditability shape without exporting production data, tenant identifiers, secrets, or live provider records.
 
-## Minimum Evidence Package Later
+## Local Phase 5 Evidence Package
 
-- system boundary diagram
-- data flow diagram
+- system boundary and component inventory
+- data flow inventory
 - authorization data model
 - identity source inventory
 - resource inventory

@@ -32,7 +32,7 @@
 
 `AuditStorageReceipt` and `EvidenceStorageReceipt` record where local proof-point evidence was persisted, the hash of the stored event or package, backend type, storage time, and whether the backend claims immutability. Local file-backed receipts expose repository-relative locations, not host filesystem paths, and set `immutable: false`; production WORM storage remains future work.
 
-`EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, format, audit integrity, control mappings, generated artifacts, continuous-monitoring metrics, POA&M inputs, and SIEM export metadata.
+`EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, format, audit integrity, control mappings, control implementation statements, generated artifacts, system boundary, data flows, access reviews, exception register, continuous-monitoring metrics, POA&M inputs, operational evidence, and SIEM export metadata.
 
 ## Separation Rules
 
@@ -48,6 +48,7 @@
 - Audit evidence is not a mutable operational table.
 - Audit exports are bounded event packages, not SIEM delivery guarantees.
 - Evidence exports are package manifests, not authorization decisions or provider writes.
+- Operational evidence entries are local proof points, not production runbook approvals.
 - Local storage receipts are proof-point metadata, not production retention guarantees.
 
 ## Canonical IDs

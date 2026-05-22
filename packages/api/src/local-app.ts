@@ -12,15 +12,18 @@ import {
   sha256,
   stableStringify,
   verifyAuditChain,
+  type AccessReviewEvidence,
   type AuditEvent,
   type AuditEventExport,
   type AuditEventExportTarget,
   type AuditEventRepository,
   type AuditIntegrityReport,
   type AuditEventInput,
+  type ControlImplementationStatement,
   type ConMonMetric,
   type ConnectorAdapter,
   type ConnectorHealthCheck,
+  type DataFlowEvidence,
   type DecisionRequest,
   type DecisionResult,
   type DiscoveryRun,
@@ -34,7 +37,9 @@ import {
   type EvidenceFramework,
   type EvidencePackageRepository,
   type EvidenceStorageReceipt,
+  type ExceptionRecord,
   type JsonRecord,
+  type OperationalEvidence,
   type PoamItem,
   type NativeGrant,
   type NativeGrantType,
@@ -48,6 +53,7 @@ import {
   type ReconciliationRun,
   type RelationshipTuple,
   type Resource,
+  type SystemBoundaryEvidence,
   type Subject
 } from "@access-kit/core";
 
@@ -894,6 +900,12 @@ export function exportEvidencePackage(
   const controlMappings = buildControlMappings(controls, events);
   const conmonMetrics = buildConMonMetrics(app, events, auditIntegrity);
   const poamItems = buildPoamItems(controlMappings, auditIntegrity, generatedAt);
+  const systemBoundary = buildSystemBoundary(app);
+  const dataFlows = buildDataFlows();
+  const accessReviews = buildAccessReviews(app, events, generatedAt);
+  const exceptionRegister = buildExceptionRegister(app, generatedAt);
+  const operationalEvidence = buildOperationalEvidence(generatedAt);
+  const artifacts = buildEvidenceArtifacts(format, events.length);
   const exportMetadata: EvidenceExport = {
     exportId: `evidence:${generatedAt.replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`,
     framework: options.framework ?? "nist-800-53",
@@ -910,14 +922,20 @@ export function exportEvidencePackage(
       "control_mappings",
       "conmon_metrics",
       "poam_items",
-      "siem_export"
+      "siem_export",
+      "system_boundary",
+      "data_flows",
+      "control_statements",
+      "access_reviews",
+      "exception_register",
+      "operational_evidence"
     ],
     sourceEventIds: events.map((event) => event.eventId),
     responsibleRole: "ISSO",
     format,
     auditIntegrity,
     controlMappings,
-    artifacts: buildEvidenceArtifacts(format, events.length),
+    artifacts,
     conmonMetrics,
     poamItems,
     siemExport: {
@@ -926,7 +944,13 @@ export function exportEvidencePackage(
       schemaVersion: "audit-event:v1",
       includesPayloadHashes: true,
       target: "operator_download"
-    }
+    },
+    systemBoundary,
+    dataFlows,
+    controlStatements: buildControlStatements(controlMappings, artifacts, generatedAt),
+    accessReviews,
+    exceptionRegister,
+    operationalEvidence
   };
 
   const evidenceEvent = recordAudit(app, {
@@ -1139,6 +1163,284 @@ function buildPoamControlId(controlId: string): string {
   return `poam:${slug || "control"}`;
 }
 
+function buildSystemBoundary(app: RebacLocalApp): SystemBoundaryEvidence {
+  const connectorComponents = [...app.connectors.values()].map((connector) => ({
+    id: `component:connector:${connector.id}`,
+    name: `${connector.id} connector`,
+    type: "connector" as const,
+    trustZone: connector.provider === "mock" ? "local_runtime" as const : "synthetic_provider" as const,
+    dataClassification: "synthetic",
+    description: `${connector.provider ?? connector.id} adapter boundary for discovery, readback, reconciliation, and proof-point evidence.`
+  }));
+
+  return {
+    boundaryId: "boundary:local-rebac-control-plane",
+    name: "Local ReBAC control plane proof-point boundary",
+    description: "Synthetic local runtime boundary used to prove ATO evidence package shape without live tenant data, secrets, or provider writes.",
+    environment: "local_proof_point",
+    liveTenantData: false,
+    components: [
+      {
+        id: "component:operator-cli",
+        name: "rebac CLI",
+        type: "operator",
+        trustZone: "operator_boundary",
+        dataClassification: "synthetic",
+        description: "Operator and assessor command surface that wraps the API contract."
+      },
+      {
+        id: "component:api-runtime",
+        name: "Local API runtime",
+        type: "control_plane",
+        trustZone: "local_runtime",
+        dataClassification: "synthetic",
+        description: "HTTP API runtime for decisions, provisioning, audit, reconciliation, and evidence export."
+      },
+      {
+        id: "component:rebac-engine",
+        name: "Deterministic ReBAC engine",
+        type: "control_plane",
+        trustZone: "local_runtime",
+        dataClassification: "synthetic",
+        description: "Non-LLM authorization engine for deterministic check and explain decisions."
+      },
+      {
+        id: "component:local-store",
+        name: "In-memory proof-point store",
+        type: "data_store",
+        trustZone: "local_runtime",
+        dataClassification: "synthetic",
+        description: "Local proof-point store for subjects, resources, relationships, native grants, jobs, findings, and audit events."
+      },
+      {
+        id: "component:local-evidence-repository",
+        name: "Local file evidence repository",
+        type: "data_store",
+        trustZone: "local_runtime",
+        dataClassification: "synthetic",
+        description: "Optional JSONL/JSON proof-point repository for audit events and evidence packages; not production WORM storage."
+      },
+      ...connectorComponents
+    ],
+    externalSystems: [...new Set([...app.connectors.values()].map((connector) => connector.provider ?? connector.id))],
+    assumptions: [
+      "All examples are synthetic and must not include real tenant identifiers, secrets, production users, or sensitive records.",
+      "Authorization decisions are deterministic and never made by an LLM.",
+      "Live connector writes remain out of scope for this local Phase 5 package."
+    ],
+    version: "system-boundary:v1"
+  };
+}
+
+function buildDataFlows(): DataFlowEvidence[] {
+  return [
+    {
+      id: "data-flow:cli-api",
+      name: "Operator CLI to API",
+      source: "component:operator-cli",
+      destination: "component:api-runtime",
+      dataTypes: ["operator_requests", "synthetic_subject_ids", "synthetic_resource_ids"],
+      protections: ["api_contract_validation", "idempotency_keys_for_writes", "audit_event_emission"],
+      liveTenantData: false
+    },
+    {
+      id: "data-flow:api-engine",
+      name: "API to deterministic ReBAC engine",
+      source: "component:api-runtime",
+      destination: "component:rebac-engine",
+      dataTypes: ["decision_requests", "relationship_tuples", "policy_versions"],
+      protections: ["deny_by_default", "versioned_decisions", "explainable_paths"],
+      liveTenantData: false
+    },
+    {
+      id: "data-flow:api-store",
+      name: "API to local proof-point store",
+      source: "component:api-runtime",
+      destination: "component:local-store",
+      dataTypes: ["inventory", "native_grants", "provisioning_jobs", "audit_events", "drift_findings"],
+      protections: ["synthetic_data_only", "hash_chained_audit_events", "separate_intended_and_native_access"],
+      liveTenantData: false
+    },
+    {
+      id: "data-flow:api-connectors",
+      name: "API to connector adapters",
+      source: "component:api-runtime",
+      destination: "component:connector:mock",
+      dataTypes: ["discovery_requests", "readback_requests", "dry_run_or_synthetic_enforcement_requests"],
+      protections: ["connector_boundary", "read_only_synthetic_providers", "controlled_enforcement_guardrails"],
+      liveTenantData: false
+    },
+    {
+      id: "data-flow:evidence-repository",
+      name: "API to local evidence repository",
+      source: "component:api-runtime",
+      destination: "component:local-evidence-repository",
+      dataTypes: ["audit_jsonl", "evidence_package_json", "storage_receipts"],
+      protections: ["payload_hashes", "storage_receipts", "explicit_non_worm_flag"],
+      liveTenantData: false
+    }
+  ];
+}
+
+function buildControlStatements(
+  mappings: EvidenceControlMapping[],
+  artifacts: EvidenceArtifact[],
+  generatedAt: string
+): ControlImplementationStatement[] {
+  return mappings.map((mapping) => ({
+    controlId: mapping.controlId,
+    status: mapping.status,
+    statement: `${mapping.implementationSummary} This statement is generated from the local synthetic Phase 5 proof-point package and requires assessor review before production use.`,
+    responsibleRole: "ISSO",
+    reviewerRole: "Security Control Assessor",
+    reviewedAt: generatedAt,
+    evidenceTypes: mapping.evidenceTypes,
+    sourceArtifactNames: artifacts
+      .filter((artifact) => artifactSupportsMapping(artifact, mapping))
+      .map((artifact) => artifact.name),
+    gaps: mapping.gaps
+  }));
+}
+
+function artifactSupportsMapping(artifact: EvidenceArtifact, mapping: EvidenceControlMapping): boolean {
+  if (artifact.type === "control_mapping") {
+    return true;
+  }
+
+  return mapping.evidenceTypes.some((evidenceType) => artifact.name.includes(evidenceType.replaceAll("_", "-")));
+}
+
+function buildAccessReviews(app: RebacLocalApp, events: AuditEvent[], reviewedAt: string): AccessReviewEvidence[] {
+  const driftFindings = app.store.listDriftFindings();
+  const sourceEventIds = events
+    .filter((event) => event.eventType.startsWith("decision.") || event.eventType.startsWith("relationship.") || event.eventType.startsWith("connector.current_access_read"))
+    .map((event) => event.eventId);
+
+  return [
+    {
+      reviewId: `access-review:${compactTimestamp(reviewedAt)}`,
+      scope: "synthetic local subjects, resources, relationship tuples, native grants, and drift findings",
+      reviewerRole: "Data Steward",
+      status: sourceEventIds.length > 0 || driftFindings.length > 0 ? "completed" : "planned",
+      reviewedAt,
+      subjectCount: app.store.listSubjects().length,
+      resourceCount: app.store.listResources().length,
+      findingCount: driftFindings.length,
+      exceptionCount: driftFindings.filter(requiresExceptionRecord).length,
+      sourceEventIds,
+      version: "access-review:v1"
+    }
+  ];
+}
+
+function buildExceptionRegister(app: RebacLocalApp, generatedAt: string): ExceptionRecord[] {
+  return app.store
+    .listDriftFindings()
+    .filter(requiresExceptionRecord)
+    .map((finding) => ({
+      id: `exception:${sanitizeCanonicalId(finding.id)}`,
+      subjectId: finding.subjectId,
+      resourceId: finding.resourceId,
+      action: "review",
+      reason: `Drift finding ${finding.id} requires documented risk acceptance or remediation.`,
+      status: "open",
+      approverRole: "Authorizing Official",
+      expiresAt: addDays(generatedAt, 30),
+      reviewRequiredAt: addDays(generatedAt, 14),
+      source: "drift",
+      sourceFindingId: finding.id
+    }));
+}
+
+function requiresExceptionRecord(finding: { recommendedAction: string; severity: string }): boolean {
+  return finding.recommendedAction === "exception" || finding.severity === "high" || finding.severity === "critical";
+}
+
+function buildOperationalEvidence(generatedAt: string): OperationalEvidence[] {
+  return [
+    {
+      id: "operational:break-glass-runbook",
+      type: "break_glass",
+      status: "implemented",
+      ownerRole: "ISSO",
+      generatedAt,
+      summary: "Local proof-point documents break-glass as a governed exception source and blocks break-glass use in controlled synthetic enforcement.",
+      evidenceRefs: ["docs/security-model.md", "packages/api/src/local-app.ts"],
+      gaps: ["Production break-glass identity, approval, expiry, and post-action review workflow must be integrated with the deployment identity provider."]
+    },
+    {
+      id: "operational:incident-response-runbook",
+      type: "incident_response",
+      status: "implemented",
+      ownerRole: "Incident Commander",
+      generatedAt,
+      summary: "Incident-mode guardrails block controlled enforcement and evidence exports include IR-4 control mapping hooks for failed provisioning and rollback events.",
+      evidenceRefs: ["docs/security-model.md", "docs/ato-evidence-model.md"],
+      gaps: ["Production incident ticketing, notification, and post-incident review integrations remain deployment work."]
+    },
+    {
+      id: "operational:backup-restore-proof",
+      type: "backup_restore",
+      status: "planned",
+      ownerRole: "System Owner",
+      generatedAt,
+      summary: "Evidence package declares backup and restore evidence requirements for future durable graph, audit, and evidence stores.",
+      evidenceRefs: ["docs/outstanding-requirements.md"],
+      gaps: ["No production database, retention policy, restore test, or recovery time objective exists in the local runtime."]
+    },
+    {
+      id: "operational:contingency-plan",
+      type: "contingency",
+      status: "planned",
+      ownerRole: "System Owner",
+      generatedAt,
+      summary: "Contingency evidence is represented as package metadata until deployment architecture and storage services are selected.",
+      evidenceRefs: ["docs/ato-evidence-model.md"],
+      gaps: ["Define deployment-specific contingency plan, alternate processing procedures, and recovery test cadence."]
+    },
+    {
+      id: "operational:sbom",
+      type: "sbom",
+      status: "implemented",
+      ownerRole: "DevSecOps",
+      generatedAt,
+      summary: "Workspace dependency inventory is represented through package manifests, lockfile, and CI dependency audit evidence.",
+      evidenceRefs: ["package.json", "pnpm-lock.yaml", ".github/workflows/security.yml"],
+      gaps: ["Generate and archive a formal CycloneDX or SPDX SBOM artifact in release CI."]
+    },
+    {
+      id: "operational:dependency-scan",
+      type: "dependency_scan",
+      status: "implemented",
+      ownerRole: "DevSecOps",
+      generatedAt,
+      summary: "Security workflow runs dependency audit, secret scan, and CodeQL checks for pull requests.",
+      evidenceRefs: [".github/workflows/security.yml", "docs/ci.md"],
+      gaps: ["Add release-retained scan artifacts and vulnerability exception workflow."]
+    },
+    {
+      id: "operational:vulnerability-scan",
+      type: "vulnerability_scan",
+      status: "planned",
+      ownerRole: "DevSecOps",
+      generatedAt,
+      summary: "Static analysis proof points exist in CI, while authenticated DAST and infrastructure vulnerability scanning remain deployment-specific.",
+      evidenceRefs: [".github/workflows/security.yml"],
+      gaps: ["Add DAST, container/image scans, infrastructure scans, and remediation SLA evidence once deployable packaging exists."]
+    },
+    {
+      id: "operational:configuration-baseline",
+      type: "configuration_baseline",
+      status: "implemented",
+      ownerRole: "Configuration Manager",
+      generatedAt,
+      summary: "Configuration baseline evidence is represented by strict TypeScript, validated OpenAPI/JSON Schemas, CI workflow validation, and ADRs.",
+      evidenceRefs: ["tsconfig.json", "openapi/rebac-control-plane.yaml", "schemas", "adrs"],
+      gaps: ["Add deployment IaC baseline, environment hardening checklist, and drift monitoring for production configuration."]
+    }
+  ];
+}
+
 function buildEvidenceArtifacts(format: EvidenceExportFormat, eventCount: number): EvidenceArtifact[] {
   return [
     {
@@ -1166,6 +1468,42 @@ function buildEvidenceArtifacts(format: EvidenceExportFormat, eventCount: number
       description: "JSONL-ready SIEM export metadata for the same audit-event scope.",
       eventCount,
       format: "jsonl"
+    },
+    {
+      name: "system-boundary",
+      type: "system_boundary",
+      description: "Synthetic local system boundary and component inventory for ATO inspection.",
+      format
+    },
+    {
+      name: "data-flows",
+      type: "data_flow",
+      description: "Synthetic data-flow inventory with protections and live-tenant-data flags.",
+      format
+    },
+    {
+      name: "control-statements",
+      type: "control_statement",
+      description: "Control implementation statements generated from source evidence and gaps.",
+      format
+    },
+    {
+      name: "access-reviews",
+      type: "access_review",
+      description: "Synthetic access review summary for relationship, native-access, and drift evidence.",
+      format
+    },
+    {
+      name: "exception-register",
+      type: "exception_register",
+      description: "Risk exception records derived from drift findings that require review.",
+      format
+    },
+    {
+      name: "operational-evidence",
+      type: "security_evidence",
+      description: "Operational proof points for SBOM, dependency scanning, incident response, contingency, and configuration baseline evidence.",
+      format
     }
   ];
 }
@@ -1186,6 +1524,10 @@ function addDays(timestamp: string, days: number): string {
   const date = new Date(timestamp);
   date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString();
+}
+
+function sanitizeCanonicalId(value: string): string {
+  return value.replaceAll(/[^a-z0-9_:-]/gi, "_").toLowerCase();
 }
 
 function getConnector(app: RebacLocalApp, connectorId: string): ConnectorAdapter {

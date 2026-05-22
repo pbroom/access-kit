@@ -1,6 +1,6 @@
 # Outstanding Requirements
 
-The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, audit integrity reports, SIEM-ready local audit exports, metadata-only ATO evidence packages, local file-backed audit/evidence repository proof points, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
+The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, audit integrity reports, SIEM-ready local audit exports, complete local ATO evidence packages, local file-backed audit/evidence repository proof points, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
 
 ## Runtime
 
@@ -20,12 +20,12 @@ The current implementation supports local policy decisions, mock and synthetic p
 - Extend controlled enforcement beyond the synthetic mock proof point only after live connector write scopes, approvals, verification, rollback, least-privilege connector review, operational runbooks, and emergency revocation behavior are reviewed and evidenced.
 - Promote enforcement-readiness reports from local proof-point records to durable release gates for each connector/version pair.
 
-## ATO And Operations
+## Production ATO And Operations
 
-- Produce system boundary and data flow diagrams for the deployed target environment.
-- Expand starter control implementation mappings into a reviewed NIST/FedRAMP baseline with assessor-approved statements.
-- Add SBOM, dependency scanning, SAST/DAST, vulnerability scan, and configuration baseline evidence.
+- Replace local proof-point boundary and data-flow evidence with deployed target-environment diagrams.
+- Replace generated control implementation statements with reviewed NIST/FedRAMP baseline statements approved for the deployed system.
+- Replace local SBOM/dependency/configuration proof points with release-retained SBOMs, dependency scanning, SAST/DAST, vulnerability scan, and configuration baseline artifacts.
 - Replace local SIEM-ready audit exports and SIEM export metadata with an approved SIEM forwarder, retention policy, delivery monitoring, and replay procedure.
-- Add break-glass and incident mode workflows.
-- Add backup/restore and contingency evidence.
-- Add access review and exception workflow evidence.
+- Replace local break-glass and incident-mode proof points with identity-provider-backed workflows, approvals, notifications, and post-action reviews.
+- Replace local backup/restore and contingency proof points with tested recovery procedures, RTO/RPO evidence, and contingency exercises.
+- Replace local access-review and exception proof points with durable review campaigns, risk acceptance workflow, expiry, and remediation evidence.

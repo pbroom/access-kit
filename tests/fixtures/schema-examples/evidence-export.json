@@ -14,7 +14,13 @@
     "control_mappings",
     "conmon_metrics",
     "poam_items",
-    "siem_export"
+    "siem_export",
+    "system_boundary",
+    "data_flows",
+    "control_statements",
+    "access_reviews",
+    "exception_register",
+    "operational_evidence"
   ],
   "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
   "responsibleRole": "ISSO",
@@ -55,6 +61,12 @@
       "description": "JSONL-ready SIEM export metadata.",
       "eventCount": 1,
       "format": "jsonl"
+    },
+    {
+      "name": "system-boundary",
+      "type": "system_boundary",
+      "description": "Synthetic local system boundary.",
+      "format": "json"
     }
   ],
   "conmonMetrics": [
@@ -79,6 +91,78 @@
     "includesPayloadHashes": true,
     "target": "operator_download"
   },
+  "systemBoundary": {
+    "boundaryId": "boundary:local-rebac-control-plane",
+    "name": "Local ReBAC control plane proof-point boundary",
+    "description": "Synthetic local runtime boundary for ATO evidence validation.",
+    "environment": "local_proof_point",
+    "liveTenantData": false,
+    "components": [
+      {
+        "id": "component:api-runtime",
+        "name": "Local API runtime",
+        "type": "control_plane",
+        "trustZone": "local_runtime",
+        "dataClassification": "synthetic",
+        "description": "HTTP API runtime for local proof-point evidence."
+      }
+    ],
+    "externalSystems": ["mock"],
+    "assumptions": ["Synthetic examples only."],
+    "version": "system-boundary:v1"
+  },
+  "dataFlows": [
+    {
+      "id": "data-flow:cli-api",
+      "name": "Operator CLI to API",
+      "source": "component:operator-cli",
+      "destination": "component:api-runtime",
+      "dataTypes": ["operator_requests"],
+      "protections": ["api_contract_validation", "audit_event_emission"],
+      "liveTenantData": false
+    }
+  ],
+  "controlStatements": [
+    {
+      "controlId": "AC-3",
+      "status": "implemented",
+      "statement": "Access enforcement evidence is produced through deterministic decision events.",
+      "responsibleRole": "ISSO",
+      "reviewerRole": "Security Control Assessor",
+      "reviewedAt": "2026-05-21T17:00:00.000Z",
+      "evidenceTypes": ["decision_logs"],
+      "sourceArtifactNames": ["audit-events", "control-mapping"],
+      "gaps": []
+    }
+  ],
+  "accessReviews": [
+    {
+      "reviewId": "access-review:20260521t170000000z",
+      "scope": "synthetic local subjects and resources",
+      "reviewerRole": "Data Steward",
+      "status": "completed",
+      "reviewedAt": "2026-05-21T17:00:00.000Z",
+      "subjectCount": 1,
+      "resourceCount": 1,
+      "findingCount": 0,
+      "exceptionCount": 0,
+      "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+      "version": "access-review:v1"
+    }
+  ],
+  "exceptionRegister": [],
+  "operationalEvidence": [
+    {
+      "id": "operational:dependency-scan",
+      "type": "dependency_scan",
+      "status": "implemented",
+      "ownerRole": "DevSecOps",
+      "generatedAt": "2026-05-21T17:00:00.000Z",
+      "summary": "CI dependency audit evidence is available for pull requests.",
+      "evidenceRefs": [".github/workflows/security.yml"],
+      "gaps": []
+    }
+  ],
   "storageReceipt": {
     "exportId": "evidence:may-2026-ac-au",
     "packageHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",

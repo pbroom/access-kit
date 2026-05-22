@@ -4,7 +4,7 @@
 
 Access Kit is a governed authorization control plane for relationship-based access control. It coordinates identity sources, resource inventories, relationship facts, policy decisions, provisioning plans, drift findings, audit events, and ATO evidence. It does not authenticate users and it does not replace native enforcement in Entra ID, Active Directory, AWS, SharePoint, Teams, Power Platform, or application-specific authorization layers.
 
-The first milestone established contracts and validation evidence. Phase 1 added a local in-memory runtime for the core engine, mock connector, API handlers, and CLI-over-API flow. Phase 2 makes read-only discovery explicit: connector sync returns a discovery run, stores observed native grants separately from relationship tuples, exposes connector checks and discovery history, and lets operators inspect discovered native access. Phase 3 adds local dry-run provisioning jobs with verification hooks, idempotent replay, skipped-write evidence, and compensation records. Phase 4 starts controlled enforcement as a synthetic-only mock connector path with explicit readiness evidence, approval, guardrail controls, verification, rollback evidence hooks, and live provider writes blocked. Phase 5 begins ATO hardening with audit hash-chain verification, SIEM-ready audit event exports, control mappings, ConMon metrics, POA&M inputs, SIEM export metadata, and local file-backed audit/evidence repository proof points. Synthetic Entra ID, SharePoint, and AWS-style adapters prove provider boundaries without credentials. Live connectors, persistent graph storage, Microsoft/AWS enforcement, durable WORM audit storage, and dashboards remain later phases.
+The first milestone established contracts and validation evidence. Phase 1 added a local in-memory runtime for the core engine, mock connector, API handlers, and CLI-over-API flow. Phase 2 makes read-only discovery explicit: connector sync returns a discovery run, stores observed native grants separately from relationship tuples, exposes connector checks and discovery history, and lets operators inspect discovered native access. Phase 3 adds local dry-run provisioning jobs with verification hooks, idempotent replay, skipped-write evidence, and compensation records. Phase 4 starts controlled enforcement as a synthetic-only mock connector path with explicit readiness evidence, approval, guardrail controls, verification, rollback evidence hooks, and live provider writes blocked. Phase 5 completes the local ATO hardening proof point with audit hash-chain verification, SIEM-ready audit event exports, system boundary and data-flow evidence, control statements, access-review and exception evidence, ConMon metrics, POA&M inputs, operational evidence, SIEM export metadata, and local file-backed audit/evidence repository proof points. Synthetic Entra ID, SharePoint, and AWS-style adapters prove provider boundaries without credentials. Live connectors, persistent graph storage, Microsoft/AWS enforcement, durable WORM audit storage, and dashboards remain later phases.
 
 ## Layered Shape
 
@@ -14,7 +14,7 @@ The first milestone established contracts and validation evidence. Phase 1 added
 4. Policy Administration Point: policy validation, approval, publishing, rollback, and mandatory policy tests.
 5. Provisioning Orchestrator: plan, dry-run, apply, verify, revoke, repair, and rollback flows.
 6. Connector adapters: provider-specific discovery, current-access readback, provisioning, reconciliation, and evidence emission behind a typed interface.
-7. Audit and evidence plane: append-only event model, hash-chain integrity reports, SIEM-ready JSONL exports, validation evidence, control mapping, ConMon metrics, POA&M inputs, SIEM metadata, and export contracts.
+7. Audit and evidence plane: append-only event model, hash-chain integrity reports, SIEM-ready JSONL exports, validation evidence, control mapping, system boundary and data-flow evidence, access reviews, exception register, operational evidence, ConMon metrics, POA&M inputs, SIEM metadata, and export contracts.
 8. CLI: operator, CI/CD, and assessor surface that wraps API contracts.
 
 ## Data Flow
@@ -51,7 +51,7 @@ flowchart LR
 - Provisioning jobs default to dry-run: they skip provider writes, run verification hooks, record compensation intent, and emit audit evidence.
 - Controlled enforcement is limited to the synthetic mock connector and requires a ready connector report, approval, a change ticket, synthetic-only controls, incident-mode clearance, verification, and audit evidence.
 - Audit exports provide SIEM-ready JSONL records for a bounded audit event window and emit their own audit evidence.
-- ATO evidence exports include source events, audit integrity status, control mappings, ConMon metrics, POA&M inputs, artifact metadata, SIEM export metadata, and optional storage receipts when a repository is configured.
+- ATO evidence exports include source events, audit integrity status, control mappings, control statements, system boundary, data flows, access reviews, exception register, operational evidence, ConMon metrics, POA&M inputs, artifact metadata, SIEM export metadata, and optional storage receipts when a repository is configured.
 - Proof-point fixtures prove required policy behaviors before any live connector exists.
 
 ## Required Invariants
@@ -73,4 +73,4 @@ flowchart LR
 2. Live read-only Entra ID, SharePoint, and AWS discovery using the existing discovery-run and native-grant contracts.
 3. Durable queue-backed dry-run reconciliation and provisioning execution.
 4. Controlled enforcement with one Microsoft and one AWS write path after connector security review.
-5. ATO hardening: tamper-evident audit storage, SIEM export, vulnerability evidence, break-glass, incident mode, and full evidence packages.
+5. Production hardening: deployable services, durable stores, approved SIEM forwarding, live connector security review, and production ATO evidence retention.

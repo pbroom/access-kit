@@ -662,6 +662,64 @@ function createEvidence(connectorId: string, events: AuditEvent[]): EvidenceExpo
       schemaVersion: "audit-event:v1",
       includesPayloadHashes: true,
       target: "operator_download"
-    }
+    },
+    systemBoundary: {
+      boundaryId: `boundary:${connectorId}`,
+      name: `${connectorId} connector evidence boundary`,
+      description: "Synthetic connector evidence boundary for local proof-point packaging.",
+      environment: "local_proof_point",
+      liveTenantData: false,
+      components: [
+        {
+          id: `component:connector:${connectorId}`,
+          name: `${connectorId} connector`,
+          type: "connector",
+          trustZone: connectorId === "mock" ? "local_runtime" : "synthetic_provider",
+          dataClassification: "synthetic",
+          description: "Synthetic connector adapter used for local evidence packaging."
+        }
+      ],
+      externalSystems: [connectorId],
+      assumptions: ["Connector evidence is synthetic and contains no tenant identifiers or secrets."],
+      version: "system-boundary:v1"
+    },
+    dataFlows: [
+      {
+        id: `data-flow:${connectorId}:evidence`,
+        name: `${connectorId} connector evidence emission`,
+        source: `component:connector:${connectorId}`,
+        destination: "component:api-runtime",
+        dataTypes: ["connector_audit_events"],
+        protections: ["synthetic_data_only", "payload_hashes"],
+        liveTenantData: false
+      }
+    ],
+    controlStatements: [
+      {
+        controlId: "AU-2",
+        status: events.length > 0 ? "implemented" : "partially_implemented",
+        statement: "Connector evidence includes audit event identifiers emitted by the local control plane.",
+        responsibleRole: "ISSO",
+        reviewerRole: "Security Control Assessor",
+        reviewedAt: now,
+        evidenceTypes: ["audit_events"],
+        sourceArtifactNames: ["connector-audit-events"],
+        gaps: events.length > 0 ? [] : ["No source audit events were provided to the connector evidence hook."]
+      }
+    ],
+    accessReviews: [],
+    exceptionRegister: [],
+    operationalEvidence: [
+      {
+        id: `operational:${connectorId}:connector-boundary`,
+        type: "configuration_baseline",
+        status: "implemented",
+        ownerRole: "Connector Owner",
+        generatedAt: now,
+        summary: "Synthetic connector configuration is represented as local proof-point evidence.",
+        evidenceRefs: ["packages/connectors-mock/src/index.ts"],
+        gaps: ["Live connector authorization, consent, and tenant-boundary review remain future production work."]
+      }
+    ]
   };
 }
