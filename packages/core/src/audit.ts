@@ -24,7 +24,7 @@ export class AuditRecorder {
     const previousEventHash = previousEvent ? auditEventHash(previousEvent) : undefined;
     const payloadHash = hashReference(input.payload);
     const event: AuditEvent = {
-      eventId: `evt:${sha256({ ...input, occurredAt }).slice(0, 24)}`,
+      eventId: `evt:${sha256({ ...input, occurredAt, previousEventHash }).slice(0, 24)}`,
       eventType: input.eventType,
       occurredAt,
       actor: input.actor,

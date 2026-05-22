@@ -336,6 +336,20 @@ describe("RebacDecisionEngine", () => {
     expect(store.listAuditEvents()).toHaveLength(2);
   });
 
+  it("keeps repeated same-timestamp audit events unique by chain position", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+    const request = { subjectId: "user:alice", action: "read", resourceId: "document:case-plan" };
+
+    engine.check(request);
+    engine.check(request);
+
+    const events = store.listAuditEvents();
+    expect(events).toHaveLength(2);
+    expect(events[0]?.eventId).not.toBe(events[1]?.eventId);
+    expect(events[1]?.previousEventHash).toBe(auditEventHash(events[0]!));
+  });
+
   it("continues the audit hash chain after an engine restart", () => {
     const store = new InMemoryRebacStore(createLocalEngineSeed());
     const firstEngine = new RebacDecisionEngine(store, { now: () => now });
