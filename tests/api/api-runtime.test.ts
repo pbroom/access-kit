@@ -108,6 +108,26 @@ describe("ReBAC API runtime", () => {
     });
   });
 
+  it("validates subject and resource creates before storing them", async () => {
+    const subjectResponse = await fetch(`${baseUrl}/v1/subjects`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: "user:missing-fields" })
+    });
+    const resourceResponse = await fetch(`${baseUrl}/v1/resources`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id: "document:missing-fields" })
+    });
+    const subjectBody = (await subjectResponse.json()) as { code: string };
+    const resourceBody = (await resourceResponse.json()) as { code: string };
+
+    expect(subjectResponse.status).toBe(400);
+    expect(subjectBody.code).toBe("INVALID_SUBJECT");
+    expect(resourceResponse.status).toBe(400);
+    expect(resourceBody.code).toBe("INVALID_RESOURCE");
+  });
+
   it("uses the configured actor for decision audit events", async () => {
     await restartServer({
       now: () => "2026-05-21T17:00:00.000Z",

@@ -199,7 +199,7 @@ async function routeSubjects(
   }
 
   if (segments.length === 2 && request.method === "POST") {
-    sendJson(response, 201, createSubject(app, await readJson<Subject>(request)));
+    sendJson(response, 201, createSubject(app, readSubject(await readJson<unknown>(request))));
     return;
   }
 
@@ -241,7 +241,7 @@ async function routeResources(
   }
 
   if (segments.length === 2 && request.method === "POST") {
-    sendJson(response, 201, createResource(app, await readJson<Resource>(request)));
+    sendJson(response, 201, createResource(app, readResource(await readJson<unknown>(request))));
     return;
   }
 
@@ -477,6 +477,62 @@ function parseDecisionRequest(value: unknown): DecisionRequest | undefined {
     resourceId: value.resourceId,
     context: value.context
   };
+}
+
+function readSubject(value: unknown): Subject {
+  if (
+    !isRecord(value) ||
+    !hasStringFields(value, ["id", "type", "displayName", "sourceSystem", "lifecycleState", "version", "createdAt"]) ||
+    !isStringRecord(value.identifiers) ||
+    (value.attributes !== undefined && !isRecord(value.attributes)) ||
+    (value.lastSeenAt !== undefined && typeof value.lastSeenAt !== "string")
+  ) {
+    throw new HttpError(
+      400,
+      "INVALID_SUBJECT",
+      "subjects require id, type, displayName, sourceSystem, lifecycleState, identifiers, version, and createdAt"
+    );
+  }
+
+  return value as unknown as Subject;
+}
+
+function readResource(value: unknown): Resource {
+  if (
+    !isRecord(value) ||
+    !hasStringFields(value, [
+      "id",
+      "type",
+      "displayName",
+      "sourceSystem",
+      "ownerId",
+      "dataStewardId",
+      "technicalOwnerId",
+      "classification",
+      "lifecycleState",
+      "version",
+      "createdAt"
+    ]) ||
+    (value.parentId !== undefined && typeof value.parentId !== "string") ||
+    (value.attributes !== undefined && !isRecord(value.attributes)) ||
+    (value.lastSeenAt !== undefined && typeof value.lastSeenAt !== "string")
+  ) {
+    throw new HttpError(
+      400,
+      "INVALID_RESOURCE",
+      "resources require id, type, displayName, sourceSystem, owners, classification, lifecycleState, version, and createdAt"
+    );
+  }
+
+  return value as unknown as Resource;
+}
+
+function hasStringFields(value: Record<string, unknown>, fields: string[]): boolean {
+  return fields.every((field) => typeof value[field] === "string" && value[field].length > 0);
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every((item) => typeof item === "string");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
