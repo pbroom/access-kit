@@ -344,7 +344,7 @@ function isActiveGraphNode(store: InMemoryRebacStore, id: string): boolean {
     return resource.lifecycleState === "active";
   }
 
-  return true;
+  return false;
 }
 
 function toPathStep(relationship: RelationshipTuple): RelationshipPathStep {

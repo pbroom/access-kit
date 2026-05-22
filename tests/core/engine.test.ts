@@ -267,6 +267,24 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
   });
 
+  it("does not allow through missing intermediate graph nodes", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.filter((subject) => subject.id !== "group:case-team")
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
   it("does not allow through inactive intermediate containers", () => {
     const seed = createLocalEngineSeed();
     const store = new InMemoryRebacStore({
@@ -274,6 +292,24 @@ describe("RebacDecisionEngine", () => {
       resources: seed.resources?.map((resource) =>
         resource.id === "workspace:case" ? { ...resource, lifecycleState: "deleted" } : resource
       )
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
+  it("does not allow through missing intermediate containers", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      resources: seed.resources?.filter((resource) => resource.id !== "workspace:case")
     });
     const engine = new RebacDecisionEngine(store, { now: () => now });
 
