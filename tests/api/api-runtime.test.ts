@@ -13,8 +13,11 @@ type JsonObject = Record<string, unknown>;
 let server: Server | undefined;
 let baseUrl: string;
 
+const TEST_NOW = "2026-05-21T17:00:00.000Z";
+const TEST_APPROVAL_EXPIRES_AT = "2026-05-22T17:00:00.000Z";
+
 beforeEach(async () => {
-  await startServer({ now: () => "2026-05-21T17:00:00.000Z" });
+  await startServer({ now: () => TEST_NOW });
 });
 
 afterEach(async () => {
@@ -735,6 +738,34 @@ describe("ReBAC API runtime", () => {
     expect(body.code).toBe("CONTROLLED_ENFORCEMENT_APPROVAL_REQUIRED");
   });
 
+  it("rejects malformed controlled enforcement approval timestamps", async () => {
+    const malformedApprovals = [
+      { idempotencyKey: "idem-test-bbbb", approval: { ...controlledApproval(), approvedAt: "not-a-date" } },
+      { idempotencyKey: "idem-test-cccc", approval: { ...controlledApproval(), expiresAt: "not-a-date" } }
+    ];
+
+    for (const { idempotencyKey, approval } of malformedApprovals) {
+      const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
+        body: JSON.stringify({
+          subjectId: "user:alice",
+          action: "read",
+          resourceId: "document:case-plan",
+          connectorId: "mock",
+          mode: "enforcement",
+          dryRun: false,
+          approval,
+          control: controlledEnforcement()
+        })
+      });
+      const body = (await response.json()) as { code: string };
+
+      expect(response.status).toBe(400);
+      expect(body.code).toBe("INVALID_PROVISIONING_APPROVAL");
+    }
+  });
+
   it("rejects enforcement jobs when approval evidence differs from the approved plan", async () => {
     const approval = controlledApproval();
     const plan = await post<{ id: string }>("/v1/provisioning/plans", {
@@ -863,7 +894,7 @@ function controlledApproval(): JsonObject {
     approverId: "user:approver",
     changeTicket: "chg:phase4-controlled-enforcement",
     approvedAt: "2026-05-21T17:00:00.000Z",
-    expiresAt: "2026-05-22T17:00:00.000Z",
+    expiresAt: TEST_APPROVAL_EXPIRES_AT,
     reason: "Synthetic Phase 4 controlled enforcement proof point."
   };
 }

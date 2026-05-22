@@ -302,7 +302,7 @@ function addProvisioningCommands(program: Command, context: CliContext): void {
     return client.post("/v1/provisioning/jobs", {
       planId: readString(args, 0, "plan-id"),
       approverId: options.approver ?? "user:cli-operator",
-      ...buildProvisioningExecutionPayload(options, context)
+      ...buildProvisioningJobPayload(options)
     });
   }));
 
@@ -327,6 +327,26 @@ function addControlledEnforcementOptions(command: Command): Command {
     .option("--synthetic-only")
     .option("--incident-mode")
     .option("--break-glass");
+}
+
+function buildProvisioningJobPayload(options: ProvisioningOptions): Record<string, unknown> {
+  const mode = options.mode ?? "dry_run";
+
+  if (mode === "dry_run") {
+    return {
+      mode,
+      dryRun: true
+    };
+  }
+
+  if (mode !== "enforcement") {
+    throw new Error("mode must be dry_run or enforcement");
+  }
+
+  return {
+    mode,
+    dryRun: false
+  };
 }
 
 function buildProvisioningExecutionPayload(options: ProvisioningOptions, context: CliContext): Record<string, unknown> {

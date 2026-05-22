@@ -815,14 +815,30 @@ function readProvisioningApproval(value: unknown): ProvisioningApproval | undefi
     );
   }
 
+  const approvedAt = readProvisioningApprovalDateTime(value.approvedAt, "approvedAt");
+  const expiresAt =
+    value.expiresAt === undefined ? undefined : readProvisioningApprovalDateTime(value.expiresAt, "expiresAt");
+
   return {
     decision: value.decision,
     approverId: value.approverId,
     changeTicket: value.changeTicket,
-    approvedAt: value.approvedAt,
-    expiresAt: value.expiresAt,
+    approvedAt,
+    expiresAt,
     reason: value.reason
   };
+}
+
+function readProvisioningApprovalDateTime(value: string, fieldName: string): string {
+  if (Number.isNaN(Date.parse(value))) {
+    throw new HttpError(
+      400,
+      "INVALID_PROVISIONING_APPROVAL",
+      `approval.${fieldName} must be a valid date-time`
+    );
+  }
+
+  return value;
 }
 
 function readEnforcementControl(value: unknown): EnforcementControl | undefined {

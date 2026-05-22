@@ -904,12 +904,33 @@ function assertControlledEnforcementAllowed(
     );
   }
 
-  if (approval.expiresAt && Date.parse(approval.expiresAt) <= Date.parse(app.now())) {
+  if (Number.isNaN(Date.parse(approval.approvedAt))) {
     throw new RebacLocalAppError(
       400,
-      "CONTROLLED_ENFORCEMENT_APPROVAL_EXPIRED",
-      "Controlled enforcement approval has expired."
+      "CONTROLLED_ENFORCEMENT_APPROVAL_INVALID",
+      "Controlled enforcement approval timestamps must be valid date-times."
     );
+  }
+
+  if (approval.expiresAt !== undefined) {
+    const expiresAt = Date.parse(approval.expiresAt);
+    const now = Date.parse(app.now());
+
+    if (Number.isNaN(expiresAt) || Number.isNaN(now)) {
+      throw new RebacLocalAppError(
+        400,
+        "CONTROLLED_ENFORCEMENT_APPROVAL_INVALID",
+        "Controlled enforcement approval timestamps must be valid date-times."
+      );
+    }
+
+    if (expiresAt <= now) {
+      throw new RebacLocalAppError(
+        400,
+        "CONTROLLED_ENFORCEMENT_APPROVAL_EXPIRED",
+        "Controlled enforcement approval has expired."
+      );
+    }
   }
 
   if (!control.syntheticOnly || control.liveProviderWrites || control.breakGlass) {

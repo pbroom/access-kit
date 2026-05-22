@@ -289,19 +289,7 @@ describe("CLI API wrapper", () => {
       planId: "plan:mock:decision",
       approverId: "user:approver",
       mode: "enforcement",
-      dryRun: false,
-      approval: {
-        decision: "approved",
-        approverId: "user:approver",
-        changeTicket: "chg:phase4",
-        approvedAt: "2026-05-21T17:00:00.000Z"
-      },
-      control: {
-        syntheticOnly: true,
-        liveProviderWrites: false,
-        incidentMode: false,
-        breakGlass: false
-      }
+      dryRun: false
     });
   });
 
