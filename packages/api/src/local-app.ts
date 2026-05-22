@@ -12,6 +12,7 @@ import {
   sha256,
   verifyAuditChain,
   type AuditEvent,
+  type AuditEventRepository,
   type AuditIntegrityReport,
   type AuditEventInput,
   type ConMonMetric,
@@ -28,6 +29,8 @@ import {
   type EvidenceControlMapping,
   type EvidenceExport,
   type EvidenceFramework,
+  type EvidencePackageRepository,
+  type EvidenceStorageReceipt,
   type JsonRecord,
   type PoamItem,
   type NativeGrant,
@@ -48,6 +51,8 @@ import {
 export interface RebacLocalAppOptions {
   now?: () => string;
   actor?: string;
+  auditRepository?: AuditEventRepository;
+  evidenceRepository?: EvidencePackageRepository;
 }
 
 export class RebacLocalAppError extends Error {
@@ -64,6 +69,8 @@ export interface RebacLocalApp {
   store: InMemoryRebacStore;
   engine: RebacDecisionEngine;
   auditRecorder: AuditRecorder;
+  auditRepository?: AuditEventRepository;
+  evidenceRepository?: EvidencePackageRepository;
   connectors: Map<string, ConnectorAdapter>;
   now: () => string;
   actor: string;
@@ -104,7 +111,12 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
   const actor = options.actor ?? "service:api";
   const store = new InMemoryRebacStore(createLocalEngineSeed());
   const auditRecorder = new AuditRecorder();
-  const engine = new RebacDecisionEngine(store, { now, actor, auditRecorder });
+  const engine = new RebacDecisionEngine(store, {
+    now,
+    actor,
+    auditRecorder,
+    onAuditEvent: (event) => appendAuditEvent(options.auditRepository, event, event.occurredAt)
+  });
   const connectorList: ConnectorAdapter[] = [
     new MockConnector(),
     new SyntheticEntraConnector(),
@@ -117,6 +129,8 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     store,
     engine,
     auditRecorder,
+    auditRepository: options.auditRepository,
+    evidenceRepository: options.evidenceRepository,
     connectors,
     now,
     actor
@@ -860,18 +874,19 @@ export function exportEvidencePackage(
     }
   };
 
-  recordAudit(app, {
+  const evidenceEvent = recordAudit(app, {
     eventType: "evidence.generated",
     actor: app.actor,
     correlationId: `corr:${exportMetadata.exportId}`,
     payload: asJsonRecord(exportMetadata)
   });
 
-  return exportMetadata;
+  const storageReceipt = writeEvidenceExport(app.evidenceRepository, exportMetadata, evidenceEvent.occurredAt);
+  return storageReceipt ? { ...exportMetadata, storageReceipt } : exportMetadata;
 }
 
 export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
-  const report = verifyAuditChain(app.store.listAuditEvents(), app.now());
+  const report = app.auditRepository?.verifyIntegrity(app.now()) ?? verifyAuditChain(app.store.listAuditEvents(), app.now());
   const auditEvent = recordAudit(app, {
     eventType: "audit.integrity_verified",
     actor: app.actor,
@@ -888,7 +903,28 @@ export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
 export function recordAudit(app: RebacLocalApp, input: AuditEventInput): AuditEvent {
   const event = app.auditRecorder.record(input, app.now());
   app.store.recordAuditEvent(event);
+  appendAuditEvent(app.auditRepository, event, event.occurredAt);
   return event;
+}
+
+function appendAuditEvent(repository: AuditEventRepository | undefined, event: AuditEvent, storedAt: string): void {
+  try {
+    repository?.appendAuditEvent(event, storedAt);
+  } catch {
+    // Local repositories are proof-point persistence only; API operations should still return computed results.
+  }
+}
+
+function writeEvidenceExport(
+  repository: EvidencePackageRepository | undefined,
+  exportMetadata: EvidenceExport,
+  storedAt: string
+): EvidenceStorageReceipt | undefined {
+  try {
+    return repository?.writeEvidenceExport(exportMetadata, storedAt);
+  } catch {
+    return undefined;
+  }
 }
 
 interface ControlImplementationDefinition {

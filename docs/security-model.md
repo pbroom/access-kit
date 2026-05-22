@@ -37,7 +37,7 @@ Phase 4 controlled enforcement is restricted to the synthetic `mock` connector. 
 
 ## Audit
 
-Every decision, denial, grant, revoke, policy change, connector action, admin action, drift finding, audit-integrity verification, and evidence export must emit an audit event. The event model supports hash chaining with `payloadHash` and `previousEventHash`; Phase 5 verifies that chain in the local runtime, while durable tamper-evident storage remains a later implementation requirement.
+Every decision, denial, grant, revoke, policy change, connector action, admin action, drift finding, audit-integrity verification, and evidence export must emit an audit event. The event model supports hash chaining with `payloadHash` and `previousEventHash`; Phase 5 verifies that chain in the local runtime and can persist local JSONL proof-point events, while durable tamper-evident storage remains a later implementation requirement.
 
 ## Privacy
 

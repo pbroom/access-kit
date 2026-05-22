@@ -132,6 +132,20 @@
         "includesPayloadHashes": { "type": "boolean" },
         "target": { "type": "string", "enum": ["operator_download", "siem_forwarder"] }
       }
+    },
+    "storageReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exportId", "packageHash", "storedAt", "backend", "location", "immutable", "version"],
+      "properties": {
+        "exportId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "packageHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "storedAt": { "type": "string", "format": "date-time" },
+        "backend": { "type": "string", "enum": ["memory", "local_file", "external"] },
+        "location": { "type": "string", "minLength": 1 },
+        "immutable": { "type": "boolean" },
+        "version": { "type": "string", "minLength": 1 }
+      }
     }
   },
   "$defs": {

@@ -419,6 +419,28 @@ export interface SiemExportMetadata {
   target: "operator_download" | "siem_forwarder";
 }
 
+export interface AuditStorageReceipt {
+  eventId: CanonicalId;
+  sequence: number;
+  eventHash: string;
+  previousEventHash?: string;
+  storedAt: IsoDateTime;
+  backend: "memory" | "local_file" | "external";
+  location: string;
+  immutable: boolean;
+  version: string;
+}
+
+export interface EvidenceStorageReceipt {
+  exportId: CanonicalId;
+  packageHash: string;
+  storedAt: IsoDateTime;
+  backend: "memory" | "local_file" | "external";
+  location: string;
+  immutable: boolean;
+  version: string;
+}
+
 export interface EvidenceExport {
   exportId: CanonicalId;
   framework: EvidenceFramework;
@@ -436,6 +458,7 @@ export interface EvidenceExport {
   conmonMetrics: ConMonMetric[];
   poamItems: PoamItem[];
   siemExport: SiemExportMetadata;
+  storageReceipt?: EvidenceStorageReceipt;
 }
 
 export interface ConnectorCapabilities {
