@@ -10,6 +10,7 @@ import type {
   AuditEventRepository,
   AuditIntegrityReport,
   ConnectorAdapter,
+  DriftFinding,
   EnforcementControl,
   EnforcementReadinessReport,
   EvidencePackageRepository
@@ -265,7 +266,7 @@ describe("ReBAC API runtime", () => {
       poamItems: Array<{ controlId: string; status: string }>;
       siemExport: { format: string; eventCount: number; includesPayloadHashes: boolean };
       systemBoundary: { environment: string; liveTenantData: boolean; components: Array<{ id: string; type: string }> };
-      dataFlows: Array<{ id: string; liveTenantData: boolean }>;
+      dataFlows: Array<{ id: string; destination: string; liveTenantData: boolean }>;
       controlStatements: Array<{ controlId: string; reviewerRole: string; sourceArtifactNames: string[] }>;
       accessReviews: Array<{ status: string; subjectCount: number; resourceCount: number; sourceEventIds: string[] }>;
       exceptionRegister: unknown[];
@@ -292,6 +293,21 @@ describe("ReBAC API runtime", () => {
     expect(evidence.systemBoundary.components).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "component:api-runtime", type: "control_plane" })
     ]));
+    const connectorComponentIds = evidence.systemBoundary.components
+      .filter((component) => component.type === "connector")
+      .map((component) => component.id)
+      .sort();
+    const connectorFlowDestinations = evidence.dataFlows
+      .filter((flow) => flow.id.startsWith("data-flow:api-connector:"))
+      .map((flow) => flow.destination)
+      .sort();
+    expect(connectorComponentIds).toEqual([
+      "component:connector:aws-readonly",
+      "component:connector:entra-readonly",
+      "component:connector:mock",
+      "component:connector:sharepoint-readonly"
+    ]);
+    expect(connectorFlowDestinations).toEqual(connectorComponentIds);
     expect(evidence.dataFlows).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "data-flow:api-engine", liveTenantData: false })
     ]));
@@ -737,6 +753,43 @@ describe("ReBAC API runtime", () => {
     expect(evidence.accessReviews).toEqual(expect.arrayContaining([
       expect.objectContaining({ findingCount: 1, exceptionCount: 1 })
     ]));
+  });
+
+  it("sanitizes drift exception identifiers in evidence exports", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    const finding: DriftFinding = {
+      id: "Drift/User.A@example.com/Case.Plan#001",
+      resourceId: "Document/Case.Plan#001",
+      subjectId: "User.A@example.com",
+      nativeAccess: "owner",
+      intendedAccess: "none",
+      severity: "high",
+      detectedAt: TEST_NOW,
+      sourceConnectorId: "mock",
+      recommendedAction: "exception",
+      status: "open",
+      version: "drift:v1",
+      createdAt: TEST_NOW
+    };
+    app.store.upsertDriftFinding(finding);
+    await restartServer({ app });
+
+    const evidence = await get<{
+      exceptionRegister: Array<{ id: string; subjectId: string; resourceId: string; sourceFindingId?: string }>;
+    }>("/v1/evidence/export?controls=CA-7");
+    const [exception] = evidence.exceptionRegister;
+    const evidenceIdPattern = /^[a-z0-9_:-]+$/;
+
+    expect(exception).toMatchObject({
+      id: "exception:drift_user_a_example_com_case_plan_001",
+      subjectId: "user_a_example_com",
+      resourceId: "document_case_plan_001",
+      sourceFindingId: "drift_user_a_example_com_case_plan_001"
+    });
+    expect(exception?.id).toMatch(evidenceIdPattern);
+    expect(exception?.subjectId).toMatch(evidenceIdPattern);
+    expect(exception?.resourceId).toMatch(evidenceIdPattern);
+    expect(exception?.sourceFindingId).toMatch(evidenceIdPattern);
   });
 
   it("filters reconciliation findings by severity", async () => {

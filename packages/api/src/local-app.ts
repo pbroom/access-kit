@@ -901,7 +901,7 @@ export function exportEvidencePackage(
   const conmonMetrics = buildConMonMetrics(app, events, auditIntegrity);
   const poamItems = buildPoamItems(controlMappings, auditIntegrity, generatedAt);
   const systemBoundary = buildSystemBoundary(app);
-  const dataFlows = buildDataFlows();
+  const dataFlows = buildDataFlows(app);
   const accessReviews = buildAccessReviews(app, events, generatedAt);
   const exceptionRegister = buildExceptionRegister(app, generatedAt);
   const operationalEvidence = buildOperationalEvidence(generatedAt);
@@ -1165,7 +1165,7 @@ function buildPoamControlId(controlId: string): string {
 
 function buildSystemBoundary(app: RebacLocalApp): SystemBoundaryEvidence {
   const connectorComponents = [...app.connectors.values()].map((connector) => ({
-    id: `component:connector:${connector.id}`,
+    id: connectorComponentId(connector.id),
     name: `${connector.id} connector`,
     type: "connector" as const,
     trustZone: connector.provider === "mock" ? "local_runtime" as const : "synthetic_provider" as const,
@@ -1232,7 +1232,26 @@ function buildSystemBoundary(app: RebacLocalApp): SystemBoundaryEvidence {
   };
 }
 
-function buildDataFlows(): DataFlowEvidence[] {
+function buildDataFlows(app: RebacLocalApp): DataFlowEvidence[] {
+  const connectorFlows = [...app.connectors.values()].map((connector): DataFlowEvidence => ({
+    id: `data-flow:api-connector:${sanitizeCanonicalId(connector.id)}`,
+    name: `API to ${connector.id} connector`,
+    source: "component:api-runtime",
+    destination: connectorComponentId(connector.id),
+    dataTypes: [
+      "discovery_requests",
+      "readback_requests",
+      ...(connector.capabilities.supportsProvisioning ? ["dry_run_or_synthetic_enforcement_requests"] : []),
+      ...(connector.capabilities.supportsReconciliation ? ["reconciliation_findings"] : [])
+    ],
+    protections: [
+      "connector_boundary",
+      connector.mode === "read_only" ? "read_only_synthetic_providers" : "controlled_enforcement_guardrails",
+      connector.provider === "mock" ? "controlled_enforcement_guardrails" : "synthetic_provider_boundary"
+    ],
+    liveTenantData: false
+  }));
+
   return [
     {
       id: "data-flow:cli-api",
@@ -1261,15 +1280,7 @@ function buildDataFlows(): DataFlowEvidence[] {
       protections: ["synthetic_data_only", "hash_chained_audit_events", "separate_intended_and_native_access"],
       liveTenantData: false
     },
-    {
-      id: "data-flow:api-connectors",
-      name: "API to connector adapters",
-      source: "component:api-runtime",
-      destination: "component:connector:mock",
-      dataTypes: ["discovery_requests", "readback_requests", "dry_run_or_synthetic_enforcement_requests"],
-      protections: ["connector_boundary", "read_only_synthetic_providers", "controlled_enforcement_guardrails"],
-      liveTenantData: false
-    },
+    ...connectorFlows,
     {
       id: "data-flow:evidence-repository",
       name: "API to local evidence repository",
@@ -1339,8 +1350,8 @@ function buildExceptionRegister(app: RebacLocalApp, generatedAt: string): Except
     .filter(requiresExceptionRecord)
     .map((finding) => ({
       id: `exception:${sanitizeCanonicalId(finding.id)}`,
-      subjectId: finding.subjectId,
-      resourceId: finding.resourceId,
+      subjectId: sanitizeCanonicalId(finding.subjectId),
+      resourceId: sanitizeCanonicalId(finding.resourceId),
       action: "review",
       reason: `Drift finding ${finding.id} requires documented risk acceptance or remediation.`,
       status: "open",
@@ -1348,7 +1359,7 @@ function buildExceptionRegister(app: RebacLocalApp, generatedAt: string): Except
       expiresAt: addDays(generatedAt, 30),
       reviewRequiredAt: addDays(generatedAt, 14),
       source: "drift",
-      sourceFindingId: finding.id
+      sourceFindingId: sanitizeCanonicalId(finding.id)
     }));
 }
 
@@ -1528,6 +1539,10 @@ function addDays(timestamp: string, days: number): string {
 
 function sanitizeCanonicalId(value: string): string {
   return value.replaceAll(/[^a-z0-9_:-]/gi, "_").toLowerCase();
+}
+
+function connectorComponentId(connectorId: string): string {
+  return `component:connector:${sanitizeCanonicalId(connectorId)}`;
 }
 
 function getConnector(app: RebacLocalApp, connectorId: string): ConnectorAdapter {
