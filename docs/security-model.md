@@ -20,6 +20,8 @@ Live connector credentials are not part of this milestone. Future connector cred
 
 Phase 2 connector sync is restricted to `read_only`. It may discover inventory and observed native grants through connector adapters, but it must not apply provider mutations, create native grants, revoke native grants, or treat provider readback as intended access.
 
+The synthetic Entra ID, SharePoint, and AWS-style connectors use synthetic IDs, read scopes, tenant boundaries, subjects, resources, grants, warnings, and cursors. They exist to prove contract shape and security boundaries without secrets, production users, tenant IDs, account IDs, or provider API calls.
+
 ## Fail Behavior
 
 - Sensitive resources fail closed when the decision service is unavailable.

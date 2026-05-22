@@ -2,14 +2,36 @@
   "id": "discovery:mock:20260521t170000000z",
   "connectorId": "mock",
   "mode": "read_only",
-  "status": "completed",
+  "status": "completed_with_warnings",
   "startedAt": "2026-05-21T17:00:00.000Z",
   "completedAt": "2026-05-21T17:00:00.000Z",
   "counts": {
-    "subjects": 1,
-    "resources": 1,
+    "subjects": 3,
+    "resources": 2,
     "relationships": 3,
-    "nativeGrants": 1
+    "nativeGrants": 1,
+    "warnings": 1
+  },
+  "warnings": [
+    {
+      "code": "SYNTHETIC_PAGE_SKIPPED",
+      "message": "Synthetic connector skipped a non-governed object.",
+      "severity": "warning",
+      "scope": "resources",
+      "retryable": false,
+      "objectId": "document:personal-draft"
+    }
+  ],
+  "cursor": {
+    "startedFrom": "cursor:previous",
+    "highWatermark": "cursor:20260521t170000000z",
+    "deletedObjectBehavior": "mark_deleted"
+  },
+  "evidence": {
+    "readOnly": true,
+    "schemas": ["subject", "resource", "relationship", "native-grant", "discovery-run"],
+    "connectorCapabilities": ["supportsDiscovery", "supportsDirectPermissions"],
+    "nativeAccessReadback": true
   },
   "auditEventIds": ["evt:connector-discovery:mock"],
   "version": "discovery-run:v1",

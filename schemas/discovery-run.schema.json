@@ -11,6 +11,8 @@
     "status",
     "startedAt",
     "counts",
+    "warnings",
+    "evidence",
     "auditEventIds",
     "version",
     "createdAt"
@@ -19,18 +21,63 @@
     "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "connectorId": { "type": "string", "minLength": 1 },
     "mode": { "type": "string", "enum": ["read_only"] },
-    "status": { "type": "string", "enum": ["queued", "running", "completed", "failed"] },
+    "status": { "type": "string", "enum": ["queued", "running", "completed", "completed_with_warnings", "failed"] },
     "startedAt": { "type": "string", "format": "date-time" },
     "completedAt": { "type": "string", "format": "date-time" },
     "counts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["subjects", "resources", "relationships", "nativeGrants"],
+      "required": ["subjects", "resources", "relationships", "nativeGrants", "warnings"],
       "properties": {
         "subjects": { "type": "integer", "minimum": 0 },
         "resources": { "type": "integer", "minimum": 0 },
         "relationships": { "type": "integer", "minimum": 0 },
-        "nativeGrants": { "type": "integer", "minimum": 0 }
+        "nativeGrants": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "severity", "scope", "retryable"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
+          "message": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "enum": ["info", "warning", "error"] },
+          "scope": { "type": "string", "enum": ["connector", "subjects", "resources", "relationships", "native_grants"] },
+          "retryable": { "type": "boolean" },
+          "objectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        }
+      }
+    },
+    "cursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["highWatermark", "deletedObjectBehavior"],
+      "properties": {
+        "startedFrom": { "type": "string", "minLength": 1 },
+        "next": { "type": "string", "minLength": 1 },
+        "highWatermark": { "type": "string", "minLength": 1 },
+        "deletedObjectBehavior": { "type": "string", "enum": ["mark_deleted", "ignore", "unsupported"] }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readOnly", "schemas", "connectorCapabilities", "nativeAccessReadback"],
+      "properties": {
+        "readOnly": { "type": "boolean", "const": true },
+        "schemas": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "connectorCapabilities": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "nativeAccessReadback": { "type": "boolean" }
       }
     },
     "auditEventIds": {

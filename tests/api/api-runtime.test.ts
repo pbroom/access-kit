@@ -260,31 +260,124 @@ describe("ReBAC API runtime", () => {
       connectorId: string;
       mode: string;
       status: string;
-      counts: { subjects: number; resources: number; relationships: number; nativeGrants: number };
+      counts: { subjects: number; resources: number; relationships: number; nativeGrants: number; warnings: number };
+      warnings: unknown[];
+      cursor?: unknown;
+      evidence?: { readOnly?: boolean; nativeAccessReadback?: boolean };
       auditEventIds: string[];
     }>("/v1/connectors/mock/sync", { mode: "read_only" });
-    const nativeAccess = await get<{ items: Array<{ subjectId: string; nativePermission: string; sourceConnectorId: string }> }>(
+    const nativeAccess = await get<{
+      items: Array<{
+        subjectId: string;
+        principalType: string;
+        nativePermission: string;
+        grantType: string;
+        sourceConnectorId: string;
+      }>;
+    }>(
       "/v1/resources/document%3Acase-plan/native-access?connectorId=mock"
     );
     const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
 
     expect(sync.connectorId).toBe("mock");
     expect(sync.mode).toBe("read_only");
-    expect(sync.status).toBe("completed");
-    expect(sync.counts.subjects).toBeGreaterThan(0);
-    expect(sync.counts.resources).toBeGreaterThan(0);
-    expect(sync.counts.relationships).toBeGreaterThan(0);
-    expect(sync.counts.nativeGrants).toBe(1);
+    expect(sync.status).toBe("completed_with_warnings");
+    expect(sync.counts).toMatchObject({
+      subjects: 3,
+      resources: 2,
+      relationships: 3,
+      nativeGrants: 4,
+      warnings: 1
+    });
+    expect(sync.warnings).toHaveLength(1);
+    expect(sync.cursor).toMatchObject({ highWatermark: "cursor:mock:20260521t170000000z" });
+    expect(sync.evidence).toMatchObject({ readOnly: true, nativeAccessReadback: true });
     expect(sync.auditEventIds).toHaveLength(1);
-    expect(nativeAccess.items).toEqual([
+    expect(nativeAccess.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
         subjectId: "user:alice",
+        principalType: "user",
         nativePermission: "read",
+        grantType: "direct",
         sourceConnectorId: "mock"
       })
-    ]);
+    ]));
     expect(audit.items.map((event) => event.eventType)).toContain("connector.discovery_completed");
     expect(audit.items.map((event) => event.eventType)).toContain("connector.current_access_read");
+  });
+
+  it("lists synthetic read-only connectors and exposes permission checks", async () => {
+    const connectors = await get<{
+      items: Array<{ id: string; provider: string; tenantBoundary: string; requiredReadScopes: string[] }>;
+    }>("/v1/connectors");
+    const test = await post<{ valid: boolean; checks: Array<{ name: string; status: string; evidence?: unknown }> }>(
+      "/v1/connectors/sharepoint-readonly/test",
+      {}
+    );
+
+    expect(connectors.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "entra-readonly",
+        provider: "entra-id",
+        requiredReadScopes: expect.arrayContaining(["synthetic:directory.read"])
+      }),
+      expect.objectContaining({
+        id: "sharepoint-readonly",
+        provider: "sharepoint",
+        tenantBoundary: "synthetic:sharepoint:tenant"
+      }),
+      expect.objectContaining({
+        id: "aws-readonly",
+        provider: "aws",
+        requiredReadScopes: expect.arrayContaining(["synthetic:organizations.read"])
+      })
+    ]));
+    expect(test.valid).toBe(true);
+    expect(test.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "read_only_mode", status: "pass" }),
+      expect.objectContaining({ name: "scope:synthetic:sites.read", status: "pass" })
+    ]));
+  });
+
+  it("records synthetic provider discovery runs and filters observed native grants", async () => {
+    const sync = await post<{
+      id: string;
+      status: string;
+      counts: { subjects: number; resources: number; relationships: number; nativeGrants: number; warnings: number };
+      warnings: Array<{ code: string; scope: string }>;
+      cursor?: { highWatermark?: string };
+    }>("/v1/connectors/sharepoint-readonly/sync", { mode: "read_only" });
+    const runs = await get<{ items: Array<{ id: string; connectorId: string; status: string }> }>(
+      "/v1/discovery/runs?connectorId=sharepoint-readonly&status=completed_with_warnings"
+    );
+    const inheritedGrants = await get<{
+      items: Array<{ targetObjectId: string; subjectId: string; principalType: string; grantType: string; inheritedFromObjectId?: string }>;
+    }>(
+      "/v1/resources/document%3Acase-records-plan/native-access?connectorId=sharepoint-readonly&grantType=inherited&principalType=group"
+    );
+
+    expect(sync.status).toBe("completed_with_warnings");
+    expect(sync.counts).toMatchObject({
+      subjects: 2,
+      resources: 3,
+      relationships: 2,
+      nativeGrants: 4,
+      warnings: 1
+    });
+    expect(sync.warnings).toEqual([
+      expect.objectContaining({ code: "SHAREPOINT_PERSONAL_SITE_SKIPPED", scope: "resources" })
+    ]);
+    expect(sync.cursor).toMatchObject({ highWatermark: "cursor:sharepoint:20260521t170000000z" });
+    expect(runs.items).toEqual([expect.objectContaining({ id: sync.id, connectorId: "sharepoint-readonly" })]);
+    expect(inheritedGrants.items).toEqual([
+      expect.objectContaining({
+        targetObjectId: "document:case-records-plan",
+        subjectId: "group:sp-case-members",
+        principalType: "group",
+        grantType: "inherited",
+        inheritedFromObjectId: "folder:case-records-evidence"
+      })
+    ]);
   });
 
   it("keeps repeated discovery runs distinct under fixed timestamps", async () => {

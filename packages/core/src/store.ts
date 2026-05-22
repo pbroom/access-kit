@@ -108,7 +108,9 @@ export class InMemoryRebacStore {
   }
 
   listNativeGrants(
-    filter: Partial<Pick<NativeGrant, "sourceConnectorId" | "targetObjectId" | "subjectId" | "nativePermission" | "status">> = {}
+    filter: Partial<
+      Pick<NativeGrant, "sourceConnectorId" | "targetObjectId" | "subjectId" | "nativePermission" | "status" | "grantType" | "principalType">
+    > = {}
   ): NativeGrant[] {
     return [...this.#nativeGrants.values()].filter((grant) => {
       return (
@@ -116,6 +118,8 @@ export class InMemoryRebacStore {
         (!filter.targetObjectId || grant.targetObjectId === filter.targetObjectId) &&
         (!filter.subjectId || grant.subjectId === filter.subjectId) &&
         (!filter.nativePermission || grant.nativePermission === filter.nativePermission) &&
+        (!filter.grantType || grant.grantType === filter.grantType) &&
+        (!filter.principalType || grant.principalType === filter.principalType) &&
         (!filter.status || grant.status === filter.status)
       );
     });

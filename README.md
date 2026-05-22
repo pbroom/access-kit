@@ -11,7 +11,8 @@ This repository currently delivers:
 - JSON Schemas for core domain and evidence objects.
 - CLI command contract for operators, CI/CD, and assessors.
 - Mock connector interface and deterministic sample implementation.
-- Local in-memory API runtime for check, explain, inventory, relationship, read-only connector discovery, native-grant readback, reconciliation, audit, and evidence flows.
+- Synthetic Entra ID, SharePoint, and AWS-style read-only connector fixtures with no real tenant access.
+- Local in-memory API runtime for check, explain, inventory, relationship, read-only connector discovery, discovery run history, native-grant readback, reconciliation, audit, and evidence flows.
 - CLI commands that call the API instead of evaluating authorization locally.
 - Policy proof-point fixtures for deny/default, relationship allow, deny override, expiration, suspension, idempotency, and drift.
 - Architecture, security, ATO evidence, CLI, API, and ADR documentation.
@@ -50,7 +51,7 @@ pnpm evidence:generate
 - `packages/api/` - local in-memory HTTP API runtime.
 - `packages/api-contracts/` - contract and schema manifest exports.
 - `packages/cli/` - CLI command contract and placeholder operator CLI.
-- `packages/connectors-mock/` - mock connector implementing the adapter boundary.
+- `packages/connectors-mock/` - mock and synthetic provider connectors implementing the adapter boundary.
 - `scripts/` - validation and evidence-generation commands.
 - `tests/fixtures/` - schema examples and policy proof points.
 - `reports/` - generated validation evidence.

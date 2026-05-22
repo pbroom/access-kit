@@ -36,6 +36,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "provision revoke", description: "Create a revocation plan.", apiSurface: "POST /v1/provisioning/plans" },
   { path: "reconcile run", description: "Run reconciliation for a connector.", apiSurface: "POST /v1/reconciliation/run" },
   { path: "reconcile findings", description: "List drift findings.", apiSurface: "GET /v1/reconciliation/findings" },
+  { path: "discovery runs", description: "List read-only connector discovery runs.", apiSurface: "GET /v1/discovery/runs" },
   { path: "audit search", description: "Search append-only audit events.", apiSurface: "GET /v1/audit/events" },
   { path: "evidence export", description: "Export ATO evidence.", apiSurface: "GET /v1/evidence/export" },
   { path: "connector list", description: "List connectors and capabilities.", apiSurface: "GET /v1/connectors" },
@@ -59,6 +60,7 @@ export function buildCli(options: CliOptions = {}): Command {
   addDecisionCommands(program, context);
   addProvisioningCommands(program, context);
   addReconciliationCommands(program, context);
+  addDiscoveryCommands(program, context);
   addAuditCommands(program, context);
   addEvidenceCommands(program, context);
   addConnectorCommands(program, context);
@@ -88,9 +90,15 @@ interface ReconcileFindingsOptions {
   severity?: string;
 }
 
+interface DiscoveryRunsOptions extends CommandWithConnector {
+  status?: string;
+}
+
 interface NativeAccessOptions extends CommandWithConnector {
   subject?: string;
   permission?: string;
+  grantType?: string;
+  principalType?: string;
 }
 
 interface AuditSearchOptions {
@@ -163,13 +171,17 @@ function addResourceCommands(program: Command, context: CliContext): void {
     .argument("<resource-id>")
     .option("--connector <id>")
     .option("--subject <id>")
-    .option("--permission <permission>");
+    .option("--permission <permission>")
+    .option("--grant-type <type>")
+    .option("--principal-type <type>");
   nativeAccess.action(withApi(context, nativeAccess, (client, args) => {
     const options = nativeAccess.opts<NativeAccessOptions>();
     const params = new URLSearchParams();
     if (options.connector) params.set("connectorId", options.connector);
     if (options.subject) params.set("subjectId", options.subject);
     if (options.permission) params.set("nativePermission", options.permission);
+    if (options.grantType) params.set("grantType", options.grantType);
+    if (options.principalType) params.set("principalType", options.principalType);
     const query = params.toString();
     return client.get(
       `/v1/resources/${encodeURIComponent(readString(args, 0, "resource-id"))}/native-access${query ? `?${query}` : ""}`
@@ -302,6 +314,19 @@ function addReconciliationCommands(program: Command, context: CliContext): void 
     if (options.severity) params.set("severity", options.severity);
     const query = params.toString();
     return client.get(`/v1/reconciliation/findings${query ? `?${query}` : ""}`);
+  }));
+}
+
+function addDiscoveryCommands(program: Command, context: CliContext): void {
+  const discovery = program.command("discovery").description("Read-only discovery run inspection.");
+  const runs = discovery.command("runs").option("--connector <id>").option("--status <status>");
+  runs.action(withApi(context, runs, (client) => {
+    const options = runs.opts<DiscoveryRunsOptions>();
+    const params = new URLSearchParams();
+    if (options.connector) params.set("connectorId", options.connector);
+    if (options.status) params.set("status", options.status);
+    const query = params.toString();
+    return client.get(`/v1/discovery/runs${query ? `?${query}` : ""}`);
   }));
 }
 

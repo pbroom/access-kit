@@ -1,4 +1,9 @@
-import { MockConnector } from "@access-kit/connectors-mock";
+import {
+  MockConnector,
+  SyntheticAwsConnector,
+  SyntheticEntraConnector,
+  SyntheticSharePointConnector
+} from "@access-kit/connectors-mock";
 import {
   AuditRecorder,
   createLocalEngineSeed,
@@ -7,12 +12,15 @@ import {
   type AuditEvent,
   type AuditEventInput,
   type ConnectorAdapter,
+  type ConnectorHealthCheck,
   type DecisionRequest,
   type DiscoveryRun,
   type DriftFinding,
   type EvidenceExport,
   type JsonRecord,
   type NativeGrant,
+  type NativeGrantType,
+  type NativePrincipalType,
   type ProvisioningPlan,
   type RelationshipTuple,
   type Resource,
@@ -33,7 +41,12 @@ export interface RebacLocalApp {
   actor: string;
 }
 
-type NativeAccessFilter = Partial<Pick<NativeGrant, "sourceConnectorId" | "subjectId" | "nativePermission">>;
+type NativeAccessFilter = Partial<
+  Pick<NativeGrant, "sourceConnectorId" | "subjectId" | "nativePermission"> & {
+    grantType: NativeGrantType;
+    principalType: NativePrincipalType;
+  }
+>;
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
@@ -41,7 +54,13 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
   const store = new InMemoryRebacStore(createLocalEngineSeed());
   const auditRecorder = new AuditRecorder();
   const engine = new RebacDecisionEngine(store, { now, actor, auditRecorder });
-  const connectors = new Map<string, ConnectorAdapter>([["mock", new MockConnector()]]);
+  const connectorList: ConnectorAdapter[] = [
+    new MockConnector(),
+    new SyntheticEntraConnector(),
+    new SyntheticSharePointConnector(),
+    new SyntheticAwsConnector()
+  ];
+  const connectors = new Map<string, ConnectorAdapter>(connectorList.map((connector) => [connector.id, connector]));
 
   return {
     store,
@@ -125,6 +144,7 @@ export async function syncConnector(
   const runSequence = app.store.listDiscoveryRuns({ connectorId }).length + 1;
   const runKey = `${connectorId}:${compactTimestamp(startedAt)}:${runSequence}`;
   connector.mode = mode;
+  const metadata = connector.getDiscoveryMetadata?.();
   const subjects = await connector.discoverSubjects();
   const resources = await connector.discoverResources();
   const relationships = await connector.discoverRelationships();
@@ -141,18 +161,30 @@ export async function syncConnector(
   }
 
   const completedAt = app.now();
+  const warnings = metadata?.warnings ?? [];
   const run: DiscoveryRun = {
     id: `discovery:${runKey}`,
     connectorId,
     mode: "read_only",
-    status: "completed",
+    status: warnings.length > 0 ? "completed_with_warnings" : "completed",
     startedAt,
     completedAt,
     counts: {
       subjects: subjects.length,
       resources: resources.length,
       relationships: relationships.length,
-      nativeGrants
+      nativeGrants,
+      warnings: warnings.length
+    },
+    warnings,
+    cursor: metadata?.cursor,
+    evidence: {
+      readOnly: true,
+      schemas: ["subject", "resource", "relationship", "native-grant", "discovery-run"],
+      connectorCapabilities: Object.entries(connector.capabilities)
+        .filter(([, enabled]) => enabled)
+        .map(([name]) => name),
+      nativeAccessReadback: nativeGrants > 0
     },
     auditEventIds: [],
     version: "discovery-run:v1",
@@ -167,9 +199,14 @@ export async function syncConnector(
     payload: {
       action: "connector.discovery.read_only",
       connectorId,
+      provider: metadata?.provider ?? connector.provider ?? connector.id,
+      tenantBoundary: metadata?.tenantBoundary ?? connector.tenantBoundary ?? "synthetic:unknown",
       mode: run.mode,
       status: run.status,
       counts: run.counts,
+      warnings: run.warnings,
+      cursor: run.cursor,
+      evidence: run.evidence,
       discoveryRunId: run.id
     }
   });
@@ -177,6 +214,13 @@ export async function syncConnector(
   const completedRun = { ...run, auditEventIds: [auditEvent.eventId] };
   app.store.recordDiscoveryRun(completedRun);
   return completedRun;
+}
+
+export function listDiscoveryRuns(
+  app: RebacLocalApp,
+  filter: Partial<Pick<DiscoveryRun, "connectorId" | "status">> = {}
+): DiscoveryRun[] {
+  return app.store.listDiscoveryRuns(filter);
 }
 
 export function readNativeAccess(app: RebacLocalApp, resourceId: string, filter: NativeAccessFilter = {}): NativeGrant[] {
@@ -199,6 +243,38 @@ export function readNativeAccess(app: RebacLocalApp, resourceId: string, filter:
   });
 
   return grants;
+}
+
+export async function testConnector(app: RebacLocalApp, connectorId: string): Promise<{ valid: boolean; checks: ConnectorHealthCheck[] }> {
+  const connector = app.connectors.get(connectorId);
+
+  if (!connector) {
+    return {
+      valid: false,
+      checks: [
+        {
+          name: "connector_registered",
+          status: "fail",
+          message: `Connector ${connectorId} is not registered.`
+        }
+      ]
+    };
+  }
+
+  const checks = connector.testReadOnlyAccess
+    ? await connector.testReadOnlyAccess()
+    : [
+        {
+          name: "connector_registered",
+          status: "pass" as const,
+          message: `${connectorId} is registered.`
+        }
+      ];
+
+  return {
+    valid: checks.every((check) => check.status !== "fail"),
+    checks
+  };
 }
 
 export async function createProvisioningPlan(

@@ -31,6 +31,7 @@ const requiredOperations = new Map<string, string[]>([
   ["/v1/provisioning/jobs/{id}", ["get"]],
   ["/v1/reconciliation/run", ["post"]],
   ["/v1/reconciliation/findings", ["get"]],
+  ["/v1/discovery/runs", ["get"]],
   ["/v1/audit/events", ["get"]],
   ["/v1/evidence/export", ["get"]],
   ["/v1/connectors", ["get"]],

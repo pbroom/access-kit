@@ -5,8 +5,9 @@ info:
   summary: API-first contract for an ATO-ready ReBAC authorization control plane.
   description: >
     Deterministic, explainable, versioned ReBAC control-plane API. The foundation
-    supports local decisions and read-only mock discovery; live Microsoft, AWS,
-    SharePoint, AD, and Power Platform enforcement are deferred.
+    supports local decisions and read-only mock plus synthetic provider discovery;
+    live Microsoft, AWS, SharePoint, AD, and Power Platform enforcement are
+    deferred.
 servers:
   - url: https://rebac.example.gov
     description: Placeholder production boundary
@@ -21,6 +22,7 @@ tags:
   - name: policies
   - name: provisioning
   - name: reconciliation
+  - name: discovery
   - name: audit
   - name: evidence
   - name: connectors
@@ -276,6 +278,16 @@ paths:
           in: query
           schema:
             type: string
+        - name: grantType
+          in: query
+          schema:
+            type: string
+            enum: [direct, inherited, group]
+        - name: principalType
+          in: query
+          schema:
+            type: string
+            enum: [user, group, service_account, service_principal, managed_identity, external_user, unknown]
       responses:
         "200":
           description: Observed native access readback.
@@ -722,6 +734,35 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/DiscoveryRun"
+  /v1/discovery/runs:
+    get:
+      tags: [discovery]
+      summary: List read-only discovery runs.
+      operationId: listDiscoveryRuns
+      parameters:
+        - name: connectorId
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [queued, running, completed, completed_with_warnings, failed]
+      responses:
+        "200":
+          description: Discovery run list.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DiscoveryRun"
 components:
   parameters:
     Id:
@@ -854,9 +895,12 @@ components:
                 type: string
               status:
                 type: string
-                enum: [pass, fail]
+                enum: [pass, warn, fail]
               message:
                 type: string
+              evidence:
+                type: object
+                additionalProperties: true
     ProvisioningJob:
       type: object
       additionalProperties: false
@@ -896,13 +940,21 @@ components:
     Connector:
       type: object
       additionalProperties: false
-      required: [id, mode, capabilities]
+      required: [id, mode, provider, tenantBoundary, requiredReadScopes, capabilities]
       properties:
         id:
           type: string
         mode:
           type: string
           enum: [read_only, simulation, dry_run, enforcement]
+        provider:
+          type: string
+        tenantBoundary:
+          type: string
+        requiredReadScopes:
+          type: array
+          items:
+            type: string
         capabilities:
           type: object
           additionalProperties: false

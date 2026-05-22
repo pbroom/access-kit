@@ -4,7 +4,7 @@
 
 Access Kit is a governed authorization control plane for relationship-based access control. It coordinates identity sources, resource inventories, relationship facts, policy decisions, provisioning plans, drift findings, audit events, and ATO evidence. It does not authenticate users and it does not replace native enforcement in Entra ID, Active Directory, AWS, SharePoint, Teams, Power Platform, or application-specific authorization layers.
 
-The first milestone established contracts and validation evidence. Phase 1 added a local in-memory runtime for the core engine, mock connector, API handlers, and CLI-over-API flow. Phase 2 makes read-only discovery explicit: connector sync returns a discovery run, stores observed native grants separately from relationship tuples, and lets operators inspect discovered native access. Live connectors, persistent graph storage, controlled enforcement, and dashboards remain later phases.
+The first milestone established contracts and validation evidence. Phase 1 added a local in-memory runtime for the core engine, mock connector, API handlers, and CLI-over-API flow. Phase 2 makes read-only discovery explicit: connector sync returns a discovery run, stores observed native grants separately from relationship tuples, exposes connector checks and discovery history, and lets operators inspect discovered native access. Synthetic Entra ID, SharePoint, and AWS-style adapters prove provider boundaries without credentials. Live connectors, persistent graph storage, controlled enforcement, and dashboards remain later phases.
 
 ## Layered Shape
 
@@ -43,6 +43,8 @@ flowchart LR
 - The local API runtime makes the OpenAPI-shaped surface executable with in-memory storage.
 - The CLI wraps the API and does not contain authorization logic.
 - Read-only connector sync records a `DiscoveryRun` and observed `NativeGrant` objects.
+- Discovery runs capture warnings, cursors, read-only evidence, and connector capability metadata.
+- Synthetic provider adapters cover Entra ID, SharePoint, and AWS-style readback shapes without real tenant IDs, secrets, users, or resources.
 - Resource native-access inspection reads observed provider grants without treating them as intended access.
 - Proof-point fixtures prove required policy behaviors before any live connector exists.
 
@@ -62,7 +64,7 @@ flowchart LR
 ## Later Phases
 
 1. Durable graph/event stores and deployment packaging.
-2. Read-only Entra ID, SharePoint, and AWS discovery using the existing discovery-run and native-grant contracts.
-3. Simulation and dry-run reconciliation beyond the mock connector.
+2. Live read-only Entra ID, SharePoint, and AWS discovery using the existing discovery-run and native-grant contracts.
+3. Simulation and dry-run reconciliation beyond synthetic fixtures.
 4. Controlled enforcement with one Microsoft and one AWS write path.
 5. ATO hardening: tamper-evident audit storage, SIEM export, vulnerability evidence, break-glass, incident mode, and full evidence packages.

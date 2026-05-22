@@ -60,9 +60,11 @@ describe("CLI API wrapper", () => {
     expect(lastOutput()).toMatchObject({
       connectorId: "mock",
       mode: "read_only",
+      status: "completed_with_warnings",
       counts: {
-        subjects: 1,
-        nativeGrants: 1
+        subjects: 3,
+        nativeGrants: 4,
+        warnings: 1
       }
     });
   });
@@ -71,16 +73,18 @@ describe("CLI API wrapper", () => {
     await runCli("connector", "sync", "mock", "--mode", "read_only");
     await runCli("resource", "native-access", "document:case-plan", "--connector", "mock");
 
-    expect(lastOutput()).toMatchObject({
-      items: [
-        {
+    expect(lastOutput()).toEqual(expect.objectContaining({
+      items: expect.arrayContaining([
+        expect.objectContaining({
           targetObjectId: "document:case-plan",
           subjectId: "user:alice",
+          principalType: "user",
           nativePermission: "read",
+          grantType: "direct",
           sourceConnectorId: "mock"
-        }
-      ]
-    });
+        })
+      ])
+    }));
   });
 
   it("forwards reconcile findings severity to the API", async () => {
@@ -149,11 +153,33 @@ describe("CLI API wrapper", () => {
       "--subject",
       "user:alice",
       "--permission",
-      "read"
+      "read",
+      "--grant-type",
+      "direct",
+      "--principal-type",
+      "user"
     );
 
     expect(requests.at(-1)?.url).toBe(
-      "http://api.example/v1/resources/document%3Acase-plan/native-access?connectorId=mock&subjectId=user%3Aalice&nativePermission=read"
+      "http://api.example/v1/resources/document%3Acase-plan/native-access?connectorId=mock&subjectId=user%3Aalice&nativePermission=read&grantType=direct&principalType=user"
+    );
+  });
+
+  it("forwards discovery run filters to the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      "discovery",
+      "runs",
+      "--connector",
+      "sharepoint-readonly",
+      "--status",
+      "completed_with_warnings"
+    );
+
+    expect(requests.at(-1)?.url).toBe(
+      "http://api.example/v1/discovery/runs?connectorId=sharepoint-readonly&status=completed_with_warnings"
     );
   });
 

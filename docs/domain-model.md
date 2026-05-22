@@ -12,9 +12,9 @@
 
 `IntendedGrant` is the desired access state created by policy and approvals.
 
-`NativeGrant` is what a provider actually enforces, such as a SharePoint permission, M365 group membership, Dataverse role, AWS role assignment, or app role.
+`NativeGrant` is what a provider actually enforces, such as a SharePoint permission, M365 group membership, Dataverse role, AWS role assignment, or app role. It records whether the grant is direct, inherited, or group-derived; the principal type; optional inheritance source; optional expiration; and connector attributes. These fields support readback, drift analysis, and revocation planning without converting native access into intended access.
 
-`DiscoveryRun` records a read-only connector inventory pass. It has connector ID, mode, status, start and completion times, object counts, and audit event references. It is evidence that provider readback happened without turning native grants into intended access.
+`DiscoveryRun` records a read-only connector inventory pass. It has connector ID, mode, status, start and completion times, object counts, warnings, cursor/high-watermark details, read-only evidence, and audit event references. It is evidence that provider readback happened without turning native grants into intended access.
 
 `ProvisioningPlan` is the auditable plan that converts a decision or request into dry-run or enforcement actions. Decisions must not directly mutate providers.
 

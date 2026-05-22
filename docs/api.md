@@ -15,13 +15,20 @@
 - Reconciliation: connector runs and drift findings.
 - Audit: append-only event search.
 - Evidence: control/time-bounded export.
+- Discovery: read-only discovery run history.
 - Connectors: capability listing, health/permission test, and read-only discovery sync.
 
 ## Phase 2 Read-Only Discovery
 
-`POST /v1/connectors/{id}/sync` accepts `mode: "read_only"` and returns a `DiscoveryRun`. The run records counts for discovered subjects, resources, relationship tuples, and native grants. It also emits `connector.discovery_completed` audit evidence.
+`GET /v1/connectors` returns the registered connector adapters, including provider, tenant boundary, required read scopes, and capability flags. Phase 2 registers synthetic `mock`, `entra-readonly`, `sharepoint-readonly`, and `aws-readonly` connectors. These are contract fixtures, not live tenant integrations.
 
-`GET /v1/resources/{id}/native-access` returns observed `NativeGrant` records from the latest discovery data. These records represent provider readback only; they are not intended grants and do not create authorization decisions.
+`POST /v1/connectors/{id}/test` returns connector health and permission checks. Check statuses are `pass`, `warn`, or `fail`; only failures make the response invalid.
+
+`POST /v1/connectors/{id}/sync` accepts `mode: "read_only"` and returns a `DiscoveryRun`. The run records counts for discovered subjects, resources, relationship tuples, native grants, and warnings. It can include warnings, cursor/high-watermark metadata, and read-only evidence. It also emits `connector.discovery_completed` audit evidence.
+
+`GET /v1/discovery/runs` lists discovery run history. It supports filtering by `connectorId` and status, including `completed_with_warnings`.
+
+`GET /v1/resources/{id}/native-access` returns observed `NativeGrant` records from the latest discovery data. It supports connector, subject, native permission, grant type, and principal type filters. These records represent provider readback only; they are not intended grants and do not create authorization decisions.
 
 ## Write Requirements
 
