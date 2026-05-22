@@ -50,7 +50,8 @@ export type NativePrincipalType =
   | "external_user"
   | "unknown";
 export type ValidationCheckStatus = "pass" | "warn" | "fail";
-export type ProvisioningStepStatus = "planned" | "skipped" | "verified" | "failed";
+export type ProvisioningMode = "dry_run" | "enforcement";
+export type ProvisioningStepStatus = "planned" | "skipped" | "verified" | "applied" | "failed";
 export type ProvisioningVerificationStatus = "pending" | "verified" | "skipped" | "failed";
 export type ProvisioningCompensationStatus = "planned" | "not_required" | "skipped" | "failed";
 
@@ -226,6 +227,22 @@ export interface ProvisioningCompensation {
   idempotencyKey: string;
 }
 
+export interface ProvisioningApproval {
+  decision: "approved";
+  approverId: CanonicalId;
+  changeTicket: CanonicalId;
+  approvedAt: IsoDateTime;
+  expiresAt?: IsoDateTime;
+  reason?: string;
+}
+
+export interface EnforcementControl {
+  syntheticOnly: boolean;
+  liveProviderWrites: boolean;
+  incidentMode: boolean;
+  breakGlass: boolean;
+}
+
 export interface ProvisioningPlan extends VersionedEntity {
   sourceDecisionId?: CanonicalId;
   idempotencyKey?: string;
@@ -233,9 +250,11 @@ export interface ProvisioningPlan extends VersionedEntity {
   subjectId: CanonicalId;
   resourceId: CanonicalId;
   action: string;
-  mode: "dry_run" | "enforcement";
+  mode: ProvisioningMode;
   status: "planned" | "approved" | "applied" | "failed" | "rolled_back";
   actions: ProvisioningAction[];
+  approval?: ProvisioningApproval;
+  control?: EnforcementControl;
 }
 
 export interface ProvisioningActionResult {
@@ -252,14 +271,16 @@ export interface ProvisioningActionResult {
 export interface ProvisioningJob extends VersionedEntity {
   planId: CanonicalId;
   connectorId: string;
-  mode: "dry_run";
-  dryRun: true;
+  mode: ProvisioningMode;
+  dryRun: boolean;
   status: "queued" | "running" | "completed" | "failed" | "rolled_back";
   approverId: CanonicalId;
   idempotencyKey: string;
   actionResults: ProvisioningActionResult[];
   verification: ProvisioningVerification;
   auditEventIds: CanonicalId[];
+  approval?: ProvisioningApproval;
+  control?: EnforcementControl;
   startedAt: IsoDateTime;
   completedAt?: IsoDateTime;
 }

@@ -5,8 +5,22 @@
   "subjectId": "user:alice",
   "resourceId": "document:case-plan",
   "action": "read",
-  "mode": "dry_run",
-  "status": "planned",
+  "mode": "enforcement",
+  "status": "approved",
+  "approval": {
+    "decision": "approved",
+    "approverId": "user:approver",
+    "changeTicket": "chg:phase4-controlled-enforcement",
+    "approvedAt": "2026-05-21T17:00:00.000Z",
+    "expiresAt": "2026-05-22T17:00:00.000Z",
+    "reason": "Synthetic controlled enforcement proof point."
+  },
+  "control": {
+    "syntheticOnly": true,
+    "liveProviderWrites": false,
+    "incidentMode": false,
+    "breakGlass": false
+  },
   "actions": [
     {
       "actionId": "action:grant-alice-read-case-plan",
@@ -17,7 +31,7 @@
         "subjectId": "user:alice",
         "permission": "read"
       },
-      "dryRun": true,
+      "dryRun": false,
       "idempotencyKey": "user:alice:read:document:case-plan:policy:test-v1",
       "status": "planned",
       "verification": {

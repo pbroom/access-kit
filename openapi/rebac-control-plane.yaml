@@ -5,9 +5,9 @@ info:
   summary: API-first contract for an ATO-ready ReBAC authorization control plane.
   description: >
     Deterministic, explainable, versioned ReBAC control-plane API. The foundation
-    supports local decisions and read-only mock plus synthetic provider discovery;
-    live Microsoft, AWS, SharePoint, AD, and Power Platform enforcement are
-    deferred.
+    supports local decisions, read-only mock plus synthetic provider discovery,
+    dry-run provisioning, and approval-gated synthetic mock enforcement; live
+    Microsoft, AWS, SharePoint, AD, and Power Platform enforcement are deferred.
 servers:
   - url: https://rebac.example.gov
     description: Placeholder production boundary
@@ -471,7 +471,7 @@ paths:
   /v1/provisioning/plans:
     post:
       tags: [provisioning]
-      summary: Create a dry-run provisioning plan.
+      summary: Create a dry-run or controlled synthetic enforcement provisioning plan.
       operationId: createProvisioningPlan
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -500,9 +500,15 @@ paths:
                 context:
                   type: object
                   additionalProperties: true
+                mode:
+                  type: string
+                  enum: [dry_run, enforcement]
                 dryRun:
                   type: boolean
-                  const: true
+                approval:
+                  $ref: "#/components/schemas/ProvisioningApproval"
+                control:
+                  $ref: "#/components/schemas/EnforcementControl"
       responses:
         "201":
           description: Provisioning plan.
@@ -513,7 +519,7 @@ paths:
   /v1/provisioning/jobs:
     post:
       tags: [provisioning]
-      summary: Run a dry-run provisioning job for a plan.
+      summary: Run a dry-run or controlled synthetic enforcement provisioning job for a plan.
       operationId: createProvisioningJob
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -530,9 +536,15 @@ paths:
                   type: string
                 approverId:
                   type: string
+                mode:
+                  type: string
+                  enum: [dry_run, enforcement]
                 dryRun:
                   type: boolean
-                  const: true
+                approval:
+                  $ref: "#/components/schemas/ProvisioningApproval"
+                control:
+                  $ref: "#/components/schemas/EnforcementControl"
       responses:
         "202":
           description: Provisioning job accepted.
@@ -941,10 +953,9 @@ components:
           type: string
         mode:
           type: string
-          enum: [dry_run]
+          enum: [dry_run, enforcement]
         dryRun:
           type: boolean
-          const: true
         status:
           type: string
           enum: [queued, running, completed, failed, rolled_back]
@@ -966,7 +977,7 @@ components:
                 enum: [grant, revoke, expire, repair, verify]
               status:
                 type: string
-                enum: [planned, skipped, verified, failed]
+                enum: [planned, skipped, verified, applied, failed]
               dryRun:
                 type: boolean
               idempotencyKey:
@@ -979,6 +990,10 @@ components:
                 $ref: "#/components/schemas/ProvisioningCompensation"
         verification:
           $ref: "#/components/schemas/ProvisioningVerification"
+        approval:
+          $ref: "#/components/schemas/ProvisioningApproval"
+        control:
+          $ref: "#/components/schemas/EnforcementControl"
         auditEventIds:
           type: array
           items:
@@ -994,6 +1009,39 @@ components:
           format: date-time
         version:
           type: string
+    ProvisioningApproval:
+      type: object
+      additionalProperties: false
+      required: [decision, approverId, changeTicket, approvedAt]
+      properties:
+        decision:
+          type: string
+          const: approved
+        approverId:
+          type: string
+        changeTicket:
+          type: string
+        approvedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+    EnforcementControl:
+      type: object
+      additionalProperties: false
+      required: [syntheticOnly, liveProviderWrites, incidentMode, breakGlass]
+      properties:
+        syntheticOnly:
+          type: boolean
+        liveProviderWrites:
+          type: boolean
+        incidentMode:
+          type: boolean
+        breakGlass:
+          type: boolean
     ProvisioningVerification:
       type: object
       additionalProperties: false

@@ -30,6 +30,8 @@ rebac explain user:123 read document:case-plan
 rebac provision plan user:123 document:case-plan read --connector mock
 rebac provision apply plan:abc
 rebac provision revoke grant:abc
+rebac provision plan user:123 document:case-plan read --connector mock --mode enforcement --approver user:approver --change-ticket chg:phase4 --synthetic-only
+rebac provision apply plan:abc --mode enforcement --approver user:approver --change-ticket chg:phase4 --synthetic-only
 
 rebac reconcile run --connector sharepoint-readonly --dry-run
 rebac reconcile findings --severity high
@@ -44,10 +46,12 @@ rebac connector test mock
 rebac connector sync mock --mode read_only
 ```
 
-## Phase 2 And 3 Runtime
+## Phase 2, 3, And 4 Runtime
 
 The package exposes the command tree and calls the API over HTTP. Use `--api-url` or `REBAC_API_URL` to point the CLI at a running local or deployed control-plane API. Authorization logic stays in the API/core engine; the CLI is only an operator wrapper.
 
 Read-only discovery uses `rebac connector sync <connector-id> --mode read_only`. Provider readback can then be inspected with `rebac resource native-access`, which returns observed native grants rather than intended grants or policy decisions. `rebac discovery runs` exposes run history, warning status, and cursor/evidence metadata for assessor and operator review.
 
-Dry-run provisioning uses `rebac provision plan` followed by `rebac provision apply`. In Phase 3, `apply` creates a dry-run job only: provider writes are skipped, verification hooks run, compensation intent is recorded, and audit evidence is emitted.
+Dry-run provisioning uses `rebac provision plan` followed by `rebac provision apply`. By default, `apply` creates a dry-run job: provider writes are skipped, verification hooks run, compensation intent is recorded, and audit evidence is emitted.
+
+Controlled enforcement is available only as a synthetic Phase 4 proof point against the `mock` connector. The CLI can send `--mode enforcement --approver <id> --change-ticket <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.

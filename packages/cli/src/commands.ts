@@ -31,8 +31,8 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "policy publish", description: "Publish an approved policy model.", apiSurface: "POST /v1/policies/{id}/publish" },
   { path: "check", description: "Run a fast allow/deny decision.", apiSurface: "POST /v1/decision/check" },
   { path: "explain", description: "Run an explainable decision.", apiSurface: "POST /v1/decision/explain" },
-  { path: "provision plan", description: "Create a dry-run provisioning plan.", apiSurface: "POST /v1/provisioning/plans" },
-  { path: "provision apply", description: "Run a dry-run provisioning job for a plan.", apiSurface: "POST /v1/provisioning/jobs" },
+  { path: "provision plan", description: "Create a dry-run or controlled synthetic enforcement provisioning plan.", apiSurface: "POST /v1/provisioning/plans" },
+  { path: "provision apply", description: "Run a dry-run or controlled synthetic enforcement provisioning job for a plan.", apiSurface: "POST /v1/provisioning/jobs" },
   { path: "provision revoke", description: "Create a revocation plan.", apiSurface: "POST /v1/provisioning/plans" },
   { path: "reconcile run", description: "Run reconciliation for a connector.", apiSurface: "POST /v1/reconciliation/run" },
   { path: "reconcile findings", description: "List drift findings.", apiSurface: "GET /v1/reconciliation/findings" },
@@ -101,7 +101,15 @@ interface NativeAccessOptions extends CommandWithConnector {
   principalType?: string;
 }
 
-type ProvisioningOptions = CommandWithConnector;
+interface ProvisioningOptions extends CommandWithConnector {
+  mode?: "dry_run" | "enforcement";
+  approver?: string;
+  changeTicket?: string;
+  reason?: string;
+  syntheticOnly?: boolean;
+  incidentMode?: boolean;
+  breakGlass?: boolean;
+}
 
 interface AuditSearchOptions {
   subject?: string;
@@ -273,7 +281,9 @@ function addDecisionCommands(program: Command, context: CliContext): void {
 function addProvisioningCommands(program: Command, context: CliContext): void {
   const provision = program.command("provision").description("Provisioning plan and job commands.");
 
-  const plan = provision.command("plan").argument("<subject>").argument("<resource>").argument("<action>").option("--connector <id>");
+  const plan = addControlledEnforcementOptions(
+    provision.command("plan").argument("<subject>").argument("<resource>").argument("<action>").option("--connector <id>")
+  );
   plan.action(withApi(context, plan, (client, args) => {
     const options = plan.opts<ProvisioningOptions>();
     const [subjectId, resourceId, action] = readStrings(args, ["subject", "resource", "action"]);
@@ -282,29 +292,95 @@ function addProvisioningCommands(program: Command, context: CliContext): void {
       resourceId,
       action,
       connectorId: options.connector,
-      dryRun: true
+      ...buildProvisioningExecutionPayload(options, context)
     });
   }));
 
-  const apply = provision.command("apply").argument("<plan-id>");
+  const apply = addControlledEnforcementOptions(provision.command("apply").argument("<plan-id>"));
   apply.action(withApi(context, apply, (client, args) => {
+    const options = apply.opts<ProvisioningOptions>();
     return client.post("/v1/provisioning/jobs", {
       planId: readString(args, 0, "plan-id"),
-      approverId: "user:cli-operator",
-      dryRun: true
+      approverId: options.approver ?? "user:cli-operator",
+      ...buildProvisioningJobPayload(options)
     });
   }));
 
-  const revoke = provision.command("revoke").argument("<grant-id>").option("--connector <id>");
+  const revoke = addControlledEnforcementOptions(provision.command("revoke").argument("<grant-id>").option("--connector <id>"));
   revoke.action(withApi(context, revoke, (client, args) => {
     const options = revoke.opts<ProvisioningOptions>();
     return client.post("/v1/provisioning/plans", {
       grantId: readString(args, 0, "grant-id"),
       connectorId: options.connector,
       action: "revoke",
-      dryRun: true
+      ...buildProvisioningExecutionPayload(options, context)
     });
   }));
+}
+
+function addControlledEnforcementOptions(command: Command): Command {
+  return command
+    .option("--mode <mode>", "dry_run")
+    .option("--approver <id>")
+    .option("--change-ticket <id>")
+    .option("--reason <text>")
+    .option("--synthetic-only")
+    .option("--incident-mode")
+    .option("--break-glass");
+}
+
+function buildProvisioningJobPayload(options: ProvisioningOptions): Record<string, unknown> {
+  const mode = options.mode ?? "dry_run";
+
+  if (mode === "dry_run") {
+    return {
+      mode,
+      dryRun: true
+    };
+  }
+
+  if (mode !== "enforcement") {
+    throw new Error("mode must be dry_run or enforcement");
+  }
+
+  return {
+    mode,
+    dryRun: false
+  };
+}
+
+function buildProvisioningExecutionPayload(options: ProvisioningOptions, context: CliContext): Record<string, unknown> {
+  const mode = options.mode ?? "dry_run";
+
+  if (mode === "dry_run") {
+    return {
+      mode,
+      dryRun: true
+    };
+  }
+
+  if (mode !== "enforcement") {
+    throw new Error("mode must be dry_run or enforcement");
+  }
+
+  const approverId = options.approver ?? "user:cli-operator";
+  return {
+    mode,
+    dryRun: false,
+    approval: {
+      decision: "approved",
+      approverId,
+      changeTicket: required(options.changeTicket, "change-ticket"),
+      approvedAt: context.now(),
+      reason: options.reason
+    },
+    control: {
+      syntheticOnly: options.syntheticOnly === true,
+      liveProviderWrites: false,
+      incidentMode: options.incidentMode === true,
+      breakGlass: options.breakGlass === true
+    }
+  };
 }
 
 function addReconciliationCommands(program: Command, context: CliContext): void {

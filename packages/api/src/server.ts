@@ -25,8 +25,11 @@ import type {
   DecisionRequest,
   DiscoveryRunStatus,
   DriftSeverity,
+  EnforcementControl,
   NativeGrantType,
   NativePrincipalType,
+  ProvisioningApproval,
+  ProvisioningMode,
   RelationshipTuple,
   Resource,
   Subject
@@ -41,15 +44,21 @@ interface ProvisioningPlanRequest {
   action?: unknown;
   resourceId?: unknown;
   context?: unknown;
+  mode?: unknown;
   dryRun?: unknown;
   grantId?: unknown;
   connectorId?: unknown;
+  approval?: unknown;
+  control?: unknown;
 }
 
 interface ProvisioningJobRequest {
   planId?: unknown;
   approverId?: unknown;
+  mode?: unknown;
   dryRun?: unknown;
+  approval?: unknown;
+  control?: unknown;
 }
 
 const maxRequestBodyBytes = 1024 * 1024;
@@ -483,10 +492,9 @@ async function routeProvisioning(
   if (segments[2] === "plans" && segments.length === 3 && request.method === "POST") {
     const idempotencyKey = readIdempotencyKey(request);
     const body = await readJson<ProvisioningPlanRequest>(request);
-
-    if (body.dryRun !== true) {
-      throw new HttpError(400, "DRY_RUN_REQUIRED", "Phase 3 provisioning plans require dryRun: true");
-    }
+    const mode = readProvisioningMode(body.mode, body.dryRun);
+    const approval = readProvisioningApproval(body.approval);
+    const control = readEnforcementControl(body.control);
 
     if (body.connectorId !== undefined && (typeof body.connectorId !== "string" || !body.connectorId)) {
       throw new HttpError(400, "INVALID_CONNECTOR_ID", "connectorId must be a non-empty string when provided");
@@ -498,7 +506,7 @@ async function routeProvisioning(
         throw new HttpError(400, "INVALID_GRANT_ID", "grantId must be a non-empty string");
       }
 
-      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId, idempotencyKey));
+      sendJson(response, 201, await createRevocationPlan(app, body.grantId, connectorId, { mode, approval, control }, idempotencyKey));
       return;
     }
 
@@ -511,7 +519,7 @@ async function routeProvisioning(
       );
     }
 
-    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId, idempotencyKey));
+    sendJson(response, 201, await createProvisioningPlan(app, decisionRequest, connectorId, { mode, approval, control }, idempotencyKey));
     return;
   }
 
@@ -526,14 +534,15 @@ async function routeProvisioning(
       throw new HttpError(400, "MISSING_APPROVER_ID", "approverId is required");
     }
 
-    if (body.dryRun !== true) {
-      throw new HttpError(400, "DRY_RUN_REQUIRED", "Phase 3 provisioning jobs require dryRun: true");
-    }
+    const mode = readProvisioningMode(body.mode, body.dryRun);
 
     const job = await createProvisioningJob(app, {
       planId: body.planId,
       approverId: body.approverId,
-      idempotencyKey: readIdempotencyKey(request)
+      idempotencyKey: readIdempotencyKey(request),
+      mode,
+      approval: readProvisioningApproval(body.approval),
+      control: readEnforcementControl(body.control)
     });
 
     if (!job) {
@@ -751,6 +760,112 @@ function readDiscoveryMode(mode: unknown): "read_only" {
   }
 
   throw new HttpError(400, "UNSUPPORTED_CONNECTOR_MODE", "Phase 2 connector sync supports read_only mode only");
+}
+
+function readProvisioningMode(mode: unknown, dryRun: unknown): ProvisioningMode {
+  if (mode === undefined) {
+    if (dryRun === true) {
+      return "dry_run";
+    }
+
+    throw new HttpError(
+      400,
+      "DRY_RUN_REQUIRED",
+      "Provisioning defaults to dry-run; enforcement must explicitly request mode: enforcement and dryRun: false"
+    );
+  }
+
+  if (mode === "dry_run") {
+    if (dryRun === true) {
+      return "dry_run";
+    }
+
+    throw new HttpError(400, "DRY_RUN_REQUIRED", "Dry-run provisioning requires dryRun: true");
+  }
+
+  if (mode === "enforcement") {
+    if (dryRun === false) {
+      return "enforcement";
+    }
+
+    throw new HttpError(400, "ENFORCEMENT_DRY_RUN_FALSE_REQUIRED", "Controlled enforcement requires dryRun: false");
+  }
+
+  throw new HttpError(400, "INVALID_PROVISIONING_MODE", "mode must be dry_run or enforcement");
+}
+
+function readProvisioningApproval(value: unknown): ProvisioningApproval | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (
+    !isRecord(value) ||
+    value.decision !== "approved" ||
+    typeof value.approverId !== "string" ||
+    typeof value.changeTicket !== "string" ||
+    typeof value.approvedAt !== "string" ||
+    (value.expiresAt !== undefined && typeof value.expiresAt !== "string") ||
+    (value.reason !== undefined && typeof value.reason !== "string")
+  ) {
+    throw new HttpError(
+      400,
+      "INVALID_PROVISIONING_APPROVAL",
+      "approval must include decision: approved, approverId, changeTicket, and approvedAt"
+    );
+  }
+
+  const approvedAt = readProvisioningApprovalDateTime(value.approvedAt, "approvedAt");
+  const expiresAt =
+    value.expiresAt === undefined ? undefined : readProvisioningApprovalDateTime(value.expiresAt, "expiresAt");
+
+  return {
+    decision: value.decision,
+    approverId: value.approverId,
+    changeTicket: value.changeTicket,
+    approvedAt,
+    expiresAt,
+    reason: value.reason
+  };
+}
+
+function readProvisioningApprovalDateTime(value: string, fieldName: string): string {
+  if (Number.isNaN(Date.parse(value))) {
+    throw new HttpError(
+      400,
+      "INVALID_PROVISIONING_APPROVAL",
+      `approval.${fieldName} must be a valid date-time`
+    );
+  }
+
+  return value;
+}
+
+function readEnforcementControl(value: unknown): EnforcementControl | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (
+    !isRecord(value) ||
+    typeof value.syntheticOnly !== "boolean" ||
+    typeof value.liveProviderWrites !== "boolean" ||
+    typeof value.incidentMode !== "boolean" ||
+    typeof value.breakGlass !== "boolean"
+  ) {
+    throw new HttpError(
+      400,
+      "INVALID_ENFORCEMENT_CONTROL",
+      "control must include syntheticOnly, liveProviderWrites, incidentMode, and breakGlass booleans"
+    );
+  }
+
+  return {
+    syntheticOnly: value.syntheticOnly,
+    liveProviderWrites: value.liveProviderWrites,
+    incidentMode: value.incidentMode,
+    breakGlass: value.breakGlass
+  };
 }
 
 function readIdempotencyKey(request: IncomingMessage): string {

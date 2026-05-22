@@ -13,8 +13,11 @@ type JsonObject = Record<string, unknown>;
 let server: Server | undefined;
 let baseUrl: string;
 
+const TEST_NOW = "2026-05-21T17:00:00.000Z";
+const TEST_APPROVAL_EXPIRES_AT = "2026-05-22T17:00:00.000Z";
+
 beforeEach(async () => {
-  await startServer({ now: () => "2026-05-21T17:00:00.000Z" });
+  await startServer({ now: () => TEST_NOW });
 });
 
 afterEach(async () => {
@@ -632,6 +635,202 @@ describe("ReBAC API runtime", () => {
     expect(body.code).toBe("IDEMPOTENCY_KEY_REUSED");
   });
 
+  it("runs controlled mock enforcement with approval, verification, and audit evidence", async () => {
+    const approval = controlledApproval();
+    const control = controlledEnforcement();
+    const plan = await post<{
+      id: string;
+      mode: string;
+      status: string;
+      approval: { changeTicket: string };
+      control: { syntheticOnly: boolean; liveProviderWrites: boolean };
+      actions: Array<{ dryRun: boolean; status: string }>;
+    }>("/v1/provisioning/plans", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      connectorId: "mock",
+      mode: "enforcement",
+      dryRun: false,
+      approval,
+      control
+    });
+    const job = await postWithIdempotency<{
+      mode: string;
+      status: string;
+      dryRun: boolean;
+      approval: { approverId: string; changeTicket: string };
+      control: { syntheticOnly: boolean; liveProviderWrites: boolean };
+      actionResults: Array<{ status: string; dryRun: boolean; verification: { status: string } }>;
+      verification: { status: string; readbackState: { syntheticProviderWrite: boolean; liveProviderWrite: boolean } };
+      auditEventIds: string[];
+    }>("/v1/provisioning/jobs", "idem-phase4-controlled-job", {
+      planId: plan.id,
+      approverId: approval.approverId,
+      mode: "enforcement",
+      dryRun: false,
+      approval,
+      control
+    });
+    const audit = await get<{ items: Array<{ eventType: string; payload: Record<string, unknown> }> }>("/v1/audit/events");
+
+    expect(plan).toMatchObject({
+      mode: "enforcement",
+      status: "approved",
+      approval: { changeTicket: "chg:phase4-controlled-enforcement" },
+      control: { syntheticOnly: true, liveProviderWrites: false }
+    });
+    expect(plan.actions).toEqual([expect.objectContaining({ dryRun: false, status: "planned" })]);
+    expect(job).toMatchObject({
+      mode: "enforcement",
+      status: "completed",
+      dryRun: false,
+      approval: { approverId: "user:approver", changeTicket: "chg:phase4-controlled-enforcement" },
+      control: { syntheticOnly: true, liveProviderWrites: false },
+      verification: {
+        status: "verified",
+        readbackState: {
+          syntheticProviderWrite: true,
+          liveProviderWrite: false
+        }
+      }
+    });
+    expect(job.actionResults).toEqual([
+      expect.objectContaining({
+        status: "applied",
+        dryRun: false,
+        verification: expect.objectContaining({ status: "verified" })
+      })
+    ]);
+    expect(job.auditEventIds.length).toBeGreaterThanOrEqual(3);
+    expect(audit.items.map((event) => event.eventType)).toEqual(expect.arrayContaining([
+      "provisioning.requested",
+      "provisioning.planned",
+      "provisioning.approved",
+      "connector.permission_changed",
+      "provisioning.verified",
+      "provisioning.completed"
+    ]));
+    expect(audit.items.find((event) => event.eventType === "connector.permission_changed")?.payload).toMatchObject({
+      syntheticProviderWrite: true,
+      liveProviderWrite: false,
+      providerWrite: false
+    });
+  });
+
+  it("blocks controlled enforcement without an approval", async () => {
+    const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-test-aaaa" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        connectorId: "mock",
+        mode: "enforcement",
+        dryRun: false,
+        control: controlledEnforcement()
+      })
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("CONTROLLED_ENFORCEMENT_APPROVAL_REQUIRED");
+  });
+
+  it("rejects malformed controlled enforcement approval timestamps", async () => {
+    const malformedApprovals = [
+      { idempotencyKey: "idem-test-bbbb", approval: { ...controlledApproval(), approvedAt: "not-a-date" } },
+      { idempotencyKey: "idem-test-cccc", approval: { ...controlledApproval(), expiresAt: "not-a-date" } }
+    ];
+
+    for (const { idempotencyKey, approval } of malformedApprovals) {
+      const response = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
+        body: JSON.stringify({
+          subjectId: "user:alice",
+          action: "read",
+          resourceId: "document:case-plan",
+          connectorId: "mock",
+          mode: "enforcement",
+          dryRun: false,
+          approval,
+          control: controlledEnforcement()
+        })
+      });
+      const body = (await response.json()) as { code: string };
+
+      expect(response.status).toBe(400);
+      expect(body.code).toBe("INVALID_PROVISIONING_APPROVAL");
+    }
+  });
+
+  it("rejects enforcement jobs when approval evidence differs from the approved plan", async () => {
+    const approval = controlledApproval();
+    const plan = await post<{ id: string }>("/v1/provisioning/plans", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      connectorId: "mock",
+      mode: "enforcement",
+      dryRun: false,
+      approval,
+      control: controlledEnforcement()
+    });
+    const response = await fetch(`${baseUrl}/v1/provisioning/jobs`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-test-bbbb" },
+      body: JSON.stringify({
+        planId: plan.id,
+        approverId: approval.approverId,
+        mode: "enforcement",
+        dryRun: false,
+        approval: { ...approval, changeTicket: "chg:different" },
+        control: controlledEnforcement()
+      })
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "CONTROLLED_ENFORCEMENT_APPROVAL_MISMATCH" });
+  });
+
+  it("blocks controlled enforcement for read-only connectors and incident mode", async () => {
+    const readOnlyResponse = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-phase4-readonly-connector" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        connectorId: "sharepoint-readonly",
+        mode: "enforcement",
+        dryRun: false,
+        approval: controlledApproval(),
+        control: controlledEnforcement()
+      })
+    });
+    const incidentResponse = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-phase4-incident-mode" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        connectorId: "mock",
+        mode: "enforcement",
+        dryRun: false,
+        approval: controlledApproval(),
+        control: { ...controlledEnforcement(), incidentMode: true }
+      })
+    });
+
+    expect(readOnlyResponse.status).toBe(403);
+    await expect(readOnlyResponse.json()).resolves.toMatchObject({ code: "CONNECTOR_ENFORCEMENT_DISABLED" });
+    expect(incidentResponse.status).toBe(409);
+    await expect(incidentResponse.json()).resolves.toMatchObject({ code: "CONTROLLED_ENFORCEMENT_INCIDENT_MODE_BLOCKED" });
+  });
+
   it("requires provisioning dry-run mode for plans and jobs", async () => {
     const planResponse = await fetch(`${baseUrl}/v1/provisioning/plans`, {
       method: "POST",
@@ -688,6 +887,26 @@ describe("ReBAC API runtime", () => {
     expect(body.code).toBe("MISSING_CONNECTOR_ID");
   });
 });
+
+function controlledApproval(): JsonObject {
+  return {
+    decision: "approved",
+    approverId: "user:approver",
+    changeTicket: "chg:phase4-controlled-enforcement",
+    approvedAt: "2026-05-21T17:00:00.000Z",
+    expiresAt: TEST_APPROVAL_EXPIRES_AT,
+    reason: "Synthetic Phase 4 controlled enforcement proof point."
+  };
+}
+
+function controlledEnforcement(): JsonObject {
+  return {
+    syntheticOnly: true,
+    liveProviderWrites: false,
+    incidentMode: false,
+    breakGlass: false
+  };
+}
 
 async function startServer(options: RebacApiServerOptions): Promise<void> {
   server = createRebacApiServer(options);

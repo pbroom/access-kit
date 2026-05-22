@@ -113,8 +113,8 @@ ${trimOutput(result.output)}
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Local core engine tests for deterministic check/explain and decision audit emission.
-- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, idempotent job replay, and reconciliation.
-- CLI API smoke tests for operator, CI/CD, and assessor surfaces calling the API.
+- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, controlled synthetic enforcement guardrails, idempotent job replay, and reconciliation.
+- CLI API smoke tests for operator, CI/CD, assessor, dry-run provisioning, and controlled synthetic enforcement surfaces calling the API.
 
 ## Outstanding Requirements
 
@@ -123,8 +123,8 @@ ${trimOutput(result.output)}
 - Implement durable append-only audit storage with tamper-evidence and SIEM export.
 - Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Persist discovery runs and native-grant readback outside the local in-memory store.
-- Replace local dry-run provisioning and reconciliation jobs with durable queues, retries, and dead-letter handling.
-- Add controlled enforcement only after approval workflow, rollback, and connector least-privilege review are complete.
+- Replace local dry-run provisioning, controlled synthetic enforcement, and reconciliation jobs with durable queues, retries, and dead-letter handling.
+- Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, and connector least-privilege review are complete.
 - Add ATO package generation for concrete system boundary diagrams, control implementation statements, POA&M inputs, and ConMon evidence.
 `;
 }
