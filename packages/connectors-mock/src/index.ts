@@ -1,17 +1,18 @@
-import type {
-  AuditEvent,
-  ConnectorAdapter,
-  ConnectorDiscoveryMetadata,
-  ConnectorHealthCheck,
-  DecisionResult,
-  DiscoveryRunWarning,
-  DriftFinding,
-  EvidenceExport,
-  NativeGrant,
-  ProvisioningPlan,
-  RelationshipTuple,
-  Resource,
-  Subject
+import {
+  verifyAuditChain,
+  type AuditEvent,
+  type ConnectorAdapter,
+  type ConnectorDiscoveryMetadata,
+  type ConnectorHealthCheck,
+  type DecisionResult,
+  type DiscoveryRunWarning,
+  type DriftFinding,
+  type EvidenceExport,
+  type NativeGrant,
+  type ProvisioningPlan,
+  type RelationshipTuple,
+  type Resource,
+  type Subject
 } from "@access-kit/core";
 
 const now = "2026-05-21T17:00:00.000Z";
@@ -613,6 +614,7 @@ function createRevocationPlan(connectorId: string, nativeGrantId: string, resour
 }
 
 function createEvidence(connectorId: string, events: AuditEvent[]): EvidenceExport {
+  const auditIntegrity = verifyAuditChain(events, now);
   return {
     exportId: `evidence:${connectorId}`,
     framework: "nist-800-53",
@@ -620,9 +622,46 @@ function createEvidence(connectorId: string, events: AuditEvent[]): EvidenceExpo
     periodStart: "2026-05-01T00:00:00.000Z",
     periodEnd: "2026-05-31T23:59:59.000Z",
     generatedAt: now,
-    evidenceTypes: ["audit_events", "decision_logs", "provisioning_plans", "discovery_runs"],
+    evidenceTypes: ["audit_events", "decision_logs", "provisioning_plans", "discovery_runs", "audit_integrity", "control_mappings"],
     sourceEventIds: events.map((event) => event.eventId),
     responsibleRole: "ISSO",
-    format: "json"
+    format: "json",
+    auditIntegrity,
+    controlMappings: [
+      {
+        controlId: "AU-2",
+        family: "AU",
+        status: events.length > 0 ? "implemented" : "partially_implemented",
+        implementationSummary: "Connector evidence includes audit event identifiers emitted by the local control plane.",
+        evidenceTypes: ["audit_events"],
+        sourceEventIds: events.map((event) => event.eventId),
+        gaps: events.length > 0 ? [] : ["No source audit events were provided to the connector evidence hook."]
+      }
+    ],
+    artifacts: [
+      {
+        name: "connector-audit-events",
+        type: "audit_events",
+        description: "Connector-scoped audit events prepared for evidence packaging.",
+        eventCount: events.length,
+        format: "json"
+      }
+    ],
+    conmonMetrics: [
+      {
+        name: "connector_evidence_events",
+        value: events.length,
+        unit: "count",
+        source: connectorId
+      }
+    ],
+    poamItems: [],
+    siemExport: {
+      format: "jsonl",
+      eventCount: events.length,
+      schemaVersion: "audit-event:v1",
+      includesPayloadHashes: true,
+      target: "operator_download"
+    }
   };
 }

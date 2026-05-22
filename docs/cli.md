@@ -39,7 +39,8 @@ rebac reconcile findings --severity high
 rebac discovery runs --connector sharepoint-readonly --status completed_with_warnings
 
 rebac audit search --subject user:123 --from 2026-01-01
-rebac evidence export --framework nist-800-53 --controls AC-2,AC-3,AU-2 --format json
+rebac audit integrity
+rebac evidence export --framework nist-800-53 --controls AC-2,AC-3,AU-2 --from 2026-05-01T00:00:00.000Z --to 2026-05-31T23:59:59.000Z --format json
 
 rebac connector list
 rebac connector test mock
@@ -57,3 +58,5 @@ Read-only discovery uses `rebac connector sync <connector-id> --mode read_only`.
 Dry-run provisioning uses `rebac provision plan` followed by `rebac provision apply`. By default, `apply` creates a dry-run job: provider writes are skipped, verification hooks run, compensation intent is recorded, and audit evidence is emitted.
 
 Controlled enforcement is available only as a synthetic Phase 4 proof point against the `mock` connector. Operators first run `rebac connector readiness mock --mode enforcement --synthetic-only` and pass the resulting report ID into provisioning with `--readiness-report <id>`. The CLI can then send `--mode enforcement --approver <id> --change-ticket <id> --readiness-report <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.
+
+Phase 5 assessor commands use the same API contract. `rebac audit integrity` requests an audit hash-chain report, and `rebac evidence export` can request a framework, control set, time window, and format for the ATO evidence package metadata.

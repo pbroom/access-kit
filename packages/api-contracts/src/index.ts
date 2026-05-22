@@ -11,5 +11,6 @@ export const schemaManifest = [
   "schemas/provisioning-plan.schema.json",
   "schemas/audit-event.schema.json",
   "schemas/drift-finding.schema.json",
+  "schemas/audit-integrity.schema.json",
   "schemas/evidence-export.schema.json"
 ] as const;

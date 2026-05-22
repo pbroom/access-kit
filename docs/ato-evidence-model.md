@@ -28,11 +28,19 @@ Evidence exports include:
 - time period
 - evidence type
 - source event IDs
+- audit integrity report
+- control implementation mappings
+- continuous-monitoring metrics
+- POA&M inputs
+- artifact manifest
+- SIEM export metadata
 - responsible role
 - generated timestamp
 - export format
 
 The first generated evidence artifact is `reports/proof-point-validation.md`. It records tool versions, commit, command results, covered proof points, and outstanding requirements.
+
+The local Phase 5 evidence package remains metadata-only. It proves the contract and auditability shape without exporting production data, tenant identifiers, secrets, or live provider records.
 
 ## Minimum Evidence Package Later
 
@@ -48,6 +56,9 @@ The first generated evidence artifact is `reports/proof-point-validation.md`. It
 - access review results
 - decision log samples
 - enforcement-readiness reports
+- audit integrity reports
+- continuous monitoring metrics
+- SIEM export records
 - provisioning log samples
 - admin activity logs
 - configuration baseline

@@ -245,12 +245,54 @@ describe("ReBAC API runtime", () => {
       periodStart: string;
       periodEnd: string;
       generatedAt: string;
+      auditIntegrity: { status: string; eventCount: number };
+      controlMappings: Array<{ controlId: string; status: string; sourceEventIds: string[]; gaps: string[] }>;
+      conmonMetrics: Array<{ name: string; value: number }>;
+      poamItems: Array<{ controlId: string; status: string }>;
+      siemExport: { format: string; eventCount: number; includesPayloadHashes: boolean };
     }>("/v1/evidence/export");
 
     expect(evidence.periodStart).toBe("2026-05-20T01:00:00.000Z");
     expect(evidence.periodStart).not.toBe("2026-05-01T00:00:00.000Z");
     expect(evidence.periodEnd).toBe("2026-05-21T17:00:00.000Z");
     expect(evidence.generatedAt).toBe("2026-05-21T17:00:00.000Z");
+    expect(evidence.auditIntegrity).toMatchObject({ status: "verified", eventCount: 1 });
+    expect(evidence.controlMappings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ controlId: "AC-3", status: "implemented" })
+    ]));
+    expect(evidence.conmonMetrics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "audit_events_in_period", value: 1 }),
+      expect.objectContaining({ name: "audit_chain_verified", value: 1 })
+    ]));
+    expect(evidence.poamItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({ controlId: "AC-2", status: "planned" })
+    ]));
+    expect(evidence.siemExport).toMatchObject({ format: "jsonl", eventCount: 1, includesPayloadHashes: true });
+  });
+
+  it("exports evidence for explicit framework, controls, and time window", async () => {
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const evidence = await get<{
+      framework: string;
+      controls: string[];
+      periodStart: string;
+      periodEnd: string;
+      controlMappings: Array<{ controlId: string; status: string }>;
+    }>("/v1/evidence/export?framework=fedramp-rev5&controls=AC-3,AU-6&from=2026-05-21T00:00:00.000Z&to=2026-05-22T00:00:00.000Z");
+
+    expect(evidence.framework).toBe("fedramp-rev5");
+    expect(evidence.controls).toEqual(["AC-3", "AU-6"]);
+    expect(evidence.periodStart).toBe("2026-05-21T00:00:00.000Z");
+    expect(evidence.periodEnd).toBe("2026-05-22T00:00:00.000Z");
+    expect(evidence.controlMappings).toEqual(expect.arrayContaining([
+      expect.objectContaining({ controlId: "AC-3", status: "implemented" }),
+      expect.objectContaining({ controlId: "AU-6", status: "implemented" })
+    ]));
   });
 
   it("validates evidence export format", async () => {
@@ -259,6 +301,30 @@ describe("ReBAC API runtime", () => {
 
     expect(response.status).toBe(400);
     expect(body.code).toBe("INVALID_EVIDENCE_FORMAT");
+  });
+
+  it("verifies audit integrity and emits verification evidence", async () => {
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const integrity = await get<{
+      status: string;
+      eventCount: number;
+      auditEventId: string;
+      findings: unknown[];
+    }>("/v1/audit/integrity");
+    const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(integrity).toMatchObject({
+      status: "verified",
+      eventCount: 1,
+      findings: []
+    });
+    expect(integrity.auditEventId).toMatch(/^evt:/);
+    expect(audit.items.map((event) => event.eventType)).toEqual(["decision.allowed", "audit.integrity_verified"]);
   });
 
   it("runs read-only mock connector discovery and exposes native access readback", async () => {

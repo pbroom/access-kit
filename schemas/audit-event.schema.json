@@ -39,6 +39,7 @@
         "reconciliation.completed",
         "breakglass.used",
         "admin.action_performed",
+        "audit.integrity_verified",
         "connector.discovery_completed",
         "connector.current_access_read",
         "connector.enforcement_readiness_checked",

@@ -38,6 +38,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "reconcile findings", description: "List drift findings.", apiSurface: "GET /v1/reconciliation/findings" },
   { path: "discovery runs", description: "List read-only connector discovery runs.", apiSurface: "GET /v1/discovery/runs" },
   { path: "audit search", description: "Search append-only audit events.", apiSurface: "GET /v1/audit/events" },
+  { path: "audit integrity", description: "Verify append-only audit hash-chain integrity.", apiSurface: "GET /v1/audit/integrity" },
   { path: "evidence export", description: "Export ATO evidence.", apiSurface: "GET /v1/evidence/export" },
   { path: "connector list", description: "List connectors and capabilities.", apiSurface: "GET /v1/connectors" },
   { path: "connector test", description: "Test connector health and permissions.", apiSurface: "POST /v1/connectors/{id}/test" },
@@ -133,6 +134,8 @@ interface EvidenceExportOptions {
   framework: string;
   controls: string;
   format?: string;
+  from?: string;
+  to?: string;
 }
 
 function createCliContext(options: CliOptions): CliContext {
@@ -444,6 +447,9 @@ function addAuditCommands(program: Command, context: CliContext): void {
     const query = params.toString();
     return client.get(`/v1/audit/events${query ? `?${query}` : ""}`);
   }));
+
+  const integrity = audit.command("integrity");
+  integrity.action(withApi(context, integrity, (client) => client.get("/v1/audit/integrity")));
 }
 
 function addEvidenceCommands(program: Command, context: CliContext): void {
@@ -452,6 +458,8 @@ function addEvidenceCommands(program: Command, context: CliContext): void {
     .command("export")
     .requiredOption("--framework <name>")
     .requiredOption("--controls <list>")
+    .option("--from <date>")
+    .option("--to <date>")
     .option("--format <format>", "json");
   exportCommand.action(withApi(context, exportCommand, (client) => {
     const options = exportCommand.opts<EvidenceExportOptions>();
@@ -460,6 +468,8 @@ function addEvidenceCommands(program: Command, context: CliContext): void {
       controls: options.controls,
       format: options.format ?? "json"
     });
+    if (options.from) params.set("from", options.from);
+    if (options.to) params.set("to", options.to);
     return client.get(`/v1/evidence/export?${params.toString()}`);
   }));
 }

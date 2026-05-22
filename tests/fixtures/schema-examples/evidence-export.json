@@ -5,8 +5,78 @@
   "periodStart": "2026-05-01T00:00:00.000Z",
   "periodEnd": "2026-05-31T23:59:59.000Z",
   "generatedAt": "2026-05-21T17:00:00.000Z",
-  "evidenceTypes": ["audit_events", "decision_logs", "provisioning_plans", "drift_findings"],
+  "evidenceTypes": [
+    "audit_events",
+    "decision_logs",
+    "provisioning_plans",
+    "drift_findings",
+    "audit_integrity",
+    "control_mappings",
+    "conmon_metrics",
+    "poam_items",
+    "siem_export"
+  ],
   "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
   "responsibleRole": "ISSO",
-  "format": "json"
+  "format": "json",
+  "auditIntegrity": {
+    "status": "verified",
+    "eventCount": 1,
+    "verifiedAt": "2026-05-21T17:00:00.000Z",
+    "firstEventId": "evt:decision-allow-alice-read-case-plan",
+    "lastEventId": "evt:decision-allow-alice-read-case-plan",
+    "firstEventHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "lastEventHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "findings": [],
+    "version": "audit-integrity:v1"
+  },
+  "controlMappings": [
+    {
+      "controlId": "AC-3",
+      "family": "AC",
+      "status": "implemented",
+      "implementationSummary": "Access enforcement evidence is produced through deterministic decision events.",
+      "evidenceTypes": ["decision_logs"],
+      "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+      "gaps": []
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "audit-events",
+      "type": "audit_events",
+      "description": "Time-bounded audit events with payload hashes.",
+      "eventCount": 1,
+      "format": "json"
+    },
+    {
+      "name": "siem-events",
+      "type": "siem_export",
+      "description": "JSONL-ready SIEM export metadata.",
+      "eventCount": 1,
+      "format": "jsonl"
+    }
+  ],
+  "conmonMetrics": [
+    {
+      "name": "audit_events_in_period",
+      "value": 1,
+      "unit": "count",
+      "source": "audit_log"
+    },
+    {
+      "name": "audit_chain_verified",
+      "value": 1,
+      "unit": "boolean",
+      "source": "audit_integrity"
+    }
+  ],
+  "poamItems": [],
+  "siemExport": {
+    "format": "jsonl",
+    "eventCount": 1,
+    "schemaVersion": "audit-event:v1",
+    "includesPayloadHashes": true,
+    "target": "operator_download"
+  }
 }

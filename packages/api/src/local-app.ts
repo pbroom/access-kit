@@ -10,8 +10,11 @@ import {
   InMemoryRebacStore,
   RebacDecisionEngine,
   sha256,
+  verifyAuditChain,
   type AuditEvent,
+  type AuditIntegrityReport,
   type AuditEventInput,
+  type ConMonMetric,
   type ConnectorAdapter,
   type ConnectorHealthCheck,
   type DecisionRequest,
@@ -20,8 +23,13 @@ import {
   type EnforcementControl,
   type EnforcementReadinessCheck,
   type EnforcementReadinessReport,
+  type EvidenceArtifact,
+  type EvidenceExportFormat,
+  type EvidenceControlMapping,
   type EvidenceExport,
+  type EvidenceFramework,
   type JsonRecord,
+  type PoamItem,
   type NativeGrant,
   type NativeGrantType,
   type NativePrincipalType,
@@ -73,6 +81,12 @@ interface ProvisioningExecutionOptions {
   approval?: ProvisioningApproval;
   control?: EnforcementControl;
   readinessReportId?: string;
+}
+
+interface EvidenceExportOptions {
+  framework?: EvidenceFramework;
+  periodStart?: string;
+  periodEnd?: string;
 }
 
 export interface EnforcementReadinessRequest {
@@ -790,23 +804,60 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
 }
 
 export function exportEvidence(app: RebacLocalApp, controls: string[], format: EvidenceExport["format"]): EvidenceExport {
+  return exportEvidencePackage(app, controls, format, {});
+}
+
+export function exportEvidencePackage(
+  app: RebacLocalApp,
+  controls: string[],
+  format: EvidenceExportFormat,
+  options: EvidenceExportOptions = {}
+): EvidenceExport {
   const generatedAt = app.now();
-  const events = app.store.listAuditEvents();
-  const periodStart = events
+  const allEvents = app.store.listAuditEvents();
+  const periodStart = options.periodStart ?? allEvents
     .map((event) => event.occurredAt)
     .sort()
     .at(0) ?? generatedAt;
+  const periodEnd = options.periodEnd ?? generatedAt;
+  const events = allEvents.filter((event) => event.occurredAt >= periodStart && event.occurredAt <= periodEnd);
+  const auditIntegrity = verifyAuditChain(allEvents, generatedAt);
+  const controlMappings = buildControlMappings(controls, events, auditIntegrity);
+  const conmonMetrics = buildConMonMetrics(app, events, auditIntegrity);
+  const poamItems = buildPoamItems(controlMappings, auditIntegrity, generatedAt);
   const exportMetadata: EvidenceExport = {
     exportId: `evidence:${generatedAt.replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`,
-    framework: "nist-800-53",
+    framework: options.framework ?? "nist-800-53",
     controls,
     periodStart,
-    periodEnd: generatedAt,
+    periodEnd,
     generatedAt,
-    evidenceTypes: ["audit_events", "decision_logs", "provisioning_plans", "drift_findings"],
+    evidenceTypes: [
+      "audit_events",
+      "decision_logs",
+      "provisioning_plans",
+      "drift_findings",
+      "audit_integrity",
+      "control_mappings",
+      "conmon_metrics",
+      "poam_items",
+      "siem_export"
+    ],
     sourceEventIds: events.map((event) => event.eventId),
     responsibleRole: "ISSO",
-    format
+    format,
+    auditIntegrity,
+    controlMappings,
+    artifacts: buildEvidenceArtifacts(format, events.length),
+    conmonMetrics,
+    poamItems,
+    siemExport: {
+      format: "jsonl",
+      eventCount: events.length,
+      schemaVersion: "audit-event:v1",
+      includesPayloadHashes: true,
+      target: "operator_download"
+    }
   };
 
   recordAudit(app, {
@@ -819,10 +870,228 @@ export function exportEvidence(app: RebacLocalApp, controls: string[], format: E
   return exportMetadata;
 }
 
+export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
+  const report = verifyAuditChain(app.store.listAuditEvents(), app.now());
+  const auditEvent = recordAudit(app, {
+    eventType: "audit.integrity_verified",
+    actor: app.actor,
+    correlationId: `corr:audit-integrity:${compactTimestamp(report.verifiedAt)}`,
+    payload: asJsonRecord(report)
+  });
+
+  return {
+    ...report,
+    auditEventId: auditEvent.eventId
+  };
+}
+
 export function recordAudit(app: RebacLocalApp, input: AuditEventInput): AuditEvent {
   const event = app.auditRecorder.record(input, app.now());
   app.store.recordAuditEvent(event);
   return event;
+}
+
+interface ControlImplementationDefinition {
+  summary: string;
+  evidenceTypes: string[];
+  eventPrefixes: string[];
+}
+
+const controlImplementationCatalog: Record<string, ControlImplementationDefinition> = {
+  "AC-2": {
+    summary: "Account lifecycle evidence is produced through subject inventory, provisioning, revocation, and native-access readback events.",
+    evidenceTypes: ["subject_inventory", "provisioning_logs", "native_access_readback"],
+    eventPrefixes: ["subject.", "provisioning.", "access.", "connector.current_access_read"]
+  },
+  "AC-3": {
+    summary: "Access enforcement evidence is produced through deterministic decision events, relationship facts, and provisioning records.",
+    evidenceTypes: ["decision_logs", "relationship_tuples", "provisioning_logs"],
+    eventPrefixes: ["decision.", "relationship.", "provisioning.", "connector.permission_changed"]
+  },
+  "AC-6": {
+    summary: "Least-privilege evidence is produced through connector readiness, approval, and scoped provisioning evidence.",
+    evidenceTypes: ["connector_readiness", "approval_records", "provisioning_logs"],
+    eventPrefixes: ["connector.enforcement_readiness_checked", "provisioning.approved", "connector.permission_changed"]
+  },
+  "AU-2": {
+    summary: "Auditable events are emitted for decisions, relationship writes, connector actions, provisioning, reconciliation, and evidence generation.",
+    evidenceTypes: ["audit_events"],
+    eventPrefixes: [""]
+  },
+  "AU-6": {
+    summary: "Audit review evidence includes hash-chain integrity verification and evidence-package generation.",
+    evidenceTypes: ["audit_integrity", "evidence_exports"],
+    eventPrefixes: ["audit.integrity_verified", "evidence.generated"]
+  },
+  "CM-3": {
+    summary: "Configuration change evidence is produced through policy, relationship, connector, and provisioning change events.",
+    evidenceTypes: ["policy_changes", "relationship_tuples", "connector_logs", "provisioning_logs"],
+    eventPrefixes: ["policy.", "relationship.", "connector.", "provisioning."]
+  },
+  "CA-7": {
+    summary: "Continuous monitoring evidence is produced through reconciliation, drift findings, ConMon metrics, and evidence exports.",
+    evidenceTypes: ["reconciliation_runs", "drift_findings", "conmon_metrics", "evidence_exports"],
+    eventPrefixes: ["reconciliation.", "drift.", "evidence.generated"]
+  },
+  "IR-4": {
+    summary: "Incident response evidence is represented through rollback, break-glass, incident-mode, and failed-provisioning records.",
+    evidenceTypes: ["incident_records", "rollback_records", "provisioning_logs"],
+    eventPrefixes: ["breakglass.", "provisioning.rollback_", "provisioning.failed"]
+  }
+};
+
+function buildControlMappings(
+  controls: string[],
+  events: AuditEvent[],
+  auditIntegrity: AuditIntegrityReport
+): EvidenceControlMapping[] {
+  return controls.map((controlId) => {
+    const definition = controlImplementationCatalog[controlId];
+
+    if (!definition) {
+      return {
+        controlId,
+        family: controlFamily(controlId),
+        status: "planned",
+        implementationSummary: "Control mapping is not yet defined for this local proof-point package.",
+        evidenceTypes: [],
+        sourceEventIds: [],
+        gaps: ["Define implementation statement and source evidence selectors for this control."]
+      };
+    }
+
+    const sourceEventIds = events
+      .filter((event) => matchesAnyPrefix(event.eventType, definition.eventPrefixes))
+      .map((event) => event.eventId);
+    const hasCurrentIntegrityEvidence = controlId === "AU-6" && auditIntegrity.status === "verified";
+    const status = sourceEventIds.length > 0 || hasCurrentIntegrityEvidence ? "implemented" : "partially_implemented";
+
+    return {
+      controlId,
+      family: controlFamily(controlId),
+      status,
+      implementationSummary: definition.summary,
+      evidenceTypes: definition.evidenceTypes,
+      sourceEventIds,
+      gaps: status === "implemented" ? [] : ["No matching audit events were observed for this control in the selected evidence period."]
+    };
+  });
+}
+
+function buildConMonMetrics(
+  app: RebacLocalApp,
+  events: AuditEvent[],
+  auditIntegrity: AuditIntegrityReport
+): ConMonMetric[] {
+  const driftFindings = app.store.listDriftFindings();
+
+  return [
+    { name: "audit_events_in_period", value: events.length, unit: "count", source: "audit_log" },
+    { name: "audit_chain_verified", value: auditIntegrity.status === "verified" ? 1 : 0, unit: "boolean", source: "audit_integrity" },
+    { name: "audit_integrity_findings", value: auditIntegrity.findings.length, unit: "count", source: "audit_integrity" },
+    { name: "allowed_decisions", value: countEvents(events, "decision.allowed"), unit: "count", source: "audit_log" },
+    { name: "denied_decisions", value: countEvents(events, "decision.denied"), unit: "count", source: "audit_log" },
+    { name: "provisioning_jobs", value: app.store.listProvisioningJobs().length, unit: "count", source: "provisioning_store" },
+    { name: "open_drift_findings", value: driftFindings.filter((finding) => finding.status === "open").length, unit: "count", source: "drift_store" },
+    {
+      name: "high_or_critical_drift_findings",
+      value: driftFindings.filter((finding) => finding.severity === "high" || finding.severity === "critical").length,
+      unit: "count",
+      source: "drift_store"
+    },
+    {
+      name: "enforcement_readiness_reports",
+      value: app.store.listEnforcementReadinessReports().length,
+      unit: "count",
+      source: "connector_readiness_store"
+    }
+  ];
+}
+
+function buildPoamItems(
+  mappings: EvidenceControlMapping[],
+  auditIntegrity: AuditIntegrityReport,
+  generatedAt: string
+): PoamItem[] {
+  const plannedCompletion = addDays(generatedAt, 30);
+  const items: PoamItem[] = [];
+
+  if (auditIntegrity.status !== "verified") {
+    items.push({
+      id: "poam:audit-integrity",
+      controlId: "AU-6",
+      weakness: "Audit hash-chain verification reported one or more findings.",
+      status: "open",
+      ownerRole: "ISSO",
+      plannedCompletion,
+      source: "audit_integrity"
+    });
+  }
+
+  mappings
+    .filter((mapping) => mapping.status !== "implemented")
+    .forEach((mapping, index) => {
+      items.push({
+        id: `poam:${mapping.controlId.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}:${index + 1}`,
+        controlId: mapping.controlId,
+        weakness: mapping.gaps.at(0) ?? "Control implementation evidence is incomplete.",
+        status: "planned",
+        ownerRole: "ISSO",
+        plannedCompletion,
+        source: "control_mapping"
+      });
+    });
+
+  return items;
+}
+
+function buildEvidenceArtifacts(format: EvidenceExportFormat, eventCount: number): EvidenceArtifact[] {
+  return [
+    {
+      name: "audit-events",
+      type: "audit_events",
+      description: "Time-bounded audit events with payload hashes and previous-event hash references.",
+      eventCount,
+      format
+    },
+    {
+      name: "control-mapping",
+      type: "control_mapping",
+      description: "Requested controls mapped to implementation statements, source events, and gaps.",
+      format
+    },
+    {
+      name: "poam",
+      type: "poam",
+      description: "Machine-readable POA&M inputs for incomplete or failed evidence checks.",
+      format
+    },
+    {
+      name: "siem-events",
+      type: "siem_export",
+      description: "JSONL-ready SIEM export metadata for the same audit-event scope.",
+      eventCount,
+      format: "jsonl"
+    }
+  ];
+}
+
+function controlFamily(controlId: string): string {
+  return controlId.split("-").at(0) ?? "custom";
+}
+
+function matchesAnyPrefix(value: string, prefixes: string[]): boolean {
+  return prefixes.some((prefix) => value.startsWith(prefix));
+}
+
+function countEvents(events: AuditEvent[], eventType: string): number {
+  return events.filter((event) => event.eventType === eventType).length;
+}
+
+function addDays(timestamp: string, days: number): string {
+  const date = new Date(timestamp);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString();
 }
 
 function getConnector(app: RebacLocalApp, connectorId: string): ConnectorAdapter {

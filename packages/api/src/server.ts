@@ -10,7 +10,7 @@ import {
   createSubject,
   deleteRelationship,
   explainDecision,
-  exportEvidence,
+  exportEvidencePackage,
   getProvisioningJob,
   isSafeChangeTicketPattern,
   listEnforcementReadinessReports,
@@ -20,6 +20,7 @@ import {
   runReconciliation,
   syncConnector,
   testConnector,
+  verifyAuditIntegrity,
   RebacLocalAppError,
   type RebacLocalApp,
   type RebacLocalAppOptions
@@ -30,6 +31,7 @@ import type {
   DriftSeverity,
   EnforcementControl,
   EnforcementReadinessReport,
+  EvidenceFramework,
   NativeGrantType,
   NativePrincipalType,
   ProvisioningApproval,
@@ -76,6 +78,7 @@ interface EnforcementReadinessRequest {
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
+const evidenceFrameworks = new Set(["nist-800-53", "fedramp-rev5", "custom"]);
 const discoveryStatuses = new Set(["queued", "running", "completed", "completed_with_warnings", "failed"]);
 const enforcementReadinessStatuses = new Set(["ready", "blocked"]);
 const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
@@ -184,28 +187,39 @@ async function routeRequest(
     return;
   }
 
-  if (segments[1] === "audit" && segments[2] === "events" && method === "GET") {
-    sendJson(response, 200, {
-      items: app.store.listAuditEvents({
-        subjectId: url.searchParams.get("subjectId") ?? undefined,
-        resourceId: url.searchParams.get("resourceId") ?? undefined,
-        from: readOptionalDateTime(url.searchParams.get("from"), "from")
-      })
-    });
-    return;
+  if (segments[1] === "audit") {
+    if (segments[2] === "events" && method === "GET") {
+      sendJson(response, 200, {
+        items: app.store.listAuditEvents({
+          subjectId: url.searchParams.get("subjectId") ?? undefined,
+          resourceId: url.searchParams.get("resourceId") ?? undefined,
+          from: readOptionalDateTime(url.searchParams.get("from"), "from")
+        })
+      });
+      return;
+    }
+
+    if (segments[2] === "integrity" && method === "GET") {
+      sendJson(response, 200, verifyAuditIntegrity(app));
+      return;
+    }
   }
 
   if (segments[1] === "evidence" && segments[2] === "export" && method === "GET") {
-    const controls = (url.searchParams.get("controls") ?? "AC-2,AC-3,AU-2")
-      .split(",")
-      .map((control) => control.trim())
-      .filter(Boolean);
+    const controls = readEvidenceControls(url.searchParams.get("controls"));
+    const framework = readEvidenceFramework(url.searchParams.get("framework"));
+    const periodStart = readOptionalDateTime(url.searchParams.get("from"), "from");
+    const periodEnd = readOptionalDateTime(url.searchParams.get("to"), "to");
     const format = url.searchParams.get("format") ?? "json";
     if (!isEvidenceFormat(format)) {
       throw new HttpError(400, "INVALID_EVIDENCE_FORMAT", "format must be one of json, zip, or markdown");
     }
 
-    sendJson(response, 200, exportEvidence(app, controls, format));
+    if (periodStart && periodEnd && periodStart > periodEnd) {
+      throw new HttpError(400, "INVALID_EVIDENCE_PERIOD", "from must be before to");
+    }
+
+    sendJson(response, 200, exportEvidencePackage(app, controls, format, { framework, periodStart, periodEnd }));
     return;
   }
 
@@ -1029,6 +1043,43 @@ function readNativePrincipalType(principalType: string | null): NativePrincipalT
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readEvidenceControls(value: string | null): string[] {
+  const controls = (value ?? "AC-2,AC-3,AU-2")
+    .split(",")
+    .map((control) => control.trim())
+    .filter(Boolean);
+
+  if (controls.length === 0) {
+    throw new HttpError(400, "INVALID_EVIDENCE_CONTROLS", "controls must include at least one control id");
+  }
+
+  return controls;
+}
+
+function readEvidenceFramework(value: string | null): EvidenceFramework {
+  if (!value) {
+    return "nist-800-53";
+  }
+
+  if (evidenceFrameworks.has(value)) {
+    return value as EvidenceFramework;
+  }
+
+  throw new HttpError(400, "INVALID_EVIDENCE_FRAMEWORK", "framework must be nist-800-53, fedramp-rev5, or custom");
+}
+
+function readOptionalDateTime(value: string | null, label: string): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (Number.isNaN(Date.parse(value))) {
+    throw new HttpError(400, "INVALID_EVIDENCE_PERIOD", `${label} must be a valid date-time`);
+  }
+
+  return new Date(value).toISOString();
 }
 
 function isEvidenceFormat(value: unknown): value is "json" | "zip" | "markdown" {
