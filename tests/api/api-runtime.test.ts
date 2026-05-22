@@ -370,7 +370,7 @@ describe("ReBAC API runtime", () => {
     const body = (await response.json()) as { code: string };
 
     expect(response.status).toBe(400);
-    expect(body.code).toBe("INVALID_CONNECTOR_MODE");
+    expect(body.code).toBe("UNSUPPORTED_CONNECTOR_MODE");
   });
 
   it("uses the registered connector map for provisioning plans", async () => {
