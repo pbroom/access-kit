@@ -1,0 +1,204 @@
+import type {
+  DecisionResult,
+  DecisionValue,
+  DriftFinding,
+  RelationshipPathStep,
+  RelationshipTuple
+} from "./domain.js";
+
+export interface DecisionProofPoint {
+  kind: "decision";
+  name: string;
+  subjectId: string;
+  action: string;
+  resourceId: string;
+  relationships: RelationshipTuple[];
+  subjectStatus?: "active" | "suspended" | "terminated";
+  now: string;
+  expect: DecisionValue;
+  expectedReasonCode: string;
+}
+
+export interface IdempotencyProofPoint {
+  kind: "idempotency";
+  name: string;
+  idempotencyKey: string;
+  operations: Array<{ id: string; idempotencyKey: string; operation: string }>;
+  expectEffectiveOperations: number;
+}
+
+export interface DriftProofPoint {
+  kind: "drift";
+  name: string;
+  finding: DriftFinding;
+  expect: "valid_drift_finding";
+}
+
+export type PolicyProofPoint =
+  | DecisionProofPoint
+  | IdempotencyProofPoint
+  | DriftProofPoint;
+
+const allowRelationsByAction = new Map([
+  ["read", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
+  ["view", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
+  ["write", new Set(["contributor_to", "owner_of", "admin_of"])],
+  ["contribute", new Set(["contributor_to", "owner_of", "admin_of"])],
+  ["admin", new Set(["owner_of", "admin_of"])],
+  ["administer", new Set(["owner_of", "admin_of"])],
+  ["manage", new Set(["owner_of", "admin_of"])]
+]);
+
+const traversableRelations = new Set([
+  "member_of",
+  "contributor_to",
+  "viewer_of",
+  "reader_of",
+  "owner_of",
+  "admin_of",
+  "contains"
+]);
+
+const denyRelations = new Set(["denied", "denied_read", "quarantined_from"]);
+
+export function evaluateDecisionProofPoint(proof: DecisionProofPoint): DecisionResult {
+  const activeRelationships = proof.relationships.filter((relationship) => {
+    if (relationship.status !== "active") {
+      return false;
+    }
+
+    return !relationship.expiresAt || Date.parse(relationship.expiresAt) > Date.parse(proof.now);
+  });
+
+  if (proof.subjectStatus === "suspended" || proof.subjectStatus === "terminated") {
+    return decision(proof, "deny", "DENY_SUBJECT_NOT_ACTIVE", []);
+  }
+
+  const explicitDeny = activeRelationships.find(
+    (relationship) =>
+      relationship.subjectId === proof.subjectId &&
+      relationship.objectId === proof.resourceId &&
+      denyRelations.has(relationship.relation)
+  );
+
+  if (explicitDeny) {
+    return decision(proof, "deny", "DENY_EXPLICIT_OVERRIDE", [toPathStep(explicitDeny)]);
+  }
+
+  const path = findAllowPath(activeRelationships, proof.subjectId, proof.resourceId, proof.action);
+
+  if (path.length > 0) {
+    return decision(proof, "allow", "ALLOW_VIA_RELATIONSHIP_PATH", path);
+  }
+
+  return decision(proof, "deny", "DENY_DEFAULT_NO_RELATIONSHIP_PATH", []);
+}
+
+export function evaluateIdempotencyProofPoint(proof: IdempotencyProofPoint): number {
+  const effectiveKeys = new Set<string>();
+
+  for (const operation of proof.operations) {
+    effectiveKeys.add(operation.idempotencyKey);
+  }
+
+  return effectiveKeys.size;
+}
+
+function decision(
+  proof: DecisionProofPoint,
+  value: DecisionValue,
+  reasonCode: string,
+  relationshipPath: RelationshipPathStep[]
+): DecisionResult {
+  return {
+    decisionId: `decision:${proof.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`,
+    decision: value,
+    subjectId: proof.subjectId,
+    action: proof.action,
+    resourceId: proof.resourceId,
+    reasonCode,
+    policyVersion: "policy:test-v1",
+    relationshipVersion: "tuple-set:test-v1",
+    relationshipPath,
+    constraints: {
+      deterministic: true,
+      llmDecisioning: false
+    },
+    evaluatedAt: proof.now
+  };
+}
+
+function findAllowPath(
+  relationships: RelationshipTuple[],
+  subjectId: string,
+  resourceId: string,
+  action: string
+): RelationshipPathStep[] {
+  const allowedRelations = allowRelationsByAction.get(action.toLowerCase()) ?? new Set<string>();
+  const queue: Array<{ currentId: string; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
+    { currentId: subjectId, hasActionGrant: false, path: [] }
+  ];
+  const bestGrantByNode = new Map<string, boolean>([[subjectId, false]]);
+
+  while (queue.length > 0) {
+    const next = queue.shift();
+
+    if (!next) {
+      break;
+    }
+
+    if (bestGrantByNode.get(next.currentId) === true && !next.hasActionGrant) {
+      continue;
+    }
+
+    for (const relationship of relationships) {
+      if (relationship.subjectId !== next.currentId) {
+        continue;
+      }
+
+      const step = toPathStep(relationship);
+      const path = [...next.path, step];
+      const relationGrantsAction = allowedRelations.has(relationship.relation);
+
+      if (relationship.objectId === resourceId && relationGrantsAction) {
+        return path;
+      }
+
+      if (
+        relationship.relation === "contains" &&
+        relationship.objectId === resourceId &&
+        next.hasActionGrant
+      ) {
+        return path;
+      }
+
+      if (relationship.objectId === resourceId) {
+        continue;
+      }
+
+      if (traversableRelations.has(relationship.relation)) {
+        const hasActionGrant = next.hasActionGrant || relationGrantsAction;
+        const previousBest = bestGrantByNode.get(relationship.objectId);
+
+        if (previousBest !== true && previousBest !== hasActionGrant) {
+          bestGrantByNode.set(relationship.objectId, hasActionGrant);
+          queue.push({
+            currentId: relationship.objectId,
+            hasActionGrant,
+            path
+          });
+        }
+      }
+    }
+  }
+
+  return [];
+}
+
+function toPathStep(relationship: RelationshipTuple): RelationshipPathStep {
+  return {
+    subjectId: relationship.subjectId,
+    relation: relationship.relation,
+    objectId: relationship.objectId
+  };
+}

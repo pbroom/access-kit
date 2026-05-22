@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/resource.schema.json",
+  "title": "Resource",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "displayName",
+    "sourceSystem",
+    "ownerId",
+    "dataStewardId",
+    "technicalOwnerId",
+    "classification",
+    "lifecycleState",
+    "version",
+    "createdAt"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "type": {
+      "type": "string",
+      "enum": [
+        "organization",
+        "workspace",
+        "application",
+        "sharepoint_site",
+        "team",
+        "folder",
+        "document",
+        "power_app",
+        "flow",
+        "dataverse_environment",
+        "aws_account",
+        "aws_role",
+        "dataset",
+        "api"
+      ]
+    },
+    "displayName": { "type": "string", "minLength": 1 },
+    "sourceSystem": { "type": "string", "minLength": 1 },
+    "ownerId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "dataStewardId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "technicalOwnerId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "classification": { "type": "string", "minLength": 1 },
+    "lifecycleState": {
+      "type": "string",
+      "enum": ["active", "inactive", "suspended", "terminated", "deleted"]
+    },
+    "parentId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "version": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "lastSeenAt": { "type": "string", "format": "date-time" }
+  }
+}

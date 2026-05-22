@@ -1,0 +1,23 @@
+{
+  "name": "@access-kit/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "rebac": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "commander": "^14.0.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  }
+}

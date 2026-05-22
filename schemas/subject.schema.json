@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/subject.schema.json",
+  "title": "Subject",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "displayName", "sourceSystem", "lifecycleState", "identifiers", "version", "createdAt"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "type": {
+      "type": "string",
+      "enum": ["user", "group", "service_account", "service_principal", "managed_identity", "device", "workload"]
+    },
+    "displayName": { "type": "string", "minLength": 1 },
+    "sourceSystem": { "type": "string", "minLength": 1 },
+    "lifecycleState": {
+      "type": "string",
+      "enum": ["active", "inactive", "suspended", "terminated", "deleted"]
+    },
+    "identifiers": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "minProperties": 1
+    },
+    "attributes": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "version": { "type": "string", "minLength": 1 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "lastSeenAt": { "type": "string", "format": "date-time" }
+  }
+}

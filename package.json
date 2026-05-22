@@ -1,0 +1,40 @@
+{
+  "name": "access-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "API-first and CLI-first ReBAC control plane foundation for ATO-ready access governance.",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "pnpm@10.30.3",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:cli": "vitest run tests/cli",
+    "validate": "pnpm typecheck && pnpm validate:schemas && pnpm validate:openapi && pnpm validate:policy && pnpm test:cli",
+    "validate:schemas": "tsx scripts/validate-schemas.ts",
+    "validate:openapi": "tsx scripts/validate-openapi.ts",
+    "validate:policy": "tsx scripts/validate-policy-fixtures.ts",
+    "evidence:generate": "tsx scripts/generate-evidence-report.ts",
+    "pr:stack": "gt submit --stack"
+  },
+  "dependencies": {
+    "commander": "^14.0.2"
+  },
+  "devDependencies": {
+    "@apidevtools/swagger-parser": "^12.1.0",
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "eslint": "^9.39.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.3",
+    "vitest": "^4.0.13",
+    "yaml": "^2.8.1"
+  }
+}
