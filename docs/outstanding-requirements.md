@@ -1,6 +1,6 @@
 # Outstanding Requirements
 
-This first milestone intentionally stops at contracts, documentation, mock boundaries, fixtures, and validation evidence.
+The current implementation supports local policy decisions, mock connector read-only discovery, observed native-grant readback, dry-run planning, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
 
 ## Runtime
 
@@ -16,6 +16,7 @@ This first milestone intentionally stops at contracts, documentation, mock bound
 - Add read-only Entra ID discovery.
 - Add read-only SharePoint discovery.
 - Add read-only AWS discovery.
+- Persist discovery runs and native grants outside the local in-memory store.
 - Add simulation and dry-run reconciliation before enforcement.
 - Add controlled enforcement only after approvals, verification, rollback, and operational runbooks exist.
 

@@ -62,11 +62,11 @@ ${trimOutput(result.output)}
 ## Covered Proof Points
 
 - TypeScript strict type checking.
-- JSON Schema validation for subject, resource, relationship, decision, provisioning plan, audit event, drift finding, and evidence export examples.
-- OpenAPI validation for required decision, inventory, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
+- JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, provisioning plan, audit event, drift finding, and evidence export examples.
+- OpenAPI validation for required decision, inventory, native access, relationship, policy, provisioning, reconciliation, audit, evidence, and connector path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - Local core engine tests for deterministic check/explain and decision audit emission.
-- API runtime tests for health, decision, relationship write audit, mock connector sync, and reconciliation.
+- API runtime tests for health, decision, relationship write audit, read-only mock connector discovery, native access, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, and assessor surfaces calling the API.
 
 ## Outstanding Requirements
@@ -75,6 +75,7 @@ ${trimOutput(result.output)}
 - Replace the local in-memory API runtime with production-ready persistence and deployment packaging.
 - Implement durable append-only audit storage with tamper-evidence and SIEM export.
 - Add live read-only connector discovery for Entra ID, SharePoint, and AWS after connector security review.
+- Persist discovery runs and native-grant readback outside the local in-memory store.
 - Add dry-run provisioning and reconciliation job execution with queueing, retries, and dead-letter handling.
 - Add controlled enforcement only after approval workflow, rollback, and connector least-privilege review are complete.
 - Add ATO package generation for concrete system boundary diagrams, control implementation statements, POA&M inputs, and ConMon evidence.

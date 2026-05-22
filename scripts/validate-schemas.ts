@@ -13,6 +13,8 @@ const schemaByExample = new Map<string, string>([
   ["resource.json", "schemas/resource.schema.json"],
   ["relationship.json", "schemas/relationship.schema.json"],
   ["decision.json", "schemas/decision.schema.json"],
+  ["native-grant.json", "schemas/native-grant.schema.json"],
+  ["discovery-run.json", "schemas/discovery-run.schema.json"],
   ["provisioning-plan.json", "schemas/provisioning-plan.schema.json"],
   ["audit-event.json", "schemas/audit-event.schema.json"],
   ["drift-finding.json", "schemas/drift-finding.schema.json"],

@@ -2,6 +2,7 @@ import type {
   AuditEvent,
   CanonicalId,
   DecisionResult,
+  DiscoveryRun,
   DriftFinding,
   NativeGrant,
   ProvisioningPlan,
@@ -15,6 +16,7 @@ export interface RebacSeedData {
   resources?: Resource[];
   relationships?: RelationshipTuple[];
   nativeGrants?: NativeGrant[];
+  discoveryRuns?: DiscoveryRun[];
   provisioningPlans?: ProvisioningPlan[];
   driftFindings?: DriftFinding[];
   decisions?: DecisionResult[];
@@ -26,6 +28,7 @@ export class InMemoryRebacStore {
   readonly #resources = new Map<CanonicalId, Resource>();
   readonly #relationships = new Map<CanonicalId, RelationshipTuple>();
   readonly #nativeGrants = new Map<CanonicalId, NativeGrant>();
+  readonly #discoveryRuns = new Map<CanonicalId, DiscoveryRun>();
   readonly #provisioningPlans = new Map<CanonicalId, ProvisioningPlan>();
   readonly #driftFindings = new Map<CanonicalId, DriftFinding>();
   readonly #decisions = new Map<CanonicalId, DecisionResult>();
@@ -36,6 +39,7 @@ export class InMemoryRebacStore {
     seed.resources?.forEach((resource) => this.upsertResource(resource));
     seed.relationships?.forEach((relationship) => this.upsertRelationship(relationship));
     seed.nativeGrants?.forEach((grant) => this.upsertNativeGrant(grant));
+    seed.discoveryRuns?.forEach((run) => this.recordDiscoveryRun(run));
     seed.provisioningPlans?.forEach((plan) => this.upsertProvisioningPlan(plan));
     seed.driftFindings?.forEach((finding) => this.upsertDriftFinding(finding));
     seed.decisions?.forEach((decision) => this.recordDecision(decision));
@@ -103,13 +107,37 @@ export class InMemoryRebacStore {
     return deleted;
   }
 
-  listNativeGrants(): NativeGrant[] {
-    return [...this.#nativeGrants.values()];
+  listNativeGrants(
+    filter: Partial<Pick<NativeGrant, "sourceConnectorId" | "targetObjectId" | "subjectId" | "nativePermission" | "status">> = {}
+  ): NativeGrant[] {
+    return [...this.#nativeGrants.values()].filter((grant) => {
+      return (
+        (!filter.sourceConnectorId || grant.sourceConnectorId === filter.sourceConnectorId) &&
+        (!filter.targetObjectId || grant.targetObjectId === filter.targetObjectId) &&
+        (!filter.subjectId || grant.subjectId === filter.subjectId) &&
+        (!filter.nativePermission || grant.nativePermission === filter.nativePermission) &&
+        (!filter.status || grant.status === filter.status)
+      );
+    });
   }
 
   upsertNativeGrant(grant: NativeGrant): NativeGrant {
     this.#nativeGrants.set(grant.id, grant);
     return grant;
+  }
+
+  recordDiscoveryRun(run: DiscoveryRun): DiscoveryRun {
+    this.#discoveryRuns.set(run.id, run);
+    return run;
+  }
+
+  listDiscoveryRuns(filter: Partial<Pick<DiscoveryRun, "connectorId" | "status">> = {}): DiscoveryRun[] {
+    return [...this.#discoveryRuns.values()].filter((run) => {
+      return (
+        (!filter.connectorId || run.connectorId === filter.connectorId) &&
+        (!filter.status || run.status === filter.status)
+      );
+    });
   }
 
   listProvisioningPlans(): ProvisioningPlan[] {

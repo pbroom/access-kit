@@ -37,6 +37,7 @@ export type LifecycleState =
 export type DecisionValue = "allow" | "deny";
 export type DriftSeverity = "low" | "medium" | "high" | "critical";
 export type ConnectorMode = "read_only" | "simulation" | "dry_run" | "enforcement";
+export type DiscoveryRunStatus = "queued" | "running" | "completed" | "failed";
 
 export interface VersionedEntity {
   id: CanonicalId;
@@ -129,6 +130,23 @@ export interface NativeGrant extends VersionedEntity {
   sourceConnectorId: string;
   status: "observed" | "managed" | "revoked" | "unknown";
   observedAt: IsoDateTime;
+}
+
+export interface DiscoveryRunCounts {
+  subjects: number;
+  resources: number;
+  relationships: number;
+  nativeGrants: number;
+}
+
+export interface DiscoveryRun extends VersionedEntity {
+  connectorId: string;
+  mode: "read_only";
+  status: DiscoveryRunStatus;
+  startedAt: IsoDateTime;
+  completedAt?: IsoDateTime;
+  counts: DiscoveryRunCounts;
+  auditEventIds: CanonicalId[];
 }
 
 export interface ProvisioningAction {

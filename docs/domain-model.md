@@ -14,6 +14,8 @@
 
 `NativeGrant` is what a provider actually enforces, such as a SharePoint permission, M365 group membership, Dataverse role, AWS role assignment, or app role.
 
+`DiscoveryRun` records a read-only connector inventory pass. It has connector ID, mode, status, start and completion times, object counts, and audit event references. It is evidence that provider readback happened without turning native grants into intended access.
+
 `ProvisioningPlan` is the auditable plan that converts a decision or request into dry-run or enforcement actions. Decisions must not directly mutate providers.
 
 `DriftFinding` records a difference between intended access and native access. It has severity, source connector, recommended action, status, and timestamps.
@@ -27,6 +29,7 @@
 - Relationship facts are not permissions.
 - Decisions are not grants.
 - Intended grants are not native grants.
+- Discovery runs are not provisioning jobs.
 - Provisioning plans are not provisioning jobs.
 - Drift findings are security objects, not incidental errors.
 - Audit evidence is not a mutable operational table.

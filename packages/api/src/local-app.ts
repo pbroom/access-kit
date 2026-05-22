@@ -8,9 +8,11 @@ import {
   type AuditEventInput,
   type ConnectorAdapter,
   type DecisionRequest,
+  type DiscoveryRun,
   type DriftFinding,
   type EvidenceExport,
   type JsonRecord,
+  type NativeGrant,
   type ProvisioningPlan,
   type RelationshipTuple,
   type Resource,
@@ -31,14 +33,7 @@ export interface RebacLocalApp {
   actor: string;
 }
 
-export interface ConnectorSyncResult {
-  connectorId: string;
-  mode: ConnectorAdapter["mode"];
-  subjects: number;
-  resources: number;
-  relationships: number;
-  nativeGrants: number;
-}
+type NativeAccessFilter = Partial<Pick<NativeGrant, "sourceConnectorId" | "subjectId" | "nativePermission">>;
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
@@ -123,9 +118,12 @@ export function deleteRelationship(app: RebacLocalApp, relationshipId: string): 
 export async function syncConnector(
   app: RebacLocalApp,
   connectorId: string,
-  mode: ConnectorAdapter["mode"]
-): Promise<ConnectorSyncResult> {
+  mode: "read_only"
+): Promise<DiscoveryRun> {
   const connector = getConnector(app, connectorId);
+  const startedAt = app.now();
+  const runSequence = app.store.listDiscoveryRuns({ connectorId }).length + 1;
+  const runKey = `${connectorId}:${compactTimestamp(startedAt)}:${runSequence}`;
   connector.mode = mode;
   const subjects = await connector.discoverSubjects();
   const resources = await connector.discoverResources();
@@ -142,26 +140,65 @@ export async function syncConnector(
     nativeGrants += grants.length;
   }
 
-  const result = {
+  const completedAt = app.now();
+  const run: DiscoveryRun = {
+    id: `discovery:${runKey}`,
     connectorId,
-    mode,
-    subjects: subjects.length,
-    resources: resources.length,
-    relationships: relationships.length,
-    nativeGrants
+    mode: "read_only",
+    status: "completed",
+    startedAt,
+    completedAt,
+    counts: {
+      subjects: subjects.length,
+      resources: resources.length,
+      relationships: relationships.length,
+      nativeGrants
+    },
+    auditEventIds: [],
+    version: "discovery-run:v1",
+    createdAt: startedAt,
+    updatedAt: completedAt
   };
 
-  recordAudit(app, {
-    eventType: "admin.action_performed",
+  const auditEvent = recordAudit(app, {
+    eventType: "connector.discovery_completed",
     actor: app.actor,
-    correlationId: `corr:connector-sync:${connectorId}:${app.now()}`,
+    correlationId: `corr:connector-discovery:${runKey}`,
     payload: {
-      action: "connector.sync",
-      result
+      action: "connector.discovery.read_only",
+      connectorId,
+      mode: run.mode,
+      status: run.status,
+      counts: run.counts,
+      discoveryRunId: run.id
     }
   });
 
-  return result;
+  const completedRun = { ...run, auditEventIds: [auditEvent.eventId] };
+  app.store.recordDiscoveryRun(completedRun);
+  return completedRun;
+}
+
+export function readNativeAccess(app: RebacLocalApp, resourceId: string, filter: NativeAccessFilter = {}): NativeGrant[] {
+  const grants = app.store.listNativeGrants({
+    targetObjectId: resourceId,
+    ...filter
+  });
+
+  recordAudit(app, {
+    eventType: "connector.current_access_read",
+    actor: app.actor,
+    resourceId,
+    correlationId: `corr:connector-current-access:${resourceId}:${compactTimestamp(app.now())}`,
+    payload: {
+      action: "connector.current_access.read",
+      resourceId,
+      filters: filter,
+      resultCount: grants.length
+    }
+  });
+
+  return grants;
 }
 
 export async function createProvisioningPlan(
@@ -301,4 +338,8 @@ function getDefaultConnectorId(app: RebacLocalApp): string {
 
 function asJsonRecord(value: object): JsonRecord {
   return value as unknown as JsonRecord;
+}
+
+function compactTimestamp(timestamp: string): string {
+  return timestamp.replaceAll(/[^0-9a-z]/gi, "").toLowerCase();
 }

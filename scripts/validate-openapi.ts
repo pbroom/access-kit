@@ -20,6 +20,7 @@ const requiredOperations = new Map<string, string[]>([
   ["/v1/subjects/{id}/access", ["get"]],
   ["/v1/resources", ["get", "post"]],
   ["/v1/resources/{id}/access", ["get"]],
+  ["/v1/resources/{id}/native-access", ["get"]],
   ["/v1/relationships", ["get", "put", "delete"]],
   ["/v1/policies", ["get", "post"]],
   ["/v1/policies/{id}/validate", ["post"]],

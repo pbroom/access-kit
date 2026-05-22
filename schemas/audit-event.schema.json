@@ -31,6 +31,8 @@
         "drift.remediated",
         "breakglass.used",
         "admin.action_performed",
+        "connector.discovery_completed",
+        "connector.current_access_read",
         "connector.permission_changed",
         "evidence.generated"
       ]

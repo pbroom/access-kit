@@ -17,6 +17,7 @@ describe("CLI contract", () => {
 
     expect(paths).toContain("check");
     expect(paths).toContain("explain");
+    expect(paths).toContain("resource native-access");
     expect(paths).toContain("policy validate");
     expect(paths).toContain("policy publish");
     expect(paths).toContain("provision plan");
