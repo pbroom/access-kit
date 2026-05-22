@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/audit-integrity.schema.json",
+  "title": "AuditIntegrityReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "eventCount", "verifiedAt", "findings", "version"],
+  "properties": {
+    "status": { "type": "string", "enum": ["verified", "failed"] },
+    "eventCount": { "type": "integer", "minimum": 0 },
+    "verifiedAt": { "type": "string", "format": "date-time" },
+    "firstEventId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "lastEventId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "firstEventHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "lastEventHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message", "severity"],
+        "properties": {
+          "code": { "type": "string", "minLength": 1 },
+          "message": { "type": "string", "minLength": 1 },
+          "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+          "eventId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+          "expected": { "type": "string", "minLength": 1 },
+          "actual": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "auditEventId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "version": { "type": "string", "minLength": 1 }
+  }
+}

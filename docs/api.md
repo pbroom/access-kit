@@ -13,8 +13,8 @@
 - Policies: draft, validate, publish, and rollback.
 - Provisioning: dry-run plans, controlled synthetic enforcement plans, and jobs.
 - Reconciliation: connector runs and drift findings.
-- Audit: append-only event search.
-- Evidence: control/time-bounded export.
+- Audit: append-only event search and hash-chain integrity verification.
+- Evidence: control/time-bounded export with control mappings, integrity, ConMon metrics, POA&M inputs, and SIEM metadata.
 - Discovery: read-only discovery run history.
 - Connectors: capability listing, health/permission test, enforcement-readiness checks, and read-only discovery sync.
 
@@ -45,6 +45,12 @@ Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock`
 `GET /v1/provisioning/jobs/{id}` returns dry-run or controlled-enforcement job evidence.
 
 `POST /v1/reconciliation/run` remains dry-run only and returns findings, counts, and audit event IDs.
+
+## Phase 5 ATO Evidence
+
+`GET /v1/audit/integrity` verifies the append-only audit event hash chain. The report includes event count, first and last event identifiers, first and last event hashes, findings, and an audit event ID for the verification action.
+
+`GET /v1/evidence/export` accepts `framework`, `controls`, `from`, `to`, and `format`. The response remains metadata-only in the local runtime, but now includes an ATO package manifest shape: audit integrity, control mappings, generated artifacts, continuous-monitoring metrics, POA&M inputs, and JSONL-ready SIEM export metadata. The export emits `evidence.generated` audit evidence.
 
 ## Write Requirements
 

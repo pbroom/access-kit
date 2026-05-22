@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { AuditEvent, CanonicalId, JsonRecord } from "./domain.js";
+import type { AuditEvent, AuditIntegrityFinding, AuditIntegrityReport, CanonicalId, JsonRecord } from "./domain.js";
 
 export interface AuditEventInput {
   eventType: AuditEvent["eventType"];
@@ -53,6 +53,56 @@ export function sha256(value: unknown): string {
 
 export function auditEventHash(event: AuditEvent): string {
   return hashReference(event);
+}
+
+export function auditPayloadHash(payload: JsonRecord): string {
+  return hashReference(payload);
+}
+
+export function verifyAuditChain(events: AuditEvent[], verifiedAt: string): AuditIntegrityReport {
+  const findings: AuditIntegrityFinding[] = [];
+
+  events.forEach((event, index) => {
+    const expectedPayloadHash = auditPayloadHash(event.payload);
+    if (event.payloadHash !== expectedPayloadHash) {
+      findings.push({
+        code: "PAYLOAD_HASH_MISMATCH",
+        message: "Audit event payload hash does not match the current payload.",
+        severity: "critical",
+        eventId: event.eventId,
+        expected: expectedPayloadHash,
+        actual: event.payloadHash
+      });
+    }
+
+    const previousEvent = events[index - 1];
+    const expectedPreviousHash = previousEvent ? auditEventHash(previousEvent) : undefined;
+    if (event.previousEventHash !== expectedPreviousHash) {
+      findings.push({
+        code: "PREVIOUS_EVENT_HASH_MISMATCH",
+        message: "Audit event previousEventHash does not match the prior event in append-only order.",
+        severity: "critical",
+        eventId: event.eventId,
+        expected: expectedPreviousHash ?? "<none>",
+        actual: event.previousEventHash ?? "<none>"
+      });
+    }
+  });
+
+  const firstEvent = events.at(0);
+  const lastEvent = events.at(-1);
+
+  return {
+    status: findings.length === 0 ? "verified" : "failed",
+    eventCount: events.length,
+    verifiedAt,
+    firstEventId: firstEvent?.eventId,
+    lastEventId: lastEvent?.eventId,
+    firstEventHash: firstEvent ? auditEventHash(firstEvent) : undefined,
+    lastEventHash: lastEvent ? auditEventHash(lastEvent) : undefined,
+    findings,
+    version: "audit-integrity:v1"
+  };
 }
 
 function hashReference(value: unknown): string {

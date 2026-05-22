@@ -55,6 +55,10 @@ export type ProvisioningStepStatus = "planned" | "skipped" | "verified" | "appli
 export type ProvisioningVerificationStatus = "pending" | "verified" | "skipped" | "failed";
 export type ProvisioningCompensationStatus = "planned" | "not_required" | "skipped" | "failed";
 export type EnforcementReadinessStatus = "ready" | "blocked";
+export type EvidenceFramework = "nist-800-53" | "fedramp-rev5" | "custom";
+export type EvidenceExportFormat = "json" | "zip" | "markdown";
+export type ControlImplementationStatus = "implemented" | "partially_implemented" | "planned";
+export type AuditIntegrityStatus = "verified" | "failed";
 
 export interface VersionedEntity {
   id: CanonicalId;
@@ -350,9 +354,74 @@ export interface AuditEvent {
   payload: JsonRecord;
 }
 
+export interface AuditIntegrityFinding {
+  code: string;
+  message: string;
+  severity: "low" | "medium" | "high" | "critical";
+  eventId?: CanonicalId;
+  expected?: string;
+  actual?: string;
+}
+
+export interface AuditIntegrityReport {
+  status: AuditIntegrityStatus;
+  eventCount: number;
+  verifiedAt: IsoDateTime;
+  firstEventId?: CanonicalId;
+  lastEventId?: CanonicalId;
+  firstEventHash?: string;
+  lastEventHash?: string;
+  findings: AuditIntegrityFinding[];
+  auditEventId?: CanonicalId;
+  version: string;
+}
+
+export interface EvidenceControlMapping {
+  controlId: string;
+  family: string;
+  status: ControlImplementationStatus;
+  implementationSummary: string;
+  evidenceTypes: string[];
+  sourceEventIds: CanonicalId[];
+  gaps: string[];
+}
+
+export interface EvidenceArtifact {
+  name: string;
+  type: "audit_events" | "decision_logs" | "provisioning_logs" | "drift_findings" | "control_mapping" | "siem_export" | "poam" | "conmon";
+  description: string;
+  eventCount?: number;
+  format: EvidenceExportFormat | "jsonl";
+}
+
+export interface ConMonMetric {
+  name: string;
+  value: number;
+  unit: "count" | "boolean";
+  source: string;
+}
+
+export interface PoamItem {
+  id: CanonicalId;
+  controlId: string;
+  weakness: string;
+  status: "open" | "planned" | "mitigated";
+  ownerRole: string;
+  plannedCompletion: IsoDateTime;
+  source: string;
+}
+
+export interface SiemExportMetadata {
+  format: "jsonl";
+  eventCount: number;
+  schemaVersion: string;
+  includesPayloadHashes: boolean;
+  target: "operator_download" | "siem_forwarder";
+}
+
 export interface EvidenceExport {
   exportId: CanonicalId;
-  framework: "nist-800-53" | "fedramp-rev5" | "custom";
+  framework: EvidenceFramework;
   controls: string[];
   periodStart: IsoDateTime;
   periodEnd: IsoDateTime;
@@ -360,7 +429,13 @@ export interface EvidenceExport {
   evidenceTypes: string[];
   sourceEventIds: CanonicalId[];
   responsibleRole: string;
-  format: "json" | "zip" | "markdown";
+  format: EvidenceExportFormat;
+  auditIntegrity: AuditIntegrityReport;
+  controlMappings: EvidenceControlMapping[];
+  artifacts: EvidenceArtifact[];
+  conmonMetrics: ConMonMetric[];
+  poamItems: PoamItem[];
+  siemExport: SiemExportMetadata;
 }
 
 export interface ConnectorCapabilities {

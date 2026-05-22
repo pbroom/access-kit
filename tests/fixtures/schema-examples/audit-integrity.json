@@ -1,0 +1,12 @@
+{
+  "status": "verified",
+  "eventCount": 2,
+  "verifiedAt": "2026-05-21T17:00:00.000Z",
+  "firstEventId": "evt:decision-allow-alice-read-case-plan",
+  "lastEventId": "evt:evidence-generated",
+  "firstEventHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "lastEventHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "findings": [],
+  "auditEventId": "evt:audit-integrity",
+  "version": "audit-integrity:v1"
+}

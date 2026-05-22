@@ -5,6 +5,7 @@ import {
   createLocalEngineSeed,
   InMemoryRebacStore,
   RebacDecisionEngine,
+  verifyAuditChain,
   type RelationshipTuple
 } from "../../packages/core/src/index.js";
 
@@ -418,6 +419,48 @@ describe("RebacDecisionEngine", () => {
 
     expect(second.previousEventHash).toBe(auditEventHash(first));
     expect(afterTamper.previousEventHash).not.toBe(second.previousEventHash);
+  });
+
+  it("verifies audit hash-chain integrity and reports tampering", () => {
+    const recorder = new AuditRecorder();
+    const first = recorder.record(
+      {
+        eventType: "decision.allowed",
+        actor: "service:decision-engine",
+        subjectId: "user:alice",
+        resourceId: "document:case-plan",
+        correlationId: "corr:test",
+        payload: { decisionId: "decision:test" }
+      },
+      now
+    );
+    const second = recorder.record(
+      {
+        eventType: "decision.denied",
+        actor: "service:decision-engine",
+        subjectId: "user:alice",
+        resourceId: "workspace:unknown",
+        correlationId: "corr:test",
+        payload: { decisionId: "decision:denied" }
+      },
+      now
+    );
+
+    const verified = verifyAuditChain([first, second], now);
+    const tampered = verifyAuditChain([{ ...first, payload: { decisionId: "decision:tampered" } }, second], now);
+
+    expect(verified).toMatchObject({
+      status: "verified",
+      eventCount: 2,
+      findings: [],
+      firstEventId: first.eventId,
+      lastEventId: second.eventId
+    });
+    expect(tampered.status).toBe("failed");
+    expect(tampered.findings.map((finding) => finding.code)).toEqual(expect.arrayContaining([
+      "PAYLOAD_HASH_MISMATCH",
+      "PREVIOUS_EVENT_HASH_MISMATCH"
+    ]));
   });
 });
 

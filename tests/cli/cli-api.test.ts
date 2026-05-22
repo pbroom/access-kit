@@ -381,6 +381,38 @@ describe("CLI API wrapper", () => {
     expect(requests.at(-1)?.url).toBe("http://api.example/v1/audit/events");
   });
 
+  it("forwards audit integrity checks to the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(requests, "audit", "integrity");
+
+    expect(requests.at(-1)?.url).toBe("http://api.example/v1/audit/integrity");
+  });
+
+  it("forwards ATO evidence export windows to the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      "evidence",
+      "export",
+      "--framework",
+      "fedramp-rev5",
+      "--controls",
+      "AC-3,AU-6",
+      "--from",
+      "2026-05-21T00:00:00.000Z",
+      "--to",
+      "2026-05-22T00:00:00.000Z",
+      "--format",
+      "markdown"
+    );
+
+    expect(requests.at(-1)?.url).toBe(
+      "http://api.example/v1/evidence/export?framework=fedramp-rev5&controls=AC-3%2CAU-6&format=markdown&from=2026-05-21T00%3A00%3A00.000Z&to=2026-05-22T00%3A00%3A00.000Z"
+    );
+  });
+
   it("distinguishes policy validate from policy test payloads", async () => {
     const requests: CapturedRequest[] = [];
 

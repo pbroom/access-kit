@@ -661,6 +661,18 @@ paths:
                     type: array
                     items:
                       $ref: "../schemas/audit-event.schema.json"
+  /v1/audit/integrity:
+    get:
+      tags: [audit]
+      summary: Verify append-only audit hash-chain integrity.
+      operationId: verifyAuditIntegrity
+      responses:
+        "200":
+          description: Audit integrity report.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/audit-integrity.schema.json"
   /v1/evidence/export:
     get:
       tags: [evidence]
@@ -669,24 +681,20 @@ paths:
       parameters:
         - name: framework
           in: query
-          required: true
           schema:
             type: string
             enum: [nist-800-53, fedramp-rev5, custom]
         - name: controls
           in: query
-          required: true
           schema:
             type: string
         - name: from
           in: query
-          required: true
           schema:
             type: string
             format: date-time
         - name: to
           in: query
-          required: true
           schema:
             type: string
             format: date-time

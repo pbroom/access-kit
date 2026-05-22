@@ -19,6 +19,7 @@ const schemaByExample = new Map<string, string>([
   ["provisioning-plan.json", "schemas/provisioning-plan.schema.json"],
   ["audit-event.json", "schemas/audit-event.schema.json"],
   ["drift-finding.json", "schemas/drift-finding.schema.json"],
+  ["audit-integrity.json", "schemas/audit-integrity.schema.json"],
   ["evidence-export.json", "schemas/evidence-export.schema.json"]
 ]);
 

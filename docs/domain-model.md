@@ -26,7 +26,9 @@
 
 `AuditEvent` records decisions, policy changes, connector actions, provisioning changes, drift, admin actions, and evidence generation in an append-only stream.
 
-`EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, and format.
+`AuditIntegrityReport` verifies the append-only audit event chain. It records event count, first and last event identifiers, first and last event hashes, findings, status, and version.
+
+`EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, format, audit integrity, control mappings, generated artifacts, continuous-monitoring metrics, POA&M inputs, and SIEM export metadata.
 
 ## Separation Rules
 
@@ -40,6 +42,7 @@
 - Controlled enforcement jobs in this milestone require a matching ready enforcement-readiness report and remain synthetic proof points, not live provider writes.
 - Drift findings are security objects, not incidental errors.
 - Audit evidence is not a mutable operational table.
+- Evidence exports are package manifests, not authorization decisions or provider writes.
 
 ## Canonical IDs
 
