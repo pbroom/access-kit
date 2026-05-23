@@ -5,6 +5,7 @@
 The repo treats API and evidence contracts as first-class CI gates.
 
 - `pnpm validate:contracts` validates JSON Schemas, OpenAPI paths, policy proof points, and CLI-to-API command mappings.
+- `pnpm validate:docs` validates relative Markdown links, required runbook sections, and documentation examples against JSON Schema/OpenAPI contracts.
 - `pnpm validate:ci` validates that the GitHub Actions workflow still contains the expected contract, quality, evidence, and security jobs.
 - `pnpm validate:packaging` validates the deployable API Dockerfile, runtime healthcheck, non-root container contract, and container CI smoke-test wiring.
 - `pnpm validate:release-packaging` validates the GHCR release workflow, publish gates, SBOM/provenance metadata, artifact attestation, and keyless signing wiring.
@@ -18,6 +19,7 @@ The repo treats API and evidence contracts as first-class CI gates.
 `.github/workflows/ci.yml` runs:
 
 - Contract validation on Node 22.
+- Documentation foundation validation on Node 22.
 - Typecheck, lint, tests, and build on Node 22 and Node 24.
 - Evidence report freshness on Node 24.
 - Container packaging by building the `rebac-api` runtime image and smoke-testing health, readiness, and bearer-token API protection.

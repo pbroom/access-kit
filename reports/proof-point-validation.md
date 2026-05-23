@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T17:12:31.717Z
+Generated at: 2026-05-23T17:58:14.618Z
 
-Branch: codex/rebac-api-deployment-manifests
+Branch: codex/docs-foundation
 
 Node: v24.4.1
 
@@ -31,14 +31,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-docs-foundation
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -60,19 +60,20 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-api-deployment-manifests/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-docs-foundation/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
+PASS API examples validate against OpenAPI request and response schemas.
 ```
 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -92,23 +93,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-docs-foundation
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-deployment-manifests
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  13:12:27
-   Duration  138ms (transform 30ms, setup 0ms, import 43ms, tests 7ms, environment 0ms)
+   Start at  13:58:09
+   Duration  149ms (transform 32ms, setup 0ms, import 48ms, tests 6ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -119,7 +120,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -130,7 +131,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -141,49 +142,49 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-docs-foundation
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-deployment-manifests
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  13:12:29
-   Duration  167ms (transform 96ms, setup 0ms, import 126ms, tests 11ms, environment 0ms)
+   Start at  13:58:12
+   Duration  166ms (transform 94ms, setup 0ms, import 124ms, tests 11ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-docs-foundation
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-deployment-manifests
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
 
 
  Test Files  1 passed (1)
       Tests  65 passed (65)
-   Start at  13:12:30
-   Duration  400ms (transform 101ms, setup 0ms, import 135ms, tests 175ms, environment 0ms)
+   Start at  13:58:13
+   Duration  389ms (transform 98ms, setup 0ms, import 131ms, tests 169ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-api-deployment-manifests
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-docs-foundation
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-deployment-manifests
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
 
 
- Test Files  2 passed (2)
-      Tests  29 passed (29)
-   Start at  13:12:31
-   Duration  290ms (transform 129ms, setup 0ms, import 190ms, tests 70ms, environment 0ms)
+ Test Files  3 passed (3)
+      Tests  30 passed (30)
+   Start at  13:58:13
+   Duration  299ms (transform 235ms, setup 0ms, import 320ms, tests 118ms, environment 0ms)
 ```
 
 

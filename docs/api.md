@@ -34,6 +34,16 @@ The container packaging defaults `REBAC_API_HOST` to `0.0.0.0` and persists loca
 - Discovery: read-only discovery run history.
 - Connectors: capability listing, health/permission test, enforcement-readiness checks, and read-only discovery sync.
 
+## Decision API
+
+`POST /v1/decision/check` is the fast path for allow or deny.
+
+`POST /v1/decision/explain` is the inspection path for the same deterministic decision with relationship path, reason code, constraints, policy version, relationship version, and evaluation timestamp. See [Explain API](explain-api.md).
+
+`POST /v1/decision/batch-check` evaluates several decision requests under the same API contract.
+
+Decisions do not create grants and do not mutate native providers. Provisioning starts only after a separate provisioning plan.
+
 ## Phase 2 Read-Only Discovery
 
 `GET /v1/connectors` returns the registered connector adapters, including provider, tenant boundary, required read scopes, and capability flags. Phase 2 registers synthetic `mock`, `entra-readonly`, `sharepoint-readonly`, and `aws-readonly` connectors. These are contract fixtures, not live tenant integrations.
@@ -97,3 +107,31 @@ Every decision response includes:
 - evaluation timestamp
 
 `check` is optimized for fast allow or deny. `explain` is optimized for audit, incident response, system owner review, and assessor evidence.
+
+## Reason Codes
+
+Stable reason codes are required for audit, test, and assessor traceability.
+
+| Reason code | Meaning |
+| --- | --- |
+| `ALLOW_VIA_RELATIONSHIP_PATH` | Active relationship path grants the requested action. |
+| `DENY_DEFAULT_NO_RELATIONSHIP_PATH` | No active action-bearing relationship path exists. |
+| `DENY_EXPLICIT_OVERRIDE` | Deny or quarantine relationship overrides any allow path. |
+| `DENY_SUBJECT_NOT_FOUND` | Requested subject does not exist in the canonical store. |
+| `DENY_SUBJECT_NOT_ACTIVE` | Subject exists but is not active. |
+| `DENY_RESOURCE_NOT_FOUND` | Requested resource does not exist in the canonical store. |
+| `DENY_RESOURCE_NOT_ACTIVE` | Resource exists but is not active. |
+
+## API Errors
+
+The OpenAPI document is the status-code source of truth. Runtime implementations should use stable, machine-readable errors for malformed requests, missing required fields, unsupported connector modes, unsafe enforcement controls, missing idempotency keys, and unavailable state.
+
+Security-sensitive failures should fail closed. Error examples must remain synthetic and must not include secrets, tokens, live tenant IDs, customer names, or production resource names.
+
+## Related Documentation
+
+- [Decision Lifecycle](decision-lifecycle.md)
+- [Explain API](explain-api.md)
+- [Provisioning Lifecycle](provisioning-lifecycle.md)
+- [Connector Contract](connector-contract.md)
+- [Audit Event Model](audit-event-model.md)

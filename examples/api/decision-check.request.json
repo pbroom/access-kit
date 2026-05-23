@@ -1,0 +1,11 @@
+{
+  "subjectId": "user:alice",
+  "action": "read",
+  "resourceId": "document:case-plan",
+  "context": {
+    "purpose": "case-review",
+    "requestSource": "synthetic-example"
+  },
+  "policyVersion": "policy:test-v1",
+  "relationshipVersion": "tuple-set:test-v1"
+}

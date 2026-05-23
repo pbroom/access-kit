@@ -1,4 +1,6 @@
 import SwaggerParser from "@apidevtools/swagger-parser";
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YAML from "yaml";
@@ -14,6 +16,8 @@ const parsed = YAML.parse(await readFile(openApiPath, "utf8")) as {
     schemas: Record<string, unknown>;
   };
 };
+const ajv = new Ajv2020({ allErrors: true, strict: true });
+addFormats(ajv);
 
 const requiredOperations = new Map<string, string[]>([
   ["/v1/ready", ["get"]],
@@ -74,6 +78,24 @@ const jobRequestSchema = getRequestSchema(parsed.paths["/v1/provisioning/jobs"]?
 assertProperties(jobRequestSchema, ["mode", "dryRun", "approval", "control"], "provisioning job request");
 assertEnumIncludes(getProperty(jobRequestSchema, "mode"), "enforcement", "provisioning job request mode");
 
+const decisionCheckExample = await readJsonFile("examples/api/decision-check.request.json");
+const decisionCheckRequestSchema = getRequestSchema(parsed.paths["/v1/decision/check"]?.post, "/v1/decision/check");
+assertValidExample(
+  asRecord(resolveLocalSchemaRefs(decisionCheckRequestSchema, "/v1/decision/check request schema"), "/v1/decision/check request schema"),
+  decisionCheckExample,
+  "examples/api/decision-check.request.json"
+);
+
+const explainResponseSchemaRef = getResponseSchemaRef(parsed.paths["/v1/decision/explain"]?.post, "/v1/decision/explain", "200");
+if (!referencesDecisionSchema(explainResponseSchemaRef)) {
+  throw new Error(
+    `OpenAPI /v1/decision/explain 200 response must reference schemas/decision.schema.json, found ${explainResponseSchemaRef}`
+  );
+}
+const explainResponseSchema = asRecord(await readJsonFile("schemas/decision.schema.json"), "schemas/decision.schema.json");
+const explainResponseExample = await readJsonFile("examples/api/explain.response.json");
+assertValidExample(explainResponseSchema, explainResponseExample, "examples/api/explain.response.json");
+
 const provisioningJob = asRecord(parsed.components.schemas.ProvisioningJob, "ProvisioningJob schema");
 assertEnumIncludes(getProperty(provisioningJob, "mode"), "enforcement", "ProvisioningJob mode");
 assertProperties(provisioningJob, ["approval", "control"], "ProvisioningJob schema");
@@ -105,6 +127,7 @@ console.log(`Validated OpenAPI contract at ${openApiPath}.`);
 console.log(`PASS ${requiredOperations.size} required API path groups are present.`);
 console.log("PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.");
 console.log("PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.");
+console.log("PASS API examples validate against OpenAPI request and response schemas.");
 
 function getRequestSchema(operation: unknown, label: string): Record<string, unknown> {
   const operationRecord = asRecord(operation, `${label} operation`);
@@ -114,6 +137,22 @@ function getRequestSchema(operation: unknown, label: string): Record<string, unk
   return asRecord(json.schema, `${label} request schema`);
 }
 
+function getResponseSchemaRef(operation: unknown, label: string, statusCode: string): string {
+  const operationRecord = asRecord(operation, `${label} operation`);
+  const responses = asRecord(operationRecord.responses, `${label} responses`);
+  const response = asRecord(responses[statusCode], `${label} ${statusCode} response`);
+  const content = asRecord(response.content, `${label} ${statusCode} response content`);
+  const json = asRecord(content["application/json"], `${label} ${statusCode} application/json content`);
+  const schema = asRecord(json.schema, `${label} ${statusCode} response schema`);
+  const ref = schema.$ref;
+
+  if (typeof ref !== "string") {
+    throw new Error(`OpenAPI ${label} ${statusCode} response schema must be a $ref`);
+  }
+
+  return ref;
+}
+
 function getResponseSchema(operation: unknown, label: string, statusCode: string): Record<string, unknown> {
   const operationRecord = asRecord(operation, `${label} operation`);
   const responses = asRecord(operationRecord.responses, `${label} responses`);
@@ -121,6 +160,68 @@ function getResponseSchema(operation: unknown, label: string, statusCode: string
   const content = asRecord(response.content, `${label} ${statusCode} response content`);
   const json = asRecord(content["application/json"], `${label} ${statusCode} application/json content`);
   return asRecord(json.schema, `${label} ${statusCode} response schema`);
+}
+
+async function readJsonFile(relativePath: string): Promise<unknown> {
+  return JSON.parse(await readFile(join(root, relativePath), "utf8")) as unknown;
+}
+
+function assertValidExample(schema: Record<string, unknown>, example: unknown, label: string): void {
+  const validate = ajv.compile(schema);
+
+  if (!validate(example)) {
+    throw new Error(`${label} failed OpenAPI schema validation: ${ajv.errorsText(validate.errors)}`);
+  }
+}
+
+function referencesDecisionSchema(ref: string): boolean {
+  return ref.replace(/\\/g, "/").toLowerCase().endsWith("schemas/decision.schema.json");
+}
+
+function resolveLocalSchemaRefs(value: unknown, label: string, seenRefs = new Set<string>()): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveLocalSchemaRefs(item, label, seenRefs));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const schema = value as Record<string, unknown>;
+  const ref = schema.$ref;
+
+  if (ref === undefined) {
+    return Object.fromEntries(
+      Object.entries(schema).map(([key, entry]) => [key, resolveLocalSchemaRefs(entry, `${label}.${key}`, seenRefs)])
+    );
+  }
+
+  if (typeof ref !== "string" || !ref.startsWith("#/components/schemas/")) {
+    throw new Error(`OpenAPI ${label} has unsupported schema reference: ${String(ref)}`);
+  }
+
+  if (seenRefs.has(ref)) {
+    throw new Error(`OpenAPI ${label} has circular schema reference: ${ref}`);
+  }
+
+  const schemaName = ref.slice("#/components/schemas/".length);
+  const resolved = resolveLocalSchemaRefs(
+    asRecord(parsed.components.schemas[schemaName], `${label} ${ref}`),
+    `${label} ${ref}`,
+    new Set([...seenRefs, ref])
+  );
+  const siblingEntries = Object.entries(schema).filter(([key]) => key !== "$ref");
+
+  if (siblingEntries.length === 0) {
+    return resolved;
+  }
+
+  return {
+    ...asRecord(resolved, `${label} ${ref}`),
+    ...Object.fromEntries(
+      siblingEntries.map(([key, entry]) => [key, resolveLocalSchemaRefs(entry, `${label}.${key}`, seenRefs)])
+    )
+  };
 }
 
 function assertProperties(schema: Record<string, unknown>, properties: string[], label: string): void {

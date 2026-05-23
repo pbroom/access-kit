@@ -44,7 +44,10 @@ pnpm evidence:generate
 
 ## Repository Map
 
-- `docs/` - architecture, domain, API, CLI, deployment, deployment runbook, security, ATO evidence, and outstanding requirements.
+- `docs/start-here.md` - documentation entry point and reading path.
+- `docs/` - concept of operations, boundary, architecture, domain, API, CLI, decision, provisioning, connector, drift, deployment, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting.
+- `runbooks/` - emergency revocation, rollback, drift, outage, break-glass, export, credential, and decision API outage procedures.
+- `examples/` - synthetic API, CLI, and control/evidence mapping examples.
 - `.github/workflows/` - CI, contract validation, and security checks.
 - `deploy/` - reference Kubernetes deployment manifests and admission-policy examples.
 - `adrs/` - architecture decision records for the foundation.
@@ -58,3 +61,24 @@ pnpm evidence:generate
 - `scripts/` - validation and evidence-generation commands.
 - `tests/fixtures/` - schema examples and policy proof points.
 - `reports/` - generated validation evidence.
+
+## Documentation Foundation
+
+- [Start Here](docs/start-here.md)
+- [Concept of Operations](docs/concept-of-operations.md)
+- [Glossary](docs/glossary.md)
+- [Non-Goals](docs/non-goals.md)
+- [System Context and Boundary](docs/system-context-and-boundary.md)
+- [Domain Model](docs/domain-model.md)
+- [Decision Lifecycle](docs/decision-lifecycle.md)
+- [Provisioning Lifecycle](docs/provisioning-lifecycle.md)
+- [Explain API](docs/explain-api.md)
+- [Audit Event Model](docs/audit-event-model.md)
+- [Connector Contract](docs/connector-contract.md)
+- [Drift Detection Model](docs/drift-detection-model.md)
+- [Evidence Catalog](docs/evidence-catalog.md)
+- [Control Traceability Matrix](docs/control-traceability-matrix.md)
+- [Assessor Inspection Guide](docs/assessor-inspection-guide.md)
+- [Threat Model](docs/threat-model.md)
+- [Policy Testing Guide](docs/policy-testing-guide.md)
+- [Docs Readiness Report](docs/docs-readiness-report.md)

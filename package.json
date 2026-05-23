@@ -22,13 +22,14 @@
     "validate:openapi": "tsx scripts/validate-openapi.ts",
     "validate:policy": "tsx scripts/validate-policy-fixtures.ts",
     "validate:cli-contract": "vitest run tests/cli/cli-contract.test.ts",
+    "validate:docs": "tsx scripts/validate-doc-links.ts && tsx scripts/validate-doc-runbooks.ts && tsx scripts/validate-doc-examples.ts",
     "validate:ci": "tsx scripts/validate-ci-workflows.ts",
     "validate:packaging": "tsx scripts/validate-container-packaging.ts",
     "validate:release-packaging": "tsx scripts/validate-release-packaging.ts",
     "validate:deployment-manifests": "tsx scripts/validate-deployment-manifests.ts",
     "evidence:generate": "tsx scripts/generate-evidence-report.ts",
     "evidence:check": "tsx scripts/generate-evidence-report.ts --check",
-    "ci:check": "pnpm validate:contracts && pnpm validate:ci && pnpm validate:packaging && pnpm validate:release-packaging && pnpm validate:deployment-manifests && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm evidence:check",
+    "ci:check": "pnpm validate:contracts && pnpm validate:docs && pnpm validate:ci && pnpm validate:packaging && pnpm validate:release-packaging && pnpm validate:deployment-manifests && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm evidence:check",
     "pr:stack": "gt submit --stack"
   },
   "dependencies": {

@@ -4,6 +4,8 @@
 
 The `rebac` CLI is the operator, CI/CD, and inspection interface. It wraps the API contract and must not become a separate source of authorization logic.
 
+The implementation command manifest is `packages/cli/src/commands.ts`. Contract validation keeps the command-to-API mapping aligned with `openapi/rebac-control-plane.yaml`.
+
 ## Command Families
 
 ```text
@@ -30,8 +32,8 @@ rebac explain user:123 read document:case-plan
 rebac provision plan user:123 document:case-plan read --connector mock
 rebac provision apply plan:abc
 rebac provision revoke grant:abc
-rebac provision plan user:123 document:case-plan read --connector mock --mode enforcement --approver user:approver --change-ticket chg:phase4 --synthetic-only
-rebac provision apply plan:abc --mode enforcement --approver user:approver --change-ticket chg:phase4 --synthetic-only
+rebac provision plan user:123 document:case-plan read --connector mock --mode enforcement --approver user:approver --change-ticket chg:phase4 --readiness-report readiness:mock:phase4 --synthetic-only
+rebac provision apply plan:abc --mode enforcement --approver user:approver
 
 rebac reconcile run --connector sharepoint-readonly --dry-run
 rebac reconcile findings --severity high
@@ -61,3 +63,18 @@ Dry-run provisioning uses `rebac provision plan` followed by `rebac provision ap
 Controlled enforcement is available only as a synthetic Phase 4 proof point against the `mock` connector. Operators first run `rebac connector readiness mock --mode enforcement --synthetic-only` and pass the resulting report ID into provisioning with `--readiness-report <id>`. The CLI can then send `--mode enforcement --approver <id> --change-ticket <id> --readiness-report <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.
 
 Phase 5 assessor commands use the same API contract. `rebac audit integrity` requests an audit hash-chain report, `rebac audit export` requests SIEM-ready JSONL audit records for a time window, and `rebac evidence export` can request a framework, control set, time window, and format for the complete local ATO evidence package, including boundary, data-flow, access-review, exception, operational, ConMon, POA&M, and SIEM metadata.
+
+## Security Considerations
+
+- The CLI must not evaluate authorization locally.
+- Use `--api-url` or `REBAC_API_URL` to target the intended API boundary.
+- Treat evidence and explain output as sensitive.
+- Do not place tokens, secrets, tenant IDs, production emails, or live provider identifiers in command examples.
+
+## Related Documentation
+
+- [API Contract Notes](api.md)
+- [Decision Lifecycle](decision-lifecycle.md)
+- [Explain API](explain-api.md)
+- [Assessor Inspection Guide](assessor-inspection-guide.md)
+- [CLI example script](../examples/cli/operator-and-assessor.sh)

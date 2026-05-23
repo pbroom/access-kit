@@ -1,5 +1,21 @@
 # Domain Model
 
+## Purpose
+
+This page is the canonical narrative description of Access Kit domain objects and source-of-truth boundaries.
+
+## Audience
+
+Application developers, platform engineers, security engineers, ISSOs, assessors, and resource owners.
+
+## What This Is
+
+The domain model defines the objects used to make, explain, provision, reconcile, audit, and evidence authorization decisions. JSON Schemas in `schemas/` are the portable object contracts. TypeScript interfaces in `packages/core/src/domain.ts` mirror those concepts for implementation.
+
+## What This Is Not
+
+The domain model is not an identity directory, provider permission model, SIEM schema, ticketing workflow, or live tenant inventory. Provider-specific fields remain connector metadata unless they become portable contract fields.
+
 ## Core Objects
 
 `Subject` represents a person, group, service account, service principal, managed identity, device, or workload. It must have a stable canonical ID, source system, lifecycle state, version, timestamps, and source identifiers.
@@ -71,3 +87,36 @@ These objects must be versioned:
 - evidence export schemas
 
 A historic decision must be reconstructable from subject, action, resource, policy version, relationship tuple version, context, and connector state.
+
+## Concrete Example
+
+`user:alice` is a `Subject`. `document:case-plan` is a `Resource`. `relationship:alice-case-team` records that `user:alice member_of group:case-team`. `relationship:case-team-workspace` records that the group is a contributor to `workspace:case`. `relationship:workspace-document` records that the workspace contains the document.
+
+A `DecisionResult` can allow `user:alice` to `read` the document through that path. A later `ProvisioningPlan` can plan the intended native state. A `NativeGrant` from discovery can show what the provider currently enforces. A `DriftFinding` records disagreement between intended and native state.
+
+## Security Considerations
+
+- Keep relationship facts separate from native permissions.
+- Keep intended grants separate from observed provider grants.
+- Use stable canonical IDs and keep source-specific identifiers in metadata.
+- Treat lifecycle state, expiration, suspension, quarantine, legal hold, and explicit deny relationships as authorization inputs.
+- Do not store secrets, access tokens, production emails, or live tenant IDs in examples, fixtures, audit payloads, or evidence.
+
+## Audit And Evidence Implications
+
+Audit events should reference canonical subject IDs, resource IDs, policy versions, relationship versions, reason codes, correlation IDs, and source event IDs. Evidence exports should include domain objects only when needed for control inspection and should preserve the distinction between decisions, intended state, native state, drift, and evidence.
+
+## Related Controls
+
+AC, AU, CM, CA, IA, and PT controls depend on stable object identity, versioning, minimization, and traceability.
+
+## Related References
+
+- [Glossary](glossary.md)
+- [Decision Lifecycle](decision-lifecycle.md)
+- [Provisioning Lifecycle](provisioning-lifecycle.md)
+- [Drift Detection Model](drift-detection-model.md)
+- `packages/core/src/domain.ts`
+- `schemas/*.schema.json`
+- `tests/fixtures/schema-examples/*.json`
+- [ADR 0003: Relationship graph storage](../adrs/0003-relationship-graph-storage.md)

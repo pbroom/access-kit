@@ -1,0 +1,18 @@
+{
+  "controlId": "AC-3",
+  "family": "AC",
+  "status": "implemented",
+  "implementationSummary": "Access enforcement evidence is produced through deterministic decision events and explainable relationship paths in the local proof point.",
+  "evidenceTypes": ["decision_logs", "audit_events", "policy_tests"],
+  "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+  "sourceArtifacts": [
+    "schemas/decision.schema.json",
+    "tests/fixtures/schema-examples/decision.json",
+    "tests/fixtures/policy/proof-points.json",
+    "reports/proof-point-validation.md"
+  ],
+  "gaps": [
+    "Production application integration evidence is deployment-specific.",
+    "Assessor-approved control statements are not claimed by this local proof point."
+  ]
+}
