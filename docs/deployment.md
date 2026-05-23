@@ -45,7 +45,7 @@ curl --fail http://127.0.0.1:3000/v1/ready
 curl --fail --oauth2-bearer "$REBAC_SMOKE_TOKEN" http://127.0.0.1:3000/v1/subjects
 ```
 
-Protected API routes should return `401` without a configured bearer token. `/v1/health` and `/v1/ready` stay public for orchestrator probes and do not expose token material.
+Protected API routes should return `401` without a configured bearer token. `/v1/health` and `/v1/ready` stay public for orchestrator probes and do not expose token material or connector identifiers. Authentication failures are sampled once per failure reason per one-minute window for ongoing audit visibility without requiring unauthenticated requests to flush full runtime snapshots.
 
 ## CI Packaging Gate
 
@@ -114,7 +114,7 @@ Rollback is a digest change, not an in-place image mutation:
 1. Select the last known-good signed digest from the release workflow summary or registry metadata.
 2. Verify the cosign signature and GitHub attestation before promotion.
 3. Update deployment IaC to the verified digest.
-4. Watch `/v1/ready`, `/v1/health`, authentication-failure audit volume, and audit write/readiness checks.
+4. Watch `/v1/ready`, `/v1/health`, windowed authentication-failure audit volume, and audit write/readiness checks.
 5. Record the rollback reason, prior digest, replacement digest, verification evidence, approver, and runtime observations in the deployment evidence package.
 
 Future production deployment work still needs environment-specific overlays, ingress and certificate management, signed-image admission enforcement, identity-provider authentication, operator authorization, approved secrets handling, and agency-specific release approvals.

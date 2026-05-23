@@ -90,6 +90,11 @@ export interface RebacLocalApp {
   actor: string;
 }
 
+interface RecordAuditOptions {
+  occurredAt?: string;
+  persistState?: boolean;
+}
+
 type NativeAccessFilter = Partial<
   Pick<NativeGrant, "sourceConnectorId" | "subjectId" | "nativePermission"> & {
     grantType: NativeGrantType;
@@ -1000,12 +1005,14 @@ export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
   };
 }
 
-export function recordAudit(app: RebacLocalApp, input: AuditEventInput): AuditEvent {
-  const event = app.auditRecorder.record(input, app.now());
+export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options: RecordAuditOptions = {}): AuditEvent {
+  const event = app.auditRecorder.record(input, options.occurredAt ?? app.now());
   const priorStoreAuditEvents = app.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
   appendAuditEvent(app.auditRepository, event, event.occurredAt, priorStoreAuditEvents);
-  persistAppState(app, event.occurredAt);
+  if (options.persistState ?? true) {
+    persistAppState(app, event.occurredAt);
+  }
   return event;
 }
 
