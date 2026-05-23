@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rebac-api-data
+  namespace: access-kit
+  labels:
+    app.kubernetes.io/name: rebac-api
+    app.kubernetes.io/part-of: access-kit
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
