@@ -2,6 +2,7 @@ export interface RebacApiRuntimeConfig {
   host: string;
   port: number;
   actor: string;
+  apiKeys: string[];
   statePath?: string;
   evidenceRoot?: string;
 }
@@ -11,6 +12,7 @@ export function readRebacApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env):
     host: env.REBAC_API_HOST ?? "127.0.0.1",
     port: readPort(env.REBAC_API_PORT),
     actor: env.REBAC_API_ACTOR ?? "service:api",
+    apiKeys: readList(env.REBAC_API_KEYS),
     statePath: readOptionalPath(env.REBAC_STATE_PATH),
     evidenceRoot: readOptionalPath(env.REBAC_EVIDENCE_ROOT)
   };
@@ -35,4 +37,8 @@ function readPort(value: string | undefined): number {
 function readOptionalPath(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function readList(value: string | undefined): string[] {
+  return [...new Set((value ?? "").split(",").map((item) => item.trim()).filter(Boolean))];
 }

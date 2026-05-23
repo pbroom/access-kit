@@ -58,6 +58,37 @@ describe("ReBAC API runtime", () => {
     await expect(response.json()).resolves.toEqual({ status: "ok", version: "0.1.0" });
   });
 
+  it("can require bearer-token authentication while leaving health public", async () => {
+    await restartServer({
+      now: sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:00:01.000Z", "2026-05-21T17:00:02.000Z"),
+      apiKeys: ["token-one", "token-two"]
+    });
+
+    const health = await fetch(`${baseUrl}/v1/health`);
+    const missing = await fetch(`${baseUrl}/v1/subjects`);
+    const wrong = await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer wrong-token" }
+    });
+    const subjects = await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer token-two" }
+    });
+    const audit = await fetch(`${baseUrl}/v1/audit/events`, {
+      headers: { authorization: "Bearer token-one" }
+    });
+    const auditBody = (await audit.json()) as { items: Array<{ eventType: string; actor: string; payload: JsonObject }> };
+
+    expect(health.status).toBe(200);
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get("www-authenticate")).toBe('Bearer realm="rebac-control-plane"');
+    await expect(missing.json()).resolves.toMatchObject({ code: "UNAUTHENTICATED" });
+    expect(wrong.status).toBe(401);
+    await expect(subjects.json()).resolves.toMatchObject({ items: expect.any(Array) });
+    expect(subjects.status).toBe(200);
+    expect(auditBody.items.filter((event) => event.eventType === "api.authentication_failed")).toHaveLength(2);
+    expect(auditBody.items.filter((event) => event.actor === "anonymous")).toHaveLength(2);
+    expect(auditBody.items.every((event) => !JSON.stringify(event.payload).includes("wrong-token"))).toBe(true);
+  });
+
   it("checks and explains decisions through the local engine", async () => {
     const check = await post<{ decision: string; relationshipPath: unknown[] }>("/v1/decision/check", {
       subjectId: "user:alice",
@@ -685,6 +716,7 @@ describe("ReBAC API runtime", () => {
       REBAC_API_HOST: "0.0.0.0",
       REBAC_API_PORT: "4080",
       REBAC_API_ACTOR: "service:runtime",
+      REBAC_API_KEYS: "alpha, beta,alpha,,",
       REBAC_STATE_PATH: "/tmp/access-kit-state.json",
       REBAC_EVIDENCE_ROOT: "/tmp/access-kit-evidence"
     });
@@ -693,6 +725,7 @@ describe("ReBAC API runtime", () => {
       host: "0.0.0.0",
       port: 4080,
       actor: "service:runtime",
+      apiKeys: ["alpha", "beta"],
       statePath: "/tmp/access-kit-state.json",
       evidenceRoot: "/tmp/access-kit-evidence"
     });

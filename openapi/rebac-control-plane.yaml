@@ -13,6 +13,8 @@ servers:
     description: Placeholder production boundary
   - url: http://localhost:3000
     description: Local development
+security:
+  - ApiBearerAuth: []
 tags:
   - name: health
   - name: decision
@@ -32,6 +34,7 @@ paths:
       tags: [health]
       summary: Return local API health and version.
       operationId: getHealth
+      security: []
       responses:
         "200":
           description: API health.
@@ -884,6 +887,15 @@ paths:
                     items:
                       $ref: "#/components/schemas/DiscoveryRun"
 components:
+  securitySchemes:
+    ApiBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-api-key
+      description: >
+        Optional deployment bearer-token guard. Local development may run without
+        configured API keys; deployed runtimes should require opaque tokens and
+        must not log token material.
   parameters:
     Id:
       name: id
@@ -919,6 +931,12 @@ components:
             $ref: "#/components/schemas/Error"
     NotFound:
       description: Object was not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    Unauthenticated:
+      description: A valid bearer token is required.
       content:
         application/json:
           schema:

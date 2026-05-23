@@ -11,10 +11,11 @@ The API package exposes a `rebac-api` entrypoint for local deployment packaging 
 - `REBAC_API_HOST`, default `127.0.0.1`
 - `REBAC_API_PORT`, default `3000`
 - `REBAC_API_ACTOR`, default `service:api`
+- `REBAC_API_KEYS`, optional comma-separated bearer tokens for API access
 - `REBAC_STATE_PATH`, optional local JSON runtime state snapshot path
 - `REBAC_EVIDENCE_ROOT`, optional local audit/evidence repository root
 
-`REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state. It is not a replacement for production graph, audit, queue, or evidence stores.
+When `REBAC_API_KEYS` is set, every `/v1` route except `/v1/health` requires `Authorization: Bearer <token>`. Failed authentication attempts return `401`, set a bearer challenge, and emit `api.authentication_failed` audit evidence without logging token material. `REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state. It is not a replacement for production graph, audit, queue, or evidence stores.
 
 ## API Groups
 

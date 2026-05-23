@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
   checkDecision,
@@ -18,6 +19,7 @@ import {
   listDiscoveryRuns,
   putRelationship,
   readNativeAccess,
+  recordAudit,
   runReconciliation,
   syncConnector,
   testConnector,
@@ -45,6 +47,7 @@ import type {
 
 export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
+  apiKeys?: readonly string[];
 }
 
 interface ProvisioningPlanRequest {
@@ -87,6 +90,9 @@ const discoveryStatuses = new Set(["queued", "running", "completed", "completed_
 const enforcementReadinessStatuses = new Set(["ready", "blocked"]);
 const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
 const nativePrincipalTypes = new Set(["user", "group", "service_account", "service_principal", "managed_identity", "external_user", "unknown"]);
+const bearerScheme = "bearer ";
+const maxAuthorizationHeaderBytes = 8192;
+const maxBearerTokenBytes = 4096;
 
 class HttpError extends Error {
   constructor(
@@ -100,10 +106,11 @@ class HttpError extends Error {
 
 export function createRebacApiServer(options: RebacApiServerOptions = {}): Server {
   const app = options.app ?? createRebacLocalApp(options);
+  const apiKeys = normalizeApiKeys(options.apiKeys);
 
   return createServer(async (request, response) => {
     try {
-      await routeRequest(app, request, response);
+      await routeRequest(app, request, response, apiKeys);
     } catch (error) {
       if (error instanceof HttpError) {
         sendJson(response, error.statusCode, {
@@ -135,7 +142,8 @@ export function createRebacApiServer(options: RebacApiServerOptions = {}): Serve
 async function routeRequest(
   app: RebacLocalApp,
   request: IncomingMessage,
-  response: ServerResponse
+  response: ServerResponse,
+  apiKeys: readonly string[]
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://localhost");
   const method = request.method ?? "GET";
@@ -148,6 +156,17 @@ async function routeRequest(
 
   if (segments[0] !== "v1") {
     notFound(response);
+    return;
+  }
+
+  if (apiKeys.length > 0 && !isAuthenticated(request, apiKeys)) {
+    recordAuthenticationFailure(app, request, url);
+    response.setHeader("WWW-Authenticate", 'Bearer realm="rebac-control-plane"');
+    sendJson(response, 401, {
+      code: "UNAUTHENTICATED",
+      message: "A valid bearer token is required.",
+      correlationId: "corr:unauthenticated"
+    });
     return;
   }
 
@@ -249,6 +268,82 @@ async function routeRequest(
   }
 
   notFound(response);
+}
+
+function normalizeApiKeys(apiKeys: readonly string[] | undefined): string[] {
+  return [
+    ...new Set(
+      (apiKeys ?? [])
+        .map((apiKey) => apiKey.trim())
+        .filter((apiKey) => apiKey && byteLength(apiKey) <= maxBearerTokenBytes)
+    )
+  ];
+}
+
+function isAuthenticated(request: IncomingMessage, apiKeys: readonly string[]): boolean {
+  const token = readBearerToken(request);
+  return Boolean(token && apiKeys.some((apiKey) => constantTimeEqual(apiKey, token)));
+}
+
+function readBearerToken(request: IncomingMessage): string | undefined {
+  const authorization = request.headers.authorization;
+  if (typeof authorization !== "string" || byteLength(authorization) > maxAuthorizationHeaderBytes) {
+    return undefined;
+  }
+
+  const trimmed = authorization.trim();
+  if (!trimmed.toLowerCase().startsWith(bearerScheme)) {
+    return undefined;
+  }
+
+  const token = trimmed.slice(bearerScheme.length).trim();
+  if (byteLength(token) > maxBearerTokenBytes) {
+    return undefined;
+  }
+
+  return token ? token : undefined;
+}
+
+function constantTimeEqual(expected: string, actual: string): boolean {
+  const expectedBytes = Buffer.from(expected);
+  const actualBytes = Buffer.from(actual);
+  const compareLength = Math.max(expectedBytes.byteLength, actualBytes.byteLength);
+  if (compareLength === 0 || compareLength > maxBearerTokenBytes) {
+    return false;
+  }
+
+  const expectedPadded = Buffer.alloc(compareLength);
+  const actualPadded = Buffer.alloc(compareLength);
+  expectedBytes.copy(expectedPadded);
+  actualBytes.copy(actualPadded);
+
+  return timingSafeEqual(expectedPadded, actualPadded) && expectedBytes.byteLength === actualBytes.byteLength;
+}
+
+function byteLength(value: string): number {
+  return Buffer.byteLength(value, "utf8");
+}
+
+function recordAuthenticationFailure(app: RebacLocalApp, request: IncomingMessage, url: URL): void {
+  recordAudit(app, {
+    eventType: "api.authentication_failed",
+    actor: "anonymous",
+    correlationId: `corr:auth:${sanitizeAuditPath(url.pathname)}:${compactTimestamp(app.now())}`,
+    payload: {
+      method: request.method ?? "GET",
+      path: url.pathname,
+      reason: "missing_or_invalid_bearer_token",
+      tokenLogged: false
+    }
+  });
+}
+
+function sanitizeAuditPath(path: string): string {
+  return path.replaceAll(/[^a-z0-9_:-]/gi, "_").toLowerCase();
+}
+
+function compactTimestamp(timestamp: string): string {
+  return timestamp.replaceAll(/[^0-9a-z]/gi, "").toLowerCase();
 }
 
 async function routePolicies(

@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T10:33:04.896Z
+Generated at: 2026-05-23T10:54:03.877Z
 
-Branch: codex/rebac-runtime-persistence
+Branch: codex/rebac-api-auth
 
 Node: v24.4.1
 
@@ -28,14 +28,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-api-auth
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-api-auth
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -57,10 +57,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-api-auth
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-stack-ops/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-api-auth/openapi/rebac-control-plane.yaml.
 PASS 27 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.
@@ -69,7 +69,7 @@ PASS Phase 5 audit integrity, audit export, and evidence export path groups are 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-api-auth
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -89,65 +89,65 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-api-auth
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-auth
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  06:33:01
-   Duration  140ms (transform 30ms, setup 0ms, import 43ms, tests 6ms, environment 0ms)
+   Start at  06:54:00
+   Duration  156ms (transform 34ms, setup 0ms, import 52ms, tests 7ms, environment 0ms)
 ```
 
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-api-auth
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-auth
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  06:33:02
-   Duration  168ms (transform 93ms, setup 0ms, import 123ms, tests 11ms, environment 0ms)
+   Start at  06:54:01
+   Duration  187ms (transform 108ms, setup 0ms, import 143ms, tests 13ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-api-auth
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-auth
 
 
  Test Files  1 passed (1)
-      Tests  57 passed (57)
-   Start at  06:33:03
-   Duration  401ms (transform 97ms, setup 0ms, import 129ms, tests 179ms, environment 0ms)
+      Tests  58 passed (58)
+   Start at  06:54:02
+   Duration  448ms (transform 113ms, setup 0ms, import 150ms, tests 197ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-api-auth
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-auth
 
 
  Test Files  2 passed (2)
       Tests  29 passed (29)
-   Start at  06:33:04
-   Duration  285ms (transform 138ms, setup 0ms, import 186ms, tests 70ms, environment 0ms)
+   Start at  06:54:03
+   Duration  324ms (transform 142ms, setup 0ms, import 211ms, tests 79ms, environment 0ms)
 ```
 
 
@@ -159,13 +159,13 @@ PASS drift is represented as security finding
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Local core engine tests for deterministic check/explain and decision audit emission.
-- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
+- API runtime tests for health, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 
 ## Outstanding Requirements
 
 - Replace local JSON runtime snapshots with a persistent relationship graph and policy model store.
-- Harden API service packaging with container images, IaC, readiness probes, deployment runbooks, and API authentication/authorization.
+- Harden API service packaging with container images, IaC, readiness probes, deployment runbooks, identity-provider-backed authentication, and operator authorization.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, file-backed storage proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
 - Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Persist discovery runs and native-grant readback in production data stores rather than local JSON snapshots.
