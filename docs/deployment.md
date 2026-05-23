@@ -24,6 +24,8 @@ The container sets these defaults:
 
 Mount `/var/lib/access-kit` to preserve local runtime snapshots and local proof-point audit/evidence files across restarts. These files remain validation artifacts, not production database, WORM audit storage, or approved SIEM retention.
 
+Because the container binds to a non-loopback host, it refuses to start unless `REBAC_API_KEYS` contains at least one bearer token. Loopback-only local development can still run without keys.
+
 ## Smoke Test
 
 Use synthetic API keys only:
