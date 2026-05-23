@@ -16,6 +16,7 @@ const parsed = YAML.parse(await readFile(openApiPath, "utf8")) as {
 };
 
 const requiredOperations = new Map<string, string[]>([
+  ["/v1/ready", ["get"]],
   ["/v1/decision/check", ["post"]],
   ["/v1/decision/explain", ["post"]],
   ["/v1/decision/batch-check", ["post"]],
@@ -86,10 +87,24 @@ for (const schemaName of ["ProvisioningApproval", "EnforcementControl", "Enforce
   }
 }
 
+const runtimeReadiness = asRecord(parsed.components.schemas.RuntimeReadiness, "RuntimeReadiness schema");
+assertProperties(runtimeReadiness, ["status", "version", "checkedAt", "checks"], "RuntimeReadiness schema");
+assertEnumIncludes(getProperty(runtimeReadiness, "status"), "ready_with_warnings", "RuntimeReadiness status");
+assertResponseStatusNarrowing(
+  getResponseSchema(parsed.paths["/v1/ready"]?.get, "/v1/ready", "200"),
+  ["ready", "ready_with_warnings"],
+  "/v1/ready 200 response"
+);
+assertResponseStatusNarrowing(
+  getResponseSchema(parsed.paths["/v1/ready"]?.get, "/v1/ready", "503"),
+  ["not_ready"],
+  "/v1/ready 503 response"
+);
+
 console.log(`Validated OpenAPI contract at ${openApiPath}.`);
 console.log(`PASS ${requiredOperations.size} required API path groups are present.`);
 console.log("PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.");
-console.log("PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.");
+console.log("PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.");
 
 function getRequestSchema(operation: unknown, label: string): Record<string, unknown> {
   const operationRecord = asRecord(operation, `${label} operation`);
@@ -97,6 +112,15 @@ function getRequestSchema(operation: unknown, label: string): Record<string, unk
   const content = asRecord(requestBody.content, `${label} request content`);
   const json = asRecord(content["application/json"], `${label} application/json content`);
   return asRecord(json.schema, `${label} request schema`);
+}
+
+function getResponseSchema(operation: unknown, label: string, statusCode: string): Record<string, unknown> {
+  const operationRecord = asRecord(operation, `${label} operation`);
+  const responses = asRecord(operationRecord.responses, `${label} responses`);
+  const response = asRecord(responses[statusCode], `${label} ${statusCode} response`);
+  const content = asRecord(response.content, `${label} ${statusCode} response content`);
+  const json = asRecord(content["application/json"], `${label} ${statusCode} application/json content`);
+  return asRecord(json.schema, `${label} ${statusCode} response schema`);
 }
 
 function assertProperties(schema: Record<string, unknown>, properties: string[], label: string): void {
@@ -122,10 +146,43 @@ function assertEnumIncludes(schema: Record<string, unknown>, value: string, labe
   }
 }
 
+function assertResponseStatusNarrowing(schema: Record<string, unknown>, expectedValues: string[], label: string): void {
+  const allOf = schema.allOf;
+
+  if (!Array.isArray(allOf)) {
+    throw new Error(`OpenAPI ${label} must narrow RuntimeReadiness status with allOf`);
+  }
+
+  const statusSchema = allOf
+    .map((entry, index) => asRecord(entry, `${label} allOf[${index}]`))
+    .map((entry) => asOptionalRecord(entry.properties))
+    .filter((properties): properties is Record<string, unknown> => Boolean(properties))
+    .map((properties) => asOptionalRecord(properties.status))
+    .find((status): status is Record<string, unknown> => Boolean(status));
+
+  if (!statusSchema) {
+    throw new Error(`OpenAPI ${label} must declare a narrowed status property`);
+  }
+
+  assertEnumExactly(statusSchema, expectedValues, `${label} status`);
+}
+
+function assertEnumExactly(schema: Record<string, unknown>, expectedValues: string[], label: string): void {
+  const values = schema.enum;
+
+  if (!Array.isArray(values) || values.length !== expectedValues.length || expectedValues.some((value) => !values.includes(value))) {
+    throw new Error(`OpenAPI ${label} must have enum values: ${expectedValues.join(", ")}`);
+  }
+}
+
 function asRecord(value: unknown, label: string): Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(`OpenAPI ${label} is not an object`);
   }
 
   return value as Record<string, unknown>;
+}
+
+function asOptionalRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
 }

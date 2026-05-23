@@ -13,7 +13,8 @@ This repository currently delivers:
 - Mock connector interface and deterministic sample implementation.
 - Synthetic Entra ID, SharePoint, and AWS-style read-only connector fixtures with no real tenant access.
 - Restartable local API runtime for check, explain, inventory, relationship, read-only connector discovery, discovery run history, native-grant readback, dry-run provisioning jobs, reconciliation, audit, SIEM-ready audit export, and complete local ATO evidence package flows.
-- File-backed runtime state snapshots and a `rebac-api` service entrypoint for deployment packaging proof points.
+- File-backed runtime state snapshots, public health/readiness probes, a `rebac-api` service entrypoint, container packaging proof points, release packaging contracts for signatures/provenance, and reference Kubernetes deployment manifests.
+- Bearer-token API guard that is optional for loopback local development and required for non-loopback runtimes, with unauthenticated attempts audited and token material excluded from logs.
 - CLI commands that call the API instead of evaluating authorization locally.
 - Policy proof-point fixtures for deny/default, relationship allow, deny override, expiration, suspension, idempotency, and drift.
 - Architecture, security, ATO evidence, CLI, API, and ADR documentation.
@@ -39,12 +40,13 @@ pnpm validate
 pnpm evidence:generate
 ```
 
-`pnpm validate` runs type checking, first-class contract validation, CI workflow validation, and the core/API/CLI test suite. `pnpm ci:check` adds lint, build, and evidence freshness checks for pre-submit confidence.
+`pnpm validate` runs type checking, first-class contract validation, CI workflow validation, packaging/release packaging validation, deployment manifest validation, and the core/API/CLI test suite. `pnpm ci:check` adds lint, build, and evidence freshness checks for pre-submit confidence.
 
 ## Repository Map
 
-- `docs/` - architecture, domain, API, CLI, security, ATO evidence, and outstanding requirements.
+- `docs/` - architecture, domain, API, CLI, deployment, deployment runbook, security, ATO evidence, and outstanding requirements.
 - `.github/workflows/` - CI, contract validation, and security checks.
+- `deploy/` - reference Kubernetes deployment manifests and admission-policy examples.
 - `adrs/` - architecture decision records for the foundation.
 - `openapi/` - ReBAC control-plane OpenAPI contract.
 - `schemas/` - JSON Schemas for public domain contracts.

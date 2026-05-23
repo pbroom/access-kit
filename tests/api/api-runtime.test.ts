@@ -59,6 +59,106 @@ describe("ReBAC API runtime", () => {
     await expect(response.json()).resolves.toEqual({ status: "ok", version: "0.1.0" });
   });
 
+  it("serves readiness without auth and reports runtime guardrails", async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-readiness-"));
+    tempDirs.push(storageRoot);
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: join(storageRoot, "state") });
+    const evidenceRepository = new LocalFileEvidenceRepository({ rootDir: join(storageRoot, "evidence") });
+    await restartServer({
+      now: () => TEST_NOW,
+      apiKeys: ["readiness-token"],
+      stateRepository,
+      auditRepository: evidenceRepository,
+      evidenceRepository
+    });
+
+    const response = await fetch(`${baseUrl}/v1/ready`);
+    const body = (await response.json()) as {
+      status: string;
+      checkedAt: string;
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    };
+    const checksByName = new Map(body.checks.map((check) => [check.name, check]));
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("ready");
+    expect(body.checkedAt).toBe(TEST_NOW);
+    expect(checksByName.get("api_authentication")).toMatchObject({
+      status: "pass",
+      evidence: { configured: true }
+    });
+    expect(checksByName.get("api_authentication")?.evidence).not.toHaveProperty("tokenMaterialLogged");
+    expect(checksByName.get("state_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("audit_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("evidence_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("connectors")?.evidence?.connectorIds).toContain("mock");
+  });
+
+  it("returns not ready when no connector adapters are registered", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    app.connectors.clear();
+    await restartServer({ app, apiKeys: ["readiness-token"] });
+
+    const response = await fetch(`${baseUrl}/v1/ready`);
+    const body = (await response.json()) as {
+      status: string;
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    };
+    const checksByName = new Map(body.checks.map((check) => [check.name, check]));
+
+    expect(response.status).toBe(503);
+    expect(body.status).toBe("not_ready");
+    expect(checksByName.get("connectors")).toMatchObject({
+      status: "fail",
+      evidence: { connectorIds: [] }
+    });
+  });
+
+  it("can require bearer-token authentication while leaving health public", async () => {
+    await restartServer({
+      now: sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:00:01.000Z", "2026-05-21T17:00:02.000Z"),
+      apiKeys: ["token-one", "token-two"]
+    });
+
+    const health = await fetch(`${baseUrl}/v1/health`);
+    const ready = await fetch(`${baseUrl}/v1/ready`);
+    const missing = await fetch(`${baseUrl}/v1/subjects`);
+    const wrong = await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer wrong-token" }
+    });
+    const subjects = await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer token-two" }
+    });
+    const audit = await fetch(`${baseUrl}/v1/audit/events`, {
+      headers: { authorization: "Bearer token-one" }
+    });
+    const auditBody = (await audit.json()) as { items: Array<{ eventType: string; actor: string; payload: JsonObject }> };
+    const authFailures = auditBody.items.filter((event) => event.eventType === "api.authentication_failed");
+
+    expect(health.status).toBe(200);
+    expect(ready.status).toBe(200);
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get("www-authenticate")).toBe('Bearer realm="rebac-control-plane"');
+    await expect(missing.json()).resolves.toMatchObject({ code: "UNAUTHENTICATED" });
+    expect(wrong.status).toBe(401);
+    expect(wrong.headers.get("www-authenticate")).toBe('Bearer realm="rebac-control-plane", error="invalid_token"');
+    await expect(subjects.json()).resolves.toMatchObject({ items: expect.any(Array) });
+    expect(subjects.status).toBe(200);
+    expect(authFailures).toHaveLength(2);
+    expect(authFailures.map((event) => event.payload.reason)).toEqual([
+      "missing_bearer_token",
+      "invalid_bearer_token"
+    ]);
+    expect(auditBody.items.filter((event) => event.actor === "anonymous")).toHaveLength(2);
+    expect(auditBody.items.every((event) => !JSON.stringify(event.payload).includes("wrong-token"))).toBe(true);
+  });
+
+  it("rejects oversized API keys passed directly to the API server", () => {
+    expect(() => createRebacApiServer({ apiKeys: ["x".repeat(4097)] })).toThrow(
+      "API keys must be 4096 bytes or less."
+    );
+  });
+
   it("checks and explains decisions through the local engine", async () => {
     const check = await post<{ decision: string; relationshipPath: unknown[] }>("/v1/decision/check", {
       subjectId: "user:alice",
@@ -746,6 +846,7 @@ describe("ReBAC API runtime", () => {
       REBAC_API_HOST: "0.0.0.0",
       REBAC_API_PORT: "4080",
       REBAC_API_ACTOR: "service:runtime",
+      REBAC_API_KEYS: "alpha, beta,alpha,,",
       REBAC_STATE_PATH: "/tmp/access-kit-state.json",
       REBAC_EVIDENCE_ROOT: "/tmp/access-kit-evidence"
     });
@@ -754,14 +855,35 @@ describe("ReBAC API runtime", () => {
       host: "0.0.0.0",
       port: 4080,
       actor: "service:runtime",
+      apiKeys: ["alpha", "beta"],
       statePath: "/tmp/access-kit-state.json",
       evidenceRoot: "/tmp/access-kit-evidence"
+    });
+  });
+
+  it("requires API keys when the runtime binds beyond loopback", () => {
+    expect(() => readRebacApiRuntimeConfig({ REBAC_API_HOST: "0.0.0.0" })).toThrow(
+      "REBAC_API_KEYS must be set when REBAC_API_HOST is not a loopback host."
+    );
+  });
+
+  it("allows unauthenticated loopback runtime configuration for local development", () => {
+    expect(readRebacApiRuntimeConfig({ REBAC_API_HOST: "localhost" })).toMatchObject({
+      host: "localhost",
+      port: 3000,
+      apiKeys: []
     });
   });
 
   it("rejects API server runtime ports with trailing characters", () => {
     expect(() => readRebacApiRuntimeConfig({ REBAC_API_PORT: "3000abc" })).toThrow(
       "REBAC_API_PORT must be an integer between 1 and 65535."
+    );
+  });
+
+  it("rejects oversized API keys at runtime configuration load", () => {
+    expect(() => readRebacApiRuntimeConfig({ REBAC_API_KEYS: "x".repeat(4097) })).toThrow(
+      "REBAC_API_KEYS entries must be 4096 bytes or less."
     );
   });
 

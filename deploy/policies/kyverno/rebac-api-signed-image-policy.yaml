@@ -1,0 +1,45 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: rebac-api-require-signed-digest
+  annotations:
+    policies.kyverno.io/title: ReBAC runtime digest verification
+    policies.kyverno.io/category: Software Supply Chain
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-immutable-digest
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - access-kit
+      validate:
+        message: rebac-api containers must use immutable GHCR digest references.
+        pattern:
+          spec:
+            =(containers):
+              - =(image): "ghcr.io/*/access-kit/rebac-api@sha256:*"
+    - name: verify-release-signature
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - access-kit
+      verifyImages:
+        - imageReferences:
+            - "ghcr.io/*/access-kit/rebac-api*"
+          required: true
+          verifyDigest: true
+          mutateDigest: false
+          attestors:
+            - entries:
+                - keyless:
+                    issuer: "https://token.actions.githubusercontent.com"
+                    subjectRegExp: "https://github.com/.*/access-kit/.github/workflows/container-release.yml@refs/tags/rebac-api-v.*"

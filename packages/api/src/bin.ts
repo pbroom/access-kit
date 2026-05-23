@@ -14,7 +14,7 @@ const app = createRebacLocalApp({
   evidenceRepository,
   stateRepository
 });
-const server = createRebacApiServer({ app });
+const server = createRebacApiServer({ app, apiKeys: config.apiKeys });
 const sockets = new Set<Socket>();
 let shuttingDown = false;
 
