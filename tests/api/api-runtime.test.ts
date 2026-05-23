@@ -861,6 +861,20 @@ describe("ReBAC API runtime", () => {
     });
   });
 
+  it("requires API keys when the runtime binds beyond loopback", () => {
+    expect(() => readRebacApiRuntimeConfig({ REBAC_API_HOST: "0.0.0.0" })).toThrow(
+      "REBAC_API_KEYS must be set when REBAC_API_HOST is not a loopback host."
+    );
+  });
+
+  it("allows unauthenticated loopback runtime configuration for local development", () => {
+    expect(readRebacApiRuntimeConfig({ REBAC_API_HOST: "localhost" })).toMatchObject({
+      host: "localhost",
+      port: 3000,
+      apiKeys: []
+    });
+  });
+
   it("rejects API server runtime ports with trailing characters", () => {
     expect(() => readRebacApiRuntimeConfig({ REBAC_API_PORT: "3000abc" })).toThrow(
       "REBAC_API_PORT must be an integer between 1 and 65535."

@@ -44,6 +44,15 @@ jobs:
       - name: Validate CI workflow contract
         run: pnpm validate:ci
 
+      - name: Validate container packaging contract
+        run: pnpm validate:packaging
+
+      - name: Validate release packaging contract
+        run: pnpm validate:release-packaging
+
+      - name: Validate deployment manifests
+        run: pnpm validate:deployment-manifests
+
   quality:
     name: Quality (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
@@ -110,3 +119,51 @@ jobs:
 
       - name: Check proof-point evidence freshness
         run: pnpm evidence:check
+
+  container-packaging:
+    name: Container packaging
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Build rebac-api image
+        run: docker build --target runtime --tag access-kit-rebac-api:${{ github.sha }} .
+
+      - name: Smoke test rebac-api image
+        run: |
+          docker run --rm --detach \
+            --name rebac-api-smoke \
+            --publish 3000:3000 \
+            --env REBAC_API_KEYS=ci-smoke \
+            access-kit-rebac-api:${{ github.sha }}
+
+          cleanup() {
+            docker logs rebac-api-smoke || true
+            docker stop rebac-api-smoke || true
+          }
+          trap cleanup EXIT
+
+          container_ready=0
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/v1/health >/tmp/rebac-health.json; then
+              container_ready=1
+              break
+            fi
+            sleep 0.5
+          done
+
+          if [ "$container_ready" != "1" ]; then
+            echo "rebac-api smoke container did not become healthy within 20 seconds" >&2
+            exit 1
+          fi
+
+          health_status=$(curl --silent --show-error --output /tmp/rebac-health.json --write-out "%{http_code}" http://127.0.0.1:3000/v1/health)
+          ready_status=$(curl --silent --show-error --output /tmp/rebac-ready.json --write-out "%{http_code}" http://127.0.0.1:3000/v1/ready)
+          unauth_status=$(curl --silent --show-error --output /tmp/rebac-unauthenticated.json --write-out "%{http_code}" http://127.0.0.1:3000/v1/subjects)
+          auth_status=$(curl --silent --show-error --oauth2-bearer ci-smoke --output /tmp/rebac-authenticated.json --write-out "%{http_code}" http://127.0.0.1:3000/v1/subjects)
+
+          test "$health_status" = "200"
+          test "$ready_status" = "200"
+          test "$unauth_status" = "401"
+          test "$auth_status" = "200"
