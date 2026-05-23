@@ -182,6 +182,7 @@ The documentation connects architecture, control families, implementation behavi
 - `corepack pnpm validate:contracts` passed:
   - 13 schemas and 13 schema fixtures validated.
   - 27 required OpenAPI path groups validated.
+  - `examples/api/decision-check.request.json` and `examples/api/explain.response.json` validated against their OpenAPI request/response schemas.
   - 11 policy proof points validated.
   - CLI contract tests passed.
 - `corepack pnpm test:cli` passed with the synthetic docs walkthrough covered by `tests/cli/docs-examples.test.ts`.

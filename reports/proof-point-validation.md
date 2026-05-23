@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T12:52:37.711Z
+Generated at: 2026-05-23T13:36:14.950Z
 
 Branch: codex/docs-goal-closure
 
@@ -64,6 +64,7 @@ Validated OpenAPI contract at /Users/peterbroomfield/access-kit-docs-goal-closur
 PASS 27 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.
+PASS API examples validate against OpenAPI request and response schemas.
 ```
 
 ### policy fixture validation
@@ -98,8 +99,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  08:52:34
-   Duration  152ms (transform 33ms, setup 0ms, import 48ms, tests 7ms, environment 0ms)
+   Start at  09:36:11
+   Duration  152ms (transform 34ms, setup 0ms, import 48ms, tests 7ms, environment 0ms)
 ```
 
 ### core engine tests
@@ -114,8 +115,8 @@ PASS drift is represented as security finding
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  08:52:35
-   Duration  191ms (transform 107ms, setup 0ms, import 144ms, tests 13ms, environment 0ms)
+   Start at  09:36:12
+   Duration  188ms (transform 108ms, setup 0ms, import 143ms, tests 12ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -130,8 +131,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  52 passed (52)
-   Start at  08:52:35
-   Duration  417ms (transform 106ms, setup 0ms, import 142ms, tests 177ms, environment 0ms)
+   Start at  09:36:13
+   Duration  433ms (transform 109ms, setup 0ms, import 147ms, tests 183ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -146,8 +147,8 @@ PASS drift is represented as security finding
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  08:52:36
-   Duration  372ms (transform 265ms, setup 0ms, import 370ms, tests 182ms, environment 0ms)
+   Start at  09:36:14
+   Duration  359ms (transform 287ms, setup 0ms, import 399ms, tests 132ms, environment 0ms)
 ```
 
 
