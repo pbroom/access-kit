@@ -62,13 +62,27 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RuntimeReadiness"
+                allOf:
+                  - $ref: "#/components/schemas/RuntimeReadiness"
+                  - type: object
+                    required: [status]
+                    properties:
+                      status:
+                        type: string
+                        enum: [ready, ready_with_warnings]
         "503":
           description: API runtime is not ready.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/RuntimeReadiness"
+                allOf:
+                  - $ref: "#/components/schemas/RuntimeReadiness"
+                  - type: object
+                    required: [status]
+                    properties:
+                      status:
+                        type: string
+                        enum: [not_ready]
   /v1/decision/check:
     post:
       tags: [decision]

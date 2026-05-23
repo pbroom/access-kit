@@ -129,14 +129,16 @@ const CHANGE_TICKET_VALUE_MAX_LENGTH = 256;
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
   const actor = options.actor ?? "service:api";
-  const store = new InMemoryRebacStore(options.stateRepository?.readState() ?? options.seed ?? createLocalEngineSeed());
-  const auditRecorder = new AuditRecorder(options.auditRepository?.listAuditEvents() ?? store.listAuditEvents());
+  const persistedState = options.stateRepository?.readState();
+  const store = new InMemoryRebacStore(persistedState ?? options.seed ?? createLocalEngineSeed());
+  const auditRecorder = new AuditRecorder(initialAuditEvents(options, store));
   const engine = new RebacDecisionEngine(store, {
     now,
     actor,
     auditRecorder,
     onAuditEvent: (event) => {
-      appendAuditEvent(options.auditRepository, event, event.occurredAt);
+      const priorStoreAuditEvents = options.stateRepository ? store.listAuditEvents().slice(0, -1) : undefined;
+      appendAuditEvent(options.auditRepository, event, event.occurredAt, priorStoreAuditEvents);
       persistStoreSnapshot(options.stateRepository, store, event.occurredAt);
     }
   });
@@ -857,7 +859,7 @@ export function exportEvidence(app: RebacLocalApp, controls: string[], format: E
 
 export function exportAuditEvents(app: RebacLocalApp, options: AuditEventExportOptions = {}): AuditEventExport {
   const generatedAt = app.now();
-  const allEvents = app.auditRepository?.listAuditEvents() ?? app.store.listAuditEvents();
+  const allEvents = authoritativeAuditEvents(app);
   const periodStart = options.periodStart ?? allEvents
     .map((event) => event.occurredAt)
     .sort()
@@ -984,7 +986,7 @@ export function exportEvidencePackage(
 }
 
 export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
-  const report = app.auditRepository?.verifyIntegrity(app.now()) ?? verifyAuditChain(app.store.listAuditEvents(), app.now());
+  const report = verifyAuditChain(authoritativeAuditEvents(app), app.now());
   const auditEvent = recordAudit(app, {
     eventType: "audit.integrity_verified",
     actor: app.actor,
@@ -1000,18 +1002,51 @@ export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
 
 export function recordAudit(app: RebacLocalApp, input: AuditEventInput): AuditEvent {
   const event = app.auditRecorder.record(input, app.now());
+  const priorStoreAuditEvents = app.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
-  appendAuditEvent(app.auditRepository, event, event.occurredAt);
+  appendAuditEvent(app.auditRepository, event, event.occurredAt, priorStoreAuditEvents);
   persistAppState(app, event.occurredAt);
   return event;
 }
 
-function appendAuditEvent(repository: AuditEventRepository | undefined, event: AuditEvent, storedAt: string): void {
+function appendAuditEvent(
+  repository: AuditEventRepository | undefined,
+  event: AuditEvent,
+  storedAt: string,
+  expectedPriorEvents?: AuditEvent[]
+): void {
   try {
+    if (repository && expectedPriorEvents && !auditRepositoryMatches(repository, expectedPriorEvents)) {
+      return;
+    }
+
     repository?.appendAuditEvent(event, storedAt);
   } catch {
     // Local repositories are proof-point persistence only; API operations should still return computed results.
   }
+}
+
+function initialAuditEvents(options: RebacLocalAppOptions, store: InMemoryRebacStore): AuditEvent[] {
+  if (options.stateRepository) {
+    return store.listAuditEvents();
+  }
+
+  return options.auditRepository?.listAuditEvents() ?? store.listAuditEvents();
+}
+
+function authoritativeAuditEvents(app: RebacLocalApp): AuditEvent[] {
+  if (app.stateRepository) {
+    return app.store.listAuditEvents();
+  }
+
+  return app.auditRepository?.listAuditEvents() ?? app.store.listAuditEvents();
+}
+
+function auditRepositoryMatches(repository: AuditEventRepository, expectedEvents: AuditEvent[]): boolean {
+  const storedEvents = repository.listAuditEvents();
+
+  return storedEvents.length === expectedEvents.length
+    && storedEvents.every((event, index) => stableStringify(event) === stableStringify(expectedEvents[index]));
 }
 
 function persistAppState(app: RebacLocalApp, storedAt: string): void {

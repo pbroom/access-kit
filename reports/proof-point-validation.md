@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T13:35:13.557Z
+Generated at: 2026-05-23T14:06:00.619Z
 
 Branch: codex/rebac-api-container
 
@@ -29,14 +29,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-stack-ops
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -58,10 +58,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-api-container/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-stack-ops/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -70,7 +70,7 @@ PASS Phase 5 readiness, audit integrity, audit export, and evidence export path 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -90,23 +90,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-container
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  09:35:09
-   Duration  163ms (transform 34ms, setup 0ms, import 52ms, tests 7ms, environment 0ms)
+   Start at  10:05:57
+   Duration  139ms (transform 30ms, setup 0ms, import 42ms, tests 6ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -117,49 +117,49 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-container
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  09:35:10
-   Duration  185ms (transform 107ms, setup 0ms, import 144ms, tests 12ms, environment 0ms)
+   Start at  10:05:58
+   Duration  187ms (transform 111ms, setup 0ms, import 146ms, tests 12ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-container
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  1 passed (1)
-      Tests  59 passed (59)
-   Start at  09:35:11
-   Duration  458ms (transform 115ms, setup 0ms, import 153ms, tests 209ms, environment 0ms)
+      Tests  63 passed (63)
+   Start at  10:05:59
+   Duration  388ms (transform 97ms, setup 0ms, import 131ms, tests 168ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-api-container
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-container
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  2 passed (2)
       Tests  29 passed (29)
-   Start at  09:35:12
-   Duration  365ms (transform 188ms, setup 0ms, import 258ms, tests 88ms, environment 0ms)
+   Start at  10:05:59
+   Duration  287ms (transform 139ms, setup 0ms, import 188ms, tests 70ms, environment 0ms)
 ```
 
 

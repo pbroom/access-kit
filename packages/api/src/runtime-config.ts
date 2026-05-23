@@ -7,6 +7,8 @@ export interface RebacApiRuntimeConfig {
   evidenceRoot?: string;
 }
 
+const maxApiKeyBytes = 4096;
+
 export function readRebacApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env): RebacApiRuntimeConfig {
   return {
     host: env.REBAC_API_HOST ?? "127.0.0.1",
@@ -40,5 +42,11 @@ function readOptionalPath(value: string | undefined): string | undefined {
 }
 
 function readList(value: string | undefined): string[] {
-  return [...new Set((value ?? "").split(",").map((item) => item.trim()).filter(Boolean))];
+  const items = (value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
+
+  if (items.some((item) => Buffer.byteLength(item, "utf8") > maxApiKeyBytes)) {
+    throw new Error("REBAC_API_KEYS entries must be 4096 bytes or less.");
+  }
+
+  return [...new Set(items)];
 }
