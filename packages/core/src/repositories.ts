@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { auditEventHash, stableStringify, verifyAuditChain } from "./audit.js";
@@ -9,6 +9,7 @@ import type {
   EvidenceExport,
   EvidenceStorageReceipt
 } from "./domain.js";
+import type { RebacSeedData } from "./store.js";
 
 export interface AuditEventRepository {
   appendAuditEvent(event: AuditEvent, storedAt: string): AuditStorageReceipt;
@@ -21,8 +22,48 @@ export interface EvidencePackageRepository {
   readEvidenceExport(exportId: string): EvidenceExport | undefined;
 }
 
+export interface RebacStateRepository {
+  readState(): RebacSeedData | undefined;
+  writeState(state: RebacSeedData, storedAt: string): RebacStateStorageReceipt;
+}
+
+export interface RebacStateStorageReceipt {
+  storedAt: string;
+  backend: "local_file" | "external";
+  location: string;
+  stateHash: string;
+  entityCounts: {
+    subjects: number;
+    resources: number;
+    relationships: number;
+    nativeGrants: number;
+    discoveryRuns: number;
+    enforcementReadinessReports: number;
+    provisioningPlans: number;
+    provisioningJobs: number;
+    driftFindings: number;
+    reconciliationRuns: number;
+    decisions: number;
+    auditEvents: number;
+  };
+  version: string;
+}
+
 export interface LocalFileEvidenceRepositoryOptions {
   rootDir: string;
+}
+
+export interface LocalJsonFileStateRepositoryOptions {
+  rootDir?: string;
+  statePath?: string;
+}
+
+interface StoredRebacState {
+  version: "rebac-runtime-state:v1";
+  storedAt: string;
+  stateHash: string;
+  state: RebacSeedData;
+  entityCounts: RebacStateStorageReceipt["entityCounts"];
 }
 
 export class LocalFileEvidenceRepository implements AuditEventRepository, EvidencePackageRepository {
@@ -104,10 +145,103 @@ export class LocalFileEvidenceRepository implements AuditEventRepository, Eviden
   }
 }
 
+export class LocalJsonFileStateRepository implements RebacStateRepository {
+  readonly #statePath: string;
+  readonly #location: string;
+
+  constructor(options: LocalJsonFileStateRepositoryOptions) {
+    this.#statePath = options.statePath ?? join(requiredRootDir(options), "runtime-state.json");
+    this.#location = options.statePath ? "runtime-state.json" : "runtime-state.json";
+    mkdirSync(dirname(this.#statePath), { recursive: true });
+  }
+
+  readState(): RebacSeedData | undefined {
+    if (!existsSync(this.#statePath)) {
+      return undefined;
+    }
+
+    const parsed = JSON.parse(readFileSync(this.#statePath, "utf8")) as Partial<StoredRebacState> | RebacSeedData;
+
+    if (isStoredRebacState(parsed)) {
+      assertStoredStateIntegrity(parsed);
+      return parsed.state;
+    }
+
+    return parsed as RebacSeedData;
+  }
+
+  writeState(state: RebacSeedData, storedAt: string): RebacStateStorageReceipt {
+    const stateHash = `sha256:${stableHash(state)}`;
+    const entityCounts = countStateEntities(state);
+    const stored: StoredRebacState = {
+      version: "rebac-runtime-state:v1",
+      storedAt,
+      stateHash,
+      state,
+      entityCounts
+    };
+    const tempPath = `${this.#statePath}.${process.pid}.${Date.now()}.tmp`;
+    mkdirSync(dirname(this.#statePath), { recursive: true });
+    writeFileSync(tempPath, `${stableStringify(stored)}\n`, "utf8");
+    renameSync(tempPath, this.#statePath);
+
+    return {
+      storedAt,
+      backend: "local_file",
+      location: this.#location,
+      stateHash,
+      entityCounts,
+      version: "rebac-state-storage-receipt:v1"
+    };
+  }
+}
+
 function sanitizeFileSegment(value: string): string {
   return value.replaceAll(/[^a-z0-9_-]/gi, "_");
 }
 
 function stableHash(value: unknown): string {
   return createHash("sha256").update(stableStringify(value)).digest("hex");
+}
+
+function requiredRootDir(options: LocalJsonFileStateRepositoryOptions): string {
+  if (!options.rootDir) {
+    throw new Error("LocalJsonFileStateRepository requires rootDir or statePath");
+  }
+
+  return options.rootDir;
+}
+
+function isStoredRebacState(value: Partial<StoredRebacState> | RebacSeedData): value is StoredRebacState {
+  return (
+    typeof (value as StoredRebacState).version === "string" &&
+    (value as StoredRebacState).version === "rebac-runtime-state:v1" &&
+    typeof (value as StoredRebacState).state === "object" &&
+    (value as StoredRebacState).state !== null
+  );
+}
+
+function assertStoredStateIntegrity(stored: StoredRebacState): void {
+  const expectedStateHash = `sha256:${stableHash(stored.state)}`;
+
+  if (stored.stateHash !== expectedStateHash) {
+    throw new Error("ReBAC runtime state hash does not match the stored state payload.");
+  }
+}
+
+function countStateEntities(state: RebacSeedData): RebacStateStorageReceipt["entityCounts"] {
+  return {
+    subjects: state.subjects?.length ?? 0,
+    resources: state.resources?.length ?? 0,
+    relationships: state.relationships?.length ?? 0,
+    nativeGrants: state.nativeGrants?.length ?? 0,
+    discoveryRuns: state.discoveryRuns?.length ?? 0,
+    enforcementReadinessReports: state.enforcementReadinessReports?.length ?? 0,
+    provisioningPlans: state.provisioningPlans?.length ?? 0,
+    provisioningJobs: state.provisioningJobs?.length ?? 0,
+    driftFindings: state.driftFindings?.length ?? 0,
+    reconciliationRuns: state.reconciliationRuns?.length ?? 0,
+    decisions: state.decisions?.length ?? 0,
+    auditEvents: state.auditEvents?.length ?? 0
+  };
 }

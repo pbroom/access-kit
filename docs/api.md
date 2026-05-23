@@ -4,6 +4,18 @@
 
 `openapi/rebac-control-plane.yaml` is the public API source of truth. The TypeScript runtime must conform to it rather than inventing routes independently.
 
+## Service Runtime
+
+The API package exposes a `rebac-api` entrypoint for local deployment packaging proof points. It starts the same OpenAPI-shaped runtime used by tests and accepts these environment variables:
+
+- `REBAC_API_HOST`, default `127.0.0.1`
+- `REBAC_API_PORT`, default `3000`
+- `REBAC_API_ACTOR`, default `service:api`
+- `REBAC_STATE_PATH`, optional local JSON runtime state snapshot path
+- `REBAC_EVIDENCE_ROOT`, optional local audit/evidence repository root
+
+`REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state. It is not a replacement for production graph, audit, queue, or evidence stores.
+
 ## API Groups
 
 - Decision: `check`, `explain`, and `batch-check`.

@@ -53,6 +53,8 @@ import {
   type ReconciliationRun,
   type RelationshipTuple,
   type Resource,
+  type RebacSeedData,
+  type RebacStateRepository,
   type SystemBoundaryEvidence,
   type Subject
 } from "@access-kit/core";
@@ -60,6 +62,8 @@ import {
 export interface RebacLocalAppOptions {
   now?: () => string;
   actor?: string;
+  seed?: RebacSeedData;
+  stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
 }
@@ -78,6 +82,7 @@ export interface RebacLocalApp {
   store: InMemoryRebacStore;
   engine: RebacDecisionEngine;
   auditRecorder: AuditRecorder;
+  stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
   connectors: Map<string, ConnectorAdapter>;
@@ -124,13 +129,16 @@ const CHANGE_TICKET_VALUE_MAX_LENGTH = 256;
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
   const actor = options.actor ?? "service:api";
-  const store = new InMemoryRebacStore(createLocalEngineSeed());
-  const auditRecorder = new AuditRecorder();
+  const store = new InMemoryRebacStore(options.stateRepository?.readState() ?? options.seed ?? createLocalEngineSeed());
+  const auditRecorder = new AuditRecorder(options.auditRepository?.listAuditEvents() ?? store.listAuditEvents());
   const engine = new RebacDecisionEngine(store, {
     now,
     actor,
     auditRecorder,
-    onAuditEvent: (event) => appendAuditEvent(options.auditRepository, event, event.occurredAt)
+    onAuditEvent: (event) => {
+      appendAuditEvent(options.auditRepository, event, event.occurredAt);
+      persistStoreSnapshot(options.stateRepository, store, event.occurredAt);
+    }
   });
   const connectorList: ConnectorAdapter[] = [
     new MockConnector(),
@@ -144,6 +152,7 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     store,
     engine,
     auditRecorder,
+    stateRepository: options.stateRepository,
     auditRepository: options.auditRepository,
     evidenceRepository: options.evidenceRepository,
     connectors,
@@ -293,6 +302,7 @@ export async function syncConnector(
 
   const completedRun = { ...run, auditEventIds: [auditEvent.eventId] };
   app.store.recordDiscoveryRun(completedRun);
+  persistAppState(app, completedAt);
   return completedRun;
 }
 
@@ -392,6 +402,7 @@ export async function checkEnforcementReadiness(
   });
   const report = { ...reportWithoutAuditIds, auditEventIds: [auditEvent.eventId] };
   app.store.recordEnforcementReadinessReport(report);
+  persistAppState(app, checkedAt);
   return report;
 }
 
@@ -651,6 +662,7 @@ export async function createProvisioningJob(
   ];
   const job = { ...jobWithoutAuditIds, auditEventIds };
   app.store.upsertProvisioningJob(job);
+  persistAppState(app, completedAt);
   return job;
 }
 
@@ -771,6 +783,7 @@ async function createControlledEnforcementJob(
   const job = { ...jobWithoutAuditIds, auditEventIds };
   app.store.upsertProvisioningPlan({ ...plan, status: completed ? "applied" : "failed", updatedAt: completedAt });
   app.store.upsertProvisioningJob(job);
+  persistAppState(app, completedAt);
   return job;
 }
 
@@ -829,6 +842,7 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
   });
   const completedRun = { ...run, auditEventIds: [...auditEventIds, completedEvent.eventId] };
   app.store.recordReconciliationRun(completedRun);
+  persistAppState(app, completedAt);
   return completedRun;
 }
 
@@ -983,6 +997,7 @@ export function recordAudit(app: RebacLocalApp, input: AuditEventInput): AuditEv
   const event = app.auditRecorder.record(input, app.now());
   app.store.recordAuditEvent(event);
   appendAuditEvent(app.auditRepository, event, event.occurredAt);
+  persistAppState(app, event.occurredAt);
   return event;
 }
 
@@ -991,6 +1006,22 @@ function appendAuditEvent(repository: AuditEventRepository | undefined, event: A
     repository?.appendAuditEvent(event, storedAt);
   } catch {
     // Local repositories are proof-point persistence only; API operations should still return computed results.
+  }
+}
+
+function persistAppState(app: RebacLocalApp, storedAt: string): void {
+  persistStoreSnapshot(app.stateRepository, app.store, storedAt);
+}
+
+function persistStoreSnapshot(
+  repository: RebacStateRepository | undefined,
+  store: InMemoryRebacStore,
+  storedAt: string
+): void {
+  try {
+    repository?.writeState(store.exportSeedData(), storedAt);
+  } catch {
+    // Runtime snapshot storage is best-effort until production persistence is selected.
   }
 }
 
@@ -1206,11 +1237,11 @@ function buildSystemBoundary(app: RebacLocalApp): SystemBoundaryEvidence {
       },
       {
         id: "component:local-store",
-        name: "In-memory proof-point store",
+        name: "Restartable proof-point store",
         type: "data_store",
         trustZone: "local_runtime",
         dataClassification: "synthetic",
-        description: "Local proof-point store for subjects, resources, relationships, native grants, jobs, findings, and audit events."
+        description: "Local proof-point store for subjects, resources, relationships, native grants, jobs, findings, audit events, and optional JSON state snapshots."
       },
       {
         id: "component:local-evidence-repository",
@@ -1277,7 +1308,7 @@ function buildDataFlows(app: RebacLocalApp): DataFlowEvidence[] {
       source: "component:api-runtime",
       destination: "component:local-store",
       dataTypes: ["inventory", "native_grants", "provisioning_jobs", "audit_events", "drift_findings"],
-      protections: ["synthetic_data_only", "hash_chained_audit_events", "separate_intended_and_native_access"],
+      protections: ["synthetic_data_only", "hash_chained_audit_events", "state_snapshot_hashes", "separate_intended_and_native_access"],
       liveTenantData: false
     },
     ...connectorFlows,

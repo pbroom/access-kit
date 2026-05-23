@@ -19,9 +19,10 @@ import {
   checkEnforcementReadiness,
   createRebacApiServer,
   createRebacLocalApp,
+  readRebacApiRuntimeConfig,
   type RebacApiServerOptions
 } from "../../packages/api/src/index.js";
-import { LocalFileEvidenceRepository } from "../../packages/core/src/index.js";
+import { LocalFileEvidenceRepository, LocalJsonFileStateRepository } from "../../packages/core/src/index.js";
 
 type JsonObject = Record<string, unknown>;
 type EnforcementReadinessReportJson = JsonObject & EnforcementReadinessReport;
@@ -526,6 +527,93 @@ describe("ReBAC API runtime", () => {
     expect(evidence.storageReceipt.location).not.toContain(storageRoot);
     expect(storedEvidence?.storageReceipt?.packageHash).toBe(evidence.storageReceipt.packageHash);
     expect(storedEvidence?.storageReceipt?.location).toBe(evidence.storageReceipt.location);
+  });
+
+  it("persists runtime state across API restarts with a local JSON state repository", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-state-"));
+    tempDirs.push(stateRoot);
+    const repository = new LocalJsonFileStateRepository({ rootDir: stateRoot });
+    await restartServer({
+      now: sequenceNow(
+        "2026-05-21T17:00:00.000Z",
+        "2026-05-21T17:00:01.000Z",
+        "2026-05-21T17:00:02.000Z",
+        "2026-05-21T17:00:03.000Z"
+      ),
+      stateRepository: repository
+    });
+
+    await post("/v1/subjects", {
+      id: "user:persistent-analyst",
+      type: "user",
+      displayName: "Persistent Analyst",
+      sourceSystem: "synthetic",
+      lifecycleState: "active",
+      identifiers: { employeeId: "E-PERSIST" },
+      version: "subject:v1",
+      createdAt: "2026-05-21T17:00:00.000Z"
+    });
+    await fetch(`${baseUrl}/v1/relationships`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-persist-relationship" },
+      body: JSON.stringify({
+        id: "relationship:persistent-analyst-document",
+        subjectId: "user:persistent-analyst",
+        relation: "reader_of",
+        objectId: "document:case-plan",
+        sourceSystem: "synthetic",
+        assertedAt: "2026-05-21T17:00:01.000Z",
+        status: "active",
+        version: "tuple:v1",
+        createdAt: "2026-05-21T17:00:01.000Z"
+      })
+    });
+    await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:persistent-analyst",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    await restartServer({
+      now: () => "2026-05-21T18:00:00.000Z",
+      stateRepository: repository
+    });
+    const subject = await get<{ id: string }>("/v1/subjects/user%3Apersistent-analyst");
+    const relationships = await get<{ items: Array<{ id: string }> }>(
+      "/v1/relationships?subjectId=user%3Apersistent-analyst"
+    );
+    const decision = await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:persistent-analyst",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    const integrity = await get<{ status: string; eventCount: number }>("/v1/audit/integrity");
+    const state = repository.readState();
+
+    expect(subject.id).toBe("user:persistent-analyst");
+    expect(relationships.items.map((relationship) => relationship.id)).toContain("relationship:persistent-analyst-document");
+    expect(decision.decision).toBe("allow");
+    expect(integrity).toMatchObject({ status: "verified", eventCount: 4 });
+    expect(state?.subjects?.some((item) => item.id === "user:persistent-analyst")).toBe(true);
+    expect(state?.auditEvents?.map((event) => event.eventType)).toContain("audit.integrity_verified");
+  });
+
+  it("reads API server runtime configuration from environment variables", () => {
+    const config = readRebacApiRuntimeConfig({
+      REBAC_API_HOST: "0.0.0.0",
+      REBAC_API_PORT: "4080",
+      REBAC_API_ACTOR: "service:runtime",
+      REBAC_STATE_PATH: "/tmp/access-kit-state.json",
+      REBAC_EVIDENCE_ROOT: "/tmp/access-kit-evidence"
+    });
+
+    expect(config).toEqual({
+      host: "0.0.0.0",
+      port: 4080,
+      actor: "service:runtime",
+      statePath: "/tmp/access-kit-state.json",
+      evidenceRoot: "/tmp/access-kit-evidence"
+    });
   });
 
   it("returns computed audit results when proof-point storage append fails", async () => {

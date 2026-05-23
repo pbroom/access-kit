@@ -1,13 +1,13 @@
 # Outstanding Requirements
 
-The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, audit integrity reports, SIEM-ready local audit exports, complete local ATO evidence packages, local file-backed audit/evidence repository proof points, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
+The current implementation supports local policy decisions, mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, dry-run provisioning jobs, synthetic mock-only controlled enforcement, connector enforcement-readiness reports, audit integrity reports, SIEM-ready local audit exports, complete local ATO evidence packages, local file-backed audit/evidence repository proof points, restartable JSON runtime snapshots, a runnable API service entrypoint, drift fixtures, API handlers, CLI wrappers, and validation evidence. It still intentionally avoids live tenant access and production mutation.
 
 ## Runtime
 
-- Replace local in-memory API handlers with deployable production service packaging.
-- Add persistent graph storage for subjects, resources, and relationship tuples.
+- Harden deployable API service packaging with container images, IaC, health/readiness probes, authentication, authorization, and deployment runbooks.
+- Replace local JSON runtime snapshots with persistent graph storage for subjects, resources, and relationship tuples.
 - Add policy model parsing, publication, rollback, and versioned test execution.
-- Replace local in-memory and local file-backed audit proof points with durable append-only audit/event storage, immutability controls, retention, and recovery procedures.
+- Replace local in-memory, JSON snapshot, and local file-backed audit proof points with durable append-only audit/event storage, immutability controls, retention, and recovery procedures.
 - Replace local provisioning jobs with queue-backed jobs, retries, backoff, dead-letter handling, and connector health states.
 
 ## Connectors
@@ -15,8 +15,8 @@ The current implementation supports local policy decisions, mock and synthetic p
 - Complete security review for connector identity and least-privilege scopes.
 - Replace synthetic Entra ID, SharePoint, and AWS-style adapters with live read-only connectors after security review.
 - Define live connector consent, tenant boundary, pagination, throttling, and deletion semantics.
-- Persist discovery runs and native grants outside the local in-memory store.
-- Persist reconciliation runs and dry-run job evidence outside the local in-memory store.
+- Persist discovery runs and native grants in a production database rather than local JSON snapshots.
+- Persist reconciliation runs and dry-run job evidence in durable queue/job storage rather than local JSON snapshots.
 - Extend controlled enforcement beyond the synthetic mock proof point only after live connector write scopes, approvals, verification, rollback, least-privilege connector review, operational runbooks, and emergency revocation behavior are reviewed and evidenced.
 - Promote enforcement-readiness reports from local proof-point records to durable release gates for each connector/version pair.
 
