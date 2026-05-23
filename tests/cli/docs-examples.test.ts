@@ -36,6 +36,7 @@ describe("documentation CLI examples", () => {
     await runCli("connector", "sync", "mock", "--mode", "read_only");
     const discoveryRun = lastOutput();
     expect(discoveryRun).toMatchObject({
+      id: expect.any(String),
       connectorId: "mock",
       mode: "read_only",
       status: "completed_with_warnings"
