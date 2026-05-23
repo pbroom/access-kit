@@ -17,7 +17,8 @@ const security = await readWorkflow(".github/workflows/security.yml");
 
 requireJob(ci, "contract-validation", [
   "pnpm validate:contracts",
-  "pnpm validate:ci"
+  "pnpm validate:ci",
+  "pnpm validate:packaging"
 ]);
 requireJob(ci, "quality", [
   "pnpm typecheck",
@@ -26,6 +27,12 @@ requireJob(ci, "quality", [
   "pnpm build"
 ]);
 requireJob(ci, "evidence", ["pnpm evidence:check"]);
+requireJob(ci, "container-packaging", [
+  "docker build",
+  "rebac-api-smoke",
+  "/v1/ready",
+  "REBAC_API_KEYS=ci-smoke"
+]);
 requireJob(security, "dependency-audit", ["pnpm audit --audit-level high"]);
 requireSecurityConcurrency(security);
 requireJob(security, "secret-scan", ["gitleaks/gitleaks-action"]);
@@ -36,7 +43,7 @@ requireJob(security, "codeql", [
 ]);
 
 console.log("Validated CI workflow contract.");
-console.log("PASS CI contract, quality, evidence, dependency audit, secret scan, and CodeQL jobs are present.");
+console.log("PASS CI contract, quality, evidence, container packaging, dependency audit, secret scan, and CodeQL jobs are present.");
 
 async function readWorkflow(path: string): Promise<WorkflowDocument> {
   const contents = await readFile(join(root, path), "utf8");

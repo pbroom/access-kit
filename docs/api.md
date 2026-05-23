@@ -6,7 +6,7 @@
 
 ## Service Runtime
 
-The API package exposes a `rebac-api` entrypoint for local deployment packaging proof points. It starts the same OpenAPI-shaped runtime used by tests and accepts these environment variables:
+The API package exposes a `rebac-api` entrypoint and container image for local deployment packaging proof points. It starts the same OpenAPI-shaped runtime used by tests and accepts these environment variables:
 
 - `REBAC_API_HOST`, default `127.0.0.1`
 - `REBAC_API_PORT`, default `3000`
@@ -16,6 +16,8 @@ The API package exposes a `rebac-api` entrypoint for local deployment packaging 
 - `REBAC_EVIDENCE_ROOT`, optional local audit/evidence repository root
 
 When `REBAC_API_KEYS` is set, every `/v1` route except `/v1/health` and `/v1/ready` requires `Authorization: Bearer <token>`. Failed authentication attempts return `401`, set a bearer challenge, and emit `api.authentication_failed` audit evidence without logging token material. `REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state. It is not a replacement for production graph, audit, queue, or evidence stores.
+
+The container packaging defaults `REBAC_API_HOST` to `0.0.0.0` and persists local proof-point state under `/var/lib/access-kit`. See `docs/deployment.md` for build and smoke-test commands.
 
 ## API Groups
 

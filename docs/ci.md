@@ -6,6 +6,7 @@ The repo treats API and evidence contracts as first-class CI gates.
 
 - `pnpm validate:contracts` validates JSON Schemas, OpenAPI paths, policy proof points, and CLI-to-API command mappings.
 - `pnpm validate:ci` validates that the GitHub Actions workflow still contains the expected contract, quality, evidence, and security jobs.
+- `pnpm validate:packaging` validates the deployable API Dockerfile, runtime healthcheck, non-root container contract, and container CI smoke-test wiring.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm build` verify TypeScript quality across supported Node versions.
 - `pnpm evidence:check` regenerates proof-point evidence in check mode and fails when the committed report no longer matches the normalized generated output.
 - `pnpm audit --audit-level high`, Gitleaks, and CodeQL provide initial dependency, secret, and static-analysis coverage.
@@ -17,6 +18,7 @@ The repo treats API and evidence contracts as first-class CI gates.
 - Contract validation on Node 22.
 - Typecheck, lint, tests, and build on Node 22 and Node 24.
 - Evidence report freshness on Node 24.
+- Container packaging by building the `rebac-api` runtime image and smoke-testing health, readiness, and bearer-token API protection.
 
 `.github/workflows/security.yml` runs:
 
