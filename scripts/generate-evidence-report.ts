@@ -118,13 +118,14 @@ ${trimOutput(result.output)}
 - Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.
 - Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.
 - Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.
-- Local core engine tests for deterministic check/explain and decision audit emission.
+- Local core engine tests for deterministic check/explain, decision audit emission, persistent graph/job repository contracts, defensive in-memory conformance behavior, and persistence-readiness gates for graph, audit, and job backends.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 
 ## Outstanding Requirements
 
-- Replace local JSON runtime snapshots with a persistent relationship graph and policy model store.
+- Implement production graph, append-only audit, and queue/job adapters behind the persistent storage contracts.
+- Replace local JSON runtime snapshots with a production relationship graph and policy model store.
 - Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, file-backed storage proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
 - Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
