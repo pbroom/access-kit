@@ -88,6 +88,25 @@ gh attestation verify \
   "$IMAGE_REF"
 ```
 
+## Kubernetes Manifest Gate
+
+Reference deployment manifests live under `deploy/kubernetes/`. They wire the deployable runtime to:
+
+- immutable GHCR digest references
+- `/v1/ready` readiness probes
+- `/v1/health` startup and liveness probes
+- a `rebac-api-auth` secret reference for bearer-token configuration
+- a persistent `/var/lib/access-kit` volume for local proof-point state and evidence
+- restricted pod security settings, disabled service-account token automounting, and a network policy
+
+The manifests intentionally do not include secret values, tenant identifiers, provider credentials, ingress, certificate, or identity-provider wiring. Replace the placeholder image digest with a verified release digest before any deployment exercise:
+
+```sh
+kubectl apply -k deploy/kubernetes
+```
+
+The signed-image admission policy example lives at `deploy/policies/kyverno/rebac-api-signed-image-policy.yaml`. It is a policy contract for clusters that use Kyverno and cosign keyless verification; production clusters still need environment approval before enforcing it.
+
 ## Rollback
 
 Rollback is a digest change, not an in-place image mutation:
@@ -98,4 +117,4 @@ Rollback is a digest change, not an in-place image mutation:
 4. Watch `/v1/ready`, `/v1/health`, authentication-failure audit volume, and audit write/readiness checks.
 5. Record the rollback reason, prior digest, replacement digest, verification evidence, approver, and runtime observations in the deployment evidence package.
 
-Future production deployment work still needs environment IaC, signed-image admission policy, identity-provider authentication, operator authorization, approved secrets handling, and agency-specific release approvals.
+Future production deployment work still needs environment-specific overlays, ingress and certificate management, signed-image admission enforcement, identity-provider authentication, operator authorization, approved secrets handling, and agency-specific release approvals.

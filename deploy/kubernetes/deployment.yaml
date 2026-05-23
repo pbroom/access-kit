@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rebac-api
+  namespace: access-kit
+  labels:
+    app.kubernetes.io/name: rebac-api
+    app.kubernetes.io/part-of: access-kit
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rebac-api
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rebac-api
+        app.kubernetes.io/part-of: access-kit
+    spec:
+      serviceAccountName: rebac-api
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rebac-api
+          image: ghcr.io/pbroom/access-kit/rebac-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            - name: REBAC_API_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: rebac-api-config
+                  key: REBAC_API_HOST
+            - name: REBAC_API_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: rebac-api-config
+                  key: REBAC_API_PORT
+            - name: REBAC_API_ACTOR
+              valueFrom:
+                configMapKeyRef:
+                  name: rebac-api-config
+                  key: REBAC_API_ACTOR
+            - name: REBAC_STATE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: rebac-api-config
+                  key: REBAC_STATE_PATH
+            - name: REBAC_EVIDENCE_ROOT
+              valueFrom:
+                configMapKeyRef:
+                  name: rebac-api-config
+                  key: REBAC_EVIDENCE_ROOT
+            - name: REBAC_API_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: rebac-api-auth
+                  key: bearer-tokens
+          readinessProbe:
+            httpGet:
+              path: /v1/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /v1/health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 30
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: rebac-api-data
+              mountPath: /var/lib/access-kit
+      volumes:
+        - name: rebac-api-data
+          persistentVolumeClaim:
+            claimName: rebac-api-data

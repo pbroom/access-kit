@@ -50,6 +50,9 @@ jobs:
       - name: Validate release packaging contract
         run: pnpm validate:release-packaging
 
+      - name: Validate deployment manifests
+        run: pnpm validate:deployment-manifests
+
   quality:
     name: Quality (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
