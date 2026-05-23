@@ -1,16 +1,19 @@
 version: 2
+# Scheduled version-update PRs are intentionally disabled.
+# Dependency upgrades should be handled as explicit maintenance work while
+# CI keeps dependency audit, secret scanning, and CodeQL checks in place.
 updates:
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
 
   - package-ecosystem: npm
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       development-tooling:
         patterns:
