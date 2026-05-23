@@ -29,10 +29,14 @@ const requiredHeadings = [
 const failures: string[] = [];
 
 for (const runbook of requiredRunbooks) {
-  const content = await readFile(runbook, "utf8").catch((error: unknown) => {
+  let content: string;
+
+  try {
+    content = await readFile(runbook, "utf8");
+  } catch (error: unknown) {
     failures.push(`${runbook}: ${error instanceof Error ? error.message : "could not read file"}`);
-    return "";
-  });
+    continue;
+  }
 
   for (const heading of requiredHeadings) {
     if (!hasHeading(content, heading)) {

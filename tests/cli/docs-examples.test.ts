@@ -74,6 +74,7 @@ describe("documentation CLI examples", () => {
     await runCli("provision", "revoke", "native-grant:document:case-plan:alice", "--connector", "mock");
     const revocationPlan = lastOutput();
     expect(revocationPlan).toMatchObject({
+      id: expect.any(String),
       connectorId: "mock",
       action: "read",
       actions: [expect.objectContaining({ operation: "revoke" })]
@@ -141,6 +142,7 @@ describe("documentation CLI examples", () => {
 });
 
 async function runCli(...args: string[]): Promise<void> {
+  output = [];
   const program = buildCli({
     apiUrl: baseUrl,
     writeJson: (value) => output.push(value),
@@ -148,6 +150,10 @@ async function runCli(...args: string[]): Promise<void> {
   });
   program.exitOverride();
   await program.parseAsync(["node", "rebac", ...args]);
+
+  if (output.length !== 1) {
+    throw new Error(`Expected CLI command to write exactly one JSON object, got ${output.length}: ${args.join(" ")}`);
+  }
 }
 
 function lastOutput(): Record<string, unknown> {

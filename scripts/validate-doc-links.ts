@@ -11,6 +11,8 @@ const markdownFiles = (await Promise.all(markdownRoots.map(listMarkdownFiles))).
 const failures: string[] = [];
 let checkedLinks = 0;
 
+console.log(`Markdown roots: ${markdownRoots.map((path) => relative(root, join(root, path))).join(", ")}`);
+
 for (const markdownFile of markdownFiles) {
   const content = await readFile(markdownFile, "utf8");
 
@@ -31,7 +33,7 @@ for (const markdownFile of markdownFiles) {
     }
 
     if (anchorPart && extname(targetFile) === ".md") {
-      const anchor = decodeURIComponent(anchorPart).toLowerCase();
+      const anchor = slugifyHeading(decodeURIComponent(anchorPart));
       const anchors = await readMarkdownAnchors(targetFile);
 
       if (!anchors.has(anchor)) {
@@ -113,14 +115,34 @@ async function readMarkdownAnchors(path: string): Promise<Set<string>> {
 }
 
 function slugifyHeading(heading: string): string {
-  return heading
+  return stripHtmlTags(heading)
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/<[^>]+>/g, "")
     .trim()
     .toLowerCase()
     .replace(/[^\p{Letter}\p{Number}\s_-]/gu, "")
     .replace(/\s+/g, "-");
 }
 
-console.log(`Markdown roots: ${markdownRoots.map((path) => relative(root, join(root, path))).join(", ")}`);
+function stripHtmlTags(value: string): string {
+  let stripped = "";
+  let insideTag = false;
+
+  for (const character of value) {
+    if (character === "<") {
+      insideTag = true;
+      continue;
+    }
+
+    if (character === ">") {
+      insideTag = false;
+      continue;
+    }
+
+    if (!insideTag) {
+      stripped += character;
+    }
+  }
+
+  return stripped;
+}

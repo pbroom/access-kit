@@ -98,27 +98,50 @@ function getRequestSchema(openApi: OpenApiDocument, path: string, method: string
   const requestBody = asRecord(operation.requestBody, `${method.toUpperCase()} ${path} requestBody`);
   const content = asRecord(requestBody.content, `${method.toUpperCase()} ${path} content`);
   const json = asRecord(content["application/json"], `${method.toUpperCase()} ${path} application/json content`);
-  return resolveLocalRef(asRecord(json.schema, `${method.toUpperCase()} ${path} schema`), openApi);
+  return asRecord(resolveLocalRefs(asRecord(json.schema, `${method.toUpperCase()} ${path} schema`), openApi), `${method.toUpperCase()} ${path} schema`);
 }
 
-function resolveLocalRef(schema: Record<string, unknown>, openApi: OpenApiDocument): Record<string, unknown> {
-  const ref = schema.$ref;
-
-  if (typeof ref !== "string") {
-    return schema;
+function resolveLocalRefs(value: unknown, openApi: OpenApiDocument, seenRefs = new Set<string>()): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => resolveLocalRefs(item, openApi, seenRefs));
   }
 
-  if (!ref.startsWith("#/")) {
-    throw new Error(`External OpenAPI refs are not supported for doc request examples: ${ref}`);
+  if (!value || typeof value !== "object") {
+    return value;
   }
 
+  const record = value as Record<string, unknown>;
+  const ref = record.$ref;
+
+  if (typeof ref === "string") {
+    if (!ref.startsWith("#/")) {
+      throw new Error(`External OpenAPI refs are not supported for doc request examples: ${ref}`);
+    }
+
+    if (seenRefs.has(ref)) {
+      throw new Error(`Circular OpenAPI ref found while validating doc examples: ${ref}`);
+    }
+
+    return resolveLocalRefs(readLocalRef(openApi, ref), openApi, new Set([...seenRefs, ref]));
+  }
+
+  return Object.fromEntries(
+    Object.entries(record).map(([key, entry]) => [key, resolveLocalRefs(entry, openApi, seenRefs)])
+  );
+}
+
+function readLocalRef(openApi: OpenApiDocument, ref: string): unknown {
   let value: unknown = openApi;
 
   for (const segment of ref.slice(2).split("/")) {
-    value = asRecord(value, ref)[segment];
+    value = asRecord(value, ref)[decodeJsonPointerSegment(segment)];
   }
 
-  return asRecord(value, ref);
+  return value;
+}
+
+function decodeJsonPointerSegment(segment: string): string {
+  return segment.replace(/~1/g, "/").replace(/~0/g, "~");
 }
 
 function asRecord(value: unknown, label: string): Record<string, unknown> {
