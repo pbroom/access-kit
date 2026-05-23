@@ -63,6 +63,8 @@ pnpm evidence:generate
 
 - [Start Here](docs/start-here.md)
 - [Concept of Operations](docs/concept-of-operations.md)
+- [Glossary](docs/glossary.md)
+- [Non-Goals](docs/non-goals.md)
 - [System Context and Boundary](docs/system-context-and-boundary.md)
 - [Domain Model](docs/domain-model.md)
 - [Decision Lifecycle](docs/decision-lifecycle.md)

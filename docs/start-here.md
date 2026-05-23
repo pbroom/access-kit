@@ -22,7 +22,7 @@ Access Kit is not an identity provider, authentication system, SIEM, ticketing s
 4. Read [Decision Lifecycle](decision-lifecycle.md) and [Explain API](explain-api.md) for authorization behavior.
 5. Read [Provisioning Lifecycle](provisioning-lifecycle.md), [Connector Contract](connector-contract.md), and [Drift Detection Model](drift-detection-model.md) for operational change control.
 6. Read [Audit Event Model](audit-event-model.md), [Evidence Catalog](evidence-catalog.md), [Control Traceability Matrix](control-traceability-matrix.md), and [Assessor Inspection Guide](assessor-inspection-guide.md) for inspection and evidence.
-7. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [runbooks](../runbooks/emergency-revocation.md) before operating enforcement paths.
+7. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [Emergency Revocation Runbook](../runbooks/emergency-revocation.md), along with the other runbooks in `runbooks/`, before operating enforcement paths.
 
 ## Build And Validate
 
