@@ -386,9 +386,28 @@ export interface EvidenceControlMapping {
   gaps: string[];
 }
 
+export type EvidenceArtifactType =
+  | "audit_events"
+  | "decision_logs"
+  | "provisioning_logs"
+  | "drift_findings"
+  | "control_mapping"
+  | "siem_export"
+  | "poam"
+  | "conmon"
+  | "system_boundary"
+  | "data_flow"
+  | "control_statement"
+  | "access_review"
+  | "exception_register"
+  | "security_evidence"
+  | "incident_response"
+  | "contingency_plan"
+  | "configuration_baseline";
+
 export interface EvidenceArtifact {
   name: string;
-  type: "audit_events" | "decision_logs" | "provisioning_logs" | "drift_findings" | "control_mapping" | "siem_export" | "poam" | "conmon";
+  type: EvidenceArtifactType;
   description: string;
   eventCount?: number;
   format: EvidenceExportFormat | "jsonl";
@@ -409,6 +428,88 @@ export interface PoamItem {
   ownerRole: string;
   plannedCompletion: IsoDateTime;
   source: string;
+}
+
+export interface BoundaryComponent {
+  id: CanonicalId;
+  name: string;
+  type: "control_plane" | "connector" | "data_store" | "operator" | "external_system";
+  trustZone: "local_runtime" | "synthetic_provider" | "operator_boundary" | "future_production";
+  dataClassification: string;
+  description: string;
+}
+
+export interface SystemBoundaryEvidence {
+  boundaryId: CanonicalId;
+  name: string;
+  description: string;
+  environment: "local_proof_point" | "production";
+  liveTenantData: boolean;
+  components: BoundaryComponent[];
+  externalSystems: string[];
+  assumptions: string[];
+  version: string;
+}
+
+export interface DataFlowEvidence {
+  id: CanonicalId;
+  name: string;
+  source: CanonicalId;
+  destination: CanonicalId;
+  dataTypes: string[];
+  protections: string[];
+  liveTenantData: boolean;
+}
+
+export interface ControlImplementationStatement {
+  controlId: string;
+  status: ControlImplementationStatus;
+  statement: string;
+  responsibleRole: string;
+  reviewerRole: string;
+  reviewedAt: IsoDateTime;
+  evidenceTypes: string[];
+  sourceArtifactNames: string[];
+  gaps: string[];
+}
+
+export interface AccessReviewEvidence {
+  reviewId: CanonicalId;
+  scope: string;
+  reviewerRole: string;
+  status: "completed" | "planned";
+  reviewedAt: IsoDateTime;
+  subjectCount: number;
+  resourceCount: number;
+  findingCount: number;
+  exceptionCount: number;
+  sourceEventIds: CanonicalId[];
+  version: string;
+}
+
+export interface ExceptionRecord {
+  id: CanonicalId;
+  subjectId: CanonicalId;
+  resourceId: CanonicalId;
+  action: string;
+  reason: string;
+  status: "open" | "approved" | "expired" | "revoked";
+  approverRole: string;
+  expiresAt: IsoDateTime;
+  reviewRequiredAt: IsoDateTime;
+  source: "drift" | "access_review" | "manual";
+  sourceFindingId?: CanonicalId;
+}
+
+export interface OperationalEvidence {
+  id: CanonicalId;
+  type: "break_glass" | "incident_response" | "backup_restore" | "contingency" | "sbom" | "dependency_scan" | "vulnerability_scan" | "configuration_baseline";
+  status: "implemented" | "planned" | "blocked";
+  ownerRole: string;
+  generatedAt: IsoDateTime;
+  summary: string;
+  evidenceRefs: string[];
+  gaps: string[];
 }
 
 export type AuditEventExportTarget = "operator_download" | "siem_forwarder";
@@ -476,6 +577,12 @@ export interface EvidenceExport {
   conmonMetrics: ConMonMetric[];
   poamItems: PoamItem[];
   siemExport: SiemExportMetadata;
+  systemBoundary: SystemBoundaryEvidence;
+  dataFlows: DataFlowEvidence[];
+  controlStatements: ControlImplementationStatement[];
+  accessReviews: AccessReviewEvidence[];
+  exceptionRegister: ExceptionRecord[];
+  operationalEvidence: OperationalEvidence[];
   storageReceipt?: EvidenceStorageReceipt;
 }
 

@@ -1,10 +1,10 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-22T10:47:00.107Z
+Generated at: 2026-05-22T23:52:48.386Z
 
-Branch: codex/rebac-phase5-siem-export
+Branch: codex/rebac-phase5-complete
 
-Node: v24.4.1
+Node: v22.18.0
 
 pnpm: 10.30.3
 
@@ -28,14 +28,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-phase5-complete
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-phase5-complete
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -57,10 +57,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-phase5-complete
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-phase5-siem-export/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-phase5-complete/openapi/rebac-control-plane.yaml.
 PASS 27 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.
@@ -69,7 +69,7 @@ PASS Phase 5 audit integrity, audit export, and evidence export path groups are 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-phase5-complete
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -89,65 +89,65 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-phase5-complete
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-complete
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  06:46:56
-   Duration  168ms (transform 40ms, setup 0ms, import 57ms, tests 6ms, environment 0ms)
+   Start at  19:52:45
+   Duration  196ms (transform 51ms, setup 0ms, import 78ms, tests 15ms, environment 0ms)
 ```
 
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-phase5-complete
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-complete
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  06:46:57
-   Duration  212ms (transform 117ms, setup 0ms, import 160ms, tests 14ms, environment 0ms)
+   Start at  19:52:45
+   Duration  197ms (transform 125ms, setup 0ms, import 163ms, tests 12ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-phase5-complete
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-complete
 
 
  Test Files  1 passed (1)
-      Tests  51 passed (51)
-   Start at  06:46:58
-   Duration  471ms (transform 118ms, setup 0ms, import 159ms, tests 201ms, environment 0ms)
+      Tests  52 passed (52)
+   Start at  19:52:46
+   Duration  450ms (transform 124ms, setup 0ms, import 160ms, tests 193ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-phase5-complete
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-siem-export
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-complete
 
 
  Test Files  2 passed (2)
       Tests  29 passed (29)
-   Start at  06:46:59
-   Duration  351ms (transform 156ms, setup 0ms, import 216ms, tests 82ms, environment 0ms)
+   Start at  19:52:47
+   Duration  336ms (transform 164ms, setup 0ms, import 221ms, tests 90ms, environment 0ms)
 ```
 
 
@@ -159,7 +159,7 @@ PASS drift is represented as security finding
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Local core engine tests for deterministic check/explain and decision audit emission.
-- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, ATO evidence packaging, idempotent job replay, and reconciliation.
+- API runtime tests for health, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 
 ## Outstanding Requirements
@@ -171,4 +171,4 @@ PASS drift is represented as security finding
 - Persist discovery runs and native-grant readback outside the local in-memory store.
 - Replace local dry-run provisioning, controlled synthetic enforcement, readiness gates, and reconciliation jobs with durable queues, retries, and dead-letter handling.
 - Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, emergency revocation behavior, and connector least-privilege review are complete.
-- Expand ATO package generation with concrete system boundary diagrams, reviewed control implementation statements, POA&M workflow integration, and ConMon evidence delivery.
+- Replace local ATO package proof points with deployment-specific diagrams, assessor-reviewed control statements, retained SBOM/security artifacts, access review campaigns, exception workflow, backup/restore test evidence, and ConMon delivery.

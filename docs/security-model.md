@@ -39,6 +39,8 @@ Phase 4 controlled enforcement is restricted to the synthetic `mock` connector. 
 
 Every decision, denial, grant, revoke, policy change, connector action, admin action, drift finding, audit-integrity verification, audit export, and evidence export must emit an audit event. The event model supports hash chaining with `payloadHash` and `previousEventHash`; Phase 5 verifies that chain in the local runtime, exports bounded SIEM-ready JSONL records, and can persist local JSONL proof-point events, while durable tamper-evident storage and approved SIEM forwarding remain later implementation requirements.
 
+Phase 5 evidence exports include local system-boundary, data-flow, access-review, exception, incident, break-glass, backup/restore, dependency, vulnerability, and configuration-baseline proof points. These are synthetic evidence contracts for assessor review; production workflows still require deployment-specific approvals, retention, recovery testing, and security tooling.
+
 ## Privacy
 
 Store only the minimum operational identity and resource metadata needed for authorization, evidence, and reconciliation. Redact tokens, claims, emails, object names, and sensitive classifications from logs unless they are required evidence fields.

@@ -14,7 +14,7 @@
 - Provisioning: dry-run plans, controlled synthetic enforcement plans, and jobs.
 - Reconciliation: connector runs and drift findings.
 - Audit: append-only event search, hash-chain integrity verification, and SIEM-ready event export.
-- Evidence: control/time-bounded export with control mappings, integrity, ConMon metrics, POA&M inputs, and SIEM metadata.
+- Evidence: control/time-bounded export with control mappings, integrity, boundary/data-flow evidence, access reviews, exceptions, ConMon metrics, POA&M inputs, operational evidence, and SIEM metadata.
 - Discovery: read-only discovery run history.
 - Connectors: capability listing, health/permission test, enforcement-readiness checks, and read-only discovery sync.
 
@@ -52,7 +52,7 @@ Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock`
 
 `GET /v1/audit/export` accepts `from`, `to`, and `target`. It returns a bounded `AuditEventExport` with JSONL records, source event IDs, payload hashes, an `exportedEventCount` for the requested window, and full-chain audit-integrity status. The local runtime supports `operator_download` and `siem_forwarder` as contract targets, but does not push events to an external SIEM. The export emits `audit.exported` audit evidence.
 
-`GET /v1/evidence/export` accepts `framework`, `controls`, `from`, `to`, and `format`. The response remains metadata-only in the default local runtime, but now includes an ATO package manifest shape: audit integrity, control mappings, generated artifacts, continuous-monitoring metrics, POA&M inputs, and JSONL-ready SIEM export metadata. When an evidence repository is configured, the response also includes a storage receipt for the persisted package. The export emits `evidence.generated` audit evidence.
+`GET /v1/evidence/export` accepts `framework`, `controls`, `from`, `to`, and `format`. The response is the complete local Phase 5 ATO package shape: audit integrity, control mappings, control statements, generated artifacts, system boundary, data flows, access reviews, exception register, continuous-monitoring metrics, POA&M inputs, operational evidence, and JSONL-ready SIEM export metadata. When an evidence repository is configured, the response also includes a storage receipt for the persisted package. The export emits `evidence.generated` audit evidence.
 
 ## Write Requirements
 
