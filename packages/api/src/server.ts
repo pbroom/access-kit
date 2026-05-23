@@ -1,3 +1,4 @@
+import { timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
   checkDecision,
@@ -18,6 +19,7 @@ import {
   listDiscoveryRuns,
   putRelationship,
   readNativeAccess,
+  recordAudit,
   runReconciliation,
   syncConnector,
   testConnector,
@@ -45,6 +47,7 @@ import type {
 
 export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
+  apiKeys?: readonly string[];
 }
 
 interface ProvisioningPlanRequest {
@@ -77,6 +80,23 @@ interface EnforcementReadinessRequest {
   changeTicketPattern?: unknown;
 }
 
+type RuntimeReadinessStatus = "ready" | "ready_with_warnings" | "not_ready";
+type RuntimeReadinessCheckStatus = "pass" | "warn" | "fail";
+
+interface RuntimeReadinessCheck {
+  name: string;
+  status: RuntimeReadinessCheckStatus;
+  message: string;
+  evidence?: Record<string, unknown>;
+}
+
+interface RuntimeReadinessResponse {
+  status: RuntimeReadinessStatus;
+  version: string;
+  checkedAt: string;
+  checks: RuntimeReadinessCheck[];
+}
+
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
@@ -87,6 +107,9 @@ const discoveryStatuses = new Set(["queued", "running", "completed", "completed_
 const enforcementReadinessStatuses = new Set(["ready", "blocked"]);
 const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
 const nativePrincipalTypes = new Set(["user", "group", "service_account", "service_principal", "managed_identity", "external_user", "unknown"]);
+const bearerScheme = "bearer ";
+const maxAuthorizationHeaderBytes = 8192;
+const maxBearerTokenBytes = 4096;
 
 class HttpError extends Error {
   constructor(
@@ -100,10 +123,11 @@ class HttpError extends Error {
 
 export function createRebacApiServer(options: RebacApiServerOptions = {}): Server {
   const app = options.app ?? createRebacLocalApp(options);
+  const apiKeys = normalizeApiKeys(options.apiKeys);
 
   return createServer(async (request, response) => {
     try {
-      await routeRequest(app, request, response);
+      await routeRequest(app, request, response, apiKeys);
     } catch (error) {
       if (error instanceof HttpError) {
         sendJson(response, error.statusCode, {
@@ -135,7 +159,8 @@ export function createRebacApiServer(options: RebacApiServerOptions = {}): Serve
 async function routeRequest(
   app: RebacLocalApp,
   request: IncomingMessage,
-  response: ServerResponse
+  response: ServerResponse,
+  apiKeys: readonly string[]
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://localhost");
   const method = request.method ?? "GET";
@@ -146,8 +171,26 @@ async function routeRequest(
     return;
   }
 
+  if (method === "GET" && url.pathname === "/v1/ready") {
+    const readiness = buildRuntimeReadiness(app, apiKeys);
+    sendJson(response, readiness.status === "not_ready" ? 503 : 200, readiness);
+    return;
+  }
+
   if (segments[0] !== "v1") {
     notFound(response);
+    return;
+  }
+
+  const authentication = authenticateRequest(request, apiKeys);
+  if (authentication !== "authenticated") {
+    recordAuthenticationFailure(app, request, url, authentication);
+    response.setHeader("WWW-Authenticate", bearerChallenge(authentication));
+    sendJson(response, 401, {
+      code: "UNAUTHENTICATED",
+      message: "A valid bearer token is required.",
+      correlationId: "corr:unauthenticated"
+    });
     return;
   }
 
@@ -249,6 +292,189 @@ async function routeRequest(
   }
 
   notFound(response);
+}
+
+function normalizeApiKeys(apiKeys: readonly string[] | undefined): string[] {
+  const normalized = (apiKeys ?? []).map((apiKey) => apiKey.trim()).filter(Boolean);
+
+  if (normalized.some((apiKey) => byteLength(apiKey) > maxBearerTokenBytes)) {
+    throw new Error("API keys must be 4096 bytes or less.");
+  }
+
+  return [...new Set(normalized)];
+}
+
+function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): RuntimeReadinessResponse {
+  const connectorIds = [...app.connectors.keys()].sort();
+  const checks: RuntimeReadinessCheck[] = [
+    {
+      name: "api_runtime",
+      status: "pass",
+      message: "API runtime accepted the readiness probe."
+    },
+    {
+      name: "api_authentication",
+      status: apiKeys.length > 0 ? "pass" : "warn",
+      message: apiKeys.length > 0
+        ? "Bearer-token guard is configured for protected API routes."
+        : "Bearer-token guard is not configured; only local development should run without API keys.",
+      evidence: {
+        configured: apiKeys.length > 0
+      }
+    },
+    {
+      name: "state_repository",
+      status: app.stateRepository ? "pass" : "warn",
+      message: app.stateRepository
+        ? "Runtime state snapshot repository is configured."
+        : "Runtime state snapshot repository is not configured; state is in-memory only.",
+      evidence: {
+        configured: Boolean(app.stateRepository)
+      }
+    },
+    {
+      name: "audit_repository",
+      status: app.auditRepository ? "pass" : "warn",
+      message: app.auditRepository
+        ? "Audit repository is configured for local proof-point persistence."
+        : "Audit repository is not configured; audit events are in-memory only.",
+      evidence: {
+        configured: Boolean(app.auditRepository)
+      }
+    },
+    {
+      name: "evidence_repository",
+      status: app.evidenceRepository ? "pass" : "warn",
+      message: app.evidenceRepository
+        ? "Evidence package repository is configured for local proof-point persistence."
+        : "Evidence package repository is not configured; evidence packages are generated in-memory only.",
+      evidence: {
+        configured: Boolean(app.evidenceRepository)
+      }
+    },
+    {
+      name: "connectors",
+      status: connectorIds.length > 0 ? "pass" : "fail",
+      message: connectorIds.length > 0
+        ? `${connectorIds.length} connector adapters are registered.`
+        : "No connector adapters are registered.",
+      evidence: {
+        connectorIds
+      }
+    }
+  ];
+
+  return {
+    status: summarizeReadiness(checks),
+    version: "0.1.0",
+    checkedAt: app.now(),
+    checks
+  };
+}
+
+function summarizeReadiness(checks: readonly RuntimeReadinessCheck[]): RuntimeReadinessStatus {
+  if (checks.some((check) => check.status === "fail")) {
+    return "not_ready";
+  }
+
+  if (checks.some((check) => check.status === "warn")) {
+    return "ready_with_warnings";
+  }
+
+  return "ready";
+}
+
+type AuthenticationStatus = "authenticated" | "missing" | "invalid";
+
+function authenticateRequest(request: IncomingMessage, apiKeys: readonly string[]): AuthenticationStatus {
+  if (apiKeys.length === 0) {
+    return "authenticated";
+  }
+
+  const token = readBearerToken(request);
+
+  if (!token) {
+    return hasBearerAuthorization(request) ? "invalid" : "missing";
+  }
+
+  return apiKeys.some((apiKey) => constantTimeEqual(apiKey, token)) ? "authenticated" : "invalid";
+}
+
+function bearerChallenge(status: AuthenticationStatus): string {
+  return status === "invalid"
+    ? 'Bearer realm="rebac-control-plane", error="invalid_token"'
+    : 'Bearer realm="rebac-control-plane"';
+}
+
+function readBearerToken(request: IncomingMessage): string | undefined {
+  const authorization = request.headers.authorization;
+  if (typeof authorization !== "string" || byteLength(authorization) > maxAuthorizationHeaderBytes) {
+    return undefined;
+  }
+
+  const trimmed = authorization.trim();
+  if (!trimmed.toLowerCase().startsWith(bearerScheme)) {
+    return undefined;
+  }
+
+  const token = trimmed.slice(bearerScheme.length).trim();
+  if (byteLength(token) > maxBearerTokenBytes) {
+    return undefined;
+  }
+
+  return token ? token : undefined;
+}
+
+function hasBearerAuthorization(request: IncomingMessage): boolean {
+  const authorization = request.headers.authorization;
+  return typeof authorization === "string" && authorization.trim().toLowerCase().startsWith(bearerScheme);
+}
+
+function constantTimeEqual(expected: string, actual: string): boolean {
+  const expectedBytes = Buffer.from(expected);
+  const actualBytes = Buffer.from(actual);
+  const expectedLength = expectedBytes.byteLength;
+  const actualLength = actualBytes.byteLength;
+  const expectedPadded = Buffer.alloc(maxBearerTokenBytes);
+  const actualPadded = Buffer.alloc(maxBearerTokenBytes);
+  expectedBytes.copy(expectedPadded);
+  actualBytes.copy(actualPadded);
+
+  return timingSafeEqual(expectedPadded, actualPadded)
+    && expectedLength === actualLength
+    && expectedLength <= maxBearerTokenBytes
+    && actualLength <= maxBearerTokenBytes;
+}
+
+function byteLength(value: string): number {
+  return Buffer.byteLength(value, "utf8");
+}
+
+function recordAuthenticationFailure(
+  app: RebacLocalApp,
+  request: IncomingMessage,
+  url: URL,
+  authentication: Exclude<AuthenticationStatus, "authenticated">
+): void {
+  recordAudit(app, {
+    eventType: "api.authentication_failed",
+    actor: "anonymous",
+    correlationId: `corr:auth:${sanitizeAuditPath(url.pathname)}:${compactTimestamp(app.now())}`,
+    payload: {
+      method: request.method ?? "GET",
+      path: url.pathname,
+      reason: authentication === "invalid" ? "invalid_bearer_token" : "missing_bearer_token",
+      tokenLogged: false
+    }
+  });
+}
+
+function sanitizeAuditPath(path: string): string {
+  return path.replaceAll(/[^a-z0-9_:-]/gi, "_").toLowerCase();
+}
+
+function compactTimestamp(timestamp: string): string {
+  return timestamp.replaceAll(/[^0-9a-z]/gi, "").toLowerCase();
 }
 
 async function routePolicies(

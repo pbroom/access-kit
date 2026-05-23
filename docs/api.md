@@ -4,8 +4,24 @@
 
 `openapi/rebac-control-plane.yaml` is the public API source of truth. The TypeScript runtime must conform to it rather than inventing routes independently.
 
+## Service Runtime
+
+The API package exposes a `rebac-api` entrypoint and container image for local deployment packaging proof points. It starts the same OpenAPI-shaped runtime used by tests and accepts these environment variables:
+
+- `REBAC_API_HOST`, default `127.0.0.1`
+- `REBAC_API_PORT`, default `3000`
+- `REBAC_API_ACTOR`, default `service:api`
+- `REBAC_API_KEYS`, comma-separated bearer tokens for API access. Keys are optional only when `REBAC_API_HOST` is a loopback host.
+- `REBAC_STATE_PATH`, optional local JSON runtime state snapshot path
+- `REBAC_EVIDENCE_ROOT`, optional local audit/evidence repository root
+
+When `REBAC_API_KEYS` is set, every `/v1` route except `/v1/health` and `/v1/ready` requires `Authorization: Bearer <token>`. The runtime refuses to bind beyond loopback without keys. Failed authentication attempts return `401`, set a bearer challenge, and emit `api.authentication_failed` audit evidence without logging token material. `REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state. It is not a replacement for production graph, audit, queue, or evidence stores.
+
+The container packaging defaults `REBAC_API_HOST` to `0.0.0.0` and persists local proof-point state under `/var/lib/access-kit`. See `docs/deployment.md` and `docs/deployment-runbook.md` for build, smoke-test, release, signature, attestation, Kubernetes probe wiring, and rollback procedures.
+
 ## API Groups
 
+- Health: process health and runtime readiness probes.
 - Decision: `check`, `explain`, and `batch-check`.
 - Subjects: canonical subject registry and subject access view.
 - Resources: canonical resource registry, decision-derived resource access view, and observed native-access view.
@@ -47,6 +63,8 @@ Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock`
 `POST /v1/reconciliation/run` remains dry-run only and returns findings, counts, and audit event IDs.
 
 ## Phase 5 ATO Evidence
+
+`GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, local state snapshot wiring, local audit/evidence repositories, and registered connector adapters. The endpoint is public for orchestrator probes and never returns token material.
 
 `GET /v1/audit/integrity` verifies the append-only audit event hash chain. The report includes event count, first and last event identifiers, first and last event hashes, findings, and an audit event ID for the verification action.
 
