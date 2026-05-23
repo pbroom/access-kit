@@ -16,6 +16,18 @@ This is the flagship runbook for revocation-first operations in Access Kit. It u
 
 This is not a replacement for identity-provider account disablement, provider-native emergency controls, legal hold procedures, or incident command. Native platforms still enforce local access and may require direct action.
 
+## Core Concepts
+
+- Revocation has higher priority than new grants.
+- Expiration, quarantine, suspension, and explicit deny are first-class authorization controls.
+- Access Kit can plan, verify, reconcile, audit, and evidence revocation, but live provider-native revocation remains outside the current local proof point.
+- Native grant readback must be compared to intended access before closure.
+- Emergency restoration requires a new approved grant or exception with expiration and audit evidence.
+
+## Concrete Example
+
+An access review finds `user:alice` still has a direct native `read` grant on `document:case-plan` after the intended access expired. The operator checks the explanation, inspects native access, creates a dry-run revocation plan against the mock connector, verifies reconciliation, and exports incident-window evidence. In production, an approved provider administrator would also remove any live native grant directly when Access Kit cannot enforce that provider.
+
 ## Trigger
 
 - Unauthorized native grant discovered.
@@ -45,8 +57,8 @@ Security engineer or incident responder with resource owner or ISSO awareness. P
 ```sh
 rebac explain user:alice read document:case-plan
 rebac resource native-access document:case-plan --subject user:alice
-rebac provision revoke grant:case-plan-read --connector mock
-rebac provision apply plan:revoke-case-plan-read --mode dry_run --change-ticket inc:2026-05-23-001
+rebac provision revoke native-grant:document:case-plan:alice --connector mock
+rebac provision apply plan:revoke:native-grant:document:case-plan:alice --mode dry_run
 rebac reconcile run --connector mock --dry-run
 rebac audit search --subject user:alice --from 2026-05-23
 rebac evidence export --framework nist-800-53 --controls AC-2,AC-3,AU-2,IR-4 --from 2026-05-23T00:00:00.000Z --to 2026-05-23T23:59:59.000Z --format json
@@ -89,6 +101,14 @@ For live providers not implemented by this repository, execute approved provider
 - Change or incident reference.
 - Audit integrity report and evidence export.
 - Provider-native revocation receipt, when outside Access Kit.
+
+## Audit And Evidence Implications
+
+Emergency revocation evidence must preserve the incident or change reference, decision/explanation output, native readback, provisioning plan/job, verification result, drift status, audit export, and evidence export. If live provider-native action is required outside Access Kit, retain that external receipt and record the gap in the evidence package or incident record.
+
+## Related Controls
+
+AC-2, AC-3, AC-6, AU-2, AU-6, CA-7, CM-3, IR-4, IR-5, RA-5, and SI-4 depend on rapid revocation, verification, auditability, and drift closure.
 
 ## Escalation Path
 

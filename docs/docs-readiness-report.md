@@ -6,6 +6,10 @@ This branch establishes a repo-native documentation foundation for the Access Ki
 
 The work adds distinct documentation where coverage was missing, avoids duplicate schema and ADR sources of truth, and records path-equivalence decisions below.
 
+## Goal Completion Status
+
+The documentation goal is complete for the repository foundation after this follow-up hardening: documentation links, runbook structure, API examples, CLI walkthrough coverage, schemas, OpenAPI, policy proof points, tests, build, and evidence freshness are all validated by repeatable repo commands. Production ATO authorization, live provider connectors, durable WORM storage, approved SIEM forwarding, OSCAL generation, and deployment-specific runbook exercise records remain explicitly out of scope for this documentation goal and are tracked as production/runtime gaps.
+
 ## Documentation Coverage
 
 | Coverage area | Canonical path |
@@ -67,9 +71,9 @@ The work adds distinct documentation where coverage was missing, avoids duplicat
 | `schemas/evidence-object.schema.json` | No canonical path yet | Not added | Atomic evidence objects are not a distinct implemented contract yet. |
 | `examples/schema/*.json` | `tests/fixtures/schema-examples/*.json` | Reused | Existing fixtures are validated by `pnpm validate:schemas`. |
 | `examples/policy-tests.*` | `tests/fixtures/policy/proof-points.json` | Reused | Existing policy proof points are validated by `pnpm validate:policy`. |
-| `examples/control-evidence-mapping.*` | `examples/control-evidence-mapping.json`, supported by `tests/fixtures/schema-examples/evidence-export.json` | Added concise standalone example | A standalone mapping helps documentation readers; schema-valid package example remains canonical for full evidence export. |
-| `examples/api/*` | `examples/api/*.json` | Added | Request/response examples were not first-class files. |
-| `examples/cli/*` | `examples/cli/operator-and-assessor.sh`, supported by `docs/cli.md` | Added | CLI examples existed in docs; a synthetic walkthrough is distinct. |
+| `examples/control-evidence-mapping.*` | `examples/control-evidence-mapping.json`, supported by `tests/fixtures/schema-examples/evidence-export.json` | Added and validated | A standalone mapping helps documentation readers; schema-valid package example remains canonical for full evidence export. |
+| `examples/api/*` | `examples/api/*.json` | Added and validated | Request/response examples are first-class docs examples and now validate against schema/OpenAPI contracts. |
+| `examples/cli/*` | `examples/cli/operator-and-assessor.sh`, supported by `docs/cli.md` and `tests/cli/docs-examples.test.ts` | Added and smoke-tested | CLI examples existed in docs; a synthetic walkthrough is distinct and now covered by local API smoke tests. |
 | `adrs/ADR-0001-api-cli-first.md` | `adrs/0001-api-first-cli-first.md` | Mapped | Existing ADR naming convention wins. |
 | `adrs/ADR-0002-deterministic-authorization.md` | `adrs/0002-deterministic-authorization.md` | Mapped | Existing ADR naming convention wins. |
 | `docs/runbooks/*.md` | `runbooks/*.md` | Added top-level runbook family | Runbooks are operational artifacts distinct from narrative docs; README documents the location. |
@@ -142,10 +146,10 @@ None. The existing flat docs layout and ADR naming convention were preserved.
 | Drift finding | `schemas/drift-finding.schema.json`, `tests/fixtures/schema-examples/drift-finding.json` | Reused |
 | Evidence export | `schemas/evidence-export.schema.json`, `tests/fixtures/schema-examples/evidence-export.json` | Reused |
 | Native grants | `schemas/native-grant.schema.json`, `tests/fixtures/schema-examples/native-grant.json` | Reused |
-| Synthetic API examples | `examples/api/*.json` | Added |
-| Synthetic CLI examples | `examples/cli/operator-and-assessor.sh` | Added |
+| Synthetic API examples | `examples/api/*.json` | Added and validated |
+| Synthetic CLI examples | `examples/cli/operator-and-assessor.sh`, `tests/cli/docs-examples.test.ts` | Added and smoke-tested |
 | Synthetic policy tests | `tests/fixtures/policy/proof-points.json` | Reused |
-| Synthetic control/evidence mapping | `examples/control-evidence-mapping.json`, `tests/fixtures/schema-examples/evidence-export.json` | Added/reused |
+| Synthetic control/evidence mapping | `examples/control-evidence-mapping.json`, `tests/fixtures/schema-examples/evidence-export.json` | Added/reused and validated |
 
 ## Runbook Coverage
 
@@ -171,34 +175,39 @@ The documentation connects architecture, control families, implementation behavi
 - `corepack pnpm install` completed with the existing lockfile.
 - `git diff --check` passed.
 - New standalone JSON examples parsed successfully with Node.
+- `corepack pnpm validate:docs` passed:
+  - Relative Markdown links were validated across README, docs, runbooks, and examples.
+  - All 8 runbooks were checked for the 12 required runbook sections.
+  - Documentation examples were validated against JSON Schema, OpenAPI request schema, or the local control/evidence mapping example contract.
 - `corepack pnpm validate:contracts` passed:
   - 13 schemas and 13 schema fixtures validated.
   - 27 required OpenAPI path groups validated.
   - `examples/api/decision-check.request.json` and `examples/api/explain.response.json` validated against their OpenAPI request/response schemas.
   - 11 policy proof points validated.
   - CLI contract tests passed.
+- `corepack pnpm test:cli` passed with the synthetic docs walkthrough covered by `tests/cli/docs-examples.test.ts`.
 - `corepack pnpm validate` passed:
   - TypeScript typecheck passed.
   - Contract validation passed.
   - CI workflow validation passed.
-  - 5 test files and 106 tests passed.
+  - 6 test files and 107 tests passed.
 - `corepack pnpm ci:check` passed:
-  - Contract validation, CI workflow validation, typecheck, lint, tests, build, and evidence freshness all passed.
+  - Contract validation, docs validation, CI workflow validation, typecheck, lint, tests, build, and evidence freshness all passed.
   - `pnpm evidence:check` reported proof-point validation evidence is current.
 - Custom runbook section scan passed for all 8 runbooks.
 - Custom relative Markdown link scan passed across 35 Markdown files.
 
 ## Validation Not Performed And Why
 
-- The CLI walkthrough in `examples/cli/operator-and-assessor.sh` was not executed because it requires a running API runtime and is intended as a synthetic documentation walkthrough.
+- Provider-native emergency actions in runbooks were not executed because live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, AD, and Entra ID connector writes are outside the current repository implementation.
+- Deployment-specific runbook exercises, post-action reviews, and assessor approvals were not performed because they require a deployed target environment.
 
 ## Known Gaps
 
 - Live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, AD, and Entra ID connector behavior remains planned/draft unless explicitly implemented.
 - Persistent graph storage, durable queueing, production WORM audit storage, approved SIEM forwarding, production deployment packaging, and production evidence retention remain future work.
 - OSCAL output is guidance only; no OSCAL generator is implemented.
-- CLI example script is a documentation walkthrough and requires a running API.
-- Production runbook exercises, post-action reviews, and assessor-approved control statements are deployment-specific.
+- Production runbook exercises, post-action reviews, and assessor-approved control statements are deployment-specific and out of scope for the local documentation foundation.
 
 ## Assumptions
 
@@ -210,11 +219,12 @@ The documentation connects architecture, control families, implementation behavi
 
 ## Blockers
 
-No documentation-authoring blockers remain. Production ATO blockers are listed in [Outstanding Requirements](outstanding-requirements.md).
+No documentation-goal blockers remain. Production ATO/runtime blockers are out of scope for this documentation goal and are listed in [Outstanding Requirements](outstanding-requirements.md).
 
 ## Recommended Next Steps
 
-1. Add a docs link checker if the repository adopts one.
-2. Exercise each runbook against a deployed environment and retain evidence.
+1. Exercise each runbook against a deployed environment and retain evidence.
+2. Add OpenAPI `examples:` blocks if generated API reference output is introduced.
 3. Add OSCAL generation only after deployment-specific control statements and evidence retention are defined.
 4. Update the threat model and system boundary for each production deployment.
+5. Replace local proof-point evidence with deployment-specific assessor-reviewed artifacts during production ATO preparation.

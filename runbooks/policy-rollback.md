@@ -32,12 +32,12 @@ Policy owner plus security engineer or ISSO approval for high-severity rollback.
 rebac policy validate ./policy/model.yaml
 rebac policy test ./policy/tests.yaml
 rebac policy publish ./policy/model.yaml --change-ticket chg:rollback-review
-rebac explain user:alice read document:case-plan --policy-version policy:previous
+rebac explain user:alice read document:case-plan
 pnpm validate:policy
 pnpm validate:contracts
 ```
 
-`POST /v1/policies/{id}/rollback` is the canonical API surface for rollback once policy storage is implemented.
+`POST /v1/policies/{id}/rollback` is the canonical API surface for rollback once policy storage is implemented. A future CLI flag such as `rebac explain ... --policy-version policy:previous` would be proposed behavior; it is not implemented in the current CLI.
 
 ## Expected Output
 
