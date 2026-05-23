@@ -5,18 +5,19 @@ import type { Server } from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type {
-  AuditEvent,
-  AuditEventRepository,
-  AuditIntegrityReport,
-  ConnectorAdapter,
-  DriftFinding,
-  EnforcementControl,
-  EnforcementReadinessReport,
-  EvidencePackageRepository,
-  ProvisioningApproval,
-  RebacSeedData,
-  RebacStateRepository
+import {
+  AuditRecorder,
+  type AuditEvent,
+  type AuditEventRepository,
+  type AuditIntegrityReport,
+  type ConnectorAdapter,
+  type DriftFinding,
+  type EnforcementControl,
+  type EnforcementReadinessReport,
+  type EvidencePackageRepository,
+  type ProvisioningApproval,
+  type RebacSeedData,
+  type RebacStateRepository
 } from "../../packages/core/src/index.js";
 import {
   checkEnforcementReadiness,
@@ -603,6 +604,66 @@ describe("ReBAC API runtime", () => {
     expect(integrity).toMatchObject({ status: "verified", eventCount: 4 });
     expect(state?.subjects?.some((item) => item.id === "user:persistent-analyst")).toBe(true);
     expect(state?.auditEvents?.map((event) => event.eventType)).toContain("audit.integrity_verified");
+  });
+
+  it("keeps the snapshot audit chain authoritative when the audit file is ahead", async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-dual-persistence-"));
+    tempDirs.push(storageRoot);
+    const auditRepository = new LocalFileEvidenceRepository({ rootDir: storageRoot });
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: storageRoot });
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => "2026-05-21T17:00:00.000Z",
+        auditRepository,
+        stateRepository
+      })
+    });
+
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const crashRecorder = new AuditRecorder(auditRepository.listAuditEvents());
+    const orphanedAuditFileEvent = crashRecorder.record(
+      {
+        eventType: "audit.exported",
+        actor: "service:api",
+        correlationId: "corr:audit-file-ahead",
+        payload: { scenario: "audit-file-ahead" }
+      },
+      "2026-05-21T17:00:01.000Z"
+    );
+    auditRepository.appendAuditEvent(orphanedAuditFileEvent, orphanedAuditFileEvent.occurredAt);
+
+    expect(auditRepository.listAuditEvents().map((event) => event.eventType)).toEqual([
+      "decision.allowed",
+      "audit.exported"
+    ]);
+    expect(stateRepository.readState()?.auditEvents?.map((event) => event.eventType)).toEqual(["decision.allowed"]);
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: sequenceNow("2026-05-21T17:00:02.000Z", "2026-05-21T17:00:03.000Z"),
+        auditRepository,
+        stateRepository
+      })
+    });
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    const integrity = await get<{ status: string; eventCount: number }>("/v1/audit/integrity");
+    const auditEvents = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(integrity).toMatchObject({ status: "verified", eventCount: 2 });
+    expect(auditEvents.items.map((event) => event.eventType)).toEqual([
+      "decision.allowed",
+      "decision.allowed",
+      "audit.integrity_verified"
+    ]);
   });
 
   it("reports custom runtime state locations by filename", async () => {
