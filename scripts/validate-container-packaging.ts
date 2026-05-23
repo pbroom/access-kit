@@ -34,7 +34,13 @@ if (!containerJob) {
 }
 
 const containerJobText = JSON.stringify(containerJob);
-for (const required of ["docker build", "rebac-api-smoke", "/v1/ready", "REBAC_API_KEYS=ci-smoke"]) {
+for (const required of [
+  "docker build",
+  "rebac-api-smoke",
+  "did not become healthy within 20 seconds",
+  "/v1/ready",
+  "REBAC_API_KEYS=ci-smoke"
+]) {
   requireIncludes(containerJobText, required, "container-packaging job");
 }
 

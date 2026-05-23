@@ -30,6 +30,7 @@ requireJob(ci, "evidence", ["pnpm evidence:check"]);
 requireJob(ci, "container-packaging", [
   "docker build",
   "rebac-api-smoke",
+  "did not become healthy within 20 seconds",
   "/v1/ready",
   "REBAC_API_KEYS=ci-smoke"
 ]);
