@@ -50,6 +50,10 @@ The domain model is not an identity directory, provider permission model, SIEM s
 
 `RebacStateRepository` records restartable synthetic runtime state snapshots for subjects, resources, relationships, native grants, discovery runs, readiness reports, provisioning plans and jobs, reconciliation runs, decisions, drift findings, and audit events. The local JSON implementation is a deployment-packaging proof point, not a production graph database or queue.
 
+`RebacGraphRepository`, `RebacJobRepository`, and `AuditEventRepository` are the production-shaped persistence boundaries. Graph storage owns canonical subjects, resources, relationship tuples, and observed native grants. Job storage owns discovery, readiness, provisioning, drift, reconciliation, and decision records. Audit storage owns the append-only event stream and integrity checks. Production readiness requires durable graph writes, append-only immutable audit retention, idempotent durable job storage, transactional behavior where needed, and backup/restore evidence.
+
+`PersistenceReadinessReport` records whether configured graph, audit, and job backends meet the required production capabilities. Local memory and local file repositories are valid proof points but must report as blocked for production readiness.
+
 `EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, format, audit integrity, control mappings, control implementation statements, generated artifacts, system boundary, data flows, access reviews, exception register, continuous-monitoring metrics, POA&M inputs, operational evidence, and SIEM export metadata.
 
 ## Separation Rules

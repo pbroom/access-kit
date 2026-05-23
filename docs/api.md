@@ -76,6 +76,8 @@ Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock`
 
 `GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, local state snapshot wiring, local audit/evidence repositories, and whether connector adapters are configured. The endpoint is public for orchestrator probes and never returns token material or connector identifiers.
 
+The core package also defines persistent graph, audit, and job repository contracts plus a persistence-readiness report for future production stores. The current API runtime still treats configured local JSON and file repositories as proof points; production deployment must wire durable adapters before live connector writes.
+
 `GET /v1/audit/integrity` verifies the append-only audit event hash chain. The report includes event count, first and last event identifiers, first and last event hashes, findings, and an audit event ID for the verification action.
 
 `GET /v1/audit/export` accepts `from`, `to`, and `target`. It returns a bounded `AuditEventExport` with JSONL records, source event IDs, payload hashes, an `exportedEventCount` for the requested window, and full-chain audit-integrity status. The local runtime supports `operator_download` and `siem_forwarder` as contract targets, but does not push events to an external SIEM. The export emits `audit.exported` audit evidence.
