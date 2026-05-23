@@ -32,8 +32,8 @@ rebac explain user:123 read document:case-plan
 rebac provision plan user:123 document:case-plan read --connector mock
 rebac provision apply plan:abc
 rebac provision revoke grant:abc
-rebac provision plan user:123 document:case-plan read --connector mock --mode enforcement --approver user:approver --change-ticket chg:phase4 --synthetic-only
-rebac provision apply plan:abc --mode enforcement --approver user:approver --change-ticket chg:phase4 --synthetic-only
+rebac provision plan user:123 document:case-plan read --connector mock --mode enforcement --approver user:approver --change-ticket chg:phase4 --readiness-report readiness:mock:phase4 --synthetic-only
+rebac provision apply plan:abc --mode enforcement --approver user:approver
 
 rebac reconcile run --connector sharepoint-readonly --dry-run
 rebac reconcile findings --severity high

@@ -33,8 +33,8 @@ Provisioning is not the decision itself, not a ticketing system, and not live Mi
 
 ```sh
 rebac connector readiness mock --mode enforcement --synthetic-only --approver-role access-approver
-rebac provision plan user:alice document:case-plan read --connector mock --mode enforcement --synthetic-only --readiness-report readiness:mock:20260521t170000000z:1
-rebac provision apply plan:decision:allow-alice-read-case-plan --mode enforcement --synthetic-only --change-ticket chg:phase4-controlled-enforcement
+rebac provision plan user:alice document:case-plan read --connector mock --mode enforcement --approver user:approver --change-ticket chg:phase4-controlled-enforcement --readiness-report readiness:mock:20260521t170000000z:1 --synthetic-only
+rebac provision apply plan:decision:allow-alice-read-case-plan --mode enforcement --approver user:approver
 ```
 
 For non-synthetic connectors, use dry-run only. The plan and job evidence show what would happen, what readback would verify, and what compensation would be needed.
