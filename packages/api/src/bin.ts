@@ -23,6 +23,12 @@ server.on("connection", (socket) => {
   socket.on("close", () => sockets.delete(socket));
 });
 
+server.on("error", (error: NodeJS.ErrnoException) => {
+  const code = error.code ? ` (${error.code})` : "";
+  process.stderr.write(`ReBAC API failed to listen on http://${config.host}:${config.port}${code}: ${error.message}\n`);
+  process.exit(1);
+});
+
 server.listen(config.port, config.host, () => {
   process.stdout.write(`ReBAC API listening on http://${config.host}:${config.port}\n`);
 });
