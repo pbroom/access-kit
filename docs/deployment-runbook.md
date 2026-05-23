@@ -8,6 +8,7 @@ This runbook is a synthetic release-control proof point for the `rebac-api` cont
 - `corepack pnpm ci:check` passes for the release commit.
 - The `Container packaging` CI job passes for the release commit.
 - The `Container Release` workflow is run from a `rebac-api-v*` tag or an explicit manual dispatch with `publish=true`.
+- `pnpm validate:deployment-manifests` passes for the deployment manifest set.
 - No production tenant IDs, provider secrets, production subjects, or provider write credentials are used during packaging.
 
 ## Publish Procedure
@@ -17,7 +18,8 @@ This runbook is a synthetic release-control proof point for the `rebac-api` cont
 3. Capture the image digest from the workflow summary.
 4. Verify the GitHub artifact attestation for that digest.
 5. Verify the cosign keyless signature for that digest.
-6. Promote only the digest reference into deployment IaC.
+6. Replace the example image digest in deployment manifests with the verified digest.
+7. Promote only the digest reference into deployment IaC.
 
 ## Runtime Checks
 
@@ -29,6 +31,7 @@ Before traffic is shifted, verify:
 - Protected API routes succeed with the approved deployment identity path.
 - Audit events are emitted for failed authentication attempts and write operations.
 - State snapshot and evidence paths are mounted to approved storage for the target environment.
+- The cluster admits only the verified digest when the signed-image admission policy is enforced.
 
 ## Rollback Procedure
 
@@ -46,6 +49,7 @@ Before traffic is shifted, verify:
 - Attestation verification result.
 - Cosign verification result.
 - Deployment IaC diff or change record.
+- Deployment manifest validation result.
 - Readiness and health probe observations.
 - Authentication boundary smoke-test result.
 - Audit/evidence write verification.
@@ -53,8 +57,8 @@ Before traffic is shifted, verify:
 
 ## Deferred Production Controls
 
-- Environment-specific IaC for probes, volumes, networking, and identity.
-- Signed-image admission policy.
+- Environment-specific overlays for ingress, certificates, volumes, networking, and identity.
+- Signed-image admission policy enforcement and exception workflow.
 - Registry retention and promotion controls.
 - Identity-provider-backed API authentication and operator authorization.
 - Approved secrets delivery.
