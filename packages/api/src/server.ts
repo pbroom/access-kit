@@ -331,10 +331,6 @@ function constantTimeEqual(expected: string, actual: string): boolean {
   const expectedBytes = Buffer.from(expected);
   const actualBytes = Buffer.from(actual);
   const compareLength = Math.max(expectedBytes.byteLength, actualBytes.byteLength);
-  if (compareLength === 0 || compareLength > maxBearerTokenBytes) {
-    return false;
-  }
-
   const expectedPadded = Buffer.alloc(compareLength);
   const actualPadded = Buffer.alloc(compareLength);
   expectedBytes.copy(expectedPadded);
