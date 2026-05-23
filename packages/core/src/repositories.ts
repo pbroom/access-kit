@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { auditEventHash, stableStringify, verifyAuditChain } from "./audit.js";
 import type {
   AuditEvent,
@@ -151,7 +151,7 @@ export class LocalJsonFileStateRepository implements RebacStateRepository {
 
   constructor(options: LocalJsonFileStateRepositoryOptions) {
     this.#statePath = options.statePath ?? join(requiredRootDir(options), "runtime-state.json");
-    this.#location = options.statePath ? "runtime-state.json" : "runtime-state.json";
+    this.#location = basename(this.#statePath);
     mkdirSync(dirname(this.#statePath), { recursive: true });
   }
 

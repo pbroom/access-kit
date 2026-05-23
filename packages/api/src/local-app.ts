@@ -281,6 +281,7 @@ export async function syncConnector(
     updatedAt: completedAt
   };
 
+  app.store.recordDiscoveryRun(run);
   const auditEvent = recordAudit(app, {
     eventType: "connector.discovery_completed",
     actor: app.actor,
@@ -394,6 +395,7 @@ export async function checkEnforcementReadiness(
     version: "enforcement-readiness:v1",
     createdAt: checkedAt
   };
+  app.store.recordEnforcementReadinessReport(reportWithoutAuditIds);
   const auditEvent = recordAudit(app, {
     eventType: "connector.enforcement_readiness_checked",
     actor: app.actor,
@@ -619,6 +621,7 @@ export async function createProvisioningJob(
     startedAt,
     completedAt
   };
+  app.store.upsertProvisioningJob(jobWithoutAuditIds);
   const auditEventIds = [
     ...actionResults.map((result) =>
       recordAudit(app, {
@@ -727,6 +730,8 @@ async function createControlledEnforcementJob(
     startedAt: request.startedAt,
     completedAt
   };
+  app.store.upsertProvisioningPlan({ ...plan, status: completed ? "applied" : "failed", updatedAt: completedAt });
+  app.store.upsertProvisioningJob(jobWithoutAuditIds);
   const auditEventIds = [
     ...actionResults.map((result) =>
       recordAudit(app, {
@@ -781,7 +786,6 @@ async function createControlledEnforcementJob(
   );
 
   const job = { ...jobWithoutAuditIds, auditEventIds };
-  app.store.upsertProvisioningPlan({ ...plan, status: completed ? "applied" : "failed", updatedAt: completedAt });
   app.store.upsertProvisioningJob(job);
   persistAppState(app, completedAt);
   return job;
@@ -828,6 +832,7 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
     createdAt: startedAt,
     completedAt
   };
+  app.store.recordReconciliationRun(run);
   const completedEvent = recordAudit(app, {
     eventType: "reconciliation.completed",
     actor: app.actor,

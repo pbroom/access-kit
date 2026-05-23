@@ -13,13 +13,20 @@ import type {
   DriftFinding,
   EnforcementControl,
   EnforcementReadinessReport,
-  EvidencePackageRepository
+  EvidencePackageRepository,
+  ProvisioningApproval,
+  RebacSeedData,
+  RebacStateRepository
 } from "../../packages/core/src/index.js";
 import {
   checkEnforcementReadiness,
+  createProvisioningJob,
+  createProvisioningPlan,
   createRebacApiServer,
   createRebacLocalApp,
   readRebacApiRuntimeConfig,
+  runReconciliation,
+  syncConnector,
   type RebacApiServerOptions
 } from "../../packages/api/src/index.js";
 import { LocalFileEvidenceRepository, LocalJsonFileStateRepository } from "../../packages/core/src/index.js";
@@ -598,6 +605,81 @@ describe("ReBAC API runtime", () => {
     expect(state?.auditEvents?.map((event) => event.eventType)).toContain("audit.integrity_verified");
   });
 
+  it("reports custom runtime state locations by filename", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-state-"));
+    tempDirs.push(stateRoot);
+    const repository = new LocalJsonFileStateRepository({ statePath: join(stateRoot, "custom-runtime-state.json") });
+
+    const receipt = repository.writeState({ subjects: [] }, TEST_NOW);
+
+    expect(receipt.location).toBe("custom-runtime-state.json");
+  });
+
+  it("does not persist audit-only snapshots before primary runtime records", async () => {
+    const { repository, snapshots } = createRecordingStateRepository();
+    const control = controlledEnforcement() as unknown as EnforcementControl;
+    const approval = controlledApproval() as unknown as ProvisioningApproval;
+    const app = createRebacLocalApp({
+      now: sequenceNow(
+        "2026-05-21T17:00:00.000Z",
+        "2026-05-21T17:00:01.000Z",
+        "2026-05-21T17:00:02.000Z",
+        "2026-05-21T17:00:03.000Z",
+        "2026-05-21T17:00:04.000Z",
+        "2026-05-21T17:00:05.000Z",
+        "2026-05-21T17:00:06.000Z",
+        "2026-05-21T17:00:07.000Z",
+        "2026-05-21T17:00:08.000Z",
+        "2026-05-21T17:00:09.000Z",
+        "2026-05-21T17:00:10.000Z",
+        "2026-05-21T17:00:11.000Z",
+        "2026-05-21T17:00:12.000Z",
+        "2026-05-21T17:00:13.000Z",
+        "2026-05-21T17:00:14.000Z",
+        "2026-05-21T17:00:15.000Z",
+        "2026-05-21T17:00:16.000Z",
+        "2026-05-21T17:00:17.000Z",
+        "2026-05-21T17:00:18.000Z"
+      ),
+      stateRepository: repository
+    });
+
+    await syncConnector(app, "mock", "read_only");
+    const readiness = await checkEnforcementReadiness(app, "mock", { mode: "enforcement", control });
+    const dryRunPlan = await createProvisioningPlan(app, {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    }, "mock", { mode: "dry_run" }, "idem-snapshot-dry-run-plan");
+    await createProvisioningJob(app, {
+      planId: dryRunPlan.id,
+      approverId: "user:approver",
+      idempotencyKey: "idem-snapshot-dry-run-job",
+      mode: "dry_run"
+    });
+    const enforcementPlan = await createProvisioningPlan(app, {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    }, "mock", { mode: "enforcement", approval, control, readinessReportId: readiness.id }, "idem-snapshot-enforcement-plan");
+    await createProvisioningJob(app, {
+      planId: enforcementPlan.id,
+      approverId: approval.approverId,
+      idempotencyKey: "idem-snapshot-enforcement-job",
+      mode: "enforcement",
+      approval,
+      control
+    });
+    await runReconciliation(app, "mock");
+
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.discovery_completed", "discoveryRuns");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.enforcement_readiness_checked", "enforcementReadinessReports");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "provisioning.skipped", "provisioningJobs");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.permission_changed", "provisioningJobs");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "provisioning.completed", "provisioningJobs");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "reconciliation.completed", "reconciliationRuns");
+  });
+
   it("reads API server runtime configuration from environment variables", () => {
     const config = readRebacApiRuntimeConfig({
       REBAC_API_HOST: "0.0.0.0",
@@ -614,6 +696,12 @@ describe("ReBAC API runtime", () => {
       statePath: "/tmp/access-kit-state.json",
       evidenceRoot: "/tmp/access-kit-evidence"
     });
+  });
+
+  it("rejects API server runtime ports with trailing characters", () => {
+    expect(() => readRebacApiRuntimeConfig({ REBAC_API_PORT: "3000abc" })).toThrow(
+      "REBAC_API_PORT must be an integer between 1 and 65535."
+    );
   });
 
   it("returns computed audit results when proof-point storage append fails", async () => {
@@ -1719,6 +1807,80 @@ class ThrowingEvidenceRepository implements EvidencePackageRepository {
   readEvidenceExport(): undefined {
     return undefined;
   }
+}
+
+function createRecordingStateRepository(): { repository: RebacStateRepository; snapshots: RebacSeedData[] } {
+  const snapshots: RebacSeedData[] = [];
+  return {
+    snapshots,
+    repository: {
+      readState: () => undefined,
+      writeState: (state, storedAt) => {
+        snapshots.push(JSON.parse(JSON.stringify(state)) as RebacSeedData);
+        return {
+          storedAt,
+          backend: "external",
+          location: "memory",
+          stateHash: "test",
+          entityCounts: {
+            subjects: state.subjects?.length ?? 0,
+            resources: state.resources?.length ?? 0,
+            relationships: state.relationships?.length ?? 0,
+            nativeGrants: state.nativeGrants?.length ?? 0,
+            discoveryRuns: state.discoveryRuns?.length ?? 0,
+            enforcementReadinessReports: state.enforcementReadinessReports?.length ?? 0,
+            provisioningPlans: state.provisioningPlans?.length ?? 0,
+            provisioningJobs: state.provisioningJobs?.length ?? 0,
+            driftFindings: state.driftFindings?.length ?? 0,
+            reconciliationRuns: state.reconciliationRuns?.length ?? 0,
+            decisions: state.decisions?.length ?? 0,
+            auditEvents: state.auditEvents?.length ?? 0
+          },
+          version: "rebac-state-storage-receipt:v1"
+        };
+      }
+    }
+  };
+}
+
+function expectSnapshotsWithEventToIncludeCollection(
+  snapshots: RebacSeedData[],
+  eventType: string,
+  collection: "discoveryRuns" | "enforcementReadinessReports" | "provisioningJobs" | "reconciliationRuns"
+): void {
+  let matchingEvents = 0;
+
+  for (const snapshot of snapshots) {
+    for (const event of snapshot.auditEvents?.filter((item) => item.eventType === eventType) ?? []) {
+      matchingEvents += 1;
+      const recordId = primaryRecordIdForEvent(event);
+      const records = (snapshot[collection] ?? []) as Array<{ id: string }>;
+
+      expect(records.some((record) => record.id === recordId)).toBe(true);
+    }
+  }
+
+  expect(matchingEvents).toBeGreaterThan(0);
+}
+
+function primaryRecordIdForEvent(event: AuditEvent): string {
+  const payload = event.payload as JsonObject;
+  let field = "jobId";
+
+  if (event.eventType === "connector.discovery_completed") {
+    field = "discoveryRunId";
+  } else if (event.eventType === "connector.enforcement_readiness_checked") {
+    field = "id";
+  } else if (event.eventType === "reconciliation.completed") {
+    field = "runId";
+  } else if (event.eventType === "provisioning.completed" || event.eventType === "provisioning.failed") {
+    field = "id";
+  }
+
+  const value = payload[field];
+
+  expect(typeof value).toBe("string");
+  return value as string;
 }
 
 async function startServer(options: RebacApiServerOptions): Promise<void> {

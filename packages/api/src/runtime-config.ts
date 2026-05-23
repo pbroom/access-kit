@@ -17,11 +17,13 @@ export function readRebacApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env):
 }
 
 function readPort(value: string | undefined): number {
-  if (!value) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
     return 3000;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number(trimmed);
 
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
     throw new Error("REBAC_API_PORT must be an integer between 1 and 65535.");
