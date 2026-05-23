@@ -80,6 +80,23 @@ interface EnforcementReadinessRequest {
   changeTicketPattern?: unknown;
 }
 
+type RuntimeReadinessStatus = "ready" | "ready_with_warnings" | "not_ready";
+type RuntimeReadinessCheckStatus = "pass" | "warn" | "fail";
+
+interface RuntimeReadinessCheck {
+  name: string;
+  status: RuntimeReadinessCheckStatus;
+  message: string;
+  evidence?: Record<string, unknown>;
+}
+
+interface RuntimeReadinessResponse {
+  status: RuntimeReadinessStatus;
+  version: string;
+  checkedAt: string;
+  checks: RuntimeReadinessCheck[];
+}
+
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
@@ -151,6 +168,12 @@ async function routeRequest(
 
   if (method === "GET" && url.pathname === "/v1/health") {
     sendJson(response, 200, { status: "ok", version: "0.1.0" });
+    return;
+  }
+
+  if (method === "GET" && url.pathname === "/v1/ready") {
+    const readiness = buildRuntimeReadiness(app, apiKeys);
+    sendJson(response, readiness.status === "not_ready" ? 503 : 200, readiness);
     return;
   }
 
@@ -278,6 +301,87 @@ function normalizeApiKeys(apiKeys: readonly string[] | undefined): string[] {
         .filter((apiKey) => apiKey && byteLength(apiKey) <= maxBearerTokenBytes)
     )
   ];
+}
+
+function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): RuntimeReadinessResponse {
+  const connectorIds = [...app.connectors.keys()].sort();
+  const checks: RuntimeReadinessCheck[] = [
+    {
+      name: "api_runtime",
+      status: "pass",
+      message: "API runtime accepted the readiness probe."
+    },
+    {
+      name: "api_authentication",
+      status: apiKeys.length > 0 ? "pass" : "warn",
+      message: apiKeys.length > 0
+        ? "Bearer-token guard is configured for protected API routes."
+        : "Bearer-token guard is not configured; only local development should run without API keys.",
+      evidence: {
+        configured: apiKeys.length > 0,
+        tokenMaterialLogged: false
+      }
+    },
+    {
+      name: "state_repository",
+      status: app.stateRepository ? "pass" : "warn",
+      message: app.stateRepository
+        ? "Runtime state snapshot repository is configured."
+        : "Runtime state snapshot repository is not configured; state is in-memory only.",
+      evidence: {
+        configured: Boolean(app.stateRepository)
+      }
+    },
+    {
+      name: "audit_repository",
+      status: app.auditRepository ? "pass" : "warn",
+      message: app.auditRepository
+        ? "Audit repository is configured for local proof-point persistence."
+        : "Audit repository is not configured; audit events are in-memory only.",
+      evidence: {
+        configured: Boolean(app.auditRepository)
+      }
+    },
+    {
+      name: "evidence_repository",
+      status: app.evidenceRepository ? "pass" : "warn",
+      message: app.evidenceRepository
+        ? "Evidence package repository is configured for local proof-point persistence."
+        : "Evidence package repository is not configured; evidence packages are generated in-memory only.",
+      evidence: {
+        configured: Boolean(app.evidenceRepository)
+      }
+    },
+    {
+      name: "connectors",
+      status: connectorIds.length > 0 ? "pass" : "fail",
+      message: connectorIds.length > 0
+        ? `${connectorIds.length} connector adapters are registered.`
+        : "No connector adapters are registered.",
+      evidence: {
+        connectorIds
+      }
+    }
+  ];
+
+  return {
+    status: summarizeReadiness(checks),
+    version: "0.1.0",
+    checkedAt: app.now(),
+    checks
+  };
+}
+
+function summarizeReadiness(checks: readonly RuntimeReadinessCheck[]): RuntimeReadinessStatus {
+  if (checks.some((check) => check.status === "fail")) {
+    return "not_ready";
+  }
+
+  if (checks.some((check) => check.status === "warn")) {
+    return "ready_with_warnings";
+  }
+
+  return "ready";
 }
 
 function isAuthenticated(request: IncomingMessage, apiKeys: readonly string[]): boolean {

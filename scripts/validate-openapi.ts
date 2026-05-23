@@ -16,6 +16,7 @@ const parsed = YAML.parse(await readFile(openApiPath, "utf8")) as {
 };
 
 const requiredOperations = new Map<string, string[]>([
+  ["/v1/ready", ["get"]],
   ["/v1/decision/check", ["post"]],
   ["/v1/decision/explain", ["post"]],
   ["/v1/decision/batch-check", ["post"]],
@@ -86,10 +87,14 @@ for (const schemaName of ["ProvisioningApproval", "EnforcementControl", "Enforce
   }
 }
 
+const runtimeReadiness = asRecord(parsed.components.schemas.RuntimeReadiness, "RuntimeReadiness schema");
+assertProperties(runtimeReadiness, ["status", "version", "checkedAt", "checks"], "RuntimeReadiness schema");
+assertEnumIncludes(getProperty(runtimeReadiness, "status"), "ready_with_warnings", "RuntimeReadiness status");
+
 console.log(`Validated OpenAPI contract at ${openApiPath}.`);
 console.log(`PASS ${requiredOperations.size} required API path groups are present.`);
 console.log("PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.");
-console.log("PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.");
+console.log("PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.");
 
 function getRequestSchema(operation: unknown, label: string): Record<string, unknown> {
   const operationRecord = asRecord(operation, `${label} operation`);

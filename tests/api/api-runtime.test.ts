@@ -58,6 +58,40 @@ describe("ReBAC API runtime", () => {
     await expect(response.json()).resolves.toEqual({ status: "ok", version: "0.1.0" });
   });
 
+  it("serves readiness without auth and reports runtime guardrails", async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-readiness-"));
+    tempDirs.push(storageRoot);
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: join(storageRoot, "state") });
+    const evidenceRepository = new LocalFileEvidenceRepository({ rootDir: join(storageRoot, "evidence") });
+    await restartServer({
+      now: () => TEST_NOW,
+      apiKeys: ["readiness-token"],
+      stateRepository,
+      auditRepository: evidenceRepository,
+      evidenceRepository
+    });
+
+    const response = await fetch(`${baseUrl}/v1/ready`);
+    const body = (await response.json()) as {
+      status: string;
+      checkedAt: string;
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    };
+    const checksByName = new Map(body.checks.map((check) => [check.name, check]));
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("ready");
+    expect(body.checkedAt).toBe(TEST_NOW);
+    expect(checksByName.get("api_authentication")).toMatchObject({
+      status: "pass",
+      evidence: { configured: true, tokenMaterialLogged: false }
+    });
+    expect(checksByName.get("state_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("audit_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("evidence_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("connectors")?.evidence?.connectorIds).toContain("mock");
+  });
+
   it("can require bearer-token authentication while leaving health public", async () => {
     await restartServer({
       now: sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:00:01.000Z", "2026-05-21T17:00:02.000Z"),
