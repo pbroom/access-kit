@@ -11,11 +11,11 @@ The API package exposes a `rebac-api` entrypoint and container image for local d
 - `REBAC_API_HOST`, default `127.0.0.1`
 - `REBAC_API_PORT`, default `3000`
 - `REBAC_API_ACTOR`, default `service:api`
-- `REBAC_API_KEYS`, optional comma-separated bearer tokens for API access
+- `REBAC_API_KEYS`, comma-separated bearer tokens for API access. Keys are optional only when `REBAC_API_HOST` is a loopback host.
 - `REBAC_STATE_PATH`, optional local JSON runtime state snapshot path
 - `REBAC_EVIDENCE_ROOT`, optional local audit/evidence repository root
 
-When `REBAC_API_KEYS` is set, every `/v1` route except `/v1/health` and `/v1/ready` requires `Authorization: Bearer <token>`. Failed authentication attempts return `401`, set a bearer challenge, and emit `api.authentication_failed` audit evidence without logging token material. `REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state. It is not a replacement for production graph, audit, queue, or evidence stores.
+When `REBAC_API_KEYS` is set, every `/v1` route except `/v1/health` and `/v1/ready` requires `Authorization: Bearer <token>`. The runtime refuses to bind beyond loopback without keys. Failed authentication attempts return `401`, set a bearer challenge, and emit `api.authentication_failed` audit evidence without logging token material. `REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state. It is not a replacement for production graph, audit, queue, or evidence stores.
 
 The container packaging defaults `REBAC_API_HOST` to `0.0.0.0` and persists local proof-point state under `/var/lib/access-kit`. See `docs/deployment.md` and `docs/deployment-runbook.md` for build, smoke-test, release, signature, attestation, and rollback procedures.
 
