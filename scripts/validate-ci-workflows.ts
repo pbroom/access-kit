@@ -18,7 +18,8 @@ const security = await readWorkflow(".github/workflows/security.yml");
 requireJob(ci, "contract-validation", [
   "pnpm validate:contracts",
   "pnpm validate:ci",
-  "pnpm validate:packaging"
+  "pnpm validate:packaging",
+  "pnpm validate:release-packaging"
 ]);
 requireJob(ci, "quality", [
   "pnpm typecheck",
@@ -44,7 +45,9 @@ requireJob(security, "codeql", [
 ]);
 
 console.log("Validated CI workflow contract.");
-console.log("PASS CI contract, quality, evidence, container packaging, dependency audit, secret scan, and CodeQL jobs are present.");
+console.log(
+  "PASS CI contract, quality, evidence, container packaging, release packaging, dependency audit, secret scan, and CodeQL jobs are present."
+);
 
 async function readWorkflow(path: string): Promise<WorkflowDocument> {
   const contents = await readFile(join(root, path), "utf8");

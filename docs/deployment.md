@@ -54,4 +54,46 @@ The CI `Container packaging` job builds the runtime image and smoke-tests:
 - protected routes return `401` without a bearer token
 - protected routes return `200` with the synthetic CI bearer token
 
-Future production packaging still needs image provenance/signing, registry publishing, deployment IaC, identity-provider authentication, operator authorization, approved secrets handling, and deployment runbooks.
+## Release Packaging Gate
+
+The `Container Release` workflow is intentionally separate from the PR smoke test. It can run without publishing on manual dispatch, and it publishes only when either:
+
+- a `rebac-api-v*` tag is pushed
+- a manual workflow dispatch sets `publish=true`
+
+When publishing is enabled, the workflow builds the same `runtime` target, pushes the image to GHCR, emits SBOM/provenance metadata from Buildx, records a GitHub artifact attestation for the pushed digest, and signs the digest with keyless cosign through GitHub OIDC. No long-lived registry signing key is required for this proof point.
+
+The image reference has this shape:
+
+```text
+ghcr.io/<owner>/<repo>/rebac-api@sha256:<digest>
+```
+
+## Verification
+
+Use digest references for deployment manifests and admission policy checks. Tags are convenience pointers; the digest is the deployment identity.
+
+```sh
+IMAGE_REF="ghcr.io/<owner>/<repo>/rebac-api@sha256:<digest>"
+
+cosign verify \
+  --certificate-identity-regexp "https://github.com/<owner>/<repo>/.github/workflows/container-release.yml@refs/tags/rebac-api-v.*" \
+  --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+  "$IMAGE_REF"
+
+gh attestation verify \
+  --repo "<owner>/<repo>" \
+  "$IMAGE_REF"
+```
+
+## Rollback
+
+Rollback is a digest change, not an in-place image mutation:
+
+1. Select the last known-good signed digest from the release workflow summary or registry metadata.
+2. Verify the cosign signature and GitHub attestation before promotion.
+3. Update deployment IaC to the verified digest.
+4. Watch `/v1/ready`, `/v1/health`, authentication-failure audit volume, and audit write/readiness checks.
+5. Record the rollback reason, prior digest, replacement digest, verification evidence, approver, and runtime observations in the deployment evidence package.
+
+Future production deployment work still needs environment IaC, signed-image admission policy, identity-provider authentication, operator authorization, approved secrets handling, and agency-specific release approvals.

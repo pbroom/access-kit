@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T14:06:00.619Z
+Generated at: 2026-05-23T16:34:29.733Z
 
-Branch: codex/rebac-api-container
+Branch: codex/rebac-api-provenance
 
 Node: v24.4.1
 
@@ -20,6 +20,7 @@ All proof-point validation commands passed.
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
 | CLI command contract | `corepack pnpm validate:cli-contract` | PASS |
 | container packaging validation | `corepack pnpm validate:packaging` | PASS |
+| release packaging validation | `corepack pnpm validate:release-packaging` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
@@ -29,14 +30,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-api-provenance
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-api-provenance
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -58,10 +59,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-api-provenance
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-stack-ops/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-api-provenance/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -70,7 +71,7 @@ PASS Phase 5 readiness, audit integrity, audit export, and evidence export path 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-api-provenance
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -90,23 +91,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-api-provenance
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-provenance
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  10:05:57
-   Duration  139ms (transform 30ms, setup 0ms, import 42ms, tests 6ms, environment 0ms)
+   Start at  12:34:25
+   Duration  162ms (transform 33ms, setup 0ms, import 51ms, tests 7ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-api-provenance
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -114,52 +115,63 @@ PASS Dockerfile builds and runs the rebac-api runtime as a non-root container.
 PASS Container packaging CI job builds and smoke-tests health, readiness, and API auth.
 ```
 
+### release packaging validation
+
+```text
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-api-provenance
+> tsx scripts/validate-release-packaging.ts
+
+Validated deployable API release packaging.
+PASS Container release workflow publishes only on tags or explicit manual dispatch.
+PASS Container release workflow builds runtime image with SBOM/provenance, registry attestation, and keyless signing.
+```
+
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-api-provenance
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-provenance
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  10:05:58
-   Duration  187ms (transform 111ms, setup 0ms, import 146ms, tests 12ms, environment 0ms)
+   Start at  12:34:27
+   Duration  181ms (transform 105ms, setup 0ms, import 140ms, tests 13ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-api-provenance
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-provenance
 
 
  Test Files  1 passed (1)
       Tests  63 passed (63)
-   Start at  10:05:59
-   Duration  388ms (transform 97ms, setup 0ms, import 131ms, tests 168ms, environment 0ms)
+   Start at  12:34:27
+   Duration  457ms (transform 114ms, setup 0ms, import 151ms, tests 209ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-api-provenance
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-provenance
 
 
  Test Files  2 passed (2)
       Tests  29 passed (29)
-   Start at  10:05:59
-   Duration  287ms (transform 139ms, setup 0ms, import 188ms, tests 70ms, environment 0ms)
+   Start at  12:34:29
+   Duration  330ms (transform 161ms, setup 0ms, import 218ms, tests 85ms, environment 0ms)
 ```
 
 
@@ -171,6 +183,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.
+- Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.
 - Local core engine tests for deterministic check/explain and decision audit emission.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
@@ -178,7 +191,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ## Outstanding Requirements
 
 - Replace local JSON runtime snapshots with a persistent relationship graph and policy model store.
-- Harden API service packaging with image signing/provenance, registry publishing, IaC probe wiring, deployment runbooks, identity-provider-backed authentication, and operator authorization.
+- Replace local release packaging proof points with environment-specific registry promotion approvals, signed-image admission policy, IaC probe wiring, identity-provider-backed authentication, and operator authorization.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, file-backed storage proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
 - Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Persist discovery runs and native-grant readback in production data stores rather than local JSON snapshots.
