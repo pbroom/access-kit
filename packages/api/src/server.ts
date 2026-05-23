@@ -159,9 +159,10 @@ async function routeRequest(
     return;
   }
 
-  if (apiKeys.length > 0 && !isAuthenticated(request, apiKeys)) {
-    recordAuthenticationFailure(app, request, url);
-    response.setHeader("WWW-Authenticate", 'Bearer realm="rebac-control-plane"');
+  const authentication = authenticateRequest(request, apiKeys);
+  if (authentication !== "authenticated") {
+    recordAuthenticationFailure(app, request, url, authentication);
+    response.setHeader("WWW-Authenticate", bearerChallenge(authentication));
     sendJson(response, 401, {
       code: "UNAUTHENTICATED",
       message: "A valid bearer token is required.",
@@ -271,18 +272,35 @@ async function routeRequest(
 }
 
 function normalizeApiKeys(apiKeys: readonly string[] | undefined): string[] {
-  return [
-    ...new Set(
-      (apiKeys ?? [])
-        .map((apiKey) => apiKey.trim())
-        .filter((apiKey) => apiKey && byteLength(apiKey) <= maxBearerTokenBytes)
-    )
-  ];
+  const normalized = (apiKeys ?? []).map((apiKey) => apiKey.trim()).filter(Boolean);
+
+  if (normalized.some((apiKey) => byteLength(apiKey) > maxBearerTokenBytes)) {
+    throw new Error("API keys must be 4096 bytes or less.");
+  }
+
+  return [...new Set(normalized)];
 }
 
-function isAuthenticated(request: IncomingMessage, apiKeys: readonly string[]): boolean {
+type AuthenticationStatus = "authenticated" | "missing" | "invalid";
+
+function authenticateRequest(request: IncomingMessage, apiKeys: readonly string[]): AuthenticationStatus {
+  if (apiKeys.length === 0) {
+    return "authenticated";
+  }
+
   const token = readBearerToken(request);
-  return Boolean(token && apiKeys.some((apiKey) => constantTimeEqual(apiKey, token)));
+
+  if (!token) {
+    return hasBearerAuthorization(request) ? "invalid" : "missing";
+  }
+
+  return apiKeys.some((apiKey) => constantTimeEqual(apiKey, token)) ? "authenticated" : "invalid";
+}
+
+function bearerChallenge(status: AuthenticationStatus): string {
+  return status === "invalid"
+    ? 'Bearer realm="rebac-control-plane", error="invalid_token"'
+    : 'Bearer realm="rebac-control-plane"';
 }
 
 function readBearerToken(request: IncomingMessage): string | undefined {
@@ -302,6 +320,11 @@ function readBearerToken(request: IncomingMessage): string | undefined {
   }
 
   return token ? token : undefined;
+}
+
+function hasBearerAuthorization(request: IncomingMessage): boolean {
+  const authorization = request.headers.authorization;
+  return typeof authorization === "string" && authorization.trim().toLowerCase().startsWith(bearerScheme);
 }
 
 function constantTimeEqual(expected: string, actual: string): boolean {
@@ -324,7 +347,12 @@ function byteLength(value: string): number {
   return Buffer.byteLength(value, "utf8");
 }
 
-function recordAuthenticationFailure(app: RebacLocalApp, request: IncomingMessage, url: URL): void {
+function recordAuthenticationFailure(
+  app: RebacLocalApp,
+  request: IncomingMessage,
+  url: URL,
+  authentication: Exclude<AuthenticationStatus, "authenticated">
+): void {
   recordAudit(app, {
     eventType: "api.authentication_failed",
     actor: "anonymous",
@@ -332,7 +360,7 @@ function recordAuthenticationFailure(app: RebacLocalApp, request: IncomingMessag
     payload: {
       method: request.method ?? "GET",
       path: url.pathname,
-      reason: "missing_or_invalid_bearer_token",
+      reason: authentication === "invalid" ? "invalid_bearer_token" : "missing_bearer_token",
       tokenLogged: false
     }
   });

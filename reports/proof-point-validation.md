@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T10:54:03.877Z
+Generated at: 2026-05-23T14:00:26.712Z
 
 Branch: codex/rebac-api-auth
 
@@ -28,14 +28,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-api-auth
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-api-auth
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-api-auth
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-api-auth
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -57,10 +57,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-api-auth
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-api-auth
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-api-auth/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-api-auth/openapi/rebac-control-plane.yaml.
 PASS 27 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.
@@ -69,7 +69,7 @@ PASS Phase 5 audit integrity, audit export, and evidence export path groups are 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-api-auth
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-api-auth
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -89,65 +89,65 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-api-auth
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-api-auth
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-auth
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-api-auth
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  06:54:00
-   Duration  156ms (transform 34ms, setup 0ms, import 52ms, tests 7ms, environment 0ms)
+   Start at  10:00:23
+   Duration  152ms (transform 34ms, setup 0ms, import 49ms, tests 7ms, environment 0ms)
 ```
 
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-api-auth
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-api-auth
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-auth
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-api-auth
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  06:54:01
-   Duration  187ms (transform 108ms, setup 0ms, import 143ms, tests 13ms, environment 0ms)
+   Start at  10:00:24
+   Duration  166ms (transform 92ms, setup 0ms, import 122ms, tests 11ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-api-auth
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-api-auth
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-auth
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-api-auth
 
 
  Test Files  1 passed (1)
-      Tests  58 passed (58)
-   Start at  06:54:02
-   Duration  448ms (transform 113ms, setup 0ms, import 150ms, tests 197ms, environment 0ms)
+      Tests  61 passed (61)
+   Start at  10:00:25
+   Duration  383ms (transform 97ms, setup 0ms, import 129ms, tests 164ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-api-auth
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-api-auth
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-auth
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-api-auth
 
 
  Test Files  2 passed (2)
       Tests  29 passed (29)
-   Start at  06:54:03
-   Duration  324ms (transform 142ms, setup 0ms, import 211ms, tests 79ms, environment 0ms)
+   Start at  10:00:26
+   Duration  289ms (transform 142ms, setup 0ms, import 189ms, tests 71ms, environment 0ms)
 ```
 
 
