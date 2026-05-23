@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T12:40:03.088Z
+Generated at: 2026-05-23T13:43:59.081Z
 
 Branch: codex/rebac-readiness-probe
 
@@ -28,14 +28,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-readiness-probe
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-readiness-probe
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-readiness-probe
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-readiness-probe
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -57,10 +57,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-readiness-probe
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-readiness-probe
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-readiness-probe/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-readiness-probe/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -69,7 +69,7 @@ PASS Phase 5 readiness, audit integrity, audit export, and evidence export path 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-readiness-probe
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-readiness-probe
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -89,65 +89,65 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-readiness-probe
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-readiness-probe
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-readiness-probe
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-readiness-probe
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  08:39:59
-   Duration  153ms (transform 35ms, setup 0ms, import 51ms, tests 7ms, environment 0ms)
+   Start at  09:43:55
+   Duration  150ms (transform 32ms, setup 0ms, import 46ms, tests 7ms, environment 0ms)
 ```
 
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-readiness-probe
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-readiness-probe
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-readiness-probe
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-readiness-probe
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  08:40:00
-   Duration  191ms (transform 111ms, setup 0ms, import 148ms, tests 12ms, environment 0ms)
+   Start at  09:43:56
+   Duration  254ms (transform 97ms, setup 0ms, import 128ms, tests 11ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-readiness-probe
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-readiness-probe
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-readiness-probe
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-readiness-probe
 
 
  Test Files  1 passed (1)
-      Tests  59 passed (59)
-   Start at  08:40:01
-   Duration  449ms (transform 114ms, setup 0ms, import 152ms, tests 198ms, environment 0ms)
+      Tests  60 passed (60)
+   Start at  09:43:57
+   Duration  402ms (transform 106ms, setup 0ms, import 139ms, tests 174ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-readiness-probe
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-readiness-probe
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-readiness-probe
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-readiness-probe
 
 
  Test Files  2 passed (2)
       Tests  29 passed (29)
-   Start at  08:40:02
-   Duration  316ms (transform 155ms, setup 0ms, import 210ms, tests 77ms, environment 0ms)
+   Start at  09:43:58
+   Duration  348ms (transform 130ms, setup 0ms, import 188ms, tests 73ms, environment 0ms)
 ```
 
 

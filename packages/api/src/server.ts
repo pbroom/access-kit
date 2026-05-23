@@ -318,8 +318,7 @@ function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): 
         ? "Bearer-token guard is configured for protected API routes."
         : "Bearer-token guard is not configured; only local development should run without API keys.",
       evidence: {
-        configured: apiKeys.length > 0,
-        tokenMaterialLogged: false
+        configured: apiKeys.length > 0
       }
     },
     {

@@ -84,12 +84,33 @@ describe("ReBAC API runtime", () => {
     expect(body.checkedAt).toBe(TEST_NOW);
     expect(checksByName.get("api_authentication")).toMatchObject({
       status: "pass",
-      evidence: { configured: true, tokenMaterialLogged: false }
+      evidence: { configured: true }
     });
+    expect(checksByName.get("api_authentication")?.evidence).not.toHaveProperty("tokenMaterialLogged");
     expect(checksByName.get("state_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("audit_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("evidence_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("connectors")?.evidence?.connectorIds).toContain("mock");
+  });
+
+  it("returns not ready when no connector adapters are registered", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    app.connectors.clear();
+    await restartServer({ app, apiKeys: ["readiness-token"] });
+
+    const response = await fetch(`${baseUrl}/v1/ready`);
+    const body = (await response.json()) as {
+      status: string;
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    };
+    const checksByName = new Map(body.checks.map((check) => [check.name, check]));
+
+    expect(response.status).toBe(503);
+    expect(body.status).toBe("not_ready");
+    expect(checksByName.get("connectors")).toMatchObject({
+      status: "fail",
+      evidence: { connectorIds: [] }
+    });
   });
 
   it("can require bearer-token authentication while leaving health public", async () => {
@@ -99,6 +120,7 @@ describe("ReBAC API runtime", () => {
     });
 
     const health = await fetch(`${baseUrl}/v1/health`);
+    const ready = await fetch(`${baseUrl}/v1/ready`);
     const missing = await fetch(`${baseUrl}/v1/subjects`);
     const wrong = await fetch(`${baseUrl}/v1/subjects`, {
       headers: { authorization: "Bearer wrong-token" }
@@ -112,6 +134,7 @@ describe("ReBAC API runtime", () => {
     const auditBody = (await audit.json()) as { items: Array<{ eventType: string; actor: string; payload: JsonObject }> };
 
     expect(health.status).toBe(200);
+    expect(ready.status).toBe(200);
     expect(missing.status).toBe(401);
     expect(missing.headers.get("www-authenticate")).toBe('Bearer realm="rebac-control-plane"');
     await expect(missing.json()).resolves.toMatchObject({ code: "UNAUTHENTICATED" });
