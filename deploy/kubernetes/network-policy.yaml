@@ -18,7 +18,7 @@ spec:
         - namespaceSelector:
             matchLabels:
               access-kit.io/rebac-api-client-namespace: "true"
-        - podSelector:
+          podSelector:
             matchLabels:
               access-kit.io/rebac-api-client: "true"
       ports:

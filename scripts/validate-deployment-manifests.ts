@@ -69,9 +69,16 @@ requireEquals(podSecurityContext.runAsUser, 1000, "pod runAsUser");
 requireEquals(asRecord(podSecurityContext.seccompProfile, "pod seccomp profile").type, "RuntimeDefault", "pod seccomp");
 
 const container = findNamedRecord(asArray(podSpec.containers, "containers"), "rebac-api", "container");
-requireIncludes(String(container.image), "@sha256:", "container image digest");
-if (String(container.image).includes(":latest")) {
+const containerImage = String(container.image);
+requireIncludes(containerImage, "@sha256:", "container image digest");
+if (containerImage.includes(":latest")) {
   throw new Error("container image must not use latest tag");
+}
+if (!/@sha256:[a-f0-9]{64}$/i.test(containerImage)) {
+  throw new Error("container image must use a full sha256 digest");
+}
+if (/@sha256:0{64}$/i.test(containerImage)) {
+  throw new Error("container image must not use placeholder zero digest");
 }
 
 const containerSecurityContext = asRecord(container.securityContext, "container security context");
@@ -114,6 +121,25 @@ requireEquals(servicePort.targetPort, "http", "service target port");
 const networkPolicySpec = asRecord(networkPolicy.spec, "network policy spec");
 requireIncludes(asStringArray(networkPolicySpec.policyTypes, "network policy types"), "Ingress", "network policy types");
 requireIncludes(asStringArray(networkPolicySpec.policyTypes, "network policy types"), "Egress", "network policy types");
+const ingressRules = asArray(networkPolicySpec.ingress, "network policy ingress");
+const ingressRule = asRecord(ingressRules[0], "network policy ingress rule");
+const ingressFrom = asArray(ingressRule.from, "network policy ingress peers");
+requireEquals(ingressFrom.length, 1, "network policy ingress peer count");
+const clientPeer = asRecord(ingressFrom[0], "network policy client ingress peer");
+const clientNamespaceLabels = asRecord(
+  asRecord(clientPeer.namespaceSelector, "network policy client namespace selector").matchLabels,
+  "network policy client namespace labels"
+);
+const clientPodLabels = asRecord(
+  asRecord(clientPeer.podSelector, "network policy client pod selector").matchLabels,
+  "network policy client pod labels"
+);
+requireEquals(
+  clientNamespaceLabels["access-kit.io/rebac-api-client-namespace"],
+  "true",
+  "network policy client namespace label"
+);
+requireEquals(clientPodLabels["access-kit.io/rebac-api-client"], "true", "network policy client pod label");
 
 const signedImagePolicyText = JSON.stringify(signedImagePolicy);
 for (const required of [

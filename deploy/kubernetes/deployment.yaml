@@ -34,7 +34,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: rebac-api
-          image: ghcr.io/pbroom/access-kit/rebac-api@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          image: ghcr.io/pbroom/access-kit/rebac-api@sha256:089df8dd469d16bc3ec78978222a20283a057cb58e1491b0569ec9fd408b02e9
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

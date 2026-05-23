@@ -18,7 +18,7 @@ This runbook is a synthetic release-control proof point for the `rebac-api` cont
 3. Capture the image digest from the workflow summary.
 4. Verify the GitHub artifact attestation for that digest.
 5. Verify the cosign keyless signature for that digest.
-6. Replace the placeholder image digest in deployment manifests with the verified digest.
+6. Replace the example image digest in deployment manifests with the verified digest.
 7. Promote only the digest reference into deployment IaC.
 
 ## Runtime Checks
