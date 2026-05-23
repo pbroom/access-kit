@@ -33,6 +33,7 @@ describe("persistent ReBAC repository contracts", () => {
       provisioningJobs: [job]
     });
     expect(repository.listNativeGrants({ sourceConnectorId: "mock", nativePermission: "read" })).toEqual([nativeGrant]);
+    expect(repository.listProvisioningPlans()).toEqual([plan]);
     expect(repository.getProvisioningJobByIdempotencyKey("idem:job:alice-case-plan-read")).toEqual(job);
     expect(repository.exportGraph()).not.toHaveProperty("provisioningJobs");
   });
@@ -40,10 +41,28 @@ describe("persistent ReBAC repository contracts", () => {
   it("returns defensive copies from the in-memory conformance adapter", () => {
     const repository = new InMemoryRebacPersistenceRepository(createLocalEngineSeed());
     const subjects = repository.listSubjects();
+    const plan = createProvisioningPlan();
 
+    repository.upsertProvisioningPlan(plan);
     subjects[0] = { ...subjects[0], displayName: "Mutated Outside Store" };
+    repository.listProvisioningPlans()[0] = { ...plan, status: "approved" };
 
     expect(repository.getSubject("user:alice")?.displayName).toBe("Alice Example");
+    expect(repository.getProvisioningPlan(plan.id)?.status).toBe("planned");
+  });
+
+  it("describes the in-memory graph adapter without advertising job capabilities on the graph descriptor", () => {
+    const repository = new InMemoryRebacPersistenceRepository(createLocalEngineSeed());
+
+    expect(repository.describePersistence()).toMatchObject({
+      component: "graph",
+      backend: "memory",
+      durable: false,
+      immutable: false,
+      capabilities: ["graph_read", "graph_write", "relationship_query", "native_grant_readback"]
+    });
+    expect(repository.describePersistence().capabilities).not.toContain("job_enqueue");
+    expect(repository.describePersistence().capabilities).not.toContain("idempotency_lookup");
   });
 
   it("blocks proof-point persistence from production readiness", () => {
@@ -128,6 +147,58 @@ describe("persistent ReBAC repository contracts", () => {
     expect(report.status).toBe("ready");
     expect(report.checks.every((check) => check.status === "pass")).toBe(true);
     expect(report.requiredCapabilities.audit).toContain("audit_immutability");
+  });
+
+  it("blocks duplicate persistence descriptors for the same component", () => {
+    const descriptors: PersistenceBackendDescriptor[] = [
+      {
+        component: "graph",
+        backend: "external_graph",
+        durable: true,
+        immutable: false,
+        capabilities: ["graph_read", "graph_write", "relationship_query", "transactional_writes", "backup_restore"],
+        location: "postgres://rebac-graph-primary",
+        version: "persistence-backend:v1"
+      },
+      {
+        component: "graph",
+        backend: "external_graph",
+        durable: true,
+        immutable: false,
+        capabilities: ["graph_read", "graph_write", "relationship_query", "transactional_writes", "backup_restore"],
+        location: "postgres://rebac-graph-shadow",
+        version: "persistence-backend:v1"
+      },
+      {
+        component: "audit",
+        backend: "external_append_only_audit",
+        durable: true,
+        immutable: true,
+        capabilities: ["audit_append", "audit_hash_chain", "audit_immutability", "audit_retention", "backup_restore"],
+        retentionDays: 2555,
+        location: "worm://audit-ledger",
+        version: "persistence-backend:v1"
+      },
+      {
+        component: "job",
+        backend: "external_queue",
+        durable: true,
+        immutable: false,
+        capabilities: ["job_enqueue", "idempotency_lookup", "transactional_writes", "backup_restore"],
+        location: "queue://rebac-jobs",
+        version: "persistence-backend:v1"
+      }
+    ];
+
+    const report = assessPersistenceReadiness(descriptors, now);
+
+    expect(report.status).toBe("blocked");
+    expect(failingCheckNames(report.checks)).toEqual(["graph_repository_descriptor_unique"]);
+    expect(report.checks.find((check) => check.name === "graph_repository_descriptor_unique")).toMatchObject({
+      component: "graph",
+      evidence: { count: 2, backends: ["external_graph", "external_graph"] }
+    });
+    expect(report.descriptors).toHaveLength(4);
   });
 });
 

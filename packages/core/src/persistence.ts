@@ -118,6 +118,7 @@ export interface RebacJobRepository {
   upsertProvisioningPlan(plan: ProvisioningPlan): ProvisioningPlan;
   getProvisioningPlan(id: CanonicalId): ProvisioningPlan | undefined;
   getProvisioningPlanByIdempotencyKey(idempotencyKey: string): ProvisioningPlan | undefined;
+  listProvisioningPlans(): ProvisioningPlan[];
   upsertProvisioningJob(job: ProvisioningJob): ProvisioningJob;
   getProvisioningJob(id: CanonicalId): ProvisioningJob | undefined;
   getProvisioningJobByIdempotencyKey(idempotencyKey: string): ProvisioningJob | undefined;
@@ -164,7 +165,7 @@ export class InMemoryRebacPersistenceRepository implements RebacGraphRepository,
       backend: "memory",
       durable: false,
       immutable: false,
-      capabilities: ["graph_read", "graph_write", "relationship_query", "native_grant_readback", "job_enqueue", "idempotency_lookup"],
+      capabilities: ["graph_read", "graph_write", "relationship_query", "native_grant_readback"],
       version: "persistence-backend:v1"
     };
   }
@@ -249,6 +250,10 @@ export class InMemoryRebacPersistenceRepository implements RebacGraphRepository,
     return cloneOptional(this.#store.getProvisioningPlanByIdempotencyKey(idempotencyKey));
   }
 
+  listProvisioningPlans(): ProvisioningPlan[] {
+    return clone(this.#store.listProvisioningPlans());
+  }
+
   upsertProvisioningJob(job: ProvisioningJob): ProvisioningJob {
     return clone(this.#store.upsertProvisioningJob(clone(job)));
   }
@@ -302,7 +307,7 @@ export class InMemoryRebacPersistenceRepository implements RebacGraphRepository,
     return {
       discoveryRuns: this.listDiscoveryRuns(),
       enforcementReadinessReports: this.listEnforcementReadinessReports(),
-      provisioningPlans: clone(this.#store.listProvisioningPlans()),
+      provisioningPlans: this.listProvisioningPlans(),
       provisioningJobs: this.listProvisioningJobs(),
       driftFindings: this.listDriftFindings(),
       reconciliationRuns: this.listReconciliationRuns(),
@@ -321,9 +326,30 @@ export function assessPersistenceReadiness(
   requiredCapabilities: Record<PersistenceComponent, PersistenceCapability[]> = requiredProductionPersistenceCapabilities
 ): PersistenceReadinessReport {
   const checks: PersistenceReadinessCheck[] = [];
+  const descriptorsByComponent = new Map<PersistenceComponent, PersistenceBackendDescriptor[]>();
+
+  for (const descriptor of descriptors) {
+    const componentDescriptors = descriptorsByComponent.get(descriptor.component) ?? [];
+    componentDescriptors.push(descriptor);
+    descriptorsByComponent.set(descriptor.component, componentDescriptors);
+  }
 
   for (const component of Object.keys(requiredCapabilities) as PersistenceComponent[]) {
-    const descriptor = descriptors.find((entry) => entry.component === component);
+    const componentDescriptors = descriptorsByComponent.get(component) ?? [];
+    const descriptor = componentDescriptors[0];
+
+    if (componentDescriptors.length > 1) {
+      checks.push({
+        name: `${component}_repository_descriptor_unique`,
+        component,
+        status: "fail",
+        message: `Multiple ${component} persistence backend descriptors are configured; exactly one is allowed.`,
+        evidence: {
+          count: componentDescriptors.length,
+          backends: componentDescriptors.map((entry) => entry.backend)
+        }
+      });
+    }
 
     if (!descriptor) {
       checks.push({
