@@ -82,6 +82,7 @@ interface EnforcementReadinessRequest {
 
 type RuntimeReadinessStatus = "ready" | "ready_with_warnings" | "not_ready";
 type RuntimeReadinessCheckStatus = "pass" | "warn" | "fail";
+type AuthenticationStatus = "authenticated" | "missing" | "invalid";
 
 interface RuntimeReadinessCheck {
   name: string;
@@ -124,10 +125,11 @@ class HttpError extends Error {
 export function createRebacApiServer(options: RebacApiServerOptions = {}): Server {
   const app = options.app ?? createRebacLocalApp(options);
   const apiKeys = normalizeApiKeys(options.apiKeys);
+  const recordedAuthenticationFailureReasons = new Set<Exclude<AuthenticationStatus, "authenticated">>();
 
   return createServer(async (request, response) => {
     try {
-      await routeRequest(app, request, response, apiKeys);
+      await routeRequest(app, request, response, apiKeys, recordedAuthenticationFailureReasons);
     } catch (error) {
       if (error instanceof HttpError) {
         sendJson(response, error.statusCode, {
@@ -160,7 +162,8 @@ async function routeRequest(
   app: RebacLocalApp,
   request: IncomingMessage,
   response: ServerResponse,
-  apiKeys: readonly string[]
+  apiKeys: readonly string[],
+  recordedAuthenticationFailureReasons: Set<Exclude<AuthenticationStatus, "authenticated">>
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://localhost");
   const method = request.method ?? "GET";
@@ -184,7 +187,7 @@ async function routeRequest(
 
   const authentication = authenticateRequest(request, apiKeys);
   if (authentication !== "authenticated") {
-    recordAuthenticationFailure(app, request, url, authentication);
+    recordAuthenticationFailure(app, request, url, authentication, recordedAuthenticationFailureReasons);
     response.setHeader("WWW-Authenticate", bearerChallenge(authentication));
     sendJson(response, 401, {
       code: "UNAUTHENTICATED",
@@ -359,7 +362,7 @@ function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): 
         ? `${connectorIds.length} connector adapters are registered.`
         : "No connector adapters are registered.",
       evidence: {
-        connectorIds
+        configured: connectorIds.length > 0
       }
     }
   ];
@@ -383,8 +386,6 @@ function summarizeReadiness(checks: readonly RuntimeReadinessCheck[]): RuntimeRe
 
   return "ready";
 }
-
-type AuthenticationStatus = "authenticated" | "missing" | "invalid";
 
 function authenticateRequest(request: IncomingMessage, apiKeys: readonly string[]): AuthenticationStatus {
   if (apiKeys.length === 0) {
@@ -454,27 +455,32 @@ function recordAuthenticationFailure(
   app: RebacLocalApp,
   request: IncomingMessage,
   url: URL,
-  authentication: Exclude<AuthenticationStatus, "authenticated">
+  authentication: Exclude<AuthenticationStatus, "authenticated">,
+  recordedAuthenticationFailureReasons: Set<Exclude<AuthenticationStatus, "authenticated">>
 ): void {
+  if (recordedAuthenticationFailureReasons.has(authentication)) {
+    return;
+  }
+  recordedAuthenticationFailureReasons.add(authentication);
+
   recordAudit(app, {
     eventType: "api.authentication_failed",
     actor: "anonymous",
-    correlationId: `corr:auth:${sanitizeAuditPath(url.pathname)}:${compactTimestamp(app.now())}`,
+    correlationId: `corr:auth:${authentication}:${sanitizeAuditPath(url.pathname)}`,
     payload: {
       method: request.method ?? "GET",
       path: url.pathname,
       reason: authentication === "invalid" ? "invalid_bearer_token" : "missing_bearer_token",
+      sampled: true,
       tokenLogged: false
     }
+  }, {
+    persistState: false
   });
 }
 
 function sanitizeAuditPath(path: string): string {
   return path.replaceAll(/[^a-z0-9_:-]/gi, "_").toLowerCase();
-}
-
-function compactTimestamp(timestamp: string): string {
-  return timestamp.replaceAll(/[^0-9a-z]/gi, "").toLowerCase();
 }
 
 async function routePolicies(

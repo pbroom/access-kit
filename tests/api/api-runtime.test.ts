@@ -91,7 +91,8 @@ describe("ReBAC API runtime", () => {
     expect(checksByName.get("state_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("audit_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("evidence_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
-    expect(checksByName.get("connectors")?.evidence?.connectorIds).toContain("mock");
+    expect(checksByName.get("connectors")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("connectors")?.evidence).not.toHaveProperty("connectorIds");
   });
 
   it("returns not ready when no connector adapters are registered", async () => {
@@ -110,8 +111,9 @@ describe("ReBAC API runtime", () => {
     expect(body.status).toBe("not_ready");
     expect(checksByName.get("connectors")).toMatchObject({
       status: "fail",
-      evidence: { connectorIds: [] }
+      evidence: { configured: false }
     });
+    expect(checksByName.get("connectors")?.evidence).not.toHaveProperty("connectorIds");
   });
 
   it("can require bearer-token authentication while leaving health public", async () => {
@@ -149,8 +151,40 @@ describe("ReBAC API runtime", () => {
       "missing_bearer_token",
       "invalid_bearer_token"
     ]);
+    expect(authFailures.every((event) => event.payload.sampled === true)).toBe(true);
     expect(auditBody.items.filter((event) => event.actor === "anonymous")).toHaveLength(2);
     expect(auditBody.items.every((event) => !JSON.stringify(event.payload).includes("wrong-token"))).toBe(true);
+  });
+
+  it("samples authentication-failure audit events without forcing state snapshots", async () => {
+    const { repository, snapshots } = createRecordingStateRepository();
+    await restartServer({
+      now: () => TEST_NOW,
+      apiKeys: ["token-one"],
+      stateRepository: repository
+    });
+
+    const first = await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer wrong-token" }
+    });
+    const second = await fetch(`${baseUrl}/v1/resources`, {
+      headers: { authorization: "Bearer another-wrong-token" }
+    });
+    const audit = await fetch(`${baseUrl}/v1/audit/events`, {
+      headers: { authorization: "Bearer token-one" }
+    });
+    const auditBody = (await audit.json()) as { items: Array<{ eventType: string; payload: JsonObject }> };
+    const authFailures = auditBody.items.filter((event) => event.eventType === "api.authentication_failed");
+
+    expect(first.status).toBe(401);
+    expect(second.status).toBe(401);
+    expect(snapshots).toHaveLength(0);
+    expect(authFailures).toHaveLength(1);
+    expect(authFailures[0]?.payload).toMatchObject({
+      reason: "invalid_bearer_token",
+      sampled: true,
+      tokenLogged: false
+    });
   });
 
   it("rejects oversized API keys passed directly to the API server", () => {

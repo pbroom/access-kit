@@ -74,7 +74,7 @@ Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock`
 
 ## Phase 5 ATO Evidence
 
-`GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, local state snapshot wiring, local audit/evidence repositories, and registered connector adapters. The endpoint is public for orchestrator probes and never returns token material.
+`GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, local state snapshot wiring, local audit/evidence repositories, and whether connector adapters are configured. The endpoint is public for orchestrator probes and never returns token material or connector identifiers.
 
 `GET /v1/audit/integrity` verifies the append-only audit event hash chain. The report includes event count, first and last event identifiers, first and last event hashes, findings, and an audit event ID for the verification action.
 

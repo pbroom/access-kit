@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T17:58:14.618Z
+Generated at: 2026-05-23T18:11:27.845Z
 
-Branch: codex/docs-foundation
+Branch: codex/pr21-runtime-hardening
 
 Node: v24.4.1
 
@@ -31,14 +31,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -60,10 +60,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-docs-foundation/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-pr21-runtime-hardening/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -73,7 +73,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -93,23 +93,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  13:58:09
-   Duration  149ms (transform 32ms, setup 0ms, import 48ms, tests 6ms, environment 0ms)
+   Start at  14:11:23
+   Duration  139ms (transform 29ms, setup 0ms, import 42ms, tests 5ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -120,7 +120,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -131,7 +131,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -142,49 +142,49 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  13:58:12
-   Duration  166ms (transform 94ms, setup 0ms, import 124ms, tests 11ms, environment 0ms)
+   Start at  14:11:25
+   Duration  168ms (transform 94ms, setup 0ms, import 124ms, tests 11ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 
 
  Test Files  1 passed (1)
-      Tests  65 passed (65)
-   Start at  13:58:13
-   Duration  389ms (transform 98ms, setup 0ms, import 131ms, tests 169ms, environment 0ms)
+      Tests  66 passed (66)
+   Start at  14:11:26
+   Duration  391ms (transform 99ms, setup 0ms, import 131ms, tests 169ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-docs-foundation
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-pr21-runtime-hardening
 
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  13:58:13
-   Duration  299ms (transform 235ms, setup 0ms, import 320ms, tests 118ms, environment 0ms)
+   Start at  14:11:27
+   Duration  304ms (transform 242ms, setup 0ms, import 327ms, tests 120ms, environment 0ms)
 ```
 
 
