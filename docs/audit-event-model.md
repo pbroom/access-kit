@@ -45,6 +45,7 @@ The current audit implementation is not production WORM storage, approved SIEM d
   "policyVersion": "policy:test-v1",
   "relationshipVersion": "tuple-set:test-v1",
   "payloadHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "previousEventHash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
   "payload": {
     "decisionId": "decision:allow-alice-read-case-plan",
     "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
