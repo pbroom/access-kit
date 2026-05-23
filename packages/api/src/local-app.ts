@@ -91,6 +91,7 @@ export interface RebacLocalApp {
 }
 
 interface RecordAuditOptions {
+  occurredAt?: string;
   persistState?: boolean;
 }
 
@@ -1005,7 +1006,7 @@ export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
 }
 
 export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options: RecordAuditOptions = {}): AuditEvent {
-  const event = app.auditRecorder.record(input, app.now());
+  const event = app.auditRecorder.record(input, options.occurredAt ?? app.now());
   const priorStoreAuditEvents = app.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
   appendAuditEvent(app.auditRepository, event, event.occurredAt, priorStoreAuditEvents);

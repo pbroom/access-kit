@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import {
   checkDecision,
@@ -83,6 +83,12 @@ interface EnforcementReadinessRequest {
 type RuntimeReadinessStatus = "ready" | "ready_with_warnings" | "not_ready";
 type RuntimeReadinessCheckStatus = "pass" | "warn" | "fail";
 type AuthenticationStatus = "authenticated" | "missing" | "invalid";
+type AuthenticationFailureReason = Exclude<AuthenticationStatus, "authenticated">;
+
+interface AuthenticationFailureSample {
+  sampledAtMs: number;
+  suppressedCount: number;
+}
 
 interface RuntimeReadinessCheck {
   name: string;
@@ -111,6 +117,7 @@ const nativePrincipalTypes = new Set(["user", "group", "service_account", "servi
 const bearerScheme = "bearer ";
 const maxAuthorizationHeaderBytes = 8192;
 const maxBearerTokenBytes = 4096;
+const authenticationFailureAuditSampleWindowMs = 60_000;
 
 class HttpError extends Error {
   constructor(
@@ -125,11 +132,12 @@ class HttpError extends Error {
 export function createRebacApiServer(options: RebacApiServerOptions = {}): Server {
   const app = options.app ?? createRebacLocalApp(options);
   const apiKeys = normalizeApiKeys(options.apiKeys);
-  const recordedAuthenticationFailureReasons = new Set<Exclude<AuthenticationStatus, "authenticated">>();
+  const authenticationFailureSamples = new Map<AuthenticationFailureReason, AuthenticationFailureSample>();
+  const authenticationFailureAuditScope = randomUUID();
 
   return createServer(async (request, response) => {
     try {
-      await routeRequest(app, request, response, apiKeys, recordedAuthenticationFailureReasons);
+      await routeRequest(app, request, response, apiKeys, authenticationFailureSamples, authenticationFailureAuditScope);
     } catch (error) {
       if (error instanceof HttpError) {
         sendJson(response, error.statusCode, {
@@ -163,7 +171,8 @@ async function routeRequest(
   request: IncomingMessage,
   response: ServerResponse,
   apiKeys: readonly string[],
-  recordedAuthenticationFailureReasons: Set<Exclude<AuthenticationStatus, "authenticated">>
+  authenticationFailureSamples: Map<AuthenticationFailureReason, AuthenticationFailureSample>,
+  authenticationFailureAuditScope: string
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://localhost");
   const method = request.method ?? "GET";
@@ -187,7 +196,7 @@ async function routeRequest(
 
   const authentication = authenticateRequest(request, apiKeys);
   if (authentication !== "authenticated") {
-    recordAuthenticationFailure(app, request, url, authentication, recordedAuthenticationFailureReasons);
+    recordAuthenticationFailure(app, request, url, authentication, authenticationFailureSamples, authenticationFailureAuditScope);
     response.setHeader("WWW-Authenticate", bearerChallenge(authentication));
     sendJson(response, 401, {
       code: "UNAUTHENTICATED",
@@ -455,28 +464,51 @@ function recordAuthenticationFailure(
   app: RebacLocalApp,
   request: IncomingMessage,
   url: URL,
-  authentication: Exclude<AuthenticationStatus, "authenticated">,
-  recordedAuthenticationFailureReasons: Set<Exclude<AuthenticationStatus, "authenticated">>
+  authentication: AuthenticationFailureReason,
+  authenticationFailureSamples: Map<AuthenticationFailureReason, AuthenticationFailureSample>,
+  authenticationFailureAuditScope: string
 ): void {
-  if (recordedAuthenticationFailureReasons.has(authentication)) {
+  const occurredAt = app.now();
+  const occurredAtMs = timestampMs(occurredAt);
+  const priorSample = authenticationFailureSamples.get(authentication);
+
+  if (priorSample && occurredAtMs - priorSample.sampledAtMs < authenticationFailureAuditSampleWindowMs) {
+    priorSample.suppressedCount += 1;
     return;
   }
-  recordedAuthenticationFailureReasons.add(authentication);
+
+  const suppressedSinceLastSample = priorSample?.suppressedCount ?? 0;
+  authenticationFailureSamples.set(authentication, {
+    sampledAtMs: occurredAtMs,
+    suppressedCount: 0
+  });
 
   recordAudit(app, {
     eventType: "api.authentication_failed",
     actor: "anonymous",
-    correlationId: `corr:auth:${authentication}:${sanitizeAuditPath(url.pathname)}`,
+    correlationId: `corr:auth:${authentication}:${authenticationFailureAuditScope}:${sampleWindowStart(occurredAtMs)}:${sanitizeAuditPath(url.pathname)}`,
     payload: {
       method: request.method ?? "GET",
       path: url.pathname,
       reason: authentication === "invalid" ? "invalid_bearer_token" : "missing_bearer_token",
       sampled: true,
+      sampleWindowMs: authenticationFailureAuditSampleWindowMs,
+      suppressedSinceLastSample,
       tokenLogged: false
     }
   }, {
+    occurredAt,
     persistState: false
   });
+}
+
+function timestampMs(timestamp: string): number {
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
+function sampleWindowStart(timestamp: number): number {
+  return Math.floor(timestamp / authenticationFailureAuditSampleWindowMs) * authenticationFailureAuditSampleWindowMs;
 }
 
 function sanitizeAuditPath(path: string): string {

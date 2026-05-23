@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-23T18:11:27.845Z
+Generated at: 2026-05-23T19:13:04.904Z
 
 Branch: codex/pr21-runtime-hardening
 
@@ -102,8 +102,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  14:11:23
-   Duration  139ms (transform 29ms, setup 0ms, import 42ms, tests 5ms, environment 0ms)
+   Start at  15:12:59
+   Duration  163ms (transform 36ms, setup 0ms, import 54ms, tests 7ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -151,8 +151,8 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  14:11:25
-   Duration  168ms (transform 94ms, setup 0ms, import 124ms, tests 11ms, environment 0ms)
+   Start at  15:13:02
+   Duration  186ms (transform 108ms, setup 0ms, import 146ms, tests 12ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -166,9 +166,9 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
 
  Test Files  1 passed (1)
-      Tests  66 passed (66)
-   Start at  14:11:26
-   Duration  391ms (transform 99ms, setup 0ms, import 131ms, tests 169ms, environment 0ms)
+      Tests  67 passed (67)
+   Start at  15:13:03
+   Duration  474ms (transform 119ms, setup 0ms, import 156ms, tests 220ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -183,8 +183,8 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  14:11:27
-   Duration  304ms (transform 242ms, setup 0ms, import 327ms, tests 120ms, environment 0ms)
+   Start at  15:13:04
+   Duration  332ms (transform 266ms, setup 0ms, import 360ms, tests 131ms, environment 0ms)
 ```
 
 

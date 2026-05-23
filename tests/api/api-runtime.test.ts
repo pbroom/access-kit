@@ -156,10 +156,14 @@ describe("ReBAC API runtime", () => {
     expect(auditBody.items.every((event) => !JSON.stringify(event.payload).includes("wrong-token"))).toBe(true);
   });
 
-  it("samples authentication-failure audit events without forcing state snapshots", async () => {
+  it("rate-limits authentication-failure audit samples without forcing state snapshots", async () => {
     const { repository, snapshots } = createRecordingStateRepository();
     await restartServer({
-      now: () => TEST_NOW,
+      now: sequenceNow(
+        "2026-05-21T17:00:00.000Z",
+        "2026-05-21T17:00:30.000Z",
+        "2026-05-21T17:01:01.000Z"
+      ),
       apiKeys: ["token-one"],
       stateRepository: repository
     });
@@ -170,21 +174,81 @@ describe("ReBAC API runtime", () => {
     const second = await fetch(`${baseUrl}/v1/resources`, {
       headers: { authorization: "Bearer another-wrong-token" }
     });
+    const nextWindow = await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer still-wrong-token" }
+    });
     const audit = await fetch(`${baseUrl}/v1/audit/events`, {
       headers: { authorization: "Bearer token-one" }
     });
-    const auditBody = (await audit.json()) as { items: Array<{ eventType: string; payload: JsonObject }> };
+    const auditBody = (await audit.json()) as {
+      items: Array<{ eventType: string; occurredAt: string; correlationId: string; payload: JsonObject }>;
+    };
     const authFailures = auditBody.items.filter((event) => event.eventType === "api.authentication_failed");
 
     expect(first.status).toBe(401);
     expect(second.status).toBe(401);
+    expect(nextWindow.status).toBe(401);
     expect(snapshots).toHaveLength(0);
-    expect(authFailures).toHaveLength(1);
+    expect(authFailures).toHaveLength(2);
+    expect(authFailures.map((event) => event.occurredAt)).toEqual([
+      "2026-05-21T17:00:00.000Z",
+      "2026-05-21T17:01:01.000Z"
+    ]);
+    expect(new Set(authFailures.map((event) => event.correlationId)).size).toBe(2);
     expect(authFailures[0]?.payload).toMatchObject({
       reason: "invalid_bearer_token",
       sampled: true,
+      sampleWindowMs: 60000,
+      suppressedSinceLastSample: 0,
       tokenLogged: false
     });
+    expect(authFailures[1]?.payload).toMatchObject({
+      reason: "invalid_bearer_token",
+      sampled: true,
+      sampleWindowMs: 60000,
+      suppressedSinceLastSample: 1,
+      tokenLogged: false
+    });
+  });
+
+  it("uses distinct authentication-failure correlation IDs across server restarts", async () => {
+    await restartServer({
+      now: () => TEST_NOW,
+      apiKeys: ["token-one"]
+    });
+
+    await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer wrong-token" }
+    });
+    const firstAudit = await fetch(`${baseUrl}/v1/audit/events`, {
+      headers: { authorization: "Bearer token-one" }
+    });
+    const firstAuditBody = (await firstAudit.json()) as {
+      items: Array<{ eventType: string; correlationId: string }>;
+    };
+    const firstCorrelationId = firstAuditBody.items.find((event) => event.eventType === "api.authentication_failed")
+      ?.correlationId;
+
+    await restartServer({
+      now: () => TEST_NOW,
+      apiKeys: ["token-one"]
+    });
+
+    await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer wrong-token" }
+    });
+    const secondAudit = await fetch(`${baseUrl}/v1/audit/events`, {
+      headers: { authorization: "Bearer token-one" }
+    });
+    const secondAuditBody = (await secondAudit.json()) as {
+      items: Array<{ eventType: string; correlationId: string }>;
+    };
+    const secondCorrelationId = secondAuditBody.items.find((event) => event.eventType === "api.authentication_failed")
+      ?.correlationId;
+
+    expect(firstCorrelationId).toEqual(expect.stringContaining("corr:auth:invalid:"));
+    expect(secondCorrelationId).toEqual(expect.stringContaining("corr:auth:invalid:"));
+    expect(secondCorrelationId).not.toBe(firstCorrelationId);
   });
 
   it("rejects oversized API keys passed directly to the API server", () => {
