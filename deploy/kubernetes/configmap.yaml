@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rebac-api-config
+  namespace: access-kit
+  labels:
+    app.kubernetes.io/name: rebac-api
+    app.kubernetes.io/part-of: access-kit
+data:
+  REBAC_API_HOST: "0.0.0.0"
+  REBAC_API_PORT: "3000"
+  REBAC_API_ACTOR: "service:rebac-api"
+  REBAC_STATE_PATH: "/var/lib/access-kit/state/runtime-state.json"
+  REBAC_EVIDENCE_ROOT: "/var/lib/access-kit/evidence"

@@ -5,23 +5,32 @@ import type { Server } from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type {
-  AuditEvent,
-  AuditEventRepository,
-  AuditIntegrityReport,
-  ConnectorAdapter,
-  DriftFinding,
-  EnforcementControl,
-  EnforcementReadinessReport,
-  EvidencePackageRepository
+import {
+  AuditRecorder,
+  type AuditEvent,
+  type AuditEventRepository,
+  type AuditIntegrityReport,
+  type ConnectorAdapter,
+  type DriftFinding,
+  type EnforcementControl,
+  type EnforcementReadinessReport,
+  type EvidencePackageRepository,
+  type ProvisioningApproval,
+  type RebacSeedData,
+  type RebacStateRepository
 } from "../../packages/core/src/index.js";
 import {
   checkEnforcementReadiness,
+  createProvisioningJob,
+  createProvisioningPlan,
   createRebacApiServer,
   createRebacLocalApp,
+  readRebacApiRuntimeConfig,
+  runReconciliation,
+  syncConnector,
   type RebacApiServerOptions
 } from "../../packages/api/src/index.js";
-import { LocalFileEvidenceRepository } from "../../packages/core/src/index.js";
+import { LocalFileEvidenceRepository, LocalJsonFileStateRepository } from "../../packages/core/src/index.js";
 
 type JsonObject = Record<string, unknown>;
 type EnforcementReadinessReportJson = JsonObject & EnforcementReadinessReport;
@@ -48,6 +57,106 @@ describe("ReBAC API runtime", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ status: "ok", version: "0.1.0" });
+  });
+
+  it("serves readiness without auth and reports runtime guardrails", async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-readiness-"));
+    tempDirs.push(storageRoot);
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: join(storageRoot, "state") });
+    const evidenceRepository = new LocalFileEvidenceRepository({ rootDir: join(storageRoot, "evidence") });
+    await restartServer({
+      now: () => TEST_NOW,
+      apiKeys: ["readiness-token"],
+      stateRepository,
+      auditRepository: evidenceRepository,
+      evidenceRepository
+    });
+
+    const response = await fetch(`${baseUrl}/v1/ready`);
+    const body = (await response.json()) as {
+      status: string;
+      checkedAt: string;
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    };
+    const checksByName = new Map(body.checks.map((check) => [check.name, check]));
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("ready");
+    expect(body.checkedAt).toBe(TEST_NOW);
+    expect(checksByName.get("api_authentication")).toMatchObject({
+      status: "pass",
+      evidence: { configured: true }
+    });
+    expect(checksByName.get("api_authentication")?.evidence).not.toHaveProperty("tokenMaterialLogged");
+    expect(checksByName.get("state_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("audit_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("evidence_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("connectors")?.evidence?.connectorIds).toContain("mock");
+  });
+
+  it("returns not ready when no connector adapters are registered", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    app.connectors.clear();
+    await restartServer({ app, apiKeys: ["readiness-token"] });
+
+    const response = await fetch(`${baseUrl}/v1/ready`);
+    const body = (await response.json()) as {
+      status: string;
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    };
+    const checksByName = new Map(body.checks.map((check) => [check.name, check]));
+
+    expect(response.status).toBe(503);
+    expect(body.status).toBe("not_ready");
+    expect(checksByName.get("connectors")).toMatchObject({
+      status: "fail",
+      evidence: { connectorIds: [] }
+    });
+  });
+
+  it("can require bearer-token authentication while leaving health public", async () => {
+    await restartServer({
+      now: sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:00:01.000Z", "2026-05-21T17:00:02.000Z"),
+      apiKeys: ["token-one", "token-two"]
+    });
+
+    const health = await fetch(`${baseUrl}/v1/health`);
+    const ready = await fetch(`${baseUrl}/v1/ready`);
+    const missing = await fetch(`${baseUrl}/v1/subjects`);
+    const wrong = await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer wrong-token" }
+    });
+    const subjects = await fetch(`${baseUrl}/v1/subjects`, {
+      headers: { authorization: "Bearer token-two" }
+    });
+    const audit = await fetch(`${baseUrl}/v1/audit/events`, {
+      headers: { authorization: "Bearer token-one" }
+    });
+    const auditBody = (await audit.json()) as { items: Array<{ eventType: string; actor: string; payload: JsonObject }> };
+    const authFailures = auditBody.items.filter((event) => event.eventType === "api.authentication_failed");
+
+    expect(health.status).toBe(200);
+    expect(ready.status).toBe(200);
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get("www-authenticate")).toBe('Bearer realm="rebac-control-plane"');
+    await expect(missing.json()).resolves.toMatchObject({ code: "UNAUTHENTICATED" });
+    expect(wrong.status).toBe(401);
+    expect(wrong.headers.get("www-authenticate")).toBe('Bearer realm="rebac-control-plane", error="invalid_token"');
+    await expect(subjects.json()).resolves.toMatchObject({ items: expect.any(Array) });
+    expect(subjects.status).toBe(200);
+    expect(authFailures).toHaveLength(2);
+    expect(authFailures.map((event) => event.payload.reason)).toEqual([
+      "missing_bearer_token",
+      "invalid_bearer_token"
+    ]);
+    expect(auditBody.items.filter((event) => event.actor === "anonymous")).toHaveLength(2);
+    expect(auditBody.items.every((event) => !JSON.stringify(event.payload).includes("wrong-token"))).toBe(true);
+  });
+
+  it("rejects oversized API keys passed directly to the API server", () => {
+    expect(() => createRebacApiServer({ apiKeys: ["x".repeat(4097)] })).toThrow(
+      "API keys must be 4096 bytes or less."
+    );
   });
 
   it("checks and explains decisions through the local engine", async () => {
@@ -526,6 +635,256 @@ describe("ReBAC API runtime", () => {
     expect(evidence.storageReceipt.location).not.toContain(storageRoot);
     expect(storedEvidence?.storageReceipt?.packageHash).toBe(evidence.storageReceipt.packageHash);
     expect(storedEvidence?.storageReceipt?.location).toBe(evidence.storageReceipt.location);
+  });
+
+  it("persists runtime state across API restarts with a local JSON state repository", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-state-"));
+    tempDirs.push(stateRoot);
+    const repository = new LocalJsonFileStateRepository({ rootDir: stateRoot });
+    await restartServer({
+      now: sequenceNow(
+        "2026-05-21T17:00:00.000Z",
+        "2026-05-21T17:00:01.000Z",
+        "2026-05-21T17:00:02.000Z",
+        "2026-05-21T17:00:03.000Z"
+      ),
+      stateRepository: repository
+    });
+
+    await post("/v1/subjects", {
+      id: "user:persistent-analyst",
+      type: "user",
+      displayName: "Persistent Analyst",
+      sourceSystem: "synthetic",
+      lifecycleState: "active",
+      identifiers: { employeeId: "E-PERSIST" },
+      version: "subject:v1",
+      createdAt: "2026-05-21T17:00:00.000Z"
+    });
+    await fetch(`${baseUrl}/v1/relationships`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-persist-relationship" },
+      body: JSON.stringify({
+        id: "relationship:persistent-analyst-document",
+        subjectId: "user:persistent-analyst",
+        relation: "reader_of",
+        objectId: "document:case-plan",
+        sourceSystem: "synthetic",
+        assertedAt: "2026-05-21T17:00:01.000Z",
+        status: "active",
+        version: "tuple:v1",
+        createdAt: "2026-05-21T17:00:01.000Z"
+      })
+    });
+    await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:persistent-analyst",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    await restartServer({
+      now: () => "2026-05-21T18:00:00.000Z",
+      stateRepository: repository
+    });
+    const subject = await get<{ id: string }>("/v1/subjects/user%3Apersistent-analyst");
+    const relationships = await get<{ items: Array<{ id: string }> }>(
+      "/v1/relationships?subjectId=user%3Apersistent-analyst"
+    );
+    const decision = await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:persistent-analyst",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    const integrity = await get<{ status: string; eventCount: number }>("/v1/audit/integrity");
+    const state = repository.readState();
+
+    expect(subject.id).toBe("user:persistent-analyst");
+    expect(relationships.items.map((relationship) => relationship.id)).toContain("relationship:persistent-analyst-document");
+    expect(decision.decision).toBe("allow");
+    expect(integrity).toMatchObject({ status: "verified", eventCount: 4 });
+    expect(state?.subjects?.some((item) => item.id === "user:persistent-analyst")).toBe(true);
+    expect(state?.auditEvents?.map((event) => event.eventType)).toContain("audit.integrity_verified");
+  });
+
+  it("keeps the snapshot audit chain authoritative when the audit file is ahead", async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-dual-persistence-"));
+    tempDirs.push(storageRoot);
+    const auditRepository = new LocalFileEvidenceRepository({ rootDir: storageRoot });
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: storageRoot });
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => "2026-05-21T17:00:00.000Z",
+        auditRepository,
+        stateRepository
+      })
+    });
+
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const crashRecorder = new AuditRecorder(auditRepository.listAuditEvents());
+    const orphanedAuditFileEvent = crashRecorder.record(
+      {
+        eventType: "audit.exported",
+        actor: "service:api",
+        correlationId: "corr:audit-file-ahead",
+        payload: { scenario: "audit-file-ahead" }
+      },
+      "2026-05-21T17:00:01.000Z"
+    );
+    auditRepository.appendAuditEvent(orphanedAuditFileEvent, orphanedAuditFileEvent.occurredAt);
+
+    expect(auditRepository.listAuditEvents().map((event) => event.eventType)).toEqual([
+      "decision.allowed",
+      "audit.exported"
+    ]);
+    expect(stateRepository.readState()?.auditEvents?.map((event) => event.eventType)).toEqual(["decision.allowed"]);
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: sequenceNow("2026-05-21T17:00:02.000Z", "2026-05-21T17:00:03.000Z"),
+        auditRepository,
+        stateRepository
+      })
+    });
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    const integrity = await get<{ status: string; eventCount: number }>("/v1/audit/integrity");
+    const auditEvents = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(integrity).toMatchObject({ status: "verified", eventCount: 2 });
+    expect(auditEvents.items.map((event) => event.eventType)).toEqual([
+      "decision.allowed",
+      "decision.allowed",
+      "audit.integrity_verified"
+    ]);
+  });
+
+  it("reports custom runtime state locations by filename", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-state-"));
+    tempDirs.push(stateRoot);
+    const repository = new LocalJsonFileStateRepository({ statePath: join(stateRoot, "custom-runtime-state.json") });
+
+    const receipt = repository.writeState({ subjects: [] }, TEST_NOW);
+
+    expect(receipt.location).toBe("custom-runtime-state.json");
+  });
+
+  it("does not persist audit-only snapshots before primary runtime records", async () => {
+    const { repository, snapshots } = createRecordingStateRepository();
+    const control = controlledEnforcement() as unknown as EnforcementControl;
+    const approval = controlledApproval() as unknown as ProvisioningApproval;
+    const app = createRebacLocalApp({
+      now: sequenceNow(
+        "2026-05-21T17:00:00.000Z",
+        "2026-05-21T17:00:01.000Z",
+        "2026-05-21T17:00:02.000Z",
+        "2026-05-21T17:00:03.000Z",
+        "2026-05-21T17:00:04.000Z",
+        "2026-05-21T17:00:05.000Z",
+        "2026-05-21T17:00:06.000Z",
+        "2026-05-21T17:00:07.000Z",
+        "2026-05-21T17:00:08.000Z",
+        "2026-05-21T17:00:09.000Z",
+        "2026-05-21T17:00:10.000Z",
+        "2026-05-21T17:00:11.000Z",
+        "2026-05-21T17:00:12.000Z",
+        "2026-05-21T17:00:13.000Z",
+        "2026-05-21T17:00:14.000Z",
+        "2026-05-21T17:00:15.000Z",
+        "2026-05-21T17:00:16.000Z",
+        "2026-05-21T17:00:17.000Z",
+        "2026-05-21T17:00:18.000Z"
+      ),
+      stateRepository: repository
+    });
+
+    await syncConnector(app, "mock", "read_only");
+    const readiness = await checkEnforcementReadiness(app, "mock", { mode: "enforcement", control });
+    const dryRunPlan = await createProvisioningPlan(app, {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    }, "mock", { mode: "dry_run" }, "idem-snapshot-dry-run-plan");
+    await createProvisioningJob(app, {
+      planId: dryRunPlan.id,
+      approverId: "user:approver",
+      idempotencyKey: "idem-snapshot-dry-run-job",
+      mode: "dry_run"
+    });
+    const enforcementPlan = await createProvisioningPlan(app, {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    }, "mock", { mode: "enforcement", approval, control, readinessReportId: readiness.id }, "idem-snapshot-enforcement-plan");
+    await createProvisioningJob(app, {
+      planId: enforcementPlan.id,
+      approverId: approval.approverId,
+      idempotencyKey: "idem-snapshot-enforcement-job",
+      mode: "enforcement",
+      approval,
+      control
+    });
+    await runReconciliation(app, "mock");
+
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.discovery_completed", "discoveryRuns");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.enforcement_readiness_checked", "enforcementReadinessReports");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "provisioning.skipped", "provisioningJobs");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.permission_changed", "provisioningJobs");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "provisioning.completed", "provisioningJobs");
+    expectSnapshotsWithEventToIncludeCollection(snapshots, "reconciliation.completed", "reconciliationRuns");
+  });
+
+  it("reads API server runtime configuration from environment variables", () => {
+    const config = readRebacApiRuntimeConfig({
+      REBAC_API_HOST: "0.0.0.0",
+      REBAC_API_PORT: "4080",
+      REBAC_API_ACTOR: "service:runtime",
+      REBAC_API_KEYS: "alpha, beta,alpha,,",
+      REBAC_STATE_PATH: "/tmp/access-kit-state.json",
+      REBAC_EVIDENCE_ROOT: "/tmp/access-kit-evidence"
+    });
+
+    expect(config).toEqual({
+      host: "0.0.0.0",
+      port: 4080,
+      actor: "service:runtime",
+      apiKeys: ["alpha", "beta"],
+      statePath: "/tmp/access-kit-state.json",
+      evidenceRoot: "/tmp/access-kit-evidence"
+    });
+  });
+
+  it("requires API keys when the runtime binds beyond loopback", () => {
+    expect(() => readRebacApiRuntimeConfig({ REBAC_API_HOST: "0.0.0.0" })).toThrow(
+      "REBAC_API_KEYS must be set when REBAC_API_HOST is not a loopback host."
+    );
+  });
+
+  it("allows unauthenticated loopback runtime configuration for local development", () => {
+    expect(readRebacApiRuntimeConfig({ REBAC_API_HOST: "localhost" })).toMatchObject({
+      host: "localhost",
+      port: 3000,
+      apiKeys: []
+    });
+  });
+
+  it("rejects API server runtime ports with trailing characters", () => {
+    expect(() => readRebacApiRuntimeConfig({ REBAC_API_PORT: "3000abc" })).toThrow(
+      "REBAC_API_PORT must be an integer between 1 and 65535."
+    );
+  });
+
+  it("rejects oversized API keys at runtime configuration load", () => {
+    expect(() => readRebacApiRuntimeConfig({ REBAC_API_KEYS: "x".repeat(4097) })).toThrow(
+      "REBAC_API_KEYS entries must be 4096 bytes or less."
+    );
   });
 
   it("returns computed audit results when proof-point storage append fails", async () => {
@@ -1631,6 +1990,80 @@ class ThrowingEvidenceRepository implements EvidencePackageRepository {
   readEvidenceExport(): undefined {
     return undefined;
   }
+}
+
+function createRecordingStateRepository(): { repository: RebacStateRepository; snapshots: RebacSeedData[] } {
+  const snapshots: RebacSeedData[] = [];
+  return {
+    snapshots,
+    repository: {
+      readState: () => undefined,
+      writeState: (state, storedAt) => {
+        snapshots.push(JSON.parse(JSON.stringify(state)) as RebacSeedData);
+        return {
+          storedAt,
+          backend: "external",
+          location: "memory",
+          stateHash: "test",
+          entityCounts: {
+            subjects: state.subjects?.length ?? 0,
+            resources: state.resources?.length ?? 0,
+            relationships: state.relationships?.length ?? 0,
+            nativeGrants: state.nativeGrants?.length ?? 0,
+            discoveryRuns: state.discoveryRuns?.length ?? 0,
+            enforcementReadinessReports: state.enforcementReadinessReports?.length ?? 0,
+            provisioningPlans: state.provisioningPlans?.length ?? 0,
+            provisioningJobs: state.provisioningJobs?.length ?? 0,
+            driftFindings: state.driftFindings?.length ?? 0,
+            reconciliationRuns: state.reconciliationRuns?.length ?? 0,
+            decisions: state.decisions?.length ?? 0,
+            auditEvents: state.auditEvents?.length ?? 0
+          },
+          version: "rebac-state-storage-receipt:v1"
+        };
+      }
+    }
+  };
+}
+
+function expectSnapshotsWithEventToIncludeCollection(
+  snapshots: RebacSeedData[],
+  eventType: string,
+  collection: "discoveryRuns" | "enforcementReadinessReports" | "provisioningJobs" | "reconciliationRuns"
+): void {
+  let matchingEvents = 0;
+
+  for (const snapshot of snapshots) {
+    for (const event of snapshot.auditEvents?.filter((item) => item.eventType === eventType) ?? []) {
+      matchingEvents += 1;
+      const recordId = primaryRecordIdForEvent(event);
+      const records = (snapshot[collection] ?? []) as Array<{ id: string }>;
+
+      expect(records.some((record) => record.id === recordId)).toBe(true);
+    }
+  }
+
+  expect(matchingEvents).toBeGreaterThan(0);
+}
+
+function primaryRecordIdForEvent(event: AuditEvent): string {
+  const payload = event.payload as JsonObject;
+  let field = "jobId";
+
+  if (event.eventType === "connector.discovery_completed") {
+    field = "discoveryRunId";
+  } else if (event.eventType === "connector.enforcement_readiness_checked") {
+    field = "id";
+  } else if (event.eventType === "reconciliation.completed") {
+    field = "runId";
+  } else if (event.eventType === "provisioning.completed" || event.eventType === "provisioning.failed") {
+    field = "id";
+  }
+
+  const value = payload[field];
+
+  expect(typeof value).toBe("string");
+  return value as string;
 }
 
 async function startServer(options: RebacApiServerOptions): Promise<void> {

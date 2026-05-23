@@ -58,6 +58,23 @@ export class InMemoryRebacStore {
     seed.auditEvents?.forEach((event) => this.recordAuditEvent(event));
   }
 
+  exportSeedData(): RebacSeedData {
+    return {
+      subjects: this.listSubjects(),
+      resources: this.listResources(),
+      relationships: this.listRelationships(),
+      nativeGrants: this.listNativeGrants(),
+      discoveryRuns: this.listDiscoveryRuns(),
+      enforcementReadinessReports: this.listEnforcementReadinessReports(),
+      provisioningPlans: this.listProvisioningPlans(),
+      provisioningJobs: this.listProvisioningJobs(),
+      driftFindings: this.listDriftFindings(),
+      reconciliationRuns: this.listReconciliationRuns(),
+      decisions: this.listDecisions(),
+      auditEvents: this.listAuditEvents()
+    };
+  }
+
   getSubject(id: CanonicalId): Subject | undefined {
     return this.#subjects.get(id);
   }
