@@ -174,6 +174,7 @@ The documentation connects architecture, control families, implementation behavi
 - `corepack pnpm validate:contracts` passed:
   - 13 schemas and 13 schema fixtures validated.
   - 27 required OpenAPI path groups validated.
+  - `examples/api/decision-check.request.json` and `examples/api/explain.response.json` validated against their OpenAPI request/response schemas.
   - 11 policy proof points validated.
   - CLI contract tests passed.
 - `corepack pnpm validate` passed:
@@ -189,7 +190,6 @@ The documentation connects architecture, control families, implementation behavi
 
 ## Validation Not Performed And Why
 
-- OpenAPI validation for the new `examples/api/*.json` request/response examples was not performed because the repository does not currently include a standalone example-to-OpenAPI validation script.
 - The CLI walkthrough in `examples/cli/operator-and-assessor.sh` was not executed because it requires a running API runtime and is intended as a synthetic documentation walkthrough.
 
 ## Known Gaps
@@ -197,7 +197,6 @@ The documentation connects architecture, control families, implementation behavi
 - Live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, AD, and Entra ID connector behavior remains planned/draft unless explicitly implemented.
 - Persistent graph storage, durable queueing, production WORM audit storage, approved SIEM forwarding, production deployment packaging, and production evidence retention remain future work.
 - OSCAL output is guidance only; no OSCAL generator is implemented.
-- API examples in `examples/api/` are documentation examples, not currently machine-validated against OpenAPI request schemas.
 - CLI example script is a documentation walkthrough and requires a running API.
 - Production runbook exercises, post-action reviews, and assessor-approved control statements are deployment-specific.
 
@@ -215,8 +214,7 @@ No documentation-authoring blockers remain. Production ATO blockers are listed i
 
 ## Recommended Next Steps
 
-1. Add OpenAPI `examples:` blocks or a validation script for `examples/api/*.json`.
-2. Add a docs link checker if the repository adopts one.
-3. Exercise each runbook against a deployed environment and retain evidence.
-4. Add OSCAL generation only after deployment-specific control statements and evidence retention are defined.
-5. Update the threat model and system boundary for each production deployment.
+1. Add a docs link checker if the repository adopts one.
+2. Exercise each runbook against a deployed environment and retain evidence.
+3. Add OSCAL generation only after deployment-specific control statements and evidence retention are defined.
+4. Update the threat model and system boundary for each production deployment.

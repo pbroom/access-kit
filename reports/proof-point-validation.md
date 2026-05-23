@@ -1,10 +1,10 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-22T23:52:48.386Z
+Generated at: 2026-05-23T13:28:02.892Z
 
-Branch: codex/rebac-phase5-complete
+Branch: codex/docs-foundation
 
-Node: v22.18.0
+Node: v24.4.1
 
 pnpm: 10.30.3
 
@@ -28,14 +28,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-rebac-phase5-complete
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-docs-foundation
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-rebac-phase5-complete
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -57,19 +57,20 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-rebac-phase5-complete
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-rebac-phase5-complete/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-docs-foundation/openapi/rebac-control-plane.yaml.
 PASS 27 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 audit integrity, audit export, and evidence export path groups are present.
+PASS API examples validate against OpenAPI request and response schemas.
 ```
 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-rebac-phase5-complete
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-docs-foundation
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -89,65 +90,65 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-rebac-phase5-complete
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-docs-foundation
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-complete
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  19:52:45
-   Duration  196ms (transform 51ms, setup 0ms, import 78ms, tests 15ms, environment 0ms)
+   Start at  09:27:59
+   Duration  150ms (transform 34ms, setup 0ms, import 49ms, tests 6ms, environment 0ms)
 ```
 
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-rebac-phase5-complete
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-docs-foundation
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-complete
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
 
 
  Test Files  2 passed (2)
       Tests  25 passed (25)
-   Start at  19:52:45
-   Duration  197ms (transform 125ms, setup 0ms, import 163ms, tests 12ms, environment 0ms)
+   Start at  09:28:00
+   Duration  182ms (transform 103ms, setup 0ms, import 137ms, tests 11ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-rebac-phase5-complete
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-docs-foundation
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-complete
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
 
 
  Test Files  1 passed (1)
       Tests  52 passed (52)
-   Start at  19:52:46
-   Duration  450ms (transform 124ms, setup 0ms, import 160ms, tests 193ms, environment 0ms)
+   Start at  09:28:01
+   Duration  403ms (transform 105ms, setup 0ms, import 141ms, tests 165ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-rebac-phase5-complete
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-docs-foundation
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-rebac-phase5-complete
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-docs-foundation
 
 
  Test Files  2 passed (2)
       Tests  29 passed (29)
-   Start at  19:52:47
-   Duration  336ms (transform 164ms, setup 0ms, import 221ms, tests 90ms, environment 0ms)
+   Start at  09:28:02
+   Duration  310ms (transform 150ms, setup 0ms, import 206ms, tests 78ms, environment 0ms)
 ```
 
 
