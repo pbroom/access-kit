@@ -433,13 +433,17 @@ function hasBearerAuthorization(request: IncomingMessage): boolean {
 function constantTimeEqual(expected: string, actual: string): boolean {
   const expectedBytes = Buffer.from(expected);
   const actualBytes = Buffer.from(actual);
-  const compareLength = Math.max(expectedBytes.byteLength, actualBytes.byteLength);
-  const expectedPadded = Buffer.alloc(compareLength);
-  const actualPadded = Buffer.alloc(compareLength);
+  const expectedLength = expectedBytes.byteLength;
+  const actualLength = actualBytes.byteLength;
+  const expectedPadded = Buffer.alloc(maxBearerTokenBytes);
+  const actualPadded = Buffer.alloc(maxBearerTokenBytes);
   expectedBytes.copy(expectedPadded);
   actualBytes.copy(actualPadded);
 
-  return timingSafeEqual(expectedPadded, actualPadded) && expectedBytes.byteLength === actualBytes.byteLength;
+  return timingSafeEqual(expectedPadded, actualPadded)
+    && expectedLength === actualLength
+    && expectedLength <= maxBearerTokenBytes
+    && actualLength <= maxBearerTokenBytes;
 }
 
 function byteLength(value: string): number {
