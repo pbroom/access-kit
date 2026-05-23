@@ -44,6 +44,9 @@ jobs:
       - name: Validate documentation foundation
         run: pnpm validate:docs
 
+      - name: Validate automation contract
+        run: pnpm validate:automation
+
       - name: Validate CI workflow contract
         run: pnpm validate:ci
 

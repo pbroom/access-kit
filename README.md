@@ -16,6 +16,7 @@ This repository currently delivers:
 - File-backed runtime state snapshots, public health/readiness probes, a `rebac-api` service entrypoint, container packaging proof points, release packaging contracts for signatures/provenance, and reference Kubernetes deployment manifests.
 - Persistent storage repository contracts and readiness checks for graph, audit, and job backends.
 - Bearer-token API guard that is optional for loopback local development and required for non-loopback runtimes, with unauthenticated attempts audited and token material excluded from logs.
+- Durable implementation backlog, PR steward scripts, next-slice selection, stack-readiness checks, and GitHub label state contracts for the review loop.
 - CLI commands that call the API instead of evaluating authorization locally.
 - Policy proof-point fixtures for deny/default, relationship allow, deny override, expiration, suspension, idempotency, and drift.
 - Architecture, security, ATO evidence, CLI, API, and ADR documentation.
@@ -41,11 +42,22 @@ pnpm validate
 pnpm evidence:generate
 ```
 
-`pnpm validate` runs type checking, first-class contract validation, CI workflow validation, packaging/release packaging validation, deployment manifest validation, and the core/API/CLI test suite. `pnpm ci:check` adds lint, build, and evidence freshness checks for pre-submit confidence.
+`pnpm validate` runs type checking, first-class contract validation, automation validation, CI workflow validation, packaging/release packaging validation, deployment manifest validation, and the core/API/CLI test suite. `pnpm ci:check` adds lint, build, and evidence freshness checks for pre-submit confidence.
+
+Useful steward commands:
+
+```sh
+pnpm pr:status
+pnpm backlog:next
+pnpm stack:ready
+pnpm security:pass
+```
 
 ## Repository Map
 
 - `docs/start-here.md` - documentation entry point and reading path.
+- `docs/implementation-backlog.md` - durable slice backlog for Codex and human coordination.
+- `docs/automation.md` - PR steward, next-slice, labels, and merge-readiness operating loop.
 - `docs/` - concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, provisioning, connector, drift, deployment, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting.
 - `runbooks/` - emergency revocation, rollback, drift, outage, break-glass, export, credential, and decision API outage procedures.
 - `examples/` - synthetic API, CLI, and control/evidence mapping examples.
