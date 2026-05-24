@@ -642,6 +642,57 @@ describe("persistent ReBAC repository contracts", () => {
     ]);
   });
 
+  it("allows deployment control requirements to be scoped for focused checks", () => {
+    const manifest: PersistenceDeploymentManifest = {
+      ...createProductionPersistenceManifest(),
+      controls: {
+        ...createDeploymentControls(),
+        monitoringConfigured: false
+      }
+    };
+
+    const report = assessPersistenceDeploymentReadiness(manifest, now, undefined, undefined, [
+      "backupRestoreTested"
+    ]);
+
+    expect(report.status).toBe("ready");
+    expect(report.checks.map((check) => check.name)).toContain("deployment_control_backupRestoreTested");
+    expect(report.checks.map((check) => check.name)).not.toContain("deployment_control_monitoringConfigured");
+  });
+
+  it("does not pass deployment backend-kind checks with duplicate descriptors", () => {
+    const manifest = createProductionPersistenceManifest();
+    const graphDescriptor = manifest.descriptors.find((descriptor) => descriptor.component === "graph");
+
+    if (!graphDescriptor) {
+      throw new Error("Expected production manifest fixture to include a graph descriptor.");
+    }
+
+    const report = assessPersistenceDeploymentReadiness(
+      {
+        ...manifest,
+        descriptors: [
+          ...manifest.descriptors,
+          {
+            ...graphDescriptor,
+            location: "external://graph/rebac-shadow"
+          }
+        ]
+      },
+      now
+    );
+
+    expect(report.status).toBe("blocked");
+    expect(failingCheckNames(report.checks)).toEqual([
+      "graph_repository_descriptor_unique",
+      "graph_repository_backend_kind"
+    ]);
+    expect(report.checks.find((check) => check.name === "graph_repository_backend_kind")).toMatchObject({
+      status: "fail",
+      evidence: { requiredBackend: "external_graph", actualBackends: ["external_graph", "external_graph"] }
+    });
+  });
+
   it("blocks duplicate persistence descriptors for the same component", () => {
     const descriptors: PersistenceBackendDescriptor[] = [
       {

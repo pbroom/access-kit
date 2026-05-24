@@ -472,7 +472,8 @@ export function assessPersistenceDeploymentReadiness(
   manifest: PersistenceDeploymentManifest,
   checkedAt: string,
   requiredCapabilities: Record<PersistenceComponent, PersistenceCapability[]> = requiredProductionPersistenceCapabilities,
-  requiredBackendKinds: Record<PersistenceComponent, PersistenceBackendKind> = requiredProductionBackendKinds
+  requiredBackendKinds: Record<PersistenceComponent, PersistenceBackendKind> = requiredProductionBackendKinds,
+  requiredControls: Array<keyof PersistenceDeploymentControls> = requiredProductionDeploymentControls
 ): PersistenceDeploymentReadinessReport {
   const baseReport = assessPersistenceReadiness(manifest.descriptors, checkedAt, requiredCapabilities);
   const checks: PersistenceReadinessCheck[] = [
@@ -499,16 +500,32 @@ export function assessPersistenceDeploymentReadiness(
     }
   ];
 
-  const descriptorsByComponent = new Map<PersistenceComponent, PersistenceBackendDescriptor>();
+  const descriptorsByComponent = new Map<PersistenceComponent, PersistenceBackendDescriptor[]>();
   for (const descriptor of manifest.descriptors) {
-    if (!descriptorsByComponent.has(descriptor.component)) {
-      descriptorsByComponent.set(descriptor.component, descriptor);
-    }
+    const componentDescriptors = descriptorsByComponent.get(descriptor.component) ?? [];
+    componentDescriptors.push(descriptor);
+    descriptorsByComponent.set(descriptor.component, componentDescriptors);
   }
 
   for (const component of Object.keys(requiredBackendKinds) as PersistenceComponent[]) {
-    const descriptor = descriptorsByComponent.get(component);
+    const componentDescriptors = descriptorsByComponent.get(component) ?? [];
+    const descriptor = componentDescriptors[0];
     const requiredBackend = requiredBackendKinds[component];
+
+    if (componentDescriptors.length > 1) {
+      checks.push({
+        name: `${component}_repository_backend_kind`,
+        component,
+        status: "fail",
+        message: `${component} persistence backend kind cannot be verified while multiple descriptors are configured.`,
+        evidence: {
+          requiredBackend,
+          actualBackends: componentDescriptors.map((entry) => entry.backend)
+        }
+      });
+      continue;
+    }
+
     checks.push({
       name: `${component}_repository_backend_kind`,
       component,
@@ -524,7 +541,7 @@ export function assessPersistenceDeploymentReadiness(
     });
   }
 
-  for (const control of requiredProductionDeploymentControls) {
+  for (const control of requiredControls) {
     checks.push({
       name: `deployment_control_${control}`,
       component: "deployment",
