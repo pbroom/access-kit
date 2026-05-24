@@ -24,17 +24,19 @@ Required production capabilities:
 
 The readiness report blocks local memory and local file proof points from being treated as production storage. Audit backends must also declare immutability controls and at least one year of retention.
 
-## Current Adapter
+## Current Adapters
 
 `InMemoryRebacPersistenceRepository` is a conformance adapter for tests and local proof points. It implements the graph and job repository contracts over the existing in-memory store, returns defensive copies, and advertises itself as non-durable memory storage. It is not a production database adapter.
+
+`LocalJsonFileGraphRepository` is the first concrete graph adapter behind `RebacGraphRepository`. It persists only subjects, resources, relationship tuples, and native grants to a hash-checked JSON snapshot, reloads those graph facts across process starts, and leaves jobs, decisions, audit events, and evidence packages outside the graph file. It advertises `local_file` and `durable: false`, so production readiness remains blocked until an approved external graph backend is configured.
 
 ## Future Adapters
 
 Production adapters should be added behind the same contracts:
 
-- graph database or relational graph projection for subjects, resources, and relationship tuples
+- graph database or relational graph projection for subjects, resources, relationship tuples, and native grants
 - WORM or immutable ledger-backed audit storage
 - durable queue/job storage for discovery, reconciliation, provisioning, and evidence work
 - environment-specific backup, restore, retention, and migration evidence
 
-No live provider write path should depend on local JSON snapshots or in-memory repositories.
+No live provider write path should depend on local JSON snapshots or in-memory repositories. Local JSON graph persistence is a development and validation adapter, not a production approval path.
