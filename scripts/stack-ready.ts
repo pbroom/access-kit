@@ -1,4 +1,9 @@
-import { listOpenPullRequests, labelNames, type GitHubPullRequest } from "./lib/github-cli.js";
+import {
+  listOpenPullRequests,
+  labelNames,
+  summarizeChecks,
+  type GitHubPullRequest
+} from "./lib/github-cli.js";
 
 const prs = listOpenPullRequests().filter(isStackPr);
 
@@ -48,47 +53,4 @@ function readinessBlockers(pr: GitHubPullRequest): string[] {
   }
 
   return blockers;
-}
-
-function summarizeChecks(checks: unknown[] | undefined): "passing" | "failing" | "pending" | "unknown" {
-  if (!checks || checks.length === 0) {
-    return "unknown";
-  }
-
-  const conclusions = checks
-    .map((check) => {
-      if (!check || typeof check !== "object") {
-        return undefined;
-      }
-
-      const record = check as Record<string, unknown>;
-      if (typeof record.conclusion === "string") {
-        return record.conclusion.toUpperCase();
-      }
-
-      if (typeof record.status === "string" && record.status.toUpperCase() !== "COMPLETED") {
-        return "PENDING";
-      }
-
-      return undefined;
-    })
-    .filter((conclusion): conclusion is string => conclusion !== undefined);
-
-  if (conclusions.length === 0) {
-    return "unknown";
-  }
-
-  if (conclusions.some((conclusion) => ["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED"].includes(conclusion))) {
-    return "failing";
-  }
-
-  if (conclusions.some((conclusion) => conclusion === "" || conclusion === "PENDING" || conclusion === "SKIPPED")) {
-    return "pending";
-  }
-
-  if (conclusions.every((conclusion) => conclusion === "SUCCESS" || conclusion === "NEUTRAL")) {
-    return "passing";
-  }
-
-  return "unknown";
 }

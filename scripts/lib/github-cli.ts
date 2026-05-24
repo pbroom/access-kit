@@ -17,6 +17,12 @@ export interface GitHubPullRequest {
   statusCheckRollup?: unknown[];
 }
 
+export type GitHubCheckSummary = "passing" | "failing" | "pending" | "unknown";
+
+const FAILING_CHECK_CONCLUSIONS = new Set(["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED"]);
+const PENDING_CHECK_CONCLUSIONS = new Set(["", "PENDING"]);
+const PASSING_CHECK_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
+
 export function runGhJson<T>(args: string[]): T {
   const result = spawnSync("gh", args, {
     encoding: "utf8",
@@ -75,4 +81,50 @@ export function listOpenPullRequests(): GitHubPullRequest[] {
 
 export function labelNames(pr: GitHubPullRequest): string[] {
   return pr.labels.map((label) => label.name).sort();
+}
+
+export function summarizeChecks(checks: unknown[] | undefined): GitHubCheckSummary {
+  if (!checks || checks.length === 0) {
+    return "unknown";
+  }
+
+  const conclusions = checks
+    .map(readCheckConclusion)
+    .filter((conclusion): conclusion is string => conclusion !== undefined);
+
+  if (conclusions.length === 0) {
+    return "unknown";
+  }
+
+  if (conclusions.some((conclusion) => FAILING_CHECK_CONCLUSIONS.has(conclusion))) {
+    return "failing";
+  }
+
+  if (conclusions.some((conclusion) => PENDING_CHECK_CONCLUSIONS.has(conclusion))) {
+    return "pending";
+  }
+
+  if (conclusions.every((conclusion) => PASSING_CHECK_CONCLUSIONS.has(conclusion))) {
+    return "passing";
+  }
+
+  return "unknown";
+}
+
+export function readCheckConclusion(check: unknown): string | undefined {
+  if (!check || typeof check !== "object") {
+    return undefined;
+  }
+
+  const record = check as Record<string, unknown>;
+
+  if (typeof record.conclusion === "string") {
+    return record.conclusion.toUpperCase();
+  }
+
+  if (typeof record.status === "string" && record.status.toUpperCase() !== "COMPLETED") {
+    return "PENDING";
+  }
+
+  return undefined;
 }

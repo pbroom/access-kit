@@ -1,15 +1,22 @@
-import { listOpenPullRequests, labelNames, type GitHubPullRequest } from "./lib/github-cli.js";
+import {
+  listOpenPullRequests,
+  labelNames,
+  summarizeChecks,
+  type GitHubCheckSummary,
+  type GitHubPullRequest
+} from "./lib/github-cli.js";
 
 interface PullRequestStewardStatus {
   pr: GitHubPullRequest;
   labels: string[];
-  checks: "passing" | "failing" | "pending" | "unknown";
+  checks: GitHubCheckSummary;
   actions: string[];
 }
 
 const args = new Set(process.argv.slice(2));
 const outputJson = args.has("--json");
 const failOnAttention = args.has("--fail-on-attention");
+const dryRun = args.has("--dry-run");
 
 const statuses = listOpenPullRequests().map(toStewardStatus);
 const needsAttention = statuses.filter((status) => status.actions.length > 0);
@@ -17,7 +24,7 @@ const needsAttention = statuses.filter((status) => status.actions.length > 0);
 if (outputJson) {
   console.log(JSON.stringify(statuses, null, 2));
 } else {
-  renderHumanStatus(statuses);
+  renderHumanStatus(statuses, dryRun);
 }
 
 if (failOnAttention && needsAttention.length > 0) {
@@ -71,53 +78,11 @@ function hasStateLabel(labels: string[]): boolean {
   );
 }
 
-function summarizeChecks(checks: unknown[] | undefined): "passing" | "failing" | "pending" | "unknown" {
-  if (!checks || checks.length === 0) {
-    return "unknown";
+function renderHumanStatus(items: PullRequestStewardStatus[], isDryRun: boolean): void {
+  if (isDryRun) {
+    console.log("Mode: dry-run (read-only).");
   }
 
-  const conclusions = checks
-    .map(readCheckConclusion)
-    .filter((conclusion): conclusion is string => conclusion !== undefined);
-
-  if (conclusions.length === 0) {
-    return "unknown";
-  }
-
-  if (conclusions.some((conclusion) => ["FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED"].includes(conclusion))) {
-    return "failing";
-  }
-
-  if (conclusions.some((conclusion) => conclusion === "" || conclusion === "PENDING" || conclusion === "SKIPPED")) {
-    return "pending";
-  }
-
-  if (conclusions.every((conclusion) => conclusion === "SUCCESS" || conclusion === "NEUTRAL")) {
-    return "passing";
-  }
-
-  return "unknown";
-}
-
-function readCheckConclusion(check: unknown): string | undefined {
-  if (!check || typeof check !== "object") {
-    return undefined;
-  }
-
-  const record = check as Record<string, unknown>;
-
-  if (typeof record.conclusion === "string") {
-    return record.conclusion.toUpperCase();
-  }
-
-  if (typeof record.status === "string" && record.status.toUpperCase() !== "COMPLETED") {
-    return "PENDING";
-  }
-
-  return undefined;
-}
-
-function renderHumanStatus(items: PullRequestStewardStatus[]): void {
   if (items.length === 0) {
     console.log("No open pull requests.");
     return;
