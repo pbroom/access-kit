@@ -6,6 +6,7 @@ import type {
   EnforcementReadinessReport,
   DriftFinding,
   NativeGrant,
+  PersistenceDegradationReceipt,
   ProvisioningJob,
   ProvisioningPlan,
   ReconciliationRun,
@@ -27,6 +28,7 @@ export interface RebacSeedData {
   reconciliationRuns?: ReconciliationRun[];
   decisions?: DecisionResult[];
   auditEvents?: AuditEvent[];
+  persistenceDegradations?: PersistenceDegradationReceipt[];
 }
 
 export class InMemoryRebacStore {
@@ -42,6 +44,7 @@ export class InMemoryRebacStore {
   readonly #reconciliationRuns = new Map<CanonicalId, ReconciliationRun>();
   readonly #decisions = new Map<CanonicalId, DecisionResult>();
   readonly #auditEvents: AuditEvent[] = [];
+  readonly #persistenceDegradations: PersistenceDegradationReceipt[] = [];
 
   constructor(seed: RebacSeedData = {}) {
     seed.subjects?.forEach((subject) => this.upsertSubject(subject));
@@ -56,6 +59,7 @@ export class InMemoryRebacStore {
     seed.reconciliationRuns?.forEach((run) => this.recordReconciliationRun(run));
     seed.decisions?.forEach((decision) => this.recordDecision(decision));
     seed.auditEvents?.forEach((event) => this.recordAuditEvent(event));
+    seed.persistenceDegradations?.forEach((degradation) => this.recordPersistenceDegradation(degradation));
   }
 
   exportSeedData(): RebacSeedData {
@@ -71,7 +75,8 @@ export class InMemoryRebacStore {
       driftFindings: this.listDriftFindings(),
       reconciliationRuns: this.listReconciliationRuns(),
       decisions: this.listDecisions(),
-      auditEvents: this.listAuditEvents()
+      auditEvents: this.listAuditEvents(),
+      persistenceDegradations: this.listPersistenceDegradations()
     };
   }
 
@@ -276,6 +281,15 @@ export class InMemoryRebacStore {
         (!filter.from || event.occurredAt >= filter.from)
       );
     });
+  }
+
+  recordPersistenceDegradation(degradation: PersistenceDegradationReceipt): PersistenceDegradationReceipt {
+    this.#persistenceDegradations.push(degradation);
+    return degradation;
+  }
+
+  listPersistenceDegradations(): PersistenceDegradationReceipt[] {
+    return [...this.#persistenceDegradations];
   }
 }
 

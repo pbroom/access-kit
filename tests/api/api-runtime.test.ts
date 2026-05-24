@@ -1549,6 +1549,51 @@ describe("ReBAC API runtime", () => {
     });
   });
 
+  it("recovers degraded persistence receipts from runtime state after restart", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-degraded-state-"));
+    tempDirs.push(stateRoot);
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: stateRoot });
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => TEST_NOW,
+        persistence: {
+          auditRepository: new ThrowingAuditRepository(),
+          stateRepository
+        }
+      })
+    });
+
+    await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(stateRepository.readState()?.persistenceDegradations).toEqual([
+      expect.objectContaining({
+        component: "audit",
+        operation: "appendAuditEvent",
+        version: "persistence-degradation:v1"
+      })
+    ]);
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => "2026-05-21T18:00:00.000Z",
+        stateRepository
+      })
+    });
+    const readiness = await get<{
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    }>("/v1/ready");
+    const degradation = readiness.checks.find((check) => check.name === "persistence_degradation");
+
+    expect(degradation).toMatchObject({
+      status: "warn",
+      evidence: { degradedWrites: 1, components: ["audit"] }
+    });
+  });
+
   it("returns evidence exports without exposing failed storage details", async () => {
     await restartServer({
       app: createRebacLocalApp({
@@ -2678,7 +2723,8 @@ function createRecordingStateRepository(): { repository: RebacStateRepository; s
             driftFindings: state.driftFindings?.length ?? 0,
             reconciliationRuns: state.reconciliationRuns?.length ?? 0,
             decisions: state.decisions?.length ?? 0,
-            auditEvents: state.auditEvents?.length ?? 0
+            auditEvents: state.auditEvents?.length ?? 0,
+            persistenceDegradations: state.persistenceDegradations?.length ?? 0
           },
           version: "rebac-state-storage-receipt:v1"
         };
@@ -2742,9 +2788,11 @@ function expectSnapshotsWithEventToIncludeCollection(
     for (const event of snapshot.auditEvents?.filter((item) => item.eventType === eventType) ?? []) {
       matchingEvents += 1;
       const recordId = primaryRecordIdForEvent(event);
-      const records = (snapshot[collection] ?? []) as Array<{ id: string }>;
+      const records = (snapshot[collection] ?? []) as Array<{ id: string; auditEventIds?: string[] }>;
+      const record = records.find((item) => item.id === recordId);
 
-      expect(records.some((record) => record.id === recordId)).toBe(true);
+      expect(record).toBeDefined();
+      expect(record?.auditEventIds).toContain(event.eventId);
     }
   }
 

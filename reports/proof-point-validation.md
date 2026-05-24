@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-25T00:18:01.647Z
+Generated at: 2026-05-24T22:56:13.219Z
 
-Branch: codex/rebac-evidence-integrity-package
+Branch: 
 
 Node: v24.4.1
 
@@ -32,14 +32,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > tsx scripts/validate-schemas.ts
 
 Validated 15 schemas and 15 example fixtures.
@@ -63,10 +63,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-evidence-integrity-package/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-workflow-unit-of-work/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -76,7 +76,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -96,23 +96,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-evidence-integrity-package
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-workflow-unit-of-work
 
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  20:17:55
-   Duration  365ms (transform 129ms, setup 0ms, import 234ms, tests 32ms, environment 0ms)
+   Start at  18:56:07
+   Duration  333ms (transform 117ms, setup 0ms, import 212ms, tests 31ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -123,7 +123,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -134,7 +134,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -145,7 +145,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -156,49 +156,49 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-evidence-integrity-package
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-workflow-unit-of-work
 
 
  Test Files  3 passed (3)
       Tests  56 passed (56)
-   Start at  20:17:58
-   Duration  231ms (transform 225ms, setup 0ms, import 284ms, tests 38ms, environment 0ms)
+   Start at  18:56:10
+   Duration  233ms (transform 218ms, setup 0ms, import 276ms, tests 38ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-evidence-integrity-package
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-workflow-unit-of-work
 
 
  Test Files  1 passed (1)
       Tests  75 passed (75)
-   Start at  20:17:59
-   Duration  572ms (transform 149ms, setup 0ms, import 236ms, tests 244ms, environment 0ms)
+   Start at  18:56:11
+   Duration  547ms (transform 136ms, setup 0ms, import 220ms, tests 231ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-evidence-integrity-package
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-workflow-unit-of-work
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-evidence-integrity-package
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-workflow-unit-of-work
 
 
  Test Files  3 passed (3)
       Tests  31 passed (31)
-   Start at  20:18:00
-   Duration  426ms (transform 402ms, setup 0ms, import 724ms, tests 158ms, environment 0ms)
+   Start at  18:56:12
+   Duration  395ms (transform 372ms, setup 0ms, import 663ms, tests 146ms, environment 0ms)
 ```
 
 
