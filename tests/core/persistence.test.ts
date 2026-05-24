@@ -452,6 +452,21 @@ describe("persistent ReBAC repository contracts", () => {
     );
   });
 
+  it("rejects unversioned local job snapshots before serving job data", () => {
+    const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
+    const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+    const plan = createProvisioningPlan();
+
+    repository.upsertProvisioningPlan(plan);
+    const stored = JSON.parse(readFileSync(jobsPath, "utf8")) as { version?: string };
+    delete stored.version;
+    writeFileSync(jobsPath, `${JSON.stringify(stored)}\n`, "utf8");
+
+    expect(() => new LocalJsonFileJobRepository({ jobsPath, now: () => now })).toThrow(
+      "ReBAC job state must use the rebac-job-state:v1 envelope."
+    );
+  });
+
   it("describes local JSON job persistence without claiming production durability", () => {
     const repository = new LocalJsonFileJobRepository({
       jobsPath: join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json"),

@@ -677,12 +677,12 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
 
     const parsed = JSON.parse(readFileSync(this.#jobsPath, "utf8")) as Partial<StoredRebacJobs> | RebacJobSnapshot;
 
-    if (isStoredRebacJobs(parsed)) {
-      assertStoredJobsIntegrity(parsed);
-      return normalizeJobSnapshot(parsed.jobs);
+    if (!isStoredRebacJobs(parsed)) {
+      throw new Error("ReBAC job state must use the rebac-job-state:v1 envelope.");
     }
 
-    return normalizeJobSnapshot(parsed as Partial<RebacJobSnapshot>);
+    assertStoredJobsIntegrity(parsed);
+    return normalizeJobSnapshot(parsed.jobs);
   }
 
   #persist(storedAt: string): RebacJobStorageReceipt {
