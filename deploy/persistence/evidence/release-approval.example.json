@@ -1,0 +1,16 @@
+{
+  "version": "persistence-release-approval:v1",
+  "environment": "production",
+  "approvedAt": "2026-05-24T00:00:00.000Z",
+  "changeTicket": "CHG-ACCESS-KIT-0001",
+  "approvedBy": "role:change-approver",
+  "releaseWorkflow": ".github/workflows/container-release.yml",
+  "deploymentManifestPath": "deploy/kubernetes/deployment.yaml",
+  "deploymentImage": "ghcr.io/pbroom/access-kit/rebac-api@sha256:089df8dd469d16bc3ec78978222a20283a057cb58e1491b0569ec9fd408b02e9",
+  "releaseControls": {
+    "digestPinned": true,
+    "provenanceAttested": true,
+    "signatureRequired": true,
+    "changeApprovalRequired": true
+  }
+}

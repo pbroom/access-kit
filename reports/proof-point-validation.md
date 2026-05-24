@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T17:18:54.365Z
+Generated at: 2026-05-24T17:21:53.054Z
 
-Branch: codex/rebac-persistence-manifest
+Branch: codex/rebac-persistence-deployment-evidence
 
 Node: v24.4.1
 
@@ -22,6 +22,7 @@ All proof-point validation commands passed.
 | container packaging validation | `corepack pnpm validate:packaging` | PASS |
 | release packaging validation | `corepack pnpm validate:release-packaging` | PASS |
 | deployment manifest validation | `corepack pnpm validate:deployment-manifests` | PASS |
+| persistence deployment evidence validation | `corepack pnpm validate:persistence-deployment` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
@@ -31,17 +32,17 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > tsx scripts/validate-schemas.ts
 
-Validated 13 schemas and 13 example fixtures.
+Validated 14 schemas and 14 example fixtures.
 PASS audit-event.json -> schemas/audit-event.schema.json
 PASS audit-export.json -> schemas/audit-export.schema.json
 PASS audit-integrity.json -> schemas/audit-integrity.schema.json
@@ -51,6 +52,7 @@ PASS drift-finding.json -> schemas/drift-finding.schema.json
 PASS enforcement-readiness.json -> schemas/enforcement-readiness.schema.json
 PASS evidence-export.json -> schemas/evidence-export.schema.json
 PASS native-grant.json -> schemas/native-grant.schema.json
+PASS persistence-deployment-manifest.json -> schemas/persistence-deployment-manifest.schema.json
 PASS provisioning-plan.json -> schemas/provisioning-plan.schema.json
 PASS relationship.json -> schemas/relationship.schema.json
 PASS resource.json -> schemas/resource.schema.json
@@ -60,10 +62,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-persistence-manifest/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-persistence-deployment-evidence/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -73,7 +75,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -93,23 +95,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-manifest
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  13:18:48
-   Duration  174ms (transform 37ms, setup 0ms, import 57ms, tests 7ms, environment 0ms)
+   Start at  13:21:47
+   Duration  159ms (transform 36ms, setup 0ms, import 50ms, tests 6ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -120,7 +122,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -131,7 +133,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -139,65 +141,77 @@ PASS Kubernetes manifests wire health/readiness probes, persistent state, secret
 PASS Admission policy requires immutable GHCR digests and keyless release signatures for rebac-api images.
 ```
 
+### persistence deployment evidence validation
+
+```text
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-persistence-deployment-evidence
+> tsx scripts/validate-persistence-deployment.ts
+
+Validated persistence deployment manifest.
+PASS Production persistence manifest schema, readiness, IaC evidence, release approval, backup/restore, and operator controls are wired.
+PASS Local proof-point persistence manifests remain blocked from production readiness.
+```
+
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-manifest
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 
 
  Test Files  3 passed (3)
       Tests  53 passed (53)
-   Start at  13:18:51
-   Duration  242ms (transform 225ms, setup 0ms, import 294ms, tests 37ms, environment 0ms)
+   Start at  13:21:50
+   Duration  267ms (transform 239ms, setup 0ms, import 314ms, tests 53ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-manifest
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 
 
  Test Files  1 passed (1)
       Tests  67 passed (67)
-   Start at  13:18:52
-   Duration  557ms (transform 141ms, setup 0ms, import 188ms, tests 263ms, environment 0ms)
+   Start at  13:21:51
+   Duration  504ms (transform 130ms, setup 0ms, import 170ms, tests 227ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-persistence-manifest
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-manifest
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-deployment-evidence
 
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  13:18:53
-   Duration  377ms (transform 319ms, setup 0ms, import 423ms, tests 142ms, environment 0ms)
+   Start at  13:21:52
+   Duration  425ms (transform 363ms, setup 0ms, import 486ms, tests 170ms, environment 0ms)
 ```
 
 
 ## Covered Proof Points
 
 - TypeScript strict type checking.
-- JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, and evidence export examples.
+- JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, and evidence export examples.
 - OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, and enforcement-readiness path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.
 - Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.
 - Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.
+- Persistence deployment evidence validation for the production manifest schema, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - Local core engine tests for deterministic check/explain, decision audit emission, persistent graph/job repository contracts, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, defensive in-memory conformance behavior, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
@@ -207,7 +221,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 - Replace local JSON graph persistence with a production relationship graph and policy model store.
 - Replace local append-only audit persistence with production WORM or immutable ledger-backed audit storage.
 - Replace local JSON job persistence with production queue/job storage behind the persistent storage contracts.
-- Wire production persistence manifests to deployment-specific IaC outputs, approvals, and retained evidence artifacts.
+- Replace synthetic production persistence manifest evidence with environment-specific IaC outputs, approvals, and retained evidence artifacts.
 - Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
 - Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.

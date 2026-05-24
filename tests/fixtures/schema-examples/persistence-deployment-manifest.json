@@ -1,0 +1,50 @@
+{
+  "environment": "production",
+  "generatedAt": "2026-05-24T00:00:00.000Z",
+  "descriptors": [
+    {
+      "component": "graph",
+      "backend": "external_graph",
+      "durable": true,
+      "immutable": false,
+      "capabilities": ["graph_read", "graph_write", "relationship_query", "native_grant_readback", "transactional_writes", "backup_restore"],
+      "location": "external://graph/access-kit-prod-relationship-graph",
+      "version": "persistence-backend:v1"
+    },
+    {
+      "component": "audit",
+      "backend": "external_append_only_audit",
+      "durable": true,
+      "immutable": true,
+      "capabilities": ["audit_append", "audit_hash_chain", "audit_immutability", "audit_retention", "backup_restore"],
+      "retentionDays": 2555,
+      "location": "external://audit/access-kit-prod-audit-ledger",
+      "version": "persistence-backend:v1"
+    },
+    {
+      "component": "job",
+      "backend": "external_queue",
+      "durable": true,
+      "immutable": false,
+      "capabilities": ["job_enqueue", "idempotency_lookup", "transactional_writes", "backup_restore"],
+      "location": "external://queue/access-kit-prod-job-queue",
+      "version": "persistence-backend:v1"
+    }
+  ],
+  "controls": {
+    "identityProviderBackedAccess": true,
+    "operatorAuthorization": true,
+    "secretsExternalized": true,
+    "backupRestoreTested": true,
+    "changeApprovalRequired": true,
+    "monitoringConfigured": true,
+    "migrationPlanReviewed": true
+  },
+  "evidenceRefs": [
+    "deploy/persistence/evidence/iac-outputs.example.json",
+    "deploy/persistence/evidence/release-approval.example.json",
+    "deploy/persistence/evidence/backup-restore.example.json",
+    "deploy/persistence/evidence/operator-access.example.json"
+  ],
+  "version": "persistence-deployment-manifest:v1"
+}

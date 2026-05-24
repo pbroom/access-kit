@@ -21,7 +21,8 @@ requireJob(ci, "contract-validation", [
   "pnpm validate:ci",
   "pnpm validate:packaging",
   "pnpm validate:release-packaging",
-  "pnpm validate:deployment-manifests"
+  "pnpm validate:deployment-manifests",
+  "pnpm validate:persistence-deployment"
 ]);
 requireJob(ci, "quality", [
   "pnpm typecheck",
@@ -48,7 +49,7 @@ requireJob(security, "codeql", [
 
 console.log("Validated CI workflow contract.");
 console.log(
-  "PASS CI contract, docs, quality, evidence, container packaging, release packaging, deployment manifest, dependency audit, secret scan, and CodeQL jobs are present."
+  "PASS CI contract, docs, quality, evidence, container packaging, release packaging, deployment manifest, persistence deployment evidence, dependency audit, secret scan, and CodeQL jobs are present."
 );
 
 async function readWorkflow(path: string): Promise<WorkflowDocument> {

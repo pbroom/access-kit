@@ -1,0 +1,14 @@
+{
+  "version": "persistence-iac-outputs:v1",
+  "environment": "production",
+  "generatedAt": "2026-05-24T00:00:00.000Z",
+  "source": "synthetic-iac-plan-output",
+  "deploymentManifestPath": "deploy/kubernetes/deployment.yaml",
+  "outputs": {
+    "graphBackendLocation": "external://graph/access-kit-prod-relationship-graph",
+    "auditBackendLocation": "external://audit/access-kit-prod-audit-ledger",
+    "jobBackendLocation": "external://queue/access-kit-prod-job-queue",
+    "namespace": "access-kit",
+    "stateMountPath": "/var/lib/access-kit"
+  }
+}
