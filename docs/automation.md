@@ -6,6 +6,8 @@ This repo uses a lightweight steward loop so implementation slices can move thro
 
 [Implementation Backlog](implementation-backlog.md) is the durable roadmap. Each slice has a status, priority, dependency list, parallel-safety flag, conflict area, branch, PR reference, acceptance checks, security notes, and next action. `pnpm backlog:batch` reads the dependency-cleared `ready` rows and prints the next parallel-safe batch.
 
+The typed automation contract manifest in `scripts/lib/automation-contract.ts` is the canonical implementation source for validation plans, package-script requirements, PR state-label policy, stack readiness rules, CI workflow expectations, steward workflow checks, and proof-point evidence generation.
+
 ## State Labels
 
 GitHub labels carry PR state:
@@ -18,7 +20,7 @@ GitHub labels carry PR state:
 - `ready-to-merge` means a human has approved the PR after checks and security pass are clean.
 - `next-slice` marks backlog candidates that are likely to be picked next.
 
-Run `pnpm labels:sync` to create or update labels from `.github/labels.yml`. The script never deletes labels.
+Run `pnpm labels:sync` to create or update labels from `scripts/lib/automation-contract.ts`. The checked-in `.github/labels.yml` file mirrors that manifest for GitHub-facing review, and `pnpm validate:automation` fails if it drifts. The script never deletes labels.
 
 ## Steward Loop
 

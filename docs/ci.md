@@ -2,7 +2,7 @@
 
 ## Required Checks
 
-The repo treats API and evidence contracts as first-class CI gates.
+The repo treats API and evidence contracts as first-class CI gates. Automation-specific validation reads `scripts/lib/automation-contract.ts`, the typed manifest that defines package-script expectations, CI job command expectations, steward label policy, stack readiness rules, and proof-point evidence command ordering.
 
 - `pnpm validate:contracts` validates JSON Schemas, OpenAPI paths, policy proof points, and CLI-to-API command mappings.
 - `pnpm validate:docs` validates relative Markdown links, required runbook sections, and documentation examples against JSON Schema/OpenAPI contracts.
@@ -71,4 +71,4 @@ pnpm automation:doctor
 pnpm labels:sync
 ```
 
-`pnpm pr:status`, `pnpm stack:ready`, and `pnpm automation:doctor` require GitHub CLI authentication and network access. `pnpm labels:sync` creates or updates the labels defined in `.github/labels.yml` and never deletes existing labels.
+`pnpm pr:status`, `pnpm stack:ready`, and `pnpm automation:doctor` require GitHub CLI authentication and network access. `pnpm labels:sync` creates or updates the labels defined in `scripts/lib/automation-contract.ts` and never deletes existing labels.

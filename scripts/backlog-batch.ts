@@ -1,4 +1,4 @@
-import { readBacklog, selectReadyBacklogBatch } from "./lib/automation.js";
+import { defaultBacklogBatchSize, maxBacklogBatchSize, readBacklog, selectReadyBacklogBatch } from "./lib/automation.js";
 
 const args = process.argv.slice(2);
 const outputJson = args.includes("--json");
@@ -30,13 +30,13 @@ function readMaxItems(values: string[]): number {
   const maxArg = values.find((value) => value.startsWith("--max="));
 
   if (!maxArg) {
-    return 3;
+    return defaultBacklogBatchSize;
   }
 
   const parsed = Number(maxArg.slice("--max=".length));
 
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 5) {
-    throw new Error("--max must be an integer from 1 through 5.");
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > maxBacklogBatchSize) {
+    throw new Error(`--max must be an integer from 1 through ${maxBacklogBatchSize}.`);
   }
 
   return parsed;

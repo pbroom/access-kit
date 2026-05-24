@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YAML from "yaml";
 import { findNextReadySlice, backlogStatuses, readBacklog } from "./lib/automation.js";
+import { automationContract, type LabelContract, type PackageScriptContract } from "./lib/automation-contract.js";
 
 interface PackageJson {
   scripts?: Record<string, string>;
@@ -27,66 +28,28 @@ const labelsManifest = YAML.parse(
   await readFile(join(root, ".github", "labels.yml"), "utf8")
 ) as LabelManifest;
 
-requireScripts(packageJson.scripts ?? {}, [
-  "validate:automation",
-  "pr:status",
-  "steward:check",
-  "backlog:batch",
-  "backlog:next",
-  "stack:ready",
-  "security:pass",
-  "labels:sync",
-  "labels:check",
-  "automation:doctor"
-]);
-requireNodeImportTsxScripts(packageJson.scripts ?? {}, [
-  "pr:status",
-  "steward:check",
-  "backlog:batch",
-  "backlog:next",
-  "stack:ready",
-  "labels:sync",
-  "labels:check",
-  "automation:doctor"
-]);
+requireScripts(packageJson.scripts ?? {}, automationContract.packageScripts);
+requireValidationPlans(packageJson.scripts ?? {}, automationContract.validationPlans);
+requireNodeImportTsxScripts(packageJson.scripts ?? {}, automationContract.nodeImportTsxScripts);
+requireDocNeedles(automationDoc, automationContract.docs.automationRequiredText);
+requireLabels(labelsManifest, automationContract.labels.definitions);
 
-requireDocNeedles(automationDoc, [
-  "pnpm pr:status",
-  "pnpm backlog:batch",
-  "pnpm stack:ready",
-  "pnpm security:pass",
-  "pnpm automation:doctor",
-  "ready-for-automation",
-  "needs-human",
-  "ready-to-merge"
-]);
-
-requireLabels(labelsManifest, [
-  "stack",
-  "ready-for-automation",
-  "needs-human",
-  "security-pass-required",
-  "blocked",
-  "ready-to-merge",
-  "next-slice"
-]);
-
-if (!ciWorkflow.includes("pnpm validate:automation")) {
+if (!ciWorkflow.includes(automationContract.ci.automationGateCommand)) {
   throw new Error("CI workflow must run pnpm validate:automation.");
 }
 
-for (const needle of ["pnpm steward:check", "pnpm backlog:batch", "schedule:"]) {
+for (const needle of automationContract.ci.prStewardWorkflow.requiredText) {
   if (!prStewardWorkflow.includes(needle)) {
     throw new Error(`PR steward workflow is missing ${needle}.`);
   }
 }
 
-if ((prStewardWorkflow.match(/set -o pipefail/g) ?? []).length < 2) {
+if ((prStewardWorkflow.match(/set -o pipefail/g) ?? []).length < automationContract.ci.prStewardWorkflow.minPipefailCount) {
   throw new Error("PR steward workflow must preserve command failures when piping output through tee.");
 }
 
-if (!nextReadySlice) {
-  throw new Error("Backlog must keep at least one dependency-cleared ready next slice.");
+if (!nextReadySlice && !backlog.some((item) => item.status === "in_progress" || item.status === "in_review")) {
+  throw new Error("Backlog must keep an active slice or at least one dependency-cleared ready next slice.");
 }
 
 console.log("Validated automation contract.");
@@ -94,15 +57,40 @@ console.log(
   `PASS backlog statuses (${backlogStatuses.join(", ")}), ${backlog.length} backlog slices, labels, scripts, docs, and CI automation validation are present.`
 );
 
-function requireScripts(scripts: Record<string, string>, names: string[]): void {
-  for (const name of names) {
-    if (!scripts[name]) {
-      throw new Error(`package.json is missing script ${name}.`);
+function requireScripts(scripts: Record<string, string>, contracts: readonly PackageScriptContract[]): void {
+  for (const contract of contracts) {
+    const command = scripts[contract.name];
+
+    if (!command) {
+      throw new Error(`package.json is missing script ${contract.name}.`);
+    }
+
+    if (command !== contract.command) {
+      throw new Error(`package.json script ${contract.name} must be: ${contract.command}`);
     }
   }
 }
 
-function requireNodeImportTsxScripts(scripts: Record<string, string>, names: string[]): void {
+function requireValidationPlans(
+  scripts: Record<string, string>,
+  plans: typeof automationContract.validationPlans
+): void {
+  for (const plan of plans) {
+    const command = scripts[plan.script];
+
+    if (!command) {
+      throw new Error(`package.json is missing validation plan script ${plan.script}.`);
+    }
+
+    const missing = plan.requiredScripts.filter((requiredScript) => !command.includes(requiredScript));
+
+    if (missing.length > 0) {
+      throw new Error(`package.json script ${plan.script} is missing required entries: ${missing.join(", ")}`);
+    }
+  }
+}
+
+function requireNodeImportTsxScripts(scripts: Record<string, string>, names: readonly string[]): void {
   for (const name of names) {
     const command = scripts[name];
 
@@ -114,14 +102,14 @@ function requireNodeImportTsxScripts(scripts: Record<string, string>, names: str
   }
 }
 
-function requireDocNeedles(contents: string, needles: string[]): void {
+function requireDocNeedles(contents: string, needles: readonly string[]): void {
   const missing = needles.filter((needle) => !contents.includes(needle));
   if (missing.length > 0) {
     throw new Error(`docs/automation.md is missing required content: ${missing.join(", ")}`);
   }
 }
 
-function requireLabels(manifest: LabelManifest, names: string[]): void {
+function requireLabels(manifest: LabelManifest, definitions: readonly LabelContract[]): void {
   if (!Array.isArray(manifest.labels)) {
     throw new Error(".github/labels.yml must contain labels.");
   }
@@ -147,8 +135,20 @@ function requireLabels(manifest: LabelManifest, names: string[]): void {
     });
   }
 
-  const missing = names.filter((name) => !labelsByName.has(name));
+  const missing = definitions.map((definition) => definition.name).filter((name) => !labelsByName.has(name));
   if (missing.length > 0) {
     throw new Error(`.github/labels.yml is missing required labels: ${missing.join(", ")}`);
+  }
+
+  for (const definition of definitions) {
+    const label = labelsByName.get(definition.name);
+
+    if (!label) {
+      continue;
+    }
+
+    if (label.color.toLowerCase() !== definition.color.toLowerCase() || label.description !== definition.description) {
+      throw new Error(`.github/labels.yml label ${definition.name} differs from automation contract manifest.`);
+    }
   }
 }

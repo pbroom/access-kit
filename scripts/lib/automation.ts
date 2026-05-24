@@ -1,8 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { automationContract } from "./automation-contract.js";
 
-export const backlogStatuses = ["ready", "in_progress", "in_review", "blocked", "merged"] as const;
-export const backlogParallelValues = ["yes", "no"] as const;
+export const backlogStatuses = automationContract.backlog.statuses;
+export const backlogParallelValues = automationContract.backlog.parallelValues;
+export const defaultBacklogBatchSize = automationContract.backlog.defaultBatchSize;
+export const maxBacklogBatchSize = automationContract.backlog.maxBatchSize;
 
 export type BacklogStatus = (typeof backlogStatuses)[number];
 export type BacklogParallelValue = (typeof backlogParallelValues)[number];
