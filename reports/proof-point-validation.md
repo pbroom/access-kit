@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T17:23:03.740Z
+Generated at: 2026-05-24T17:24:19.173Z
 
-Branch: codex/rebac-persistence-readiness-report
+Branch: codex/rebac-outstanding-requirements-table
 
 Node: v24.4.1
 
@@ -32,14 +32,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > tsx scripts/validate-schemas.ts
 
 Validated 15 schemas and 15 example fixtures.
@@ -63,10 +63,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-persistence-readiness-report/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-outstanding-requirements-table/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -76,7 +76,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -96,23 +96,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-readiness-report
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-outstanding-requirements-table
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  13:22:57
-   Duration  172ms (transform 37ms, setup 0ms, import 58ms, tests 7ms, environment 0ms)
+   Start at  13:24:12
+   Duration  176ms (transform 36ms, setup 0ms, import 55ms, tests 7ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -123,7 +123,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -134,7 +134,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -145,7 +145,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -156,49 +156,49 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-readiness-report
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-outstanding-requirements-table
 
 
  Test Files  3 passed (3)
       Tests  53 passed (53)
-   Start at  13:23:01
-   Duration  265ms (transform 246ms, setup 0ms, import 317ms, tests 45ms, environment 0ms)
+   Start at  13:24:16
+   Duration  257ms (transform 234ms, setup 0ms, import 310ms, tests 48ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-readiness-report
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-outstanding-requirements-table
 
 
  Test Files  1 passed (1)
       Tests  67 passed (67)
-   Start at  13:23:01
-   Duration  512ms (transform 133ms, setup 0ms, import 175ms, tests 231ms, environment 0ms)
+   Start at  13:24:17
+   Duration  518ms (transform 129ms, setup 0ms, import 172ms, tests 243ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-persistence-readiness-report
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-outstanding-requirements-table
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistence-readiness-report
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-outstanding-requirements-table
 
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  13:23:02
-   Duration  384ms (transform 320ms, setup 0ms, import 428ms, tests 152ms, environment 0ms)
+   Start at  13:24:18
+   Duration  375ms (transform 311ms, setup 0ms, import 416ms, tests 141ms, environment 0ms)
 ```
 
 
