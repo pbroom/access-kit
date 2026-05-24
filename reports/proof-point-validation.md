@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T23:04:35.479Z
+Generated at: 2026-05-24T22:52:54.421Z
 
-Branch: codex/rebac-durable-storage-runtime
+Branch: 
 
 Node: v24.4.1
 
@@ -32,14 +32,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-connector-persistence
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-connector-persistence
 > tsx scripts/validate-schemas.ts
 
 Validated 15 schemas and 15 example fixtures.
@@ -63,10 +63,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-connector-persistence
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-durable-storage-runtime/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-connector-persistence/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -76,7 +76,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-connector-persistence
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -96,23 +96,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-connector-persistence
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-durable-storage-runtime
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-connector-persistence
 
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  19:04:29
-   Duration  363ms (transform 127ms, setup 0ms, import 230ms, tests 35ms, environment 0ms)
+   Start at  18:52:48
+   Duration  334ms (transform 116ms, setup 0ms, import 212ms, tests 31ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-connector-persistence
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -123,7 +123,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-connector-persistence
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -134,7 +134,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-connector-persistence
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -145,7 +145,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-connector-persistence
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -156,49 +156,49 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-connector-persistence
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-durable-storage-runtime
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-connector-persistence
 
 
  Test Files  3 passed (3)
       Tests  56 passed (56)
-   Start at  19:04:32
-   Duration  247ms (transform 236ms, setup 0ms, import 298ms, tests 40ms, environment 0ms)
+   Start at  18:52:51
+   Duration  219ms (transform 201ms, setup 0ms, import 257ms, tests 38ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-connector-persistence
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-durable-storage-runtime
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-connector-persistence
 
 
  Test Files  1 passed (1)
       Tests  74 passed (74)
-   Start at  19:04:33
-   Duration  596ms (transform 141ms, setup 0ms, import 231ms, tests 264ms, environment 0ms)
+   Start at  18:52:52
+   Duration  594ms (transform 148ms, setup 0ms, import 242ms, tests 253ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-durable-storage-runtime
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-connector-persistence
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-durable-storage-runtime
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-connector-persistence
 
 
  Test Files  3 passed (3)
       Tests  31 passed (31)
-   Start at  19:04:34
-   Duration  425ms (transform 379ms, setup 0ms, import 693ms, tests 165ms, environment 0ms)
+   Start at  18:52:53
+   Duration  404ms (transform 370ms, setup 0ms, import 678ms, tests 149ms, environment 0ms)
 ```
 
 
@@ -214,7 +214,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 - Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - Local core engine tests for deterministic check/explain, decision audit emission, persistent graph/job repository contracts, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, defensive in-memory conformance behavior, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
-- API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
+- API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 
 ## Outstanding Requirements
@@ -226,7 +226,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 - Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
 - Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
-- Persist discovery runs and native-grant readback in production data stores rather than local JSON snapshots.
+- Replace local JSON graph/job connector-state proof points with production data stores for discovery runs, native-grant readback, drift findings, and reconciliation evidence.
 - Replace local JSON dry-run provisioning, controlled synthetic enforcement, readiness gates, and reconciliation jobs with durable queues, retries, and dead-letter handling.
 - Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, emergency revocation behavior, and connector least-privilege review are complete.
 - Replace local ATO package proof points with deployment-specific diagrams, assessor-reviewed control statements, retained SBOM/security artifacts, access review campaigns, exception workflow, backup/restore test evidence, and ConMon delivery.

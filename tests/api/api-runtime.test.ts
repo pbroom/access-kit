@@ -1109,6 +1109,90 @@ describe("ReBAC API runtime", () => {
     ]);
   });
 
+  it("recovers connector discovery and reconciliation records from repository persistence across API restarts", async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-connector-repositories-"));
+    tempDirs.push(storageRoot);
+    const graphPath = join(storageRoot, "graph-state.json");
+    const jobsPath = join(storageRoot, "job-state.json");
+    const createPersistence = () => ({
+      graphRepository: new LocalJsonFileGraphRepository({ graphPath, now: () => TEST_NOW }),
+      jobRepository: new LocalJsonFileJobRepository({ jobsPath, now: () => TEST_NOW })
+    });
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: sequenceNow(
+          "2026-05-21T17:00:00.000Z",
+          "2026-05-21T17:00:01.000Z",
+          "2026-05-21T17:00:02.000Z",
+          "2026-05-21T17:00:03.000Z",
+          "2026-05-21T17:00:04.000Z"
+        ),
+        persistence: createPersistence()
+      })
+    });
+    const sync = await post<{
+      id: string;
+      evidence: { readOnly: boolean; nativeAccessReadback: boolean };
+    }>("/v1/connectors/mock/sync", { mode: "read_only" });
+    const reconciliation = await post<{
+      id: string;
+      findings: Array<{ id: string; severity: string }>;
+    }>("/v1/reconciliation/run", {
+      connectorId: "mock",
+      dryRun: true
+    });
+    const persistedGraph = new LocalJsonFileGraphRepository({ graphPath }).exportGraph();
+    const persistedJobs = new LocalJsonFileJobRepository({ jobsPath }).exportJobs();
+
+    expect(sync.evidence).toMatchObject({ readOnly: true, nativeAccessReadback: true });
+    expect(persistedGraph.nativeGrants.map((grant) => grant.sourceConnectorId)).toContain("mock");
+    expect(persistedJobs.discoveryRuns.map((run) => run.id)).toContain(sync.id);
+    expect(persistedJobs.driftFindings.map((finding) => finding.id)).toContain(reconciliation.findings[0]?.id);
+    expect(persistedJobs.reconciliationRuns.map((run) => run.id)).toContain(reconciliation.id);
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => "2026-05-21T18:00:00.000Z",
+        persistence: createPersistence()
+      })
+    });
+    const recoveredRuns = await get<{
+      items: Array<{ id: string; evidence: { readOnly: boolean; nativeAccessReadback: boolean } }>;
+    }>("/v1/discovery/runs?connectorId=mock&status=completed_with_warnings");
+    const recoveredNativeAccess = await get<{
+      items: Array<{ sourceConnectorId: string; targetObjectId: string; subjectId: string }>;
+    }>("/v1/resources/document%3Acase-plan/native-access?connectorId=mock");
+    const recoveredFindings = await get<{ items: Array<{ id: string; severity: string }> }>(
+      "/v1/reconciliation/findings?severity=high"
+    );
+    const recoveredEvidence = await get<{
+      accessReviews: Array<{ findingCount: number; exceptionCount: number }>;
+      exceptionRegister: Array<{ source: string; sourceFindingId: string }>;
+    }>("/v1/evidence/export?controls=CA-7");
+
+    expect(recoveredRuns.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: sync.id,
+        evidence: expect.objectContaining({ readOnly: true, nativeAccessReadback: true })
+      })
+    ]));
+    expect(recoveredNativeAccess.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sourceConnectorId: "mock",
+        targetObjectId: "document:case-plan",
+        subjectId: "user:alice"
+      })
+    ]));
+    expect(recoveredFindings.items.map((finding) => finding.id)).toContain(reconciliation.findings[0]?.id);
+    expect(recoveredEvidence.exceptionRegister).toEqual(expect.arrayContaining([
+      expect.objectContaining({ source: "drift", sourceFindingId: expect.stringMatching(/^drift:/) })
+    ]));
+    expect(recoveredEvidence.accessReviews).toEqual(expect.arrayContaining([
+      expect.objectContaining({ findingCount: 1, exceptionCount: 1 })
+    ]));
+  });
+
   it("keeps the snapshot audit chain authoritative when the audit file is ahead", async () => {
     const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-dual-persistence-"));
     tempDirs.push(storageRoot);
