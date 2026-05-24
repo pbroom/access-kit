@@ -114,8 +114,6 @@ export interface EnforcementReadinessRequest {
   changeTicketPattern?: string;
 }
 
-const CHANGE_TICKET_PATTERN_MAX_LENGTH = 128;
-const CHANGE_TICKET_VALUE_MAX_LENGTH = 256;
 const MAX_PERSISTENCE_DEGRADATIONS = 20;
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {

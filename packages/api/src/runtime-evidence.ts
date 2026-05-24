@@ -66,7 +66,7 @@ export function buildOperationalEvidence(generatedAt: string): OperationalEviden
       ownerRole: "ISSO",
       generatedAt,
       summary: "Local proof-point documents break-glass as a governed exception source and blocks break-glass use in controlled synthetic enforcement.",
-      evidenceRefs: ["docs/security-model.md", "packages/api/src/local-app.ts"],
+      evidenceRefs: ["docs/security-model.md", "packages/api/src/runtime-app.ts"],
       gaps: ["Production break-glass identity, approval, expiry, and post-action review workflow must be integrated with the deployment identity provider."]
     },
     {

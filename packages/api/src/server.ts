@@ -10,7 +10,6 @@ import {
 } from "./api-auth.js";
 import { HttpError, notFound, sendJson } from "./api-http.js";
 import { buildRuntimeReadiness } from "./api-readiness.js";
-export { API_ROUTE_SURFACES, type ApiRouteSurface } from "./api-routes.js";
 import {
   checkDecision,
   checkEnforcementReadiness,
@@ -55,6 +54,8 @@ import type {
   Resource,
   Subject
 } from "@access-kit/core";
+
+export { API_ROUTE_SURFACES, type ApiRouteSurface } from "./api-routes.js";
 
 export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
