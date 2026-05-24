@@ -2,7 +2,7 @@
 
 ## Current Implementation Support
 
-The current implementation intentionally avoids live tenant access and production mutation. Open stacked PRs are listed where support is implemented in the active review stack but not yet merged.
+The current implementation intentionally avoids live tenant access and production mutation. Open stacked PRs are listed where support is implemented in the active review stack but not yet merged. PRs #14-#18, #20, and #31 are outside this implementation-support table, and repeated PR references are intentional when one PR spans multiple areas, such as #29 covering both runtime packaging and API authentication guard work.
 
 | Area | Current support | Associated PR(s) |
 | --- | --- | --- |
