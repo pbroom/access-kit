@@ -7,9 +7,16 @@ import type {
   AuditIntegrityReport,
   AuditStorageReceipt,
   CanonicalId,
+  DecisionResult,
+  DiscoveryRun,
+  DriftFinding,
+  EnforcementReadinessReport,
   EvidenceExport,
   EvidenceStorageReceipt,
   NativeGrant,
+  ProvisioningJob,
+  ProvisioningPlan,
+  ReconciliationRun,
   RelationshipTuple,
   Resource,
   Subject
@@ -17,10 +24,15 @@ import type {
 import type {
   DescribedAuditEventRepository,
   DescribedPersistenceRepository,
+  DiscoveryRunFilter,
+  DriftFindingFilter,
+  EnforcementReadinessReportFilter,
   NativeGrantFilter,
   PersistenceBackendDescriptor,
   RebacGraphRepository,
   RebacGraphSnapshot,
+  RebacJobRepository,
+  RebacJobSnapshot,
   RelationshipFilter
 } from "./persistence.js";
 import type { RebacSeedData } from "./store.js";
@@ -77,6 +89,23 @@ export interface RebacGraphStorageReceipt {
   version: "rebac-graph-storage-receipt:v1";
 }
 
+export interface RebacJobStorageReceipt {
+  storedAt: string;
+  backend: "local_file" | "external";
+  location: string;
+  jobsHash: string;
+  entityCounts: {
+    discoveryRuns: number;
+    enforcementReadinessReports: number;
+    provisioningPlans: number;
+    provisioningJobs: number;
+    driftFindings: number;
+    reconciliationRuns: number;
+    decisions: number;
+  };
+  version: "rebac-job-storage-receipt:v1";
+}
+
 export interface LocalFileEvidenceRepositoryOptions {
   rootDir: string;
 }
@@ -93,6 +122,12 @@ export interface LocalJsonFileGraphRepositoryOptions {
   now?: () => string;
 }
 
+export interface LocalJsonFileJobRepositoryOptions {
+  rootDir?: string;
+  jobsPath?: string;
+  now?: () => string;
+}
+
 export interface LocalJsonFileStateRepositoryOptions {
   rootDir?: string;
   statePath?: string;
@@ -104,6 +139,14 @@ interface StoredRebacGraph {
   graphHash: string;
   graph: RebacGraphSnapshot;
   entityCounts: RebacGraphStorageReceipt["entityCounts"];
+}
+
+interface StoredRebacJobs {
+  version: "rebac-job-state:v1";
+  storedAt: string;
+  jobsHash: string;
+  jobs: RebacJobSnapshot;
+  entityCounts: RebacJobStorageReceipt["entityCounts"];
 }
 
 interface StoredAuditEventRecord {
@@ -487,6 +530,189 @@ export class LocalJsonFileGraphRepository implements RebacGraphRepository, Descr
   }
 }
 
+export class LocalJsonFileJobRepository implements RebacJobRepository, DescribedPersistenceRepository {
+  readonly #jobsPath: string;
+  readonly #location: string;
+  readonly #now: () => string;
+  #jobs: RebacJobSnapshot;
+
+  constructor(options: LocalJsonFileJobRepositoryOptions) {
+    this.#jobsPath = options.jobsPath ?? join(requiredRootDir(options, "LocalJsonFileJobRepository"), "job-state.json");
+    this.#location = basename(this.#jobsPath);
+    this.#now = options.now ?? (() => new Date().toISOString());
+    mkdirSync(dirname(this.#jobsPath), { recursive: true });
+    this.#jobs = this.#readJobs() ?? emptyJobSnapshot();
+  }
+
+  describePersistence(): PersistenceBackendDescriptor {
+    return {
+      component: "job",
+      backend: "local_file",
+      durable: false,
+      immutable: false,
+      capabilities: ["job_enqueue", "idempotency_lookup", "transactional_writes", "backup_restore"],
+      location: this.#location,
+      version: "persistence-backend:v1"
+    };
+  }
+
+  recordDiscoveryRun(run: DiscoveryRun): DiscoveryRun {
+    this.#jobs.discoveryRuns = appendUniqueById(this.#jobs.discoveryRuns, clone(run), "Discovery run");
+    this.#persist(this.#now());
+    return clone(run);
+  }
+
+  listDiscoveryRuns(filter: DiscoveryRunFilter = {}): DiscoveryRun[] {
+    return clone(
+      this.#jobs.discoveryRuns.filter((run) => {
+        return (!filter.connectorId || run.connectorId === filter.connectorId) && (!filter.status || run.status === filter.status);
+      })
+    );
+  }
+
+  recordEnforcementReadinessReport(report: EnforcementReadinessReport): EnforcementReadinessReport {
+    this.#jobs.enforcementReadinessReports = appendUniqueById(
+      this.#jobs.enforcementReadinessReports,
+      clone(report),
+      "Enforcement readiness report"
+    );
+    this.#persist(this.#now());
+    return clone(report);
+  }
+
+  getEnforcementReadinessReport(id: CanonicalId): EnforcementReadinessReport | undefined {
+    return cloneOptional(this.#jobs.enforcementReadinessReports.find((report) => report.id === id));
+  }
+
+  listEnforcementReadinessReports(filter: EnforcementReadinessReportFilter = {}): EnforcementReadinessReport[] {
+    return clone(
+      this.#jobs.enforcementReadinessReports.filter((report) => {
+        return (!filter.connectorId || report.connectorId === filter.connectorId) && (!filter.status || report.status === filter.status);
+      })
+    );
+  }
+
+  upsertProvisioningPlan(plan: ProvisioningPlan): ProvisioningPlan {
+    this.#jobs.provisioningPlans = upsertById(this.#jobs.provisioningPlans, clone(plan));
+    this.#persist(this.#now());
+    return clone(plan);
+  }
+
+  getProvisioningPlan(id: CanonicalId): ProvisioningPlan | undefined {
+    return cloneOptional(this.#jobs.provisioningPlans.find((plan) => plan.id === id));
+  }
+
+  getProvisioningPlanByIdempotencyKey(idempotencyKey: string): ProvisioningPlan | undefined {
+    return cloneOptional(this.#jobs.provisioningPlans.find((plan) => plan.idempotencyKey === idempotencyKey));
+  }
+
+  listProvisioningPlans(): ProvisioningPlan[] {
+    return clone(this.#jobs.provisioningPlans);
+  }
+
+  upsertProvisioningJob(job: ProvisioningJob): ProvisioningJob {
+    this.#jobs.provisioningJobs = upsertById(this.#jobs.provisioningJobs, clone(job));
+    this.#persist(this.#now());
+    return clone(job);
+  }
+
+  getProvisioningJob(id: CanonicalId): ProvisioningJob | undefined {
+    return cloneOptional(this.#jobs.provisioningJobs.find((job) => job.id === id));
+  }
+
+  getProvisioningJobByIdempotencyKey(idempotencyKey: string): ProvisioningJob | undefined {
+    return cloneOptional(this.#jobs.provisioningJobs.find((job) => job.idempotencyKey === idempotencyKey));
+  }
+
+  listProvisioningJobs(): ProvisioningJob[] {
+    return clone(this.#jobs.provisioningJobs);
+  }
+
+  upsertDriftFinding(finding: DriftFinding): DriftFinding {
+    this.#jobs.driftFindings = upsertById(this.#jobs.driftFindings, clone(finding));
+    this.#persist(this.#now());
+    return clone(finding);
+  }
+
+  getDriftFinding(id: CanonicalId): DriftFinding | undefined {
+    return cloneOptional(this.#jobs.driftFindings.find((finding) => finding.id === id));
+  }
+
+  listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {
+    return clone(this.#jobs.driftFindings.filter((finding) => !filter.severity || finding.severity === filter.severity));
+  }
+
+  recordReconciliationRun(run: ReconciliationRun): ReconciliationRun {
+    this.#jobs.reconciliationRuns = appendUniqueById(this.#jobs.reconciliationRuns, clone(run), "Reconciliation run");
+    this.#persist(this.#now());
+    return clone(run);
+  }
+
+  listReconciliationRuns(): ReconciliationRun[] {
+    return clone(this.#jobs.reconciliationRuns);
+  }
+
+  recordDecision(decision: DecisionResult): DecisionResult {
+    this.#jobs.decisions = upsertByDecisionId(this.#jobs.decisions, clone(decision));
+    this.#persist(this.#now());
+    return clone(decision);
+  }
+
+  listDecisions(): DecisionResult[] {
+    return clone(this.#jobs.decisions);
+  }
+
+  exportJobs(): RebacJobSnapshot {
+    return clone(this.#jobs);
+  }
+
+  flush(storedAt: string = this.#now()): RebacJobStorageReceipt {
+    return this.#persist(storedAt);
+  }
+
+  #readJobs(): RebacJobSnapshot | undefined {
+    if (!existsSync(this.#jobsPath)) {
+      return undefined;
+    }
+
+    const parsed = JSON.parse(readFileSync(this.#jobsPath, "utf8")) as Partial<StoredRebacJobs> | RebacJobSnapshot;
+
+    if (!isStoredRebacJobs(parsed)) {
+      throw new Error("ReBAC job state must use the rebac-job-state:v1 envelope.");
+    }
+
+    assertStoredJobsIntegrity(parsed);
+    return normalizeJobSnapshot(parsed.jobs);
+  }
+
+  #persist(storedAt: string): RebacJobStorageReceipt {
+    const jobs = normalizeJobSnapshot(this.#jobs);
+    const jobsHash = `sha256:${stableHash(jobs)}`;
+    const entityCounts = countJobEntities(jobs);
+    const stored: StoredRebacJobs = {
+      version: "rebac-job-state:v1",
+      storedAt,
+      jobsHash,
+      jobs,
+      entityCounts
+    };
+    const tempPath = `${this.#jobsPath}.${process.pid}.${Date.now()}.tmp`;
+    mkdirSync(dirname(this.#jobsPath), { recursive: true });
+    writeFileSync(tempPath, `${stableStringify(stored)}\n`, "utf8");
+    renameSync(tempPath, this.#jobsPath);
+    this.#jobs = jobs;
+
+    return {
+      storedAt,
+      backend: "local_file",
+      location: this.#location,
+      jobsHash,
+      entityCounts,
+      version: "rebac-job-storage-receipt:v1"
+    };
+  }
+}
+
 export class LocalJsonFileStateRepository implements RebacStateRepository {
   readonly #statePath: string;
   readonly #location: string;
@@ -547,7 +773,11 @@ function stableHash(value: unknown): string {
 }
 
 function requiredRootDir(
-  options: LocalJsonFileGraphRepositoryOptions | LocalJsonFileStateRepositoryOptions,
+  options:
+    | LocalAppendOnlyAuditRepositoryOptions
+    | LocalJsonFileGraphRepositoryOptions
+    | LocalJsonFileJobRepositoryOptions
+    | LocalJsonFileStateRepositoryOptions,
   repositoryName: string
 ): string {
   if (!options.rootDir) {
@@ -566,6 +796,15 @@ function isStoredRebacGraph(value: Partial<StoredRebacGraph> | RebacGraphSnapsho
   );
 }
 
+function isStoredRebacJobs(value: Partial<StoredRebacJobs> | RebacJobSnapshot): value is StoredRebacJobs {
+  return (
+    typeof (value as StoredRebacJobs).version === "string" &&
+    (value as StoredRebacJobs).version === "rebac-job-state:v1" &&
+    typeof (value as StoredRebacJobs).jobs === "object" &&
+    (value as StoredRebacJobs).jobs !== null
+  );
+}
+
 function isStoredRebacState(value: Partial<StoredRebacState> | RebacSeedData): value is StoredRebacState {
   return (
     typeof (value as StoredRebacState).version === "string" &&
@@ -573,6 +812,14 @@ function isStoredRebacState(value: Partial<StoredRebacState> | RebacSeedData): v
     typeof (value as StoredRebacState).state === "object" &&
     (value as StoredRebacState).state !== null
   );
+}
+
+function assertStoredJobsIntegrity(stored: StoredRebacJobs): void {
+  const expectedJobsHash = `sha256:${stableHash(stored.jobs)}`;
+
+  if (stored.jobsHash !== expectedJobsHash) {
+    throw new Error("ReBAC job state hash does not match the stored job payload.");
+  }
 }
 
 function assertStoredGraphIntegrity(stored: StoredRebacGraph): void {
@@ -602,12 +849,36 @@ function assertStoredStateIntegrity(stored: StoredRebacState): void {
   }
 }
 
+function emptyJobSnapshot(): RebacJobSnapshot {
+  return {
+    discoveryRuns: [],
+    enforcementReadinessReports: [],
+    provisioningPlans: [],
+    provisioningJobs: [],
+    driftFindings: [],
+    reconciliationRuns: [],
+    decisions: []
+  };
+}
+
 function emptyGraphSnapshot(): RebacGraphSnapshot {
   return {
     subjects: [],
     resources: [],
     relationships: [],
     nativeGrants: []
+  };
+}
+
+function normalizeJobSnapshot(jobs: Partial<RebacJobSnapshot>): RebacJobSnapshot {
+  return {
+    discoveryRuns: clone(jobs.discoveryRuns ?? []),
+    enforcementReadinessReports: clone(jobs.enforcementReadinessReports ?? []),
+    provisioningPlans: clone(jobs.provisioningPlans ?? []),
+    provisioningJobs: clone(jobs.provisioningJobs ?? []),
+    driftFindings: clone(jobs.driftFindings ?? []),
+    reconciliationRuns: clone(jobs.reconciliationRuns ?? []),
+    decisions: clone(jobs.decisions ?? [])
   };
 }
 
@@ -654,6 +925,16 @@ function auditRecordIntegrityFindings(records: StoredAuditEventRecord[]): AuditI
   });
 }
 
+function upsertByDecisionId(items: DecisionResult[], item: DecisionResult): DecisionResult[] {
+  const index = items.findIndex((entry) => entry.decisionId === item.decisionId);
+
+  if (index === -1) {
+    return [...items, item];
+  }
+
+  return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
+}
+
 function normalizeGraphSnapshot(graph: Partial<RebacGraphSnapshot>): RebacGraphSnapshot {
   return {
     subjects: clone(graph.subjects ?? []),
@@ -671,6 +952,26 @@ function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {
   }
 
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
+}
+
+function appendUniqueById<T extends { id: CanonicalId }>(items: T[], item: T, entityName: string): T[] {
+  if (items.some((entry) => entry.id === item.id)) {
+    throw new Error(`${entityName} ${item.id} has already been recorded.`);
+  }
+
+  return [...items, item];
+}
+
+function countJobEntities(jobs: RebacJobSnapshot): RebacJobStorageReceipt["entityCounts"] {
+  return {
+    discoveryRuns: jobs.discoveryRuns.length,
+    enforcementReadinessReports: jobs.enforcementReadinessReports.length,
+    provisioningPlans: jobs.provisioningPlans.length,
+    provisioningJobs: jobs.provisioningJobs.length,
+    driftFindings: jobs.driftFindings.length,
+    reconciliationRuns: jobs.reconciliationRuns.length,
+    decisions: jobs.decisions.length
+  };
 }
 
 function countGraphEntities(graph: RebacGraphSnapshot): RebacGraphStorageReceipt["entityCounts"] {

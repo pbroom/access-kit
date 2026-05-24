@@ -124,6 +124,7 @@ export interface RebacJobRepository {
   getProvisioningJobByIdempotencyKey(idempotencyKey: string): ProvisioningJob | undefined;
   listProvisioningJobs(): ProvisioningJob[];
   upsertDriftFinding(finding: DriftFinding): DriftFinding;
+  getDriftFinding(id: CanonicalId): DriftFinding | undefined;
   listDriftFindings(filter?: DriftFindingFilter): DriftFinding[];
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun;
   listReconciliationRuns(): ReconciliationRun[];
@@ -272,6 +273,10 @@ export class InMemoryRebacPersistenceRepository implements RebacGraphRepository,
 
   upsertDriftFinding(finding: DriftFinding): DriftFinding {
     return clone(this.#store.upsertDriftFinding(clone(finding)));
+  }
+
+  getDriftFinding(id: CanonicalId): DriftFinding | undefined {
+    return cloneOptional(this.#store.getDriftFinding(id));
   }
 
   listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {

@@ -10,11 +10,18 @@ import {
   InMemoryRebacPersistenceRepository,
   LocalAppendOnlyAuditRepository,
   LocalJsonFileGraphRepository,
+  LocalJsonFileJobRepository,
   type AuditEvent,
+  type DecisionResult,
+  type DiscoveryRun,
+  type DriftFinding,
+  type EnforcementReadinessReport,
   type NativeGrant,
   type PersistenceBackendDescriptor,
   type ProvisioningJob,
   type ProvisioningPlan,
+  type RebacJobRepository,
+  type ReconciliationRun,
   type RelationshipTuple,
   type Resource,
   type Subject
@@ -311,6 +318,170 @@ describe("persistent ReBAC repository contracts", () => {
     expect(repository.describePersistence().capabilities).not.toContain("backup_restore");
   });
 
+  it("persists job records to a local JSON job file and reloads them separately from graph and audit data", () => {
+    const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
+    const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+    const discoveryRun = createDiscoveryRun();
+    const readinessReport = createEnforcementReadinessReport();
+    const plan = createProvisioningPlan();
+    const job = createProvisioningJob();
+    const driftFinding = createDriftFinding();
+    const reconciliationRun = createReconciliationRun(driftFinding);
+    const decision = createDecision();
+
+    repository.recordDiscoveryRun(discoveryRun);
+    repository.recordEnforcementReadinessReport(readinessReport);
+    repository.upsertProvisioningPlan(plan);
+    repository.upsertProvisioningJob(job);
+    repository.upsertDriftFinding(driftFinding);
+    repository.recordReconciliationRun(reconciliationRun);
+    repository.recordDecision(decision);
+    const receipt = repository.flush(now);
+
+    expect(receipt).toMatchObject({
+      backend: "local_file",
+      location: "job-state.json",
+      jobsHash: expect.stringMatching(/^sha256:/),
+      entityCounts: {
+        discoveryRuns: 1,
+        enforcementReadinessReports: 1,
+        provisioningPlans: 1,
+        provisioningJobs: 1,
+        driftFindings: 1,
+        reconciliationRuns: 1,
+        decisions: 1
+      }
+    });
+
+    const stored = JSON.parse(readFileSync(jobsPath, "utf8")) as {
+      version: string;
+      jobs: Record<string, unknown>;
+    };
+    expect(stored.version).toBe("rebac-job-state:v1");
+    expect(stored.jobs).not.toHaveProperty("subjects");
+    expect(stored.jobs).not.toHaveProperty("auditEvents");
+    expect(stored.jobs).not.toHaveProperty("nativeGrants");
+
+    const reopened = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+    expect(reopened.listDiscoveryRuns({ connectorId: "mock", status: "completed" })).toEqual([discoveryRun]);
+    expect(reopened.getEnforcementReadinessReport(readinessReport.id)).toEqual(readinessReport);
+    expect(reopened.getProvisioningPlanByIdempotencyKey("idem:plan:alice-case-plan-read")).toEqual(plan);
+    expect(reopened.getProvisioningJobByIdempotencyKey("idem:job:alice-case-plan-read")).toEqual(job);
+    expect(reopened.getDriftFinding(driftFinding.id)).toEqual(driftFinding);
+    expect(reopened.listDriftFindings({ severity: "high" })).toEqual([driftFinding]);
+    expect(reopened.listReconciliationRuns()).toEqual([reconciliationRun]);
+    expect(reopened.listDecisions()).toEqual([decision]);
+
+    reopened.listProvisioningPlans()[0] = { ...plan, status: "approved" };
+    expect(reopened.getProvisioningPlan(plan.id)?.status).toBe("planned");
+  });
+
+  it("updates local job records idempotently by stable identifiers", () => {
+    const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
+    const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+    const plan = createProvisioningPlan();
+    const updatedPlan: ProvisioningPlan = {
+      ...plan,
+      status: "approved",
+      updatedAt: "2026-05-21T18:00:00.000Z"
+    };
+    const decision = createDecision();
+    const updatedDecision: DecisionResult = {
+      ...decision,
+      reasonCode: "ALLOW_RELATIONSHIP_PATH_REPLAY"
+    };
+
+    repository.upsertProvisioningPlan(plan);
+    repository.upsertProvisioningPlan(updatedPlan);
+    repository.recordDecision(decision);
+    repository.recordDecision(updatedDecision);
+
+    expect(repository.listProvisioningPlans()).toEqual([updatedPlan]);
+    expect(repository.listDecisions()).toEqual([updatedDecision]);
+    expect(new LocalJsonFileJobRepository({ jobsPath, now: () => now }).listProvisioningPlans()).toEqual([updatedPlan]);
+  });
+
+  it.each<{ name: string; createRepository: () => RebacJobRepository }>([
+    {
+      name: "in-memory",
+      createRepository: () => new InMemoryRebacPersistenceRepository(createLocalEngineSeed())
+    },
+    {
+      name: "local JSON",
+      createRepository: () =>
+        new LocalJsonFileJobRepository({
+          jobsPath: join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json"),
+          now: () => now
+        })
+    }
+  ])("rejects duplicate recorded $name job run identifiers", ({ createRepository }) => {
+    const repository = createRepository();
+    const discoveryRun = createDiscoveryRun();
+    const readinessReport = createEnforcementReadinessReport();
+    const reconciliationRun = createReconciliationRun(createDriftFinding());
+
+    repository.recordDiscoveryRun(discoveryRun);
+    repository.recordEnforcementReadinessReport(readinessReport);
+    repository.recordReconciliationRun(reconciliationRun);
+
+    expect(() => repository.recordDiscoveryRun({ ...discoveryRun, status: "failed" })).toThrow(
+      `Discovery run ${discoveryRun.id} has already been recorded.`
+    );
+    expect(() => repository.recordEnforcementReadinessReport({ ...readinessReport, status: "ready" })).toThrow(
+      `Enforcement readiness report ${readinessReport.id} has already been recorded.`
+    );
+    expect(() => repository.recordReconciliationRun({ ...reconciliationRun, status: "failed" })).toThrow(
+      `Reconciliation run ${reconciliationRun.id} has already been recorded.`
+    );
+  });
+
+  it("rejects tampered local job snapshots before serving job data", () => {
+    const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
+    const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+    const plan = createProvisioningPlan();
+
+    repository.upsertProvisioningPlan(plan);
+    const stored = JSON.parse(readFileSync(jobsPath, "utf8")) as {
+      jobs: { provisioningPlans: ProvisioningPlan[] };
+    };
+    stored.jobs.provisioningPlans[0] = { ...plan, status: "approved" };
+    writeFileSync(jobsPath, `${JSON.stringify(stored)}\n`, "utf8");
+
+    expect(() => new LocalJsonFileJobRepository({ jobsPath, now: () => now })).toThrow(
+      "ReBAC job state hash does not match the stored job payload."
+    );
+  });
+
+  it("rejects unversioned local job snapshots before serving job data", () => {
+    const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
+    const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+    const plan = createProvisioningPlan();
+
+    repository.upsertProvisioningPlan(plan);
+    const stored = JSON.parse(readFileSync(jobsPath, "utf8")) as { version?: string };
+    delete stored.version;
+    writeFileSync(jobsPath, `${JSON.stringify(stored)}\n`, "utf8");
+
+    expect(() => new LocalJsonFileJobRepository({ jobsPath, now: () => now })).toThrow(
+      "ReBAC job state must use the rebac-job-state:v1 envelope."
+    );
+  });
+
+  it("describes local JSON job persistence without claiming production durability", () => {
+    const repository = new LocalJsonFileJobRepository({
+      jobsPath: join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json"),
+      now: () => now
+    });
+
+    expect(repository.describePersistence()).toMatchObject({
+      component: "job",
+      backend: "local_file",
+      durable: false,
+      immutable: false,
+      capabilities: ["job_enqueue", "idempotency_lookup", "transactional_writes", "backup_restore"]
+    });
+  });
+
   it("blocks proof-point persistence from production readiness", () => {
     const report = assessPersistenceReadiness(
       [
@@ -534,6 +705,123 @@ function createAuditEvents(): [AuditEvent, AuditEvent] {
   );
 
   return [firstEvent, secondEvent];
+}
+
+function createDiscoveryRun(): DiscoveryRun {
+  return {
+    id: "discovery-run:mock:one",
+    connectorId: "mock",
+    mode: "read_only",
+    status: "completed",
+    startedAt: now,
+    completedAt: "2026-05-21T17:01:00.000Z",
+    counts: {
+      subjects: 1,
+      resources: 1,
+      relationships: 1,
+      nativeGrants: 1,
+      warnings: 0
+    },
+    warnings: [],
+    evidence: {
+      readOnly: true,
+      schemas: ["subject", "resource", "relationship", "native-grant"],
+      connectorCapabilities: ["discovery", "read_current_access"],
+      nativeAccessReadback: true
+    },
+    auditEventIds: ["evt:discovery"],
+    version: "discovery-run:v1",
+    createdAt: now
+  };
+}
+
+function createEnforcementReadinessReport(): EnforcementReadinessReport {
+  return {
+    id: "enforcement-readiness:mock",
+    connectorId: "mock",
+    provider: "mock",
+    tenantBoundary: "synthetic",
+    mode: "enforcement",
+    status: "blocked",
+    checkedAt: now,
+    control: {
+      syntheticOnly: true,
+      liveProviderWrites: false,
+      incidentMode: false,
+      breakGlass: false
+    },
+    checks: [
+      {
+        name: "live_provider_writes_blocked",
+        status: "pass",
+        message: "Synthetic connector remains isolated from live provider writes."
+      }
+    ],
+    requiredApproverRole: "access-admin",
+    changeTicketPattern: "^CHG-[0-9]+$",
+    liveProviderWritesAllowed: false,
+    auditEventIds: ["evt:readiness"],
+    version: "enforcement-readiness:v1",
+    createdAt: now
+  };
+}
+
+function createDriftFinding(): DriftFinding {
+  return {
+    id: "drift:alice-case-plan-read",
+    resourceId: "document:case-plan",
+    subjectId: "user:alice",
+    nativeAccess: "read",
+    intendedAccess: "none",
+    severity: "high",
+    detectedAt: now,
+    sourceConnectorId: "mock",
+    recommendedAction: "revoke",
+    status: "open",
+    version: "drift-finding:v1",
+    createdAt: now
+  };
+}
+
+function createReconciliationRun(finding: DriftFinding): ReconciliationRun {
+  return {
+    id: "reconciliation-run:mock:one",
+    connectorId: "mock",
+    mode: "dry_run",
+    dryRun: true,
+    status: "completed",
+    findings: [finding],
+    counts: {
+      findings: 1,
+      highOrCritical: 1
+    },
+    auditEventIds: ["evt:reconciliation"],
+    completedAt: "2026-05-21T17:02:00.000Z",
+    version: "reconciliation-run:v1",
+    createdAt: now
+  };
+}
+
+function createDecision(): DecisionResult {
+  return {
+    decisionId: "decision:alice-case-plan-read",
+    decision: "allow",
+    subjectId: "user:alice",
+    action: "read",
+    resourceId: "document:case-plan",
+    reasonCode: "ALLOW_RELATIONSHIP_PATH",
+    policyVersion: "policy:v1",
+    relationshipVersion: "relationship:v1",
+    relationshipPath: [
+      {
+        subjectId: "user:alice",
+        relation: "reader",
+        objectId: "document:case-plan"
+      }
+    ],
+    constraints: {},
+    evaluatedAt: now
+  };
 }
 
 function createNativeGrant(): NativeGrant {
