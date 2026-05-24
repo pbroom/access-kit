@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T17:19:46.622Z
+Generated at: 2026-05-24T17:21:05.370Z
 
-Branch: codex/rebac-persistence-deployment-evidence
+Branch: 
 
 Node: v24.4.1
 
@@ -104,8 +104,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  13:19:40
-   Duration  217ms (transform 39ms, setup 0ms, import 66ms, tests 19ms, environment 0ms)
+   Start at  13:20:59
+   Duration  172ms (transform 38ms, setup 0ms, import 57ms, tests 7ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -163,20 +163,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  3 passed (3)
-<<<<<<< HEAD
       Tests  53 passed (53)
-<<<<<<< HEAD
-   Start at  13:19:43
-   Duration  240ms (transform 235ms, setup 0ms, import 298ms, tests 37ms, environment 0ms)
-=======
-   Start at  13:16:12
-   Duration  257ms (transform 244ms, setup 0ms, import 311ms, tests 41ms, environment 0ms)
-=======
-     Tests  52 passed (52)
-  Start at  12:56:02
-  Duration  632ms (transform 581ms, setup 0ms, import 896ms, tests 134ms, environment 0ms)
->>>>>>> 6f140d7 (fix: harden persistence deployment validation)
->>>>>>> b37b686 (fix: harden persistence deployment validation)
+   Start at  13:21:02
+   Duration  251ms (transform 229ms, setup 0ms, import 293ms, tests 40ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -191,8 +180,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  1 passed (1)
       Tests  67 passed (67)
-   Start at  13:19:44
-   Duration  494ms (transform 129ms, setup 0ms, import 170ms, tests 224ms, environment 0ms)
+   Start at  13:21:03
+   Duration  492ms (transform 127ms, setup 0ms, import 167ms, tests 224ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -207,8 +196,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  13:19:45
-   Duration  360ms (transform 302ms, setup 0ms, import 410ms, tests 137ms, environment 0ms)
+   Start at  13:21:04
+   Duration  359ms (transform 296ms, setup 0ms, import 398ms, tests 136ms, environment 0ms)
 ```
 
 

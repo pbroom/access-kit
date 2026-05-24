@@ -189,6 +189,10 @@ function validateLocalProofPointBlocked(manifest: PersistenceDeploymentManifest)
   const report = assessPersistenceDeploymentReadiness(localManifest, checkedAt);
   const failedChecks = new Set(report.checks.filter((check) => check.status === "fail").map((check) => check.name));
 
+  if (report.status !== "blocked") {
+    throw new Error(`local proof-point manifest unexpectedly reported production readiness status: ${report.status}`);
+  }
+
   for (const expectedFailure of [
     "deployment_environment_production",
     "graph_repository_backend_kind",
