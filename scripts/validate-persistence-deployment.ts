@@ -16,13 +16,18 @@ type JsonObject = Record<string, unknown>;
 
 const root = process.cwd();
 const manifestPath = "deploy/persistence/production-manifest.example.json";
+const schemaFixturePath = "tests/fixtures/schema-examples/persistence-deployment-manifest.json";
 const schemaPath = "schemas/persistence-deployment-manifest.schema.json";
-const checkedAt = "2026-05-24T00:00:00.000Z";
+const kubernetesDeploymentPath = "deploy/kubernetes/deployment.yaml";
+const checkedAt = new Date().toISOString();
 
 const schema = await readJsonFile<AnySchema>(join(root, schemaPath));
 const manifest = await readJsonFile<PersistenceDeploymentManifest>(join(root, manifestPath));
+const deploymentRuntime = await readDeploymentRuntimeMetadata(kubernetesDeploymentPath);
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
+
+await requireMatchingFiles(manifestPath, schemaFixturePath, "Persistence deployment manifest schema fixture");
 
 const validateManifest = ajv.compile(schema);
 if (!validateManifest(manifest)) {
@@ -43,7 +48,7 @@ for (const component of ["graph", "audit", "job"] as const) {
 }
 
 const evidence = await loadEvidenceRefs(manifest);
-await validateIacOutputs(evidence.get("deploy/persistence/evidence/iac-outputs.example.json"), descriptors);
+await validateIacOutputs(evidence.get("deploy/persistence/evidence/iac-outputs.example.json"), descriptors, deploymentRuntime);
 await validateReleaseApproval(evidence.get("deploy/persistence/evidence/release-approval.example.json"));
 validateBackupRestore(evidence.get("deploy/persistence/evidence/backup-restore.example.json"), descriptors);
 await validateOperatorAccess(evidence.get("deploy/persistence/evidence/operator-access.example.json"), manifest);
@@ -69,7 +74,8 @@ async function loadEvidenceRefs(manifest: PersistenceDeploymentManifest): Promis
 
 async function validateIacOutputs(
   evidence: JsonObject | undefined,
-  descriptors: Map<PersistenceComponent, PersistenceBackendDescriptor>
+  descriptors: Map<PersistenceComponent, PersistenceBackendDescriptor>,
+  deploymentRuntime: DeploymentRuntimeMetadata
 ): Promise<void> {
   const iac = requireEvidence(evidence, "IaC outputs");
   requireEquals(iac.version, "persistence-iac-outputs:v1", "IaC outputs version");
@@ -80,8 +86,8 @@ async function validateIacOutputs(
   requireEquals(outputs.graphBackendLocation, descriptors.get("graph")?.location, "graph IaC location");
   requireEquals(outputs.auditBackendLocation, descriptors.get("audit")?.location, "audit IaC location");
   requireEquals(outputs.jobBackendLocation, descriptors.get("job")?.location, "job IaC location");
-  requireEquals(outputs.namespace, "access-kit", "IaC namespace");
-  requireEquals(outputs.stateMountPath, "/var/lib/access-kit", "IaC state mount path");
+  requireEquals(outputs.namespace, deploymentRuntime.namespace, "IaC namespace");
+  requireEquals(outputs.stateMountPath, deploymentRuntime.stateMountPath, "IaC state mount path");
 }
 
 async function validateReleaseApproval(evidence: JsonObject | undefined): Promise<void> {
@@ -91,7 +97,11 @@ async function validateReleaseApproval(evidence: JsonObject | undefined): Promis
   await requireExistingPath(readString(approval.releaseWorkflow, "release workflow"), "release workflow");
   const deploymentManifestPath = readString(approval.deploymentManifestPath, "release deployment manifest path");
   await requireExistingPath(deploymentManifestPath, "release deployment manifest path");
-  requireEquals(approval.deploymentImage, await readDeploymentImage(deploymentManifestPath), "release deployment image");
+  requireEquals(
+    approval.deploymentImage,
+    (await readDeploymentRuntimeMetadata(deploymentManifestPath)).image,
+    "release deployment image"
+  );
 
   const controls = asRecord(approval.releaseControls, "release controls");
   for (const control of ["digestPinned", "provenanceAttested", "signatureRequired", "changeApprovalRequired"]) {
@@ -191,19 +201,45 @@ function validateLocalProofPointBlocked(manifest: PersistenceDeploymentManifest)
   }
 }
 
-async function readDeploymentImage(path: string): Promise<string> {
+interface DeploymentRuntimeMetadata {
+  image: string;
+  namespace: string;
+  stateMountPath: string;
+}
+
+async function readDeploymentRuntimeMetadata(path: string): Promise<DeploymentRuntimeMetadata> {
   const manifest = YAML.parse(await readFile(join(root, path), "utf8")) as unknown;
-  const containers = asArray(
-    asRecord(asRecord(asRecord(asRecord(manifest, path).spec, "deployment spec").template, "deployment template").spec, "pod spec").containers,
-    "deployment containers"
+  const deployment = asRecord(manifest, path);
+  const metadata = asRecord(deployment.metadata, "deployment metadata");
+  const podSpec = asRecord(
+    asRecord(asRecord(asRecord(deployment.spec, "deployment spec").template, "deployment template").spec, "pod spec"),
+    "pod spec"
   );
+  const containers = asArray(podSpec.containers, "deployment containers");
   const container = containers.find((entry) => isRecord(entry) && entry.name === "rebac-api");
 
   if (!isRecord(container)) {
     throw new Error("deployment manifest is missing rebac-api container");
   }
 
-  return readString(container.image, "deployment image");
+  const persistentVolumeNames = new Set(
+    asArray(podSpec.volumes, "deployment volumes")
+      .filter((entry): entry is JsonObject => isRecord(entry) && isRecord(entry.persistentVolumeClaim))
+      .map((entry) => readString(entry.name, "persistent volume name"))
+  );
+  const volumeMount = asArray(container.volumeMounts, "deployment volume mounts").find(
+    (entry) => isRecord(entry) && persistentVolumeNames.has(readString(entry.name, "volume mount name"))
+  );
+
+  if (!isRecord(volumeMount)) {
+    throw new Error("deployment manifest is missing a mount for the persistent state volume");
+  }
+
+  return {
+    image: readString(container.image, "deployment image"),
+    namespace: readString(metadata.namespace, "deployment namespace"),
+    stateMountPath: readString(volumeMount.mountPath, "deployment state mount path")
+  };
 }
 
 function descriptorsByComponent(descriptors: PersistenceBackendDescriptor[]): Map<PersistenceComponent, PersistenceBackendDescriptor> {
@@ -234,6 +270,17 @@ async function requireExistingPath(path: string, label: string): Promise<void> {
   await readFile(join(root, path), "utf8").catch((error: unknown) => {
     throw new Error(`${label} does not exist at ${path}: ${String(error)}`);
   });
+}
+
+async function requireMatchingFiles(leftPath: string, rightPath: string, label: string): Promise<void> {
+  const [left, right] = await Promise.all([
+    readFile(join(root, leftPath), "utf8"),
+    readFile(join(root, rightPath), "utf8")
+  ]);
+
+  if (left !== right) {
+    throw new Error(`${label} must match ${leftPath} and ${rightPath}.`);
+  }
 }
 
 function requireEquals(actual: unknown, expected: unknown, label: string): void {

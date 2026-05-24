@@ -2,7 +2,7 @@
 
 Generated at: 2026-05-24T17:19:46.622Z
 
-Branch: 
+Branch: codex/rebac-persistence-deployment-evidence
 
 Node: v24.4.1
 
@@ -163,9 +163,20 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  3 passed (3)
+<<<<<<< HEAD
       Tests  53 passed (53)
+<<<<<<< HEAD
    Start at  13:19:43
    Duration  240ms (transform 235ms, setup 0ms, import 298ms, tests 37ms, environment 0ms)
+=======
+   Start at  13:16:12
+   Duration  257ms (transform 244ms, setup 0ms, import 311ms, tests 41ms, environment 0ms)
+=======
+     Tests  52 passed (52)
+  Start at  12:56:02
+  Duration  632ms (transform 581ms, setup 0ms, import 896ms, tests 134ms, environment 0ms)
+>>>>>>> 6f140d7 (fix: harden persistence deployment validation)
+>>>>>>> b37b686 (fix: harden persistence deployment validation)
 ```
 
 ### API runtime tests
