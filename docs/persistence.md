@@ -30,7 +30,7 @@ The readiness report blocks local memory and local file proof points from being 
 
 `assessPersistenceDeploymentReadiness` combines backend descriptor readiness with the deployment manifest checks. Local proof-point adapters remain blocked even when they implement the local contract because production readiness requires `external_graph`, `external_append_only_audit`, and `external_queue` backend kinds plus deployment control evidence.
 
-`schemas/persistence-deployment-manifest.schema.json` and `deploy/persistence/production-manifest.example.json` make this gate reviewable outside TypeScript. `pnpm validate:persistence-deployment` validates the synthetic manifest against the schema, runs the readiness assessment, checks that referenced IaC/release/backup/operator evidence exists, and proves a local proof-point manifest remains blocked from production readiness.
+`schemas/persistence-deployment-manifest.schema.json` and `deploy/persistence/production-manifest.example.json` make this gate reviewable outside TypeScript. `schemas/persistence-deployment-readiness.schema.json` and `deploy/persistence/readiness-report.example.json` retain the deterministic readiness report produced from that manifest. `pnpm validate:persistence-deployment` validates both schemas, checks that the retained report matches the core readiness assessment, checks that referenced IaC/release/backup/operator evidence exists, and proves a local proof-point manifest remains blocked from production readiness.
 
 ## Current Adapters
 

@@ -1,0 +1,364 @@
+{
+  "status": "ready",
+  "checkedAt": "2026-05-24T00:00:00.000Z",
+  "checks": [
+    {
+      "name": "graph_repository_durable",
+      "component": "graph",
+      "status": "pass",
+      "message": "graph persistence backend is durable.",
+      "evidence": {
+        "backend": "external_graph",
+        "location": "external://graph/access-kit-prod-relationship-graph"
+      }
+    },
+    {
+      "name": "graph_repository_capabilities",
+      "component": "graph",
+      "status": "pass",
+      "message": "graph persistence backend advertises required capabilities.",
+      "evidence": {
+        "advertised": [
+          "graph_read",
+          "graph_write",
+          "relationship_query",
+          "native_grant_readback",
+          "transactional_writes",
+          "backup_restore"
+        ],
+        "missing": []
+      }
+    },
+    {
+      "name": "audit_repository_durable",
+      "component": "audit",
+      "status": "pass",
+      "message": "audit persistence backend is durable.",
+      "evidence": {
+        "backend": "external_append_only_audit",
+        "location": "external://audit/access-kit-prod-audit-ledger"
+      }
+    },
+    {
+      "name": "audit_repository_capabilities",
+      "component": "audit",
+      "status": "pass",
+      "message": "audit persistence backend advertises required capabilities.",
+      "evidence": {
+        "advertised": [
+          "audit_append",
+          "audit_hash_chain",
+          "audit_immutability",
+          "audit_retention",
+          "backup_restore"
+        ],
+        "missing": []
+      }
+    },
+    {
+      "name": "audit_repository_immutable",
+      "component": "audit",
+      "status": "pass",
+      "message": "Audit persistence backend claims immutability controls.",
+      "evidence": {
+        "backend": "external_append_only_audit"
+      }
+    },
+    {
+      "name": "audit_repository_retention",
+      "component": "audit",
+      "status": "pass",
+      "message": "Audit persistence backend declares at least one year of retention.",
+      "evidence": {
+        "retentionDays": 2555
+      }
+    },
+    {
+      "name": "job_repository_durable",
+      "component": "job",
+      "status": "pass",
+      "message": "job persistence backend is durable.",
+      "evidence": {
+        "backend": "external_queue",
+        "location": "external://queue/access-kit-prod-job-queue"
+      }
+    },
+    {
+      "name": "job_repository_capabilities",
+      "component": "job",
+      "status": "pass",
+      "message": "job persistence backend advertises required capabilities.",
+      "evidence": {
+        "advertised": [
+          "job_enqueue",
+          "idempotency_lookup",
+          "transactional_writes",
+          "backup_restore"
+        ],
+        "missing": []
+      }
+    },
+    {
+      "name": "deployment_environment_production",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Persistence deployment manifest targets production.",
+      "evidence": {
+        "environment": "production"
+      }
+    },
+    {
+      "name": "deployment_manifest_evidence_refs",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Persistence deployment manifest includes evidence references.",
+      "evidence": {
+        "evidenceRefs": [
+          "deploy/persistence/evidence/iac-outputs.example.json",
+          "deploy/persistence/evidence/release-approval.example.json",
+          "deploy/persistence/evidence/backup-restore.example.json",
+          "deploy/persistence/evidence/operator-access.example.json"
+        ]
+      }
+    },
+    {
+      "name": "graph_repository_backend_kind",
+      "component": "graph",
+      "status": "pass",
+      "message": "graph persistence backend uses the required production backend kind.",
+      "evidence": {
+        "requiredBackend": "external_graph",
+        "actualBackend": "external_graph"
+      }
+    },
+    {
+      "name": "audit_repository_backend_kind",
+      "component": "audit",
+      "status": "pass",
+      "message": "audit persistence backend uses the required production backend kind.",
+      "evidence": {
+        "requiredBackend": "external_append_only_audit",
+        "actualBackend": "external_append_only_audit"
+      }
+    },
+    {
+      "name": "job_repository_backend_kind",
+      "component": "job",
+      "status": "pass",
+      "message": "job persistence backend uses the required production backend kind.",
+      "evidence": {
+        "requiredBackend": "external_queue",
+        "actualBackend": "external_queue"
+      }
+    },
+    {
+      "name": "deployment_control_identityProviderBackedAccess",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Deployment control identityProviderBackedAccess is evidenced.",
+      "evidence": {
+        "control": "identityProviderBackedAccess",
+        "value": true
+      }
+    },
+    {
+      "name": "deployment_control_operatorAuthorization",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Deployment control operatorAuthorization is evidenced.",
+      "evidence": {
+        "control": "operatorAuthorization",
+        "value": true
+      }
+    },
+    {
+      "name": "deployment_control_secretsExternalized",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Deployment control secretsExternalized is evidenced.",
+      "evidence": {
+        "control": "secretsExternalized",
+        "value": true
+      }
+    },
+    {
+      "name": "deployment_control_backupRestoreTested",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Deployment control backupRestoreTested is evidenced.",
+      "evidence": {
+        "control": "backupRestoreTested",
+        "value": true
+      }
+    },
+    {
+      "name": "deployment_control_changeApprovalRequired",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Deployment control changeApprovalRequired is evidenced.",
+      "evidence": {
+        "control": "changeApprovalRequired",
+        "value": true
+      }
+    },
+    {
+      "name": "deployment_control_monitoringConfigured",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Deployment control monitoringConfigured is evidenced.",
+      "evidence": {
+        "control": "monitoringConfigured",
+        "value": true
+      }
+    },
+    {
+      "name": "deployment_control_migrationPlanReviewed",
+      "component": "deployment",
+      "status": "pass",
+      "message": "Deployment control migrationPlanReviewed is evidenced.",
+      "evidence": {
+        "control": "migrationPlanReviewed",
+        "value": true
+      }
+    }
+  ],
+  "descriptors": [
+    {
+      "component": "graph",
+      "backend": "external_graph",
+      "durable": true,
+      "immutable": false,
+      "capabilities": [
+        "graph_read",
+        "graph_write",
+        "relationship_query",
+        "native_grant_readback",
+        "transactional_writes",
+        "backup_restore"
+      ],
+      "location": "external://graph/access-kit-prod-relationship-graph",
+      "version": "persistence-backend:v1"
+    },
+    {
+      "component": "audit",
+      "backend": "external_append_only_audit",
+      "durable": true,
+      "immutable": true,
+      "capabilities": [
+        "audit_append",
+        "audit_hash_chain",
+        "audit_immutability",
+        "audit_retention",
+        "backup_restore"
+      ],
+      "retentionDays": 2555,
+      "location": "external://audit/access-kit-prod-audit-ledger",
+      "version": "persistence-backend:v1"
+    },
+    {
+      "component": "job",
+      "backend": "external_queue",
+      "durable": true,
+      "immutable": false,
+      "capabilities": [
+        "job_enqueue",
+        "idempotency_lookup",
+        "transactional_writes",
+        "backup_restore"
+      ],
+      "location": "external://queue/access-kit-prod-job-queue",
+      "version": "persistence-backend:v1"
+    }
+  ],
+  "requiredCapabilities": {
+    "graph": [
+      "graph_read",
+      "graph_write",
+      "relationship_query",
+      "transactional_writes",
+      "backup_restore"
+    ],
+    "audit": [
+      "audit_append",
+      "audit_hash_chain",
+      "audit_immutability",
+      "audit_retention",
+      "backup_restore"
+    ],
+    "job": [
+      "job_enqueue",
+      "idempotency_lookup",
+      "transactional_writes",
+      "backup_restore"
+    ]
+  },
+  "manifest": {
+    "environment": "production",
+    "generatedAt": "2026-05-24T00:00:00.000Z",
+    "descriptors": [
+      {
+        "component": "graph",
+        "backend": "external_graph",
+        "durable": true,
+        "immutable": false,
+        "capabilities": [
+          "graph_read",
+          "graph_write",
+          "relationship_query",
+          "native_grant_readback",
+          "transactional_writes",
+          "backup_restore"
+        ],
+        "location": "external://graph/access-kit-prod-relationship-graph",
+        "version": "persistence-backend:v1"
+      },
+      {
+        "component": "audit",
+        "backend": "external_append_only_audit",
+        "durable": true,
+        "immutable": true,
+        "capabilities": [
+          "audit_append",
+          "audit_hash_chain",
+          "audit_immutability",
+          "audit_retention",
+          "backup_restore"
+        ],
+        "retentionDays": 2555,
+        "location": "external://audit/access-kit-prod-audit-ledger",
+        "version": "persistence-backend:v1"
+      },
+      {
+        "component": "job",
+        "backend": "external_queue",
+        "durable": true,
+        "immutable": false,
+        "capabilities": [
+          "job_enqueue",
+          "idempotency_lookup",
+          "transactional_writes",
+          "backup_restore"
+        ],
+        "location": "external://queue/access-kit-prod-job-queue",
+        "version": "persistence-backend:v1"
+      }
+    ],
+    "controls": {
+      "identityProviderBackedAccess": true,
+      "operatorAuthorization": true,
+      "secretsExternalized": true,
+      "backupRestoreTested": true,
+      "changeApprovalRequired": true,
+      "monitoringConfigured": true,
+      "migrationPlanReviewed": true
+    },
+    "evidenceRefs": [
+      "deploy/persistence/evidence/iac-outputs.example.json",
+      "deploy/persistence/evidence/release-approval.example.json",
+      "deploy/persistence/evidence/backup-restore.example.json",
+      "deploy/persistence/evidence/operator-access.example.json"
+    ],
+    "version": "persistence-deployment-manifest:v1"
+  },
+  "version": "persistence-deployment-readiness:v1"
+}
