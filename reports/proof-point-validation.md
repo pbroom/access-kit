@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T00:09:03.636Z
+Generated at: 2026-05-24T15:45:13.795Z
 
 Branch: codex/rebac-pr-steward-automation
 
@@ -102,8 +102,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  20:08:58
-   Duration  163ms (transform 35ms, setup 0ms, import 54ms, tests 6ms, environment 0ms)
+   Start at  11:45:07
+   Duration  224ms (transform 40ms, setup 0ms, import 61ms, tests 8ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -151,8 +151,8 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
  Test Files  3 passed (3)
       Tests  31 passed (31)
-   Start at  20:09:00
-   Duration  211ms (transform 193ms, setup 0ms, import 250ms, tests 18ms, environment 0ms)
+   Start at  11:45:10
+   Duration  260ms (transform 244ms, setup 0ms, import 318ms, tests 24ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -167,8 +167,8 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
  Test Files  1 passed (1)
       Tests  67 passed (67)
-   Start at  20:09:01
-   Duration  580ms (transform 122ms, setup 0ms, import 161ms, tests 323ms, environment 0ms)
+   Start at  11:45:11
+   Duration  625ms (transform 158ms, setup 0ms, import 203ms, tests 301ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -183,8 +183,8 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  20:09:02
-   Duration  342ms (transform 279ms, setup 0ms, import 378ms, tests 134ms, environment 0ms)
+   Start at  11:45:12
+   Duration  432ms (transform 344ms, setup 0ms, import 471ms, tests 176ms, environment 0ms)
 ```
 
 

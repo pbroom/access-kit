@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { readCheckConclusion, summarizeChecks } from "../../scripts/lib/github-cli.js";
+import { buildPrStewardActions } from "../../scripts/lib/pr-steward.js";
 
 describe("GitHub check rollup helpers", () => {
   it("treats skipped terminal checks as passing", () => {
@@ -34,5 +35,17 @@ describe("GitHub check rollup helpers", () => {
   it("normalizes status-only checks", () => {
     expect(readCheckConclusion({ status: "queued" })).toBe("PENDING");
     expect(readCheckConclusion({ status: "completed" })).toBeUndefined();
+  });
+});
+
+describe("PR steward action helpers", () => {
+  it("does not ask for a security pass while waiting for a human decision", () => {
+    expect(buildPrStewardActions(["needs-human", "security-pass-required"], "passing", false)).toEqual([
+      "Stop and wait for a human decision."
+    ]);
+
+    expect(buildPrStewardActions(["blocked", "security-pass-required"], "passing", false)).toEqual([
+      "Stop and wait for a human decision."
+    ]);
   });
 });
