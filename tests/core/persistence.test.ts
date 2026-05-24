@@ -3,10 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  AuditRecorder,
+  auditEventHash,
   assessPersistenceReadiness,
   createLocalEngineSeed,
   InMemoryRebacPersistenceRepository,
+  LocalAppendOnlyAuditRepository,
   LocalJsonFileGraphRepository,
+  type AuditEvent,
   type NativeGrant,
   type PersistenceBackendDescriptor,
   type ProvisioningJob,
@@ -186,6 +190,127 @@ describe("persistent ReBAC repository contracts", () => {
     });
   });
 
+  it("appends local audit records with stored event hashes and reloads them in order", () => {
+    const auditPath = join(mkdtempSync(join(tmpdir(), "rebac-audit-")), "append-only-audit-events.jsonl");
+    const repository = new LocalAppendOnlyAuditRepository({ auditPath, retentionDays: 365 });
+    const [firstEvent, secondEvent] = createAuditEvents();
+
+    const firstReceipt = repository.appendAuditEvent(firstEvent, now);
+    const secondReceipt = repository.appendAuditEvent(secondEvent, "2026-05-21T17:01:00.000Z");
+
+    expect(firstReceipt).toMatchObject({
+      eventId: firstEvent.eventId,
+      sequence: 1,
+      eventHash: auditEventHash(firstEvent),
+      backend: "local_file",
+      location: "append-only-audit-events.jsonl",
+      immutable: false
+    });
+    expect(secondReceipt).toMatchObject({
+      eventId: secondEvent.eventId,
+      sequence: 2,
+      eventHash: auditEventHash(secondEvent),
+      previousEventHash: auditEventHash(firstEvent)
+    });
+
+    const reopened = new LocalAppendOnlyAuditRepository({ auditPath, retentionDays: 365 });
+    expect(reopened.listAuditEvents()).toEqual([firstEvent, secondEvent]);
+    expect(reopened.verifyIntegrity("2026-05-21T17:02:00.000Z")).toMatchObject({
+      status: "verified",
+      eventCount: 2,
+      firstEventId: firstEvent.eventId,
+      lastEventId: secondEvent.eventId,
+      findings: []
+    });
+    expect(() => reopened.appendAuditEvent(secondEvent, "2026-05-21T17:03:00.000Z")).toThrow(
+      `Audit event ${secondEvent.eventId} has already been appended.`
+    );
+  });
+
+  it("rejects out-of-order audit events before appending", () => {
+    const auditPath = join(mkdtempSync(join(tmpdir(), "rebac-audit-")), "append-only-audit-events.jsonl");
+    const repository = new LocalAppendOnlyAuditRepository({ auditPath, retentionDays: 365 });
+    const [firstEvent] = createAuditEvents();
+    const orphanEvent = new AuditRecorder().record(
+      {
+        eventType: "resource.discovered",
+        actor: "system:test",
+        resourceId: "document:graph-plan",
+        correlationId: "corr:orphan",
+        payload: { resourceId: "document:graph-plan" }
+      },
+      "2026-05-21T17:01:00.000Z"
+    );
+
+    repository.appendAuditEvent(firstEvent, now);
+
+    expect(() => repository.appendAuditEvent(orphanEvent, "2026-05-21T17:01:00.000Z")).toThrow(
+      "Audit event previousEventHash does not match the current append-only tail."
+    );
+  });
+
+  it("reports tampered local audit records and refuses to list them as trusted events", () => {
+    const auditPath = join(mkdtempSync(join(tmpdir(), "rebac-audit-")), "append-only-audit-events.jsonl");
+    const repository = new LocalAppendOnlyAuditRepository({ auditPath, retentionDays: 365 });
+    const [firstEvent] = createAuditEvents();
+
+    repository.appendAuditEvent(firstEvent, now);
+    const stored = readFirstJsonlRecord<{
+      event: AuditEvent;
+    }>(auditPath);
+    stored.event.payload = { tampered: true };
+    writeFileSync(auditPath, `${JSON.stringify(stored)}\n`, "utf8");
+
+    const report = repository.verifyIntegrity("2026-05-21T17:02:00.000Z");
+
+    expect(report.status).toBe("failed");
+    expect(report.findings.map((finding) => finding.code)).toContain("AUDIT_RECORD_HASH_MISMATCH");
+    expect(() => repository.listAuditEvents()).toThrow("Stored audit log integrity check failed");
+  });
+
+  it("reports malformed audit JSONL records as integrity findings", () => {
+    const auditPath = join(mkdtempSync(join(tmpdir(), "rebac-audit-")), "append-only-audit-events.jsonl");
+    const repository = new LocalAppendOnlyAuditRepository({ auditPath, retentionDays: 365 });
+
+    writeFileSync(auditPath, "{\"version\":\"rebac-audit-event-record:v1\"\n", "utf8");
+
+    const report = repository.verifyIntegrity("2026-05-21T17:02:00.000Z");
+
+    expect(report).toMatchObject({
+      status: "failed",
+      eventCount: 0,
+      findings: [
+        expect.objectContaining({
+          code: "MALFORMED_RECORD",
+          severity: "critical",
+          message: "Stored audit record line 1 is not valid JSON."
+        })
+      ]
+    });
+    expect(() => repository.listAuditEvents()).toThrow("Stored audit log integrity check failed");
+    expect(() => repository.appendAuditEvent(createAuditEvents()[0], now)).toThrow(
+      "Stored audit log integrity check failed"
+    );
+  });
+
+  it("describes local append-only audit persistence without claiming production immutability", () => {
+    const repository = new LocalAppendOnlyAuditRepository({
+      auditPath: join(mkdtempSync(join(tmpdir(), "rebac-audit-")), "append-only-audit-events.jsonl"),
+      retentionDays: 365
+    });
+
+    expect(repository.describePersistence()).toMatchObject({
+      component: "audit",
+      backend: "local_file",
+      durable: false,
+      immutable: false,
+      capabilities: ["audit_append", "audit_hash_chain", "audit_retention"],
+      retentionDays: 365
+    });
+    expect(repository.describePersistence().capabilities).not.toContain("audit_immutability");
+    expect(repository.describePersistence().capabilities).not.toContain("backup_restore");
+  });
+
   it("blocks proof-point persistence from production readiness", () => {
     const report = assessPersistenceReadiness(
       [
@@ -327,6 +452,19 @@ function failingCheckNames(checks: Array<{ name: string; status: string }>): str
   return checks.filter((check) => check.status === "fail").map((check) => check.name);
 }
 
+function readFirstJsonlRecord<T>(path: string): T {
+  const line = readFileSync(path, "utf8")
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find(Boolean);
+
+  if (!line) {
+    throw new Error(`Expected ${path} to contain a JSONL record.`);
+  }
+
+  return JSON.parse(line) as T;
+}
+
 function createSubject(): Subject {
   return {
     id: "user:bob",
@@ -369,6 +507,33 @@ function createRelationship(): RelationshipTuple {
     version: "relationship:v1",
     createdAt: now
   };
+}
+
+function createAuditEvents(): [AuditEvent, AuditEvent] {
+  const recorder = new AuditRecorder();
+  const firstEvent = recorder.record(
+    {
+      eventType: "subject.created",
+      actor: "system:test",
+      subjectId: "user:bob",
+      correlationId: "corr:audit:first",
+      payload: { subjectId: "user:bob" }
+    },
+    now
+  );
+  const secondEvent = recorder.record(
+    {
+      eventType: "relationship.created",
+      actor: "system:test",
+      subjectId: "user:bob",
+      resourceId: "document:graph-plan",
+      correlationId: "corr:audit:second",
+      payload: { relationshipId: "relationship:bob-graph-plan-reader" }
+    },
+    "2026-05-21T17:01:00.000Z"
+  );
+
+  return [firstEvent, secondEvent];
 }
 
 function createNativeGrant(): NativeGrant {

@@ -30,13 +30,15 @@ The readiness report blocks local memory and local file proof points from being 
 
 `LocalJsonFileGraphRepository` is the first concrete graph adapter behind `RebacGraphRepository`. It persists only subjects, resources, relationship tuples, and native grants to a hash-checked JSON snapshot, reloads those graph facts across process starts, and leaves jobs, decisions, audit events, and evidence packages outside the graph file. It advertises `local_file` and `durable: false`, so production readiness remains blocked until an approved external graph backend is configured.
 
+`LocalAppendOnlyAuditRepository` is the first concrete audit adapter behind `AuditEventRepository`. It appends audit events to JSONL records with stored event hashes, rejects duplicate event IDs, refuses out-of-order appends when `previousEventHash` does not match the current tail, and reports local record tampering through audit integrity findings. It advertises local retention and hash-chain capabilities, but it does not claim production durability, backup/restore, or WORM immutability.
+
 ## Future Adapters
 
 Production adapters should be added behind the same contracts:
 
 - graph database or relational graph projection for subjects, resources, relationship tuples, and native grants
-- WORM or immutable ledger-backed audit storage
+- WORM or immutable ledger-backed audit storage with production durability, retention, and backup/restore evidence
 - durable queue/job storage for discovery, reconciliation, provisioning, and evidence work
 - environment-specific backup, restore, retention, and migration evidence
 
-No live provider write path should depend on local JSON snapshots or in-memory repositories. Local JSON graph persistence is a development and validation adapter, not a production approval path.
+No live provider write path should depend on local JSON snapshots, local JSONL audit files, or in-memory repositories. Local graph and audit persistence are development and validation adapters, not production approval paths.
