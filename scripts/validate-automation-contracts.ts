@@ -35,7 +35,8 @@ requireScripts(packageJson.scripts ?? {}, [
   "backlog:next",
   "stack:ready",
   "security:pass",
-  "labels:sync"
+  "labels:sync",
+  "automation:doctor"
 ]);
 requireNodeImportTsxScripts(packageJson.scripts ?? {}, [
   "pr:status",
@@ -44,7 +45,8 @@ requireNodeImportTsxScripts(packageJson.scripts ?? {}, [
   "backlog:next",
   "stack:ready",
   "labels:sync",
-  "labels:check"
+  "labels:check",
+  "automation:doctor"
 ]);
 
 requireDocNeedles(automationDoc, [
@@ -52,6 +54,7 @@ requireDocNeedles(automationDoc, [
   "pnpm backlog:batch",
   "pnpm stack:ready",
   "pnpm security:pass",
+  "pnpm automation:doctor",
   "ready-for-automation",
   "needs-human",
   "ready-to-merge"

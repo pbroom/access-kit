@@ -39,6 +39,7 @@
     "security:pass": "pnpm audit --audit-level high && git diff --check && pnpm ci:check",
     "labels:sync": "node --import tsx scripts/sync-github-labels.ts",
     "labels:check": "node --import tsx scripts/sync-github-labels.ts --check",
+    "automation:doctor": "node --import tsx scripts/automation-doctor.ts",
     "pr:stack": "gt submit --stack"
   },
   "dependencies": {

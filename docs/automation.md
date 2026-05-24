@@ -26,6 +26,16 @@ Run `pnpm pr:status` to inspect open PRs, labels, CI rollups, and next actions. 
 
 The steward commands invoke TypeScript through `node --import tsx` so they do not depend on the `tsx` CLI launcher IPC path in restricted automation environments.
 
+The always-on network monitor is `.github/workflows/pr-steward.yml`, which runs inside GitHub Actions with repository-scoped GitHub access. App-level scheduled automations are optional because some app cron environments cannot resolve `github.com` or `api.github.com` even when a normal local shell can.
+
+Before enabling an app-level steward that fetches, pushes, or comments on PRs, run:
+
+```sh
+pnpm automation:doctor
+```
+
+If the doctor fails in that environment, keep the app automation paused and use the GitHub Actions steward plus interactive/local runs. Repeated scheduled failures are environment noise, not PR signal.
+
 When a PR has `ready-for-automation`, the recurring steward may:
 
 - pull the branch and inspect failing checks or review findings;

@@ -66,7 +66,8 @@ pnpm backlog:batch
 pnpm backlog:next
 pnpm stack:ready
 pnpm security:pass
+pnpm automation:doctor
 pnpm labels:sync
 ```
 
-`pnpm pr:status` and `pnpm stack:ready` require GitHub CLI authentication. `pnpm labels:sync` creates or updates the labels defined in `.github/labels.yml` and never deletes existing labels.
+`pnpm pr:status`, `pnpm stack:ready`, and `pnpm automation:doctor` require GitHub CLI authentication and network access. `pnpm labels:sync` creates or updates the labels defined in `.github/labels.yml` and never deletes existing labels.
