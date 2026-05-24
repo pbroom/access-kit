@@ -1234,7 +1234,7 @@ describe("ReBAC API runtime", () => {
     ]));
   });
 
-  it("keeps the snapshot audit chain authoritative when the audit file is ahead", async () => {
+  it("recovers append-only audit events when the audit file is ahead of the state snapshot", async () => {
     const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-dual-persistence-"));
     tempDirs.push(storageRoot);
     const auditRepository = new LocalAppendOnlyAuditRepository({ rootDir: storageRoot });
@@ -1290,9 +1290,10 @@ describe("ReBAC API runtime", () => {
     const integrity = await get<{ status: string; eventCount: number }>("/v1/audit/integrity");
     const auditEvents = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
 
-    expect(integrity).toMatchObject({ status: "verified", eventCount: 2 });
+    expect(integrity).toMatchObject({ status: "verified", eventCount: 3 });
     expect(auditEvents.items.map((event) => event.eventType)).toEqual([
       "decision.allowed",
+      "audit.exported",
       "decision.allowed",
       "audit.integrity_verified"
     ]);

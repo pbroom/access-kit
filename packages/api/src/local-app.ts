@@ -125,7 +125,7 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
   const persistenceDegradations: RebacPersistenceDegradation[] = [];
   const persistedGraph = persistence.graphRepository?.exportGraph();
   const persistedJobs = persistence.jobRepository?.exportJobs();
-  const seed = initialRuntimeSeed(persistence, options.seed ?? createLocalEngineSeed(), persistedGraph, persistedJobs);
+  const seed = initialRuntimeSeed(persistence, options.seed ?? createLocalEngineSeed(), persistedGraph, persistedJobs, now);
   const store = new InMemoryRebacStore(seed);
   persistenceDegradations.push(...store.listPersistenceDegradations());
   seedEmptyRuntimeRepositories(persistence, store, persistenceDegradations, now, persistedGraph, persistedJobs);
@@ -1068,12 +1068,15 @@ function initialRuntimeSeed(
   persistence: RebacRuntimePersistence,
   fallbackSeed: RebacSeedData,
   graph: RebacGraphSnapshot | undefined,
-  jobs: RebacJobSnapshot | undefined
+  jobs: RebacJobSnapshot | undefined,
+  now: () => string
 ): RebacSeedData {
   const baseSeed = persistence.stateRepository?.readState() ?? fallbackSeed;
+  const auditEvents = recoverAppendOnlyAuditEvents(persistence, baseSeed, now);
 
   return {
     ...baseSeed,
+    ...(auditEvents ? { auditEvents } : {}),
     ...(graph && shouldUsePersistedGraph(graph, baseSeed)
       ? {
           subjects: graph.subjects,
@@ -1102,6 +1105,29 @@ function shouldUsePersistedGraph(graph: RebacGraphSnapshot, baseSeed: RebacSeedD
     && containsAllById(graph.resources, baseSeed.resources)
     && containsAllById(graph.relationships, baseSeed.relationships)
     && containsAllById(graph.nativeGrants, baseSeed.nativeGrants);
+}
+
+function recoverAppendOnlyAuditEvents(
+  persistence: RebacRuntimePersistence,
+  baseSeed: RebacSeedData,
+  now: () => string
+): AuditEvent[] | undefined {
+  if (!persistence.stateRepository || !persistence.auditRepository) {
+    return baseSeed.auditEvents;
+  }
+
+  const storedEvents = baseSeed.auditEvents ?? [];
+  const repositoryEvents = persistence.auditRepository.listAuditEvents();
+
+  if (repositoryEvents.length <= storedEvents.length || !auditEventsStartWith(repositoryEvents, storedEvents)) {
+    return baseSeed.auditEvents;
+  }
+
+  return verifyAuditChain(repositoryEvents, now()).status === "verified" ? repositoryEvents : baseSeed.auditEvents;
+}
+
+function auditEventsStartWith(events: AuditEvent[], prefix: AuditEvent[]): boolean {
+  return prefix.every((event, index) => stableStringify(event) === stableStringify(events[index]));
 }
 
 function hasPersistedGraphRecords(graph: RebacGraphSnapshot): boolean {
@@ -1380,7 +1406,8 @@ function writeEvidenceExport(
       component: "evidence",
       operation: "writeEvidenceExport",
       occurredAt: storedAt,
-      message: error instanceof Error ? error.message : String(error)
+      message: error instanceof Error ? error.message : String(error),
+      version: "persistence-degradation:v1"
     });
     return undefined;
   }
