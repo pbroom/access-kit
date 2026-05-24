@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YAML from "yaml";
-import { backlogStatuses, readBacklog } from "./lib/automation.js";
+import { findNextReadySlice, backlogStatuses, readBacklog } from "./lib/automation.js";
 
 interface PackageJson {
   scripts?: Record<string, string>;
@@ -18,7 +18,7 @@ interface LabelManifest {
 const root = process.cwd();
 
 const backlog = await readBacklog();
-const readySlices = backlog.filter((item) => item.status === "ready");
+const nextReadySlice = findNextReadySlice(backlog);
 const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as PackageJson;
 const automationDoc = await readFile(join(root, "docs", "automation.md"), "utf8");
 const ciWorkflow = await readFile(join(root, ".github", "workflows", "ci.yml"), "utf8");
@@ -36,6 +36,7 @@ requireScripts(packageJson.scripts ?? {}, [
   "stack:ready",
   "security:pass",
   "labels:sync",
+  "labels:check",
   "automation:doctor"
 ]);
 requireNodeImportTsxScripts(packageJson.scripts ?? {}, [
@@ -80,8 +81,8 @@ for (const needle of ["pnpm steward:check", "pnpm backlog:batch", "schedule:"]) 
   }
 }
 
-if (readySlices.length === 0) {
-  throw new Error("Backlog must keep at least one ready next slice.");
+if (!nextReadySlice) {
+  throw new Error("Backlog must keep at least one dependency-cleared ready next slice.");
 }
 
 console.log("Validated automation contract.");

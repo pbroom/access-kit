@@ -56,7 +56,13 @@ function toStewardStatus(pr: GitHubPullRequest): PullRequestStewardStatus {
     actions.push("Run the local security pass before merge.");
   }
 
-  if (checks === "passing" && !labels.includes("ready-to-merge") && !labels.includes("needs-human")) {
+  if (
+    checks === "passing" &&
+    !labels.includes("ready-to-merge") &&
+    !labels.includes("needs-human") &&
+    !labels.includes("blocked") &&
+    !labels.includes("security-pass-required")
+  ) {
     actions.push("Apply ready-to-merge after human review and security pass.");
   }
 

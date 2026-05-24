@@ -32,4 +32,10 @@ describe("implementation backlog parsing and batching", () => {
 
     expect(selectReadyBacklogBatch(items, { maxItems: 1 }).map((item) => item.id)).toEqual(["AK-003"]);
   });
+
+  it("returns no batch when ready slices still depend on unmerged work", () => {
+    const items = parseBacklog(backlogMarkdown.replace("AK-001 | Foundation | merged", "AK-001 | Foundation | in_progress"));
+
+    expect(selectReadyBacklogBatch(items)).toEqual([]);
+  });
 });
