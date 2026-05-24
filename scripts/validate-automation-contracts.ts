@@ -20,6 +20,8 @@ const root = process.cwd();
 
 const backlog = await readBacklog();
 const nextReadySlice = findNextReadySlice(backlog);
+const [, inProgressStatus, inReviewStatus] = backlogStatuses;
+const activeBacklogStatuses = new Set<string>([inProgressStatus, inReviewStatus]);
 const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as PackageJson;
 const automationDoc = await readFile(join(root, "docs", "automation.md"), "utf8");
 const ciWorkflow = await readFile(join(root, ".github", "workflows", "ci.yml"), "utf8");
@@ -48,7 +50,7 @@ if ((prStewardWorkflow.match(/set -o pipefail/g) ?? []).length < automationContr
   throw new Error("PR steward workflow must preserve command failures when piping output through tee.");
 }
 
-if (!nextReadySlice && !backlog.some((item) => item.status === "in_progress" || item.status === "in_review")) {
+if (!nextReadySlice && !backlog.some((item) => activeBacklogStatuses.has(item.status))) {
   throw new Error("Backlog must keep an active slice or at least one dependency-cleared ready next slice.");
 }
 
@@ -141,11 +143,7 @@ function requireLabels(manifest: LabelManifest, definitions: readonly LabelContr
   }
 
   for (const definition of definitions) {
-    const label = labelsByName.get(definition.name);
-
-    if (!label) {
-      continue;
-    }
+    const label = labelsByName.get(definition.name)!;
 
     if (label.color.toLowerCase() !== definition.color.toLowerCase() || label.description !== definition.description) {
       throw new Error(`.github/labels.yml label ${definition.name} differs from automation contract manifest.`);

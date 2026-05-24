@@ -35,10 +35,18 @@ describe("automation contract manifest", () => {
     ]);
   });
 
-  it("uses the same state labels that the label manifest defines", () => {
+  it("uses defined labels across automation policy groups", () => {
     const definedLabels = new Set(automationContract.labels.definitions.map((label) => label.name));
+    const policyLabels = new Set([
+      ...automationContract.labels.state,
+      ...automationContract.labels.humanWait,
+      ...automationContract.labels.mergeBlockers,
+      ...automationContract.labels.stackMembership,
+      automationContract.labels.readyToMerge,
+      automationContract.labels.securityPassRequired
+    ]);
 
-    for (const label of automationContract.labels.state) {
+    for (const label of policyLabels) {
       expect(definedLabels.has(label)).toBe(true);
     }
   });

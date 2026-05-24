@@ -6,6 +6,7 @@ import { automationContract, type WorkflowContract } from "./lib/automation-cont
 type WorkflowJob = Record<string, unknown>;
 
 interface WorkflowDocument {
+  path: string;
   name?: unknown;
   concurrency?: Record<string, unknown>;
   jobs?: Record<string, WorkflowJob>;
@@ -44,14 +45,14 @@ async function readWorkflow(path: string): Promise<WorkflowDocument> {
     throw new Error(`Workflow ${path} is missing jobs`);
   }
 
-  return parsed;
+  return { ...parsed, path };
 }
 
 function requireJob(workflow: WorkflowDocument, jobName: string, needles: readonly string[]): void {
   const job = workflow.jobs?.[jobName];
 
   if (!job) {
-    throw new Error(`Workflow ${String(workflow.name)} is missing job ${jobName}`);
+    throw new Error(`Workflow ${workflow.path} is missing job ${jobName}`);
   }
 
   const jobText = JSON.stringify(job);
@@ -66,6 +67,6 @@ function requireWorkflowConcurrency(workflow: WorkflowDocument, expected: boolea
   const cancelInProgress = workflow.concurrency?.["cancel-in-progress"];
 
   if (cancelInProgress !== expected) {
-    throw new Error(`Workflow ${String(workflow.name)} cancel-in-progress must be ${String(expected)}`);
+    throw new Error(`Workflow ${workflow.path} cancel-in-progress must be ${String(expected)}`);
   }
 }
