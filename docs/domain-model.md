@@ -62,7 +62,7 @@ The domain model is not an identity directory, provider permission model, SIEM s
 
 `PersistenceDeploymentManifest` records the production persistence target, backend descriptors, deployment control evidence, and evidence references. `PersistenceDeploymentReadinessReport` combines backend readiness with deployment controls so local proof-point storage cannot be represented as production-ready persistence.
 
-`EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, format, audit integrity, control mappings, control implementation statements, generated artifacts, system boundary, data flows, access reviews, exception register, continuous-monitoring metrics, POA&M inputs, operational evidence, and SIEM export metadata.
+`EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, format, audit integrity, integrity manifest hashes, control mappings, control implementation statements, generated artifacts, system boundary, data flows, access reviews, exception register, continuous-monitoring metrics, POA&M inputs, operational evidence, and SIEM export metadata.
 
 ## Separation Rules
 

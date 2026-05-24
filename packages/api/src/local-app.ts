@@ -108,6 +108,8 @@ interface AuditEventExportOptions {
   target?: AuditEventExportTarget;
 }
 
+type EvidenceExportWithoutIntegrity = Omit<EvidenceExport, "integrityManifest" | "storageReceipt">;
+
 export interface EnforcementReadinessRequest {
   mode?: "enforcement";
   control: EnforcementControl;
@@ -939,7 +941,7 @@ export function exportEvidencePackage(
   const exceptionRegister = buildExceptionRegister(app, generatedAt);
   const operationalEvidence = buildOperationalEvidence(generatedAt);
   const artifacts = buildEvidenceArtifacts(format, events.length);
-  const exportMetadata: EvidenceExport = {
+  const exportMetadata = attachEvidenceIntegrityManifest({
     exportId: `evidence:${generatedAt.replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`,
     framework: options.framework ?? "nist-800-53",
     controls,
@@ -984,7 +986,7 @@ export function exportEvidencePackage(
     accessReviews,
     exceptionRegister,
     operationalEvidence
-  };
+  });
 
   const evidenceEvent = recordAudit(app, {
     eventType: "evidence.generated",
@@ -1000,6 +1002,53 @@ export function exportEvidencePackage(
     app.persistenceDegradations
   );
   return storageReceipt ? { ...exportMetadata, storageReceipt } : exportMetadata;
+}
+
+function attachEvidenceIntegrityManifest(evidence: EvidenceExportWithoutIntegrity): EvidenceExport {
+  return {
+    ...evidence,
+    integrityManifest: {
+      packageHash: hashReference(evidence),
+      hashAlgorithm: "sha256",
+      canonicalization: "stable-json",
+      generatedAt: evidence.generatedAt,
+      sections: [
+        evidenceSectionHash("auditIntegrity", evidence.auditIntegrity),
+        evidenceSectionHash("controlMappings", evidence.controlMappings),
+        evidenceSectionHash("artifacts", evidence.artifacts),
+        evidenceSectionHash("systemBoundary", evidence.systemBoundary),
+        evidenceSectionHash("dataFlows", evidence.dataFlows),
+        evidenceSectionHash("accessReviews", evidence.accessReviews),
+        evidenceSectionHash("exceptionRegister", evidence.exceptionRegister),
+        evidenceSectionHash("operationalEvidence", evidence.operationalEvidence),
+        evidenceSectionHash("siemExport", evidence.siemExport)
+      ],
+      verifier: {
+        documentationPath: "docs/evidence-integrity-verifier.md",
+        summary: "Recompute the stable-json package hash before storageReceipt is added and compare section hashes.",
+        verificationSteps: [
+          "Remove storageReceipt if present.",
+          "Remove integrityManifest from the evidence package.",
+          "Canonicalize the remaining package with stable JSON key ordering.",
+          "Compute sha256 over the canonical package and compare it with integrityManifest.packageHash.",
+          "Canonicalize each named section and compare sha256 values with integrityManifest.sections."
+        ]
+      },
+      version: "evidence-integrity-manifest:v1"
+    }
+  };
+}
+
+function evidenceSectionHash(name: string, value: unknown): EvidenceExport["integrityManifest"]["sections"][number] {
+  return {
+    name,
+    hash: hashReference(value),
+    ...(Array.isArray(value) ? { itemCount: value.length } : {})
+  };
+}
+
+function hashReference(value: unknown): string {
+  return `sha256:${sha256(value)}`;
 }
 
 export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {

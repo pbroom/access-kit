@@ -40,7 +40,7 @@ pnpm evidence:check
 
 - Audit integrity report returns `verified` or findings.
 - Audit export returns JSONL-ready event records and source event IDs.
-- Evidence export returns control mappings, source events, artifacts, boundary, data flows, ConMon, POA&M, operational evidence, and SIEM metadata.
+- Evidence export returns control mappings, source events, integrity manifest, artifacts, boundary, data flows, ConMon, POA&M, operational evidence, and SIEM metadata.
 
 ## Verification Steps
 
@@ -48,7 +48,8 @@ pnpm evidence:check
 2. Verify audit chain status.
 3. Confirm exported event count is expected.
 4. Confirm evidence source event IDs link to audit events.
-5. Record validation not performed, if any.
+5. Recompute evidence package and section hashes with [Evidence Integrity Verifier](../docs/evidence-integrity-verifier.md).
+6. Record validation not performed, if any.
 
 ## Audit Events Emitted
 
@@ -61,6 +62,7 @@ pnpm evidence:check
 - Audit integrity report.
 - Audit export metadata.
 - Evidence export package.
+- Integrity manifest verification result.
 - Storage receipt, if configured.
 - Requester, purpose, and delivery record.
 
