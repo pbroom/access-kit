@@ -8,9 +8,10 @@ export type RuntimeRequestSchemaName =
   | "subject";
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
+const isoDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u;
 ajv.addFormat("date-time", {
   type: "string",
-  validate: (value: string) => !Number.isNaN(Date.parse(value))
+  validate: (value: string) => isoDateTimePattern.test(value) && !Number.isNaN(Date.parse(value))
 });
 
 const idPattern = "^[a-z0-9_:-]+$";

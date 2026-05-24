@@ -1106,7 +1106,9 @@ function normalizeDecisionRequest(value: DecisionRequest): DecisionRequest {
     subjectId: value.subjectId,
     action: value.action,
     resourceId: value.resourceId,
-    context: value.context
+    context: value.context,
+    policyVersion: value.policyVersion,
+    relationshipVersion: value.relationshipVersion
   };
 }
 
