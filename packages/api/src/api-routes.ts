@@ -1,0 +1,41 @@
+export interface ApiRouteSurface {
+  method: "DELETE" | "GET" | "POST" | "PUT";
+  path: string;
+}
+
+export const API_ROUTE_SURFACES: ApiRouteSurface[] = [
+  { method: "GET", path: "/v1/health" },
+  { method: "GET", path: "/v1/ready" },
+  { method: "POST", path: "/v1/decision/check" },
+  { method: "POST", path: "/v1/decision/explain" },
+  { method: "POST", path: "/v1/decision/batch-check" },
+  { method: "GET", path: "/v1/subjects" },
+  { method: "POST", path: "/v1/subjects" },
+  { method: "GET", path: "/v1/subjects/{id}" },
+  { method: "GET", path: "/v1/subjects/{id}/access" },
+  { method: "GET", path: "/v1/resources" },
+  { method: "POST", path: "/v1/resources" },
+  { method: "GET", path: "/v1/resources/{id}" },
+  { method: "GET", path: "/v1/resources/{id}/access" },
+  { method: "GET", path: "/v1/resources/{id}/native-access" },
+  { method: "GET", path: "/v1/relationships" },
+  { method: "PUT", path: "/v1/relationships" },
+  { method: "DELETE", path: "/v1/relationships" },
+  { method: "POST", path: "/v1/policies/{id}/validate" },
+  { method: "POST", path: "/v1/policies/{id}/publish" },
+  { method: "POST", path: "/v1/provisioning/plans" },
+  { method: "POST", path: "/v1/provisioning/jobs" },
+  { method: "GET", path: "/v1/provisioning/jobs/{id}" },
+  { method: "POST", path: "/v1/reconciliation/run" },
+  { method: "GET", path: "/v1/reconciliation/findings" },
+  { method: "GET", path: "/v1/discovery/runs" },
+  { method: "GET", path: "/v1/audit/events" },
+  { method: "GET", path: "/v1/audit/integrity" },
+  { method: "GET", path: "/v1/audit/export" },
+  { method: "GET", path: "/v1/evidence/export" },
+  { method: "GET", path: "/v1/connectors" },
+  { method: "POST", path: "/v1/connectors/{id}/test" },
+  { method: "GET", path: "/v1/connectors/{id}/enforcement-readiness" },
+  { method: "POST", path: "/v1/connectors/{id}/enforcement-readiness" },
+  { method: "POST", path: "/v1/connectors/{id}/sync" }
+];
