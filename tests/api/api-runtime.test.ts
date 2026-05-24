@@ -603,6 +603,7 @@ describe("ReBAC API runtime", () => {
       accessReviews: Array<{ status: string; subjectCount: number; resourceCount: number; sourceEventIds: string[] }>;
       exceptionRegister: unknown[];
       operationalEvidence: Array<{ type: string; status: string; gaps: string[] }>;
+      storageReceipt?: unknown;
     }>("/v1/evidence/export");
 
     expect(evidence.periodStart).toBe("2026-05-20T01:00:00.000Z");
@@ -610,7 +611,8 @@ describe("ReBAC API runtime", () => {
     expect(evidence.periodEnd).toBe("2026-05-21T17:00:00.000Z");
     expect(evidence.generatedAt).toBe("2026-05-21T17:00:00.000Z");
     expect(evidence.auditIntegrity).toMatchObject({ status: "verified", eventCount: 1 });
-    const { integrityManifest, ...evidenceWithoutManifest } = evidence;
+    const { integrityManifest, storageReceipt: _storageReceipt, ...evidenceWithoutManifest } = evidence;
+    void _storageReceipt;
     const sectionsByName = new Map(integrityManifest.sections.map((section) => [section.name, section]));
     expect(integrityManifest).toMatchObject({
       hashAlgorithm: "sha256",
