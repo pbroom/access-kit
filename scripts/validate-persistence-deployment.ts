@@ -1,6 +1,7 @@
 import Ajv2020 from "ajv/dist/2020.js";
 import type { AnySchema } from "ajv";
 import addFormats from "ajv-formats";
+import { deepStrictEqual } from "node:assert";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import YAML from "yaml";
@@ -17,17 +18,23 @@ type JsonObject = Record<string, unknown>;
 const root = process.cwd();
 const manifestPath = "deploy/persistence/production-manifest.example.json";
 const schemaFixturePath = "tests/fixtures/schema-examples/persistence-deployment-manifest.json";
+const readinessReportPath = "deploy/persistence/readiness-report.example.json";
+const readinessSchemaFixturePath = "tests/fixtures/schema-examples/persistence-deployment-readiness.json";
 const schemaPath = "schemas/persistence-deployment-manifest.schema.json";
+const readinessSchemaPath = "schemas/persistence-deployment-readiness.schema.json";
 const kubernetesDeploymentPath = "deploy/kubernetes/deployment.yaml";
 const checkedAt = new Date().toISOString();
 
 const schema = await readJsonFile<AnySchema>(join(root, schemaPath));
+const readinessSchema = await readJsonFile<AnySchema>(join(root, readinessSchemaPath));
 const manifest = await readJsonFile<PersistenceDeploymentManifest>(join(root, manifestPath));
+const storedReadinessReport = await readJsonFile<JsonObject>(join(root, readinessReportPath));
 const deploymentRuntime = await readDeploymentRuntimeMetadata(kubernetesDeploymentPath);
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
 
 await requireMatchingFiles(manifestPath, schemaFixturePath, "Persistence deployment manifest schema fixture");
+await requireMatchingFiles(readinessReportPath, readinessSchemaFixturePath, "Persistence deployment readiness schema fixture");
 
 const validateManifest = ajv.compile(schema);
 if (!validateManifest(manifest)) {
@@ -35,6 +42,19 @@ if (!validateManifest(manifest)) {
 }
 
 const readinessReport = assessPersistenceDeploymentReadiness(manifest, checkedAt);
+const validateReadinessReport = ajv.compile(readinessSchema);
+if (!validateReadinessReport(storedReadinessReport)) {
+  throw new Error(`Persistence deployment readiness report failed schema validation: ${ajv.errorsText(validateReadinessReport.errors)}`);
+}
+const expectedStoredReadinessReport = assessPersistenceDeploymentReadiness(
+  manifest,
+  readString(storedReadinessReport.checkedAt, "stored readiness report checkedAt")
+);
+try {
+  deepStrictEqual(storedReadinessReport, expectedStoredReadinessReport);
+} catch {
+  throw new Error("Persistence deployment readiness report is stale. Regenerate deploy/persistence/readiness-report.example.json.");
+}
 if (readinessReport.status !== "ready") {
   const failures = readinessReport.checks.filter((check) => check.status !== "pass").map((check) => check.name);
   throw new Error(`Persistence deployment manifest was not ready: ${failures.join(", ")}`);
@@ -55,7 +75,7 @@ await validateOperatorAccess(evidence.get("deploy/persistence/evidence/operator-
 validateLocalProofPointBlocked(manifest);
 
 console.log("Validated persistence deployment manifest.");
-console.log("PASS Production persistence manifest schema, readiness, IaC evidence, release approval, backup/restore, and operator controls are wired.");
+console.log("PASS Production persistence manifest schema, readiness report artifact, IaC evidence, release approval, backup/restore, and operator controls are wired.");
 console.log("PASS Local proof-point persistence manifests remain blocked from production readiness.");
 
 async function loadEvidenceRefs(manifest: PersistenceDeploymentManifest): Promise<Map<string, JsonObject>> {
