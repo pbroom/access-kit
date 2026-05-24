@@ -38,4 +38,12 @@ describe("implementation backlog parsing and batching", () => {
 
     expect(selectReadyBacklogBatch(items)).toEqual([]);
   });
+
+  it("rejects dependency cycles even when no ready slice is involved", () => {
+    const cyclicBacklog = backlogMarkdown
+      .replace("AK-002 | Storage runtime | ready | P0 | AK-001", "AK-002 | Storage runtime | in_progress | P0 | AK-003")
+      .replace("AK-003 | Connector persistence | ready | P1 | AK-002", "AK-003 | Connector persistence | in_review | P1 | AK-002");
+
+    expect(() => parseBacklog(cyclicBacklog)).toThrow("Backlog dependency cycle detected: AK-002 -> AK-003 -> AK-002.");
+  });
 });

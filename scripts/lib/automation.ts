@@ -148,6 +148,8 @@ export function validateBacklogItems(items: BacklogItem[]): void {
       duplicateDeps.add(dependency);
     }
   }
+
+  assertNoDependencyCycles(items);
 }
 
 export function findNextReadySlice(items: BacklogItem[]): BacklogItem | undefined {
@@ -250,6 +252,41 @@ function parseParallel(value: string): boolean {
   throw new Error(
     `Unsupported backlog parallel value ${value}. Allowed values: ${backlogParallelValues.join(", ")}`
   );
+}
+
+function assertNoDependencyCycles(items: BacklogItem[]): void {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+
+  const visit = (item: BacklogItem, path: string[]): void => {
+    if (visiting.has(item.id)) {
+      const cycleStart = path.indexOf(item.id);
+      const cycle = path.slice(cycleStart).join(" -> ");
+      throw new Error(`Backlog dependency cycle detected: ${cycle}.`);
+    }
+
+    if (visited.has(item.id)) {
+      return;
+    }
+
+    visiting.add(item.id);
+
+    for (const dependency of item.dependsOn) {
+      const dependencyItem = byId.get(dependency);
+
+      if (dependencyItem) {
+        visit(dependencyItem, [...path, dependency]);
+      }
+    }
+
+    visiting.delete(item.id);
+    visited.add(item.id);
+  };
+
+  for (const item of items) {
+    visit(item, [item.id]);
+  }
 }
 
 function priorityRank(priority: string): number {
