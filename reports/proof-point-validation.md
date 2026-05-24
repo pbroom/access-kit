@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T22:46:01.427Z
+Generated at: 2026-05-24T23:04:35.479Z
 
-Branch: 
+Branch: codex/rebac-durable-storage-runtime
 
 Node: v24.4.1
 
@@ -105,8 +105,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  18:45:55
-   Duration  341ms (transform 118ms, setup 0ms, import 217ms, tests 31ms, environment 0ms)
+   Start at  19:04:29
+   Duration  363ms (transform 127ms, setup 0ms, import 230ms, tests 35ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -165,8 +165,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  3 passed (3)
       Tests  56 passed (56)
-   Start at  18:45:58
-   Duration  219ms (transform 202ms, setup 0ms, import 256ms, tests 36ms, environment 0ms)
+   Start at  19:04:32
+   Duration  247ms (transform 236ms, setup 0ms, import 298ms, tests 40ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -180,9 +180,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  1 passed (1)
-      Tests  73 passed (73)
-   Start at  18:45:59
-   Duration  502ms (transform 126ms, setup 0ms, import 207ms, tests 201ms, environment 0ms)
+      Tests  74 passed (74)
+   Start at  19:04:33
+   Duration  596ms (transform 141ms, setup 0ms, import 231ms, tests 264ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -197,8 +197,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  3 passed (3)
       Tests  31 passed (31)
-   Start at  18:46:00
-   Duration  386ms (transform 332ms, setup 0ms, import 624ms, tests 148ms, environment 0ms)
+   Start at  19:04:34
+   Duration  425ms (transform 379ms, setup 0ms, import 693ms, tests 165ms, environment 0ms)
 ```
 
 

@@ -1112,7 +1112,7 @@ function initialRuntimeSeed(
 
   return {
     ...baseSeed,
-    ...(graph && hasPersistedGraphRecords(graph)
+    ...(graph && shouldUsePersistedGraph(graph, baseSeed)
       ? {
           subjects: graph.subjects,
           resources: graph.resources,
@@ -1120,7 +1120,7 @@ function initialRuntimeSeed(
           nativeGrants: graph.nativeGrants
         }
       : {}),
-    ...(jobs && hasPersistedRuntimeJobRecords(jobs)
+    ...(jobs && shouldUsePersistedJobs(jobs, baseSeed)
       ? {
           provisioningPlans: jobs.provisioningPlans,
           provisioningJobs: jobs.provisioningJobs,
@@ -1130,6 +1130,14 @@ function initialRuntimeSeed(
   };
 }
 
+function shouldUsePersistedGraph(graph: RebacGraphSnapshot, baseSeed: RebacSeedData): boolean {
+  return hasPersistedGraphRecords(graph)
+    && containsAllById(graph.subjects, baseSeed.subjects)
+    && containsAllById(graph.resources, baseSeed.resources)
+    && containsAllById(graph.relationships, baseSeed.relationships)
+    && containsAllById(graph.nativeGrants, baseSeed.nativeGrants);
+}
+
 function hasPersistedGraphRecords(graph: RebacGraphSnapshot): boolean {
   return graph.subjects.length > 0
     || graph.resources.length > 0
@@ -1137,10 +1145,38 @@ function hasPersistedGraphRecords(graph: RebacGraphSnapshot): boolean {
     || graph.nativeGrants.length > 0;
 }
 
+function shouldUsePersistedJobs(jobs: RebacJobSnapshot, baseSeed: RebacSeedData): boolean {
+  return hasPersistedRuntimeJobRecords(jobs)
+    && containsAllById(jobs.discoveryRuns, baseSeed.discoveryRuns)
+    && containsAllById(jobs.enforcementReadinessReports, baseSeed.enforcementReadinessReports)
+    && containsAllById(jobs.provisioningPlans, baseSeed.provisioningPlans)
+    && containsAllById(jobs.provisioningJobs, baseSeed.provisioningJobs)
+    && containsAllById(jobs.driftFindings, baseSeed.driftFindings)
+    && containsAllById(jobs.reconciliationRuns, baseSeed.reconciliationRuns)
+    && containsAllByKey(jobs.decisions, baseSeed.decisions, "decisionId");
+}
+
 function hasPersistedRuntimeJobRecords(jobs: RebacJobSnapshot): boolean {
   return jobs.provisioningPlans.length > 0
     || jobs.provisioningJobs.length > 0
     || jobs.decisions.length > 0;
+}
+
+function containsAllById<T extends { id: string }>(persisted: readonly T[], seeded: readonly T[] | undefined): boolean {
+  return containsAllByKey(persisted, seeded, "id");
+}
+
+function containsAllByKey<T extends Record<K, string>, K extends keyof T>(
+  persisted: readonly T[],
+  seeded: readonly T[] | undefined,
+  key: K
+): boolean {
+  if (!seeded || seeded.length === 0) {
+    return true;
+  }
+
+  const persistedKeys = new Set(persisted.map((item) => item[key]));
+  return seeded.every((item) => persistedKeys.has(item[key]));
 }
 
 function seedEmptyRuntimeRepositories(

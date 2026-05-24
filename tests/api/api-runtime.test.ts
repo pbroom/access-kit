@@ -1033,6 +1033,42 @@ describe("ReBAC API runtime", () => {
     expect(jobExports).toBe(1);
   });
 
+  it("keeps state snapshots authoritative over partial repository seed writes", () => {
+    const storageRoot = mkdtempSync(join(tmpdir(), "access-kit-runtime-repository-partial-"));
+    tempDirs.push(storageRoot);
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: join(storageRoot, "state") });
+    const graphRepository = new LocalJsonFileGraphRepository({ rootDir: join(storageRoot, "graph") });
+    const jobRepository = new LocalJsonFileJobRepository({ rootDir: join(storageRoot, "jobs") });
+    const stateSeed = {
+      ...createRebacLocalApp().store.exportSeedData(),
+      discoveryRuns: [createSeedDiscoveryRun()],
+      decisions: [createSeedDecision()]
+    };
+    const firstSubject = stateSeed.subjects?.[0];
+
+    stateRepository.writeState(stateSeed, TEST_NOW);
+    if (firstSubject) {
+      graphRepository.upsertSubject(firstSubject);
+    }
+    jobRepository.recordDiscoveryRun(stateSeed.discoveryRuns[0]);
+
+    const app = createRebacLocalApp({
+      persistence: {
+        stateRepository,
+        graphRepository,
+        jobRepository
+      }
+    });
+
+    expect(app.store.listResources().map((resource) => resource.id)).toEqual(
+      expect.arrayContaining(stateSeed.resources?.map((resource) => resource.id) ?? [])
+    );
+    expect(app.store.listRelationships().map((relationship) => relationship.id)).toEqual(
+      expect.arrayContaining(stateSeed.relationships?.map((relationship) => relationship.id) ?? [])
+    );
+    expect(app.store.listDecisions().map((decision) => decision.decisionId)).toContain("decision:seeded");
+  });
+
   it("records startup repository seed degradations with ISO timestamps", () => {
     const storageRoot = mkdtempSync(join(tmpdir(), "access-kit-runtime-repository-startup-"));
     tempDirs.push(storageRoot);
@@ -2516,6 +2552,34 @@ function createSeedDecision(): DecisionResult {
     relationshipPath: [],
     constraints: {},
     evaluatedAt: TEST_NOW
+  };
+}
+
+function createSeedDiscoveryRun() {
+  return {
+    id: "discovery-run:seeded",
+    connectorId: "mock",
+    mode: "read_only" as const,
+    status: "completed" as const,
+    startedAt: TEST_NOW,
+    completedAt: "2026-05-21T17:01:00.000Z",
+    counts: {
+      subjects: 1,
+      resources: 1,
+      relationships: 1,
+      nativeGrants: 0,
+      warnings: 0
+    },
+    warnings: [],
+    evidence: {
+      readOnly: true,
+      schemas: ["subject", "resource", "relationship"],
+      connectorCapabilities: ["discovery"],
+      nativeAccessReadback: true
+    },
+    auditEventIds: ["evt:seeded-discovery"],
+    version: "discovery-run:v1" as const,
+    createdAt: TEST_NOW
   };
 }
 
