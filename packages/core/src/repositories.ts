@@ -6,9 +6,22 @@ import type {
   AuditEvent,
   AuditIntegrityReport,
   AuditStorageReceipt,
+  CanonicalId,
   EvidenceExport,
-  EvidenceStorageReceipt
+  EvidenceStorageReceipt,
+  NativeGrant,
+  RelationshipTuple,
+  Resource,
+  Subject
 } from "./domain.js";
+import type {
+  DescribedPersistenceRepository,
+  NativeGrantFilter,
+  PersistenceBackendDescriptor,
+  RebacGraphRepository,
+  RebacGraphSnapshot,
+  RelationshipFilter
+} from "./persistence.js";
 import type { RebacSeedData } from "./store.js";
 
 export interface AuditEventRepository {
@@ -49,13 +62,41 @@ export interface RebacStateStorageReceipt {
   version: string;
 }
 
+export interface RebacGraphStorageReceipt {
+  storedAt: string;
+  backend: "local_file" | "external";
+  location: string;
+  graphHash: string;
+  entityCounts: {
+    subjects: number;
+    resources: number;
+    relationships: number;
+    nativeGrants: number;
+  };
+  version: "rebac-graph-storage-receipt:v1";
+}
+
 export interface LocalFileEvidenceRepositoryOptions {
   rootDir: string;
+}
+
+export interface LocalJsonFileGraphRepositoryOptions {
+  rootDir?: string;
+  graphPath?: string;
+  now?: () => string;
 }
 
 export interface LocalJsonFileStateRepositoryOptions {
   rootDir?: string;
   statePath?: string;
+}
+
+interface StoredRebacGraph {
+  version: "rebac-graph-state:v1";
+  storedAt: string;
+  graphHash: string;
+  graph: RebacGraphSnapshot;
+  entityCounts: RebacGraphStorageReceipt["entityCounts"];
 }
 
 interface StoredRebacState {
@@ -145,12 +186,178 @@ export class LocalFileEvidenceRepository implements AuditEventRepository, Eviden
   }
 }
 
+export class LocalJsonFileGraphRepository implements RebacGraphRepository, DescribedPersistenceRepository {
+  readonly #graphPath: string;
+  readonly #location: string;
+  readonly #now: () => string;
+  #graph: RebacGraphSnapshot;
+
+  constructor(options: LocalJsonFileGraphRepositoryOptions) {
+    this.#graphPath = options.graphPath ?? join(requiredRootDir(options, "LocalJsonFileGraphRepository"), "graph-state.json");
+    this.#location = basename(this.#graphPath);
+    this.#now = options.now ?? (() => new Date().toISOString());
+    mkdirSync(dirname(this.#graphPath), { recursive: true });
+    this.#graph = this.#readGraph() ?? emptyGraphSnapshot();
+  }
+
+  describePersistence(): PersistenceBackendDescriptor {
+    return {
+      component: "graph",
+      backend: "local_file",
+      durable: false,
+      immutable: false,
+      capabilities: ["graph_read", "graph_write", "relationship_query", "native_grant_readback", "backup_restore"],
+      location: this.#location,
+      version: "persistence-backend:v1"
+    };
+  }
+
+  getSubject(id: CanonicalId): Subject | undefined {
+    return cloneOptional(this.#graph.subjects.find((subject) => subject.id === id));
+  }
+
+  listSubjects(): Subject[] {
+    return clone(this.#graph.subjects);
+  }
+
+  upsertSubject(subject: Subject): Subject {
+    this.#graph.subjects = upsertById(this.#graph.subjects, clone(subject));
+    this.#persist(this.#now());
+    return clone(subject);
+  }
+
+  getResource(id: CanonicalId): Resource | undefined {
+    return cloneOptional(this.#graph.resources.find((resource) => resource.id === id));
+  }
+
+  listResources(): Resource[] {
+    return clone(this.#graph.resources);
+  }
+
+  upsertResource(resource: Resource): Resource {
+    this.#graph.resources = upsertById(this.#graph.resources, clone(resource));
+    this.#persist(this.#now());
+    return clone(resource);
+  }
+
+  getRelationship(id: CanonicalId): RelationshipTuple | undefined {
+    return cloneOptional(this.#graph.relationships.find((relationship) => relationship.id === id));
+  }
+
+  listRelationships(filter: RelationshipFilter = {}): RelationshipTuple[] {
+    return clone(
+      this.#graph.relationships.filter((relationship) => {
+        return (
+          (!filter.subjectId || relationship.subjectId === filter.subjectId) &&
+          (!filter.objectId || relationship.objectId === filter.objectId) &&
+          (!filter.relation || relationship.relation === filter.relation)
+        );
+      })
+    );
+  }
+
+  upsertRelationship(relationship: RelationshipTuple): RelationshipTuple {
+    this.#graph.relationships = upsertById(this.#graph.relationships, clone(relationship));
+    this.#persist(this.#now());
+    return clone(relationship);
+  }
+
+  deleteRelationship(id: CanonicalId, deletedAt: string): RelationshipTuple | undefined {
+    const relationship = this.#graph.relationships.find((entry) => entry.id === id);
+
+    if (!relationship) {
+      return undefined;
+    }
+
+    const deleted: RelationshipTuple = {
+      ...relationship,
+      status: "deleted",
+      updatedAt: deletedAt
+    };
+    this.#graph.relationships = upsertById(this.#graph.relationships, deleted);
+    this.#persist(deletedAt);
+    return clone(deleted);
+  }
+
+  listNativeGrants(filter: NativeGrantFilter = {}): NativeGrant[] {
+    return clone(
+      this.#graph.nativeGrants.filter((grant) => {
+        return (
+          (!filter.sourceConnectorId || grant.sourceConnectorId === filter.sourceConnectorId) &&
+          (!filter.targetObjectId || grant.targetObjectId === filter.targetObjectId) &&
+          (!filter.subjectId || grant.subjectId === filter.subjectId) &&
+          (!filter.nativePermission || grant.nativePermission === filter.nativePermission) &&
+          (!filter.grantType || grant.grantType === filter.grantType) &&
+          (!filter.principalType || grant.principalType === filter.principalType) &&
+          (!filter.status || grant.status === filter.status)
+        );
+      })
+    );
+  }
+
+  upsertNativeGrant(grant: NativeGrant): NativeGrant {
+    this.#graph.nativeGrants = upsertById(this.#graph.nativeGrants, clone(grant));
+    this.#persist(this.#now());
+    return clone(grant);
+  }
+
+  exportGraph(): RebacGraphSnapshot {
+    return clone(this.#graph);
+  }
+
+  flush(storedAt: string = this.#now()): RebacGraphStorageReceipt {
+    return this.#persist(storedAt);
+  }
+
+  #readGraph(): RebacGraphSnapshot | undefined {
+    if (!existsSync(this.#graphPath)) {
+      return undefined;
+    }
+
+    const parsed = JSON.parse(readFileSync(this.#graphPath, "utf8")) as Partial<StoredRebacGraph> | RebacGraphSnapshot;
+
+    if (isStoredRebacGraph(parsed)) {
+      assertStoredGraphIntegrity(parsed);
+      return normalizeGraphSnapshot(parsed.graph);
+    }
+
+    return normalizeGraphSnapshot(parsed as Partial<RebacGraphSnapshot>);
+  }
+
+  #persist(storedAt: string): RebacGraphStorageReceipt {
+    const graph = normalizeGraphSnapshot(this.#graph);
+    const graphHash = `sha256:${stableHash(graph)}`;
+    const entityCounts = countGraphEntities(graph);
+    const stored: StoredRebacGraph = {
+      version: "rebac-graph-state:v1",
+      storedAt,
+      graphHash,
+      graph,
+      entityCounts
+    };
+    const tempPath = `${this.#graphPath}.${process.pid}.${Date.now()}.tmp`;
+    mkdirSync(dirname(this.#graphPath), { recursive: true });
+    writeFileSync(tempPath, `${stableStringify(stored)}\n`, "utf8");
+    renameSync(tempPath, this.#graphPath);
+    this.#graph = graph;
+
+    return {
+      storedAt,
+      backend: "local_file",
+      location: this.#location,
+      graphHash,
+      entityCounts,
+      version: "rebac-graph-storage-receipt:v1"
+    };
+  }
+}
+
 export class LocalJsonFileStateRepository implements RebacStateRepository {
   readonly #statePath: string;
   readonly #location: string;
 
   constructor(options: LocalJsonFileStateRepositoryOptions) {
-    this.#statePath = options.statePath ?? join(requiredRootDir(options), "runtime-state.json");
+    this.#statePath = options.statePath ?? join(requiredRootDir(options, "LocalJsonFileStateRepository"), "runtime-state.json");
     this.#location = basename(this.#statePath);
     mkdirSync(dirname(this.#statePath), { recursive: true });
   }
@@ -204,12 +411,24 @@ function stableHash(value: unknown): string {
   return createHash("sha256").update(stableStringify(value)).digest("hex");
 }
 
-function requiredRootDir(options: LocalJsonFileStateRepositoryOptions): string {
+function requiredRootDir(
+  options: LocalJsonFileGraphRepositoryOptions | LocalJsonFileStateRepositoryOptions,
+  repositoryName: string
+): string {
   if (!options.rootDir) {
-    throw new Error("LocalJsonFileStateRepository requires rootDir or statePath");
+    throw new Error(`${repositoryName} requires rootDir or an explicit file path`);
   }
 
   return options.rootDir;
+}
+
+function isStoredRebacGraph(value: Partial<StoredRebacGraph> | RebacGraphSnapshot): value is StoredRebacGraph {
+  return (
+    typeof (value as StoredRebacGraph).version === "string" &&
+    (value as StoredRebacGraph).version === "rebac-graph-state:v1" &&
+    typeof (value as StoredRebacGraph).graph === "object" &&
+    (value as StoredRebacGraph).graph !== null
+  );
 }
 
 function isStoredRebacState(value: Partial<StoredRebacState> | RebacSeedData): value is StoredRebacState {
@@ -221,12 +440,57 @@ function isStoredRebacState(value: Partial<StoredRebacState> | RebacSeedData): v
   );
 }
 
+function assertStoredGraphIntegrity(stored: StoredRebacGraph): void {
+  const expectedGraphHash = `sha256:${stableHash(stored.graph)}`;
+
+  if (stored.graphHash !== expectedGraphHash) {
+    throw new Error("ReBAC graph state hash does not match the stored graph payload.");
+  }
+}
+
 function assertStoredStateIntegrity(stored: StoredRebacState): void {
   const expectedStateHash = `sha256:${stableHash(stored.state)}`;
 
   if (stored.stateHash !== expectedStateHash) {
     throw new Error("ReBAC runtime state hash does not match the stored state payload.");
   }
+}
+
+function emptyGraphSnapshot(): RebacGraphSnapshot {
+  return {
+    subjects: [],
+    resources: [],
+    relationships: [],
+    nativeGrants: []
+  };
+}
+
+function normalizeGraphSnapshot(graph: Partial<RebacGraphSnapshot>): RebacGraphSnapshot {
+  return {
+    subjects: clone(graph.subjects ?? []),
+    resources: clone(graph.resources ?? []),
+    relationships: clone(graph.relationships ?? []),
+    nativeGrants: clone(graph.nativeGrants ?? [])
+  };
+}
+
+function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {
+  const index = items.findIndex((entry) => entry.id === item.id);
+
+  if (index === -1) {
+    return [...items, item];
+  }
+
+  return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
+}
+
+function countGraphEntities(graph: RebacGraphSnapshot): RebacGraphStorageReceipt["entityCounts"] {
+  return {
+    subjects: graph.subjects.length,
+    resources: graph.resources.length,
+    relationships: graph.relationships.length,
+    nativeGrants: graph.nativeGrants.length
+  };
 }
 
 function countStateEntities(state: RebacSeedData): RebacStateStorageReceipt["entityCounts"] {
@@ -244,4 +508,12 @@ function countStateEntities(state: RebacSeedData): RebacStateStorageReceipt["ent
     decisions: state.decisions?.length ?? 0,
     auditEvents: state.auditEvents?.length ?? 0
   };
+}
+
+function cloneOptional<T>(value: T | undefined): T | undefined {
+  return value === undefined ? undefined : clone(value);
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
 }

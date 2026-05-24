@@ -1,12 +1,19 @@
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   assessPersistenceReadiness,
   createLocalEngineSeed,
   InMemoryRebacPersistenceRepository,
+  LocalJsonFileGraphRepository,
   type NativeGrant,
   type PersistenceBackendDescriptor,
   type ProvisioningJob,
-  type ProvisioningPlan
+  type ProvisioningPlan,
+  type RelationshipTuple,
+  type Resource,
+  type Subject
 } from "../../packages/core/src/index.js";
 
 const now = "2026-05-21T17:00:00.000Z";
@@ -63,6 +70,101 @@ describe("persistent ReBAC repository contracts", () => {
     });
     expect(repository.describePersistence().capabilities).not.toContain("job_enqueue");
     expect(repository.describePersistence().capabilities).not.toContain("idempotency_lookup");
+  });
+
+  it("persists graph facts to a local JSON graph file and reloads them separately from jobs", () => {
+    const graphPath = join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json");
+    const repository = new LocalJsonFileGraphRepository({ graphPath, now: () => now });
+    const subject = createSubject();
+    const resource = createResource();
+    const relationship = createRelationship();
+    const nativeGrant = createNativeGrant();
+
+    repository.upsertSubject(subject);
+    repository.upsertResource(resource);
+    repository.upsertRelationship(relationship);
+    repository.upsertNativeGrant(nativeGrant);
+    const receipt = repository.flush(now);
+
+    expect(receipt).toMatchObject({
+      backend: "local_file",
+      location: "graph-state.json",
+      graphHash: expect.stringMatching(/^sha256:/),
+      entityCounts: {
+        subjects: 1,
+        resources: 1,
+        relationships: 1,
+        nativeGrants: 1
+      }
+    });
+
+    const stored = JSON.parse(readFileSync(graphPath, "utf8")) as {
+      version: string;
+      graph: Record<string, unknown>;
+    };
+    expect(stored.version).toBe("rebac-graph-state:v1");
+    expect(stored.graph).not.toHaveProperty("provisioningJobs");
+    expect(stored.graph).not.toHaveProperty("auditEvents");
+
+    const reopened = new LocalJsonFileGraphRepository({ graphPath, now: () => now });
+    expect(reopened.getSubject(subject.id)).toEqual(subject);
+    expect(reopened.getResource(resource.id)).toEqual(resource);
+    expect(reopened.listRelationships({ subjectId: subject.id, relation: "reader" })).toEqual([relationship]);
+    expect(reopened.listNativeGrants({ sourceConnectorId: "mock", nativePermission: "read" })).toEqual([nativeGrant]);
+
+    reopened.listSubjects()[0] = { ...subject, displayName: "Mutated Outside Repository" };
+    expect(reopened.getSubject(subject.id)?.displayName).toBe("Bob Example");
+  });
+
+  it("marks deleted relationships in the persisted graph snapshot", () => {
+    const graphPath = join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json");
+    const repository = new LocalJsonFileGraphRepository({ graphPath, now: () => now });
+    const relationship = createRelationship();
+
+    repository.upsertRelationship(relationship);
+    expect(repository.deleteRelationship(relationship.id, "2026-05-21T18:00:00.000Z")).toMatchObject({
+      id: relationship.id,
+      status: "deleted",
+      updatedAt: "2026-05-21T18:00:00.000Z"
+    });
+
+    const reopened = new LocalJsonFileGraphRepository({ graphPath, now: () => now });
+    expect(reopened.getRelationship(relationship.id)).toMatchObject({
+      id: relationship.id,
+      status: "deleted"
+    });
+  });
+
+  it("rejects tampered local graph snapshots before serving graph data", () => {
+    const graphPath = join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json");
+    const repository = new LocalJsonFileGraphRepository({ graphPath, now: () => now });
+    const subject = createSubject();
+
+    repository.upsertSubject(subject);
+    const stored = JSON.parse(readFileSync(graphPath, "utf8")) as {
+      graph: { subjects: Subject[] };
+    };
+    stored.graph.subjects[0] = { ...subject, displayName: "Tampered Subject" };
+    writeFileSync(graphPath, `${JSON.stringify(stored)}\n`, "utf8");
+
+    expect(() => new LocalJsonFileGraphRepository({ graphPath, now: () => now })).toThrow(
+      "ReBAC graph state hash does not match the stored graph payload."
+    );
+  });
+
+  it("keeps local JSON graph persistence blocked from production readiness", () => {
+    const repository = new LocalJsonFileGraphRepository({
+      graphPath: join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json"),
+      now: () => now
+    });
+
+    expect(repository.describePersistence()).toMatchObject({
+      component: "graph",
+      backend: "local_file",
+      durable: false,
+      immutable: false,
+      capabilities: ["graph_read", "graph_write", "relationship_query", "native_grant_readback", "backup_restore"]
+    });
   });
 
   it("blocks proof-point persistence from production readiness", () => {
@@ -206,12 +308,56 @@ function failingCheckNames(checks: Array<{ name: string; status: string }>): str
   return checks.filter((check) => check.status === "fail").map((check) => check.name);
 }
 
+function createSubject(): Subject {
+  return {
+    id: "user:bob",
+    type: "user",
+    displayName: "Bob Example",
+    sourceSystem: "mock",
+    lifecycleState: "active",
+    identifiers: { email: "bob@example.invalid" },
+    version: "subject:v1",
+    createdAt: now
+  };
+}
+
+function createResource(): Resource {
+  return {
+    id: "document:graph-plan",
+    type: "document",
+    displayName: "Graph Plan",
+    sourceSystem: "mock",
+    ownerId: "user:bob",
+    dataStewardId: "user:bob",
+    technicalOwnerId: "user:bob",
+    classification: "controlled",
+    lifecycleState: "active",
+    version: "resource:v1",
+    createdAt: now
+  };
+}
+
+function createRelationship(): RelationshipTuple {
+  return {
+    id: "relationship:bob-graph-plan-reader",
+    subjectId: "user:bob",
+    relation: "reader",
+    objectId: "document:graph-plan",
+    sourceSystem: "mock",
+    assertedAt: now,
+    assertedBy: "system:test",
+    status: "active",
+    version: "relationship:v1",
+    createdAt: now
+  };
+}
+
 function createNativeGrant(): NativeGrant {
   return {
-    id: "native-grant:alice-case-plan-read",
+    id: "native-grant:bob-graph-plan-read",
     targetPlatform: "mock",
-    targetObjectId: "document:case-plan",
-    subjectId: "user:alice",
+    targetObjectId: "document:graph-plan",
+    subjectId: "user:bob",
     principalType: "user",
     nativePermission: "read",
     grantType: "direct",
