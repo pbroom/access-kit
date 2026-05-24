@@ -43,5 +43,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: pnpm steward:check | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: Show next backlog slice
-        run: pnpm backlog:next | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Show next backlog batch
+        run: pnpm backlog:batch | tee -a "$GITHUB_STEP_SUMMARY"

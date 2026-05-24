@@ -15,6 +15,10 @@ if (!next) {
   console.log(JSON.stringify({ next }, null, 2));
 } else {
   console.log(`Next ready slice: ${next.id} ${next.slice}`);
+  console.log(`Priority: ${next.priority}`);
+  console.log(`Depends on: ${next.dependsOn.length > 0 ? next.dependsOn.join(", ") : "-"}`);
+  console.log(`Parallel-safe: ${next.parallel ? "yes" : "no"}`);
+  console.log(`Area: ${next.area}`);
   console.log(`Suggested branch: ${next.branch}`);
   console.log(`Acceptance: ${next.acceptance}`);
   console.log(`Security: ${next.security}`);

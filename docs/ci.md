@@ -62,6 +62,7 @@ Use these commands to keep PR-stack state boring and explicit:
 
 ```sh
 pnpm pr:status
+pnpm backlog:batch
 pnpm backlog:next
 pnpm stack:ready
 pnpm security:pass

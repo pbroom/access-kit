@@ -4,7 +4,7 @@ This repo uses a lightweight steward loop so implementation slices can move thro
 
 ## Source Of Truth
 
-[Implementation Backlog](implementation-backlog.md) is the durable roadmap. Each slice has a status, branch, PR reference, acceptance checks, security notes, and next action. `pnpm backlog:next` reads the first `ready` slice and prints the next candidate branch and acceptance criteria.
+[Implementation Backlog](implementation-backlog.md) is the durable roadmap. Each slice has a status, priority, dependency list, parallel-safety flag, conflict area, branch, PR reference, acceptance checks, security notes, and next action. `pnpm backlog:batch` reads the dependency-cleared `ready` rows and prints the next parallel-safe batch.
 
 ## State Labels
 
@@ -42,14 +42,15 @@ Run `pnpm stack:ready` before merging a stack. It checks stack-labeled PRs for d
 
 Run `pnpm security:pass` before applying `ready-to-merge`. It performs dependency audit, whitespace checks, full CI parity, build, tests, and evidence freshness validation.
 
-## Next Slice Loop
+## Batch Slice Loop
 
-After the active stack is merged:
+After the active stack is merged or otherwise clear:
 
-1. Run `pnpm backlog:next`.
-2. Confirm the suggested scope.
-3. Create the suggested branch.
-4. Move the row to `in_progress`.
-5. Implement the slice, run `pnpm ci:check`, submit the PR, and move the row to `in_review`.
+1. Run `pnpm backlog:batch`.
+2. Confirm the suggested batch. A serial row with `Parallel` set to `no` runs alone; parallel-safe rows can run together when dependencies are merged and their `Area` values differ.
+3. Create one branch per selected row from `origin/main`.
+4. Move each selected row to `in_progress` in its own implementation branch.
+5. Implement each slice as its own PR, run `pnpm ci:check`, submit each PR, and move its row to `in_review`.
+6. Once reviews are resolved, CI is green, security passes complete, and the human merge gate is satisfied, merge the batch and repeat from `pnpm backlog:batch`.
 
-This keeps the agent useful without giving it authority to choose new scope or merge code on its own.
+This keeps the agent useful without giving it authority to choose unscoped work or merge code on its own.

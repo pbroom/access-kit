@@ -31,6 +31,7 @@ requireScripts(packageJson.scripts ?? {}, [
   "validate:automation",
   "pr:status",
   "steward:check",
+  "backlog:batch",
   "backlog:next",
   "stack:ready",
   "security:pass",
@@ -39,6 +40,7 @@ requireScripts(packageJson.scripts ?? {}, [
 requireNodeImportTsxScripts(packageJson.scripts ?? {}, [
   "pr:status",
   "steward:check",
+  "backlog:batch",
   "backlog:next",
   "stack:ready",
   "labels:sync",
@@ -47,7 +49,7 @@ requireNodeImportTsxScripts(packageJson.scripts ?? {}, [
 
 requireDocNeedles(automationDoc, [
   "pnpm pr:status",
-  "pnpm backlog:next",
+  "pnpm backlog:batch",
   "pnpm stack:ready",
   "pnpm security:pass",
   "ready-for-automation",
@@ -69,7 +71,7 @@ if (!ciWorkflow.includes("pnpm validate:automation")) {
   throw new Error("CI workflow must run pnpm validate:automation.");
 }
 
-for (const needle of ["pnpm steward:check", "pnpm backlog:next", "schedule:"]) {
+for (const needle of ["pnpm steward:check", "pnpm backlog:batch", "schedule:"]) {
   if (!prStewardWorkflow.includes(needle)) {
     throw new Error(`PR steward workflow is missing ${needle}.`);
   }

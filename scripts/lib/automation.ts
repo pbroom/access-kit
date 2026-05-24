@@ -2,13 +2,19 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 export const backlogStatuses = ["ready", "in_progress", "in_review", "blocked", "merged"] as const;
+export const backlogParallelValues = ["yes", "no"] as const;
 
 export type BacklogStatus = (typeof backlogStatuses)[number];
+export type BacklogParallelValue = (typeof backlogParallelValues)[number];
 
 export interface BacklogItem {
   id: string;
   slice: string;
   status: BacklogStatus;
+  priority: string;
+  dependsOn: string[];
+  parallel: boolean;
+  area: string;
   branch: string;
   pr: string;
   acceptance: string;
@@ -20,6 +26,10 @@ export const backlogHeaders = [
   "ID",
   "Slice",
   "Status",
+  "Priority",
+  "Depends On",
+  "Parallel",
+  "Area",
   "Branch",
   "PR",
   "Acceptance Checks",
@@ -62,11 +72,15 @@ export function parseBacklog(markdown: string): BacklogItem[] {
       id: cells[0],
       slice: cells[1],
       status: parseBacklogStatus(cells[2]),
-      branch: cells[3],
-      pr: cells[4],
-      acceptance: cells[5],
-      security: cells[6],
-      nextAction: cells[7]
+      priority: parsePriority(cells[3]),
+      dependsOn: parseDependsOn(cells[4]),
+      parallel: parseParallel(cells[5]),
+      area: cells[6],
+      branch: cells[7],
+      pr: cells[8],
+      acceptance: cells[9],
+      security: cells[10],
+      nextAction: cells[11]
     });
   }
 
@@ -92,16 +106,96 @@ export function validateBacklogItems(items: BacklogItem[]): void {
 
     ids.add(item.id);
 
+    if (!/^P[0-3]$/.test(item.priority)) {
+      throw new Error(`Backlog item ${item.id} priority must use P0 through P3.`);
+    }
+
+    if (!/^[a-z0-9-]+$/.test(item.area)) {
+      throw new Error(`Backlog item ${item.id} area must be a lowercase slug.`);
+    }
+
     for (const [field, value] of Object.entries(item)) {
+      if (Array.isArray(value)) {
+        continue;
+      }
+
+      if (typeof value === "boolean") {
+        continue;
+      }
+
       if (typeof value !== "string" || value.trim().length === 0) {
         throw new Error(`Backlog item ${item.id} has an empty ${field} field.`);
       }
     }
   }
+
+  for (const item of items) {
+    const duplicateDeps = new Set<string>();
+
+    for (const dependency of item.dependsOn) {
+      if (!ids.has(dependency)) {
+        throw new Error(`Backlog item ${item.id} depends on unknown item ${dependency}.`);
+      }
+
+      if (dependency === item.id) {
+        throw new Error(`Backlog item ${item.id} cannot depend on itself.`);
+      }
+
+      if (duplicateDeps.has(dependency)) {
+        throw new Error(`Backlog item ${item.id} repeats dependency ${dependency}.`);
+      }
+
+      duplicateDeps.add(dependency);
+    }
+  }
 }
 
 export function findNextReadySlice(items: BacklogItem[]): BacklogItem | undefined {
-  return items.find((item) => item.status === "ready");
+  return selectReadyBacklogBatch(items, { maxItems: 1 })[0];
+}
+
+export interface BacklogBatchOptions {
+  maxItems?: number;
+}
+
+export function selectReadyBacklogBatch(
+  items: BacklogItem[],
+  options: BacklogBatchOptions = {}
+): BacklogItem[] {
+  const maxItems = options.maxItems ?? 3;
+  const statusById = new Map(items.map((item) => [item.id, item.status]));
+  const eligible = items
+    .filter((item) => item.status === "ready")
+    .filter((item) => item.dependsOn.every((dependency) => statusById.get(dependency) === "merged"))
+    .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority));
+
+  const first = eligible[0];
+
+  if (!first) {
+    return [];
+  }
+
+  if (!first.parallel) {
+    return [first];
+  }
+
+  const selected: BacklogItem[] = [];
+  const selectedAreas = new Set<string>();
+
+  for (const item of eligible) {
+    if (selected.length >= maxItems) {
+      break;
+    }
+
+    if (!item.parallel || selectedAreas.has(item.area)) {
+      continue;
+    }
+
+    selected.push(item);
+    selectedAreas.add(item.area);
+  }
+
+  return selected;
 }
 
 function normalizeTableRow(line: string): string[] {
@@ -119,4 +213,45 @@ function parseBacklogStatus(value: string): BacklogStatus {
   throw new Error(
     `Unsupported backlog status ${value}. Allowed statuses: ${backlogStatuses.join(", ")}`
   );
+}
+
+function parsePriority(value: string): string {
+  const normalized = value.toUpperCase();
+
+  if (/^P[0-3]$/.test(normalized)) {
+    return normalized;
+  }
+
+  throw new Error(`Unsupported backlog priority ${value}. Allowed priorities: P0, P1, P2, P3.`);
+}
+
+function parseDependsOn(value: string): string[] {
+  if (value === "-") {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((dependency) => dependency.trim())
+    .filter(Boolean);
+}
+
+function parseParallel(value: string): boolean {
+  const normalized = value.toLowerCase();
+
+  if (normalized === "yes") {
+    return true;
+  }
+
+  if (normalized === "no") {
+    return false;
+  }
+
+  throw new Error(
+    `Unsupported backlog parallel value ${value}. Allowed values: ${backlogParallelValues.join(", ")}`
+  );
+}
+
+function priorityRank(priority: string): number {
+  return Number(priority.slice(1));
 }

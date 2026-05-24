@@ -48,6 +48,7 @@ Useful steward commands:
 
 ```sh
 pnpm pr:status
+pnpm backlog:batch
 pnpm backlog:next
 pnpm stack:ready
 pnpm security:pass
