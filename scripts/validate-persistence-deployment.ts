@@ -2,7 +2,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import type { AnySchema } from "ajv";
 import addFormats from "ajv-formats";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import YAML from "yaml";
 import {
   assessPersistenceDeploymentReadiness,
@@ -267,7 +267,7 @@ function requireEvidence(evidence: JsonObject | undefined, label: string): JsonO
 }
 
 async function requireExistingPath(path: string, label: string): Promise<void> {
-  if (!path || path.includes("..")) {
+  if (!path || path.includes("..") || isAbsolute(path)) {
     throw new Error(`${label} must be a repository-local path`);
   }
 
