@@ -557,7 +557,7 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
   }
 
   recordDiscoveryRun(run: DiscoveryRun): DiscoveryRun {
-    this.#jobs.discoveryRuns = upsertById(this.#jobs.discoveryRuns, clone(run));
+    this.#jobs.discoveryRuns = appendUniqueById(this.#jobs.discoveryRuns, clone(run), "Discovery run");
     this.#persist(this.#now());
     return clone(run);
   }
@@ -571,7 +571,11 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
   }
 
   recordEnforcementReadinessReport(report: EnforcementReadinessReport): EnforcementReadinessReport {
-    this.#jobs.enforcementReadinessReports = upsertById(this.#jobs.enforcementReadinessReports, clone(report));
+    this.#jobs.enforcementReadinessReports = appendUniqueById(
+      this.#jobs.enforcementReadinessReports,
+      clone(report),
+      "Enforcement readiness report"
+    );
     this.#persist(this.#now());
     return clone(report);
   }
@@ -630,12 +634,16 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
     return clone(finding);
   }
 
+  getDriftFinding(id: CanonicalId): DriftFinding | undefined {
+    return cloneOptional(this.#jobs.driftFindings.find((finding) => finding.id === id));
+  }
+
   listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {
     return clone(this.#jobs.driftFindings.filter((finding) => !filter.severity || finding.severity === filter.severity));
   }
 
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun {
-    this.#jobs.reconciliationRuns = upsertById(this.#jobs.reconciliationRuns, clone(run));
+    this.#jobs.reconciliationRuns = appendUniqueById(this.#jobs.reconciliationRuns, clone(run), "Reconciliation run");
     this.#persist(this.#now());
     return clone(run);
   }
@@ -944,6 +952,14 @@ function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {
   }
 
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
+}
+
+function appendUniqueById<T extends { id: CanonicalId }>(items: T[], item: T, entityName: string): T[] {
+  if (items.some((entry) => entry.id === item.id)) {
+    throw new Error(`${entityName} ${item.id} has already been recorded.`);
+  }
+
+  return [...items, item];
 }
 
 function countJobEntities(jobs: RebacJobSnapshot): RebacJobStorageReceipt["entityCounts"] {

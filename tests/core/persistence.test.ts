@@ -366,6 +366,7 @@ describe("persistent ReBAC repository contracts", () => {
     expect(reopened.getEnforcementReadinessReport(readinessReport.id)).toEqual(readinessReport);
     expect(reopened.getProvisioningPlanByIdempotencyKey("idem:plan:alice-case-plan-read")).toEqual(plan);
     expect(reopened.getProvisioningJobByIdempotencyKey("idem:job:alice-case-plan-read")).toEqual(job);
+    expect(reopened.getDriftFinding(driftFinding.id)).toEqual(driftFinding);
     expect(reopened.listDriftFindings({ severity: "high" })).toEqual([driftFinding]);
     expect(reopened.listReconciliationRuns()).toEqual([reconciliationRun]);
     expect(reopened.listDecisions()).toEqual([decision]);
@@ -397,6 +398,28 @@ describe("persistent ReBAC repository contracts", () => {
     expect(repository.listProvisioningPlans()).toEqual([updatedPlan]);
     expect(repository.listDecisions()).toEqual([updatedDecision]);
     expect(new LocalJsonFileJobRepository({ jobsPath, now: () => now }).listProvisioningPlans()).toEqual([updatedPlan]);
+  });
+
+  it("rejects duplicate recorded local job run identifiers", () => {
+    const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
+    const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+    const discoveryRun = createDiscoveryRun();
+    const readinessReport = createEnforcementReadinessReport();
+    const reconciliationRun = createReconciliationRun(createDriftFinding());
+
+    repository.recordDiscoveryRun(discoveryRun);
+    repository.recordEnforcementReadinessReport(readinessReport);
+    repository.recordReconciliationRun(reconciliationRun);
+
+    expect(() => repository.recordDiscoveryRun({ ...discoveryRun, status: "failed" })).toThrow(
+      `Discovery run ${discoveryRun.id} has already been recorded.`
+    );
+    expect(() => repository.recordEnforcementReadinessReport({ ...readinessReport, status: "ready" })).toThrow(
+      `Enforcement readiness report ${readinessReport.id} has already been recorded.`
+    );
+    expect(() => repository.recordReconciliationRun({ ...reconciliationRun, status: "failed" })).toThrow(
+      `Reconciliation run ${reconciliationRun.id} has already been recorded.`
+    );
   });
 
   it("rejects tampered local job snapshots before serving job data", () => {

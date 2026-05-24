@@ -231,6 +231,10 @@ export class InMemoryRebacStore {
     });
   }
 
+  getDriftFinding(id: CanonicalId): DriftFinding | undefined {
+    return this.#driftFindings.get(id);
+  }
+
   upsertDriftFinding(finding: DriftFinding): DriftFinding {
     this.#driftFindings.set(finding.id, finding);
     return finding;
