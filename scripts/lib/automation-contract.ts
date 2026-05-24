@@ -17,7 +17,9 @@ export interface LabelContract {
 
 export interface WorkflowJobContract {
   readonly name: string;
-  readonly requiredEntries: readonly string[];
+  readonly requiredRuns?: readonly string[];
+  readonly requiredRunSnippets?: readonly string[];
+  readonly requiredUses?: readonly string[];
 }
 
 export interface WorkflowContract {
@@ -207,7 +209,7 @@ export const automationContract = {
         jobs: [
           {
             name: "contract-validation",
-            requiredEntries: [
+            requiredRuns: [
               "pnpm validate:contracts",
               "pnpm validate:docs",
               "pnpm validate:automation",
@@ -220,16 +222,18 @@ export const automationContract = {
           },
           {
             name: "quality",
-            requiredEntries: ["pnpm typecheck", "pnpm lint", "pnpm test", "pnpm build"]
+            requiredRuns: ["pnpm typecheck", "pnpm lint", "pnpm test", "pnpm build"]
           },
           {
             name: "evidence",
-            requiredEntries: ["pnpm evidence:check"]
+            requiredRuns: ["pnpm evidence:check"]
           },
           {
             name: "container-packaging",
-            requiredEntries: [
-              "docker build",
+            requiredRuns: [
+              "docker build --target runtime --tag access-kit-rebac-api:${{ github.sha }} ."
+            ],
+            requiredRunSnippets: [
               "rebac-api-smoke",
               "did not become healthy within 20 seconds",
               "/v1/ready",
@@ -244,15 +248,16 @@ export const automationContract = {
         jobs: [
           {
             name: "dependency-audit",
-            requiredEntries: ["pnpm audit --audit-level high"]
+            requiredRuns: ["pnpm audit --audit-level high"]
           },
           {
             name: "secret-scan",
-            requiredEntries: ["gitleaks/gitleaks-action"]
+            requiredUses: ["gitleaks/gitleaks-action"]
           },
           {
             name: "codeql",
-            requiredEntries: ["github/codeql-action/init", "github/codeql-action/analyze", "pnpm build"]
+            requiredUses: ["github/codeql-action/init", "github/codeql-action/analyze"],
+            requiredRuns: ["pnpm build"]
           }
         ]
       }

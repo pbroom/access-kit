@@ -14,12 +14,12 @@ interface WorkflowDocument {
 
 const root = process.cwd();
 const releaseWorkflow = await readWorkflow(".github/workflows/container-release.yml");
-const workflowText = await readRequiredFile(".github/workflows/container-release.yml");
 
-requireIncludes(workflowText, "workflow_dispatch", "container release trigger");
-requireIncludes(workflowText, "rebac-api-v*", "container release tag trigger");
-requireIncludes(workflowText, "ghcr.io", "container release registry");
-requireIncludes(workflowText, "SHOULD_PUBLISH", "container release publish gate");
+requireWorkflowDispatch(releaseWorkflow);
+requirePushTag(releaseWorkflow, "rebac-api-v*");
+requireEnv(releaseWorkflow, "REGISTRY", "ghcr.io");
+requireEnv(releaseWorkflow, "IMAGE_NAME", "${{ github.repository }}/rebac-api");
+requireEnv(releaseWorkflow, "SHOULD_PUBLISH", "${{ github.event_name == 'push' || inputs.publish == true }}");
 
 requirePermission(releaseWorkflow, "contents", "read");
 requirePermission(releaseWorkflow, "packages", "write");
@@ -32,20 +32,12 @@ if (!releaseJob) {
   throw new Error("Container release workflow is missing release-api-image job");
 }
 
-const releaseJobText = JSON.stringify(releaseJob);
-for (const required of [
-  "docker/setup-buildx-action",
-  "docker/login-action",
-  "docker/metadata-action",
-  "docker/build-push-action",
-  "sigstore/cosign-installer",
-  "actions/attest-build-provenance",
-  "cosign sign --yes",
-  "IMAGE_DIGEST",
-  "steps.build.outputs.digest"
-]) {
-  requireIncludes(releaseJobText, required, "release-api-image job");
-}
+requireStepUses(releaseJob, "Set up Docker Buildx", "docker/setup-buildx-action");
+requireStepUses(releaseJob, "Log in to GHCR", "docker/login-action");
+requireStepUses(releaseJob, "Generate image metadata", "docker/metadata-action");
+requireStepUses(releaseJob, "Build image with SBOM and provenance metadata", "docker/build-push-action");
+requireStepUses(releaseJob, "Install cosign", "sigstore/cosign-installer");
+requireStepUses(releaseJob, "Attest build provenance", "actions/attest-build-provenance");
 
 const buildStep = findStep(releaseJob, "Build image with SBOM and provenance metadata");
 requireStepWith(buildStep, "target", "runtime", "build image step");
@@ -54,6 +46,11 @@ requireStepWith(buildStep, "sbom", true, "build image step");
 
 const attestStep = findStep(releaseJob, "Attest build provenance");
 requireStepWith(attestStep, "push-to-registry", true, "attest build provenance step");
+requireStepWith(attestStep, "subject-digest", "${{ steps.build.outputs.digest }}", "attest build provenance step");
+
+const signStep = findStep(releaseJob, "Sign published image");
+requireStepEnv(signStep, "IMAGE_REF", "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}", "sign published image step");
+requireExactStepRun(signStep, 'cosign sign --yes "$IMAGE_REF"', "sign published image step");
 
 const summaryStep = findStep(releaseJob, "Publish release summary");
 requireStepEnv(summaryStep, "IMAGE_DIGEST", "${{ steps.build.outputs.digest }}", "publish release summary step");
@@ -90,6 +87,30 @@ function requireIncludes(contents: string, needle: string, label: string): void 
   }
 }
 
+function requireWorkflowDispatch(workflow: WorkflowDocument): void {
+  const triggers = asRecord(workflow.on, "container release triggers");
+  const workflowDispatch = asRecord(triggers.workflow_dispatch, "container release workflow_dispatch trigger");
+  const inputs = asRecord(workflowDispatch.inputs, "container release workflow_dispatch inputs");
+  const publish = asRecord(inputs.publish, "container release publish input");
+  requireEquals(publish.type, "boolean", "container release publish input type");
+  requireEquals(publish.default, false, "container release publish input default");
+}
+
+function requirePushTag(workflow: WorkflowDocument, tag: string): void {
+  const triggers = asRecord(workflow.on, "container release triggers");
+  const push = asRecord(triggers.push, "container release push trigger");
+  const tags = push.tags;
+
+  if (!Array.isArray(tags) || !tags.includes(tag)) {
+    throw new Error(`container release push trigger must include tag ${tag}`);
+  }
+}
+
+function requireEnv(workflow: WorkflowDocument, name: string, expected: string): void {
+  const env = asRecord(workflow.env, "container release env");
+  requireEquals(env[name], expected, `container release env ${name}`);
+}
+
 function findStep(job: WorkflowJob, name: string): WorkflowJob {
   const steps = job.steps;
 
@@ -104,6 +125,14 @@ function findStep(job: WorkflowJob, name: string): WorkflowJob {
   }
 
   return step;
+}
+
+function requireStepUses(job: WorkflowJob, name: string, actionPrefix: string): void {
+  const step = findStep(job, name);
+
+  if (typeof step.uses !== "string" || !step.uses.startsWith(`${actionPrefix}@`)) {
+    throw new Error(`${name} must use ${actionPrefix} with a pinned ref`);
+  }
 }
 
 function requireStepWith(step: WorkflowJob, key: string, expected: unknown, label: string): void {
@@ -130,6 +159,11 @@ function readStepRun(step: WorkflowJob, label: string): string {
   return step.run;
 }
 
+function requireExactStepRun(step: WorkflowJob, expected: string, label: string): void {
+  const run = readStepRun(step, label).trim();
+  requireEquals(run, expected, `${label} run`);
+}
+
 function requirePermission(workflow: WorkflowDocument, permission: string, expected: string): void {
   const actual = workflow.permissions?.[permission];
 
@@ -148,4 +182,18 @@ function requireConcurrency(workflow: WorkflowDocument): void {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function asRecord(value: unknown, label: string): Record<string, unknown> {
+  if (!isRecord(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+
+  return value;
+}
+
+function requireEquals(actual: unknown, expected: unknown, label: string): void {
+  if (actual !== expected) {
+    throw new Error(`${label} expected ${String(expected)} but found ${String(actual)}`);
+  }
 }

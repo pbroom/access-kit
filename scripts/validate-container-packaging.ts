@@ -6,6 +6,8 @@ interface WorkflowDocument {
   jobs?: Record<string, unknown>;
 }
 
+type WorkflowJob = Record<string, unknown>;
+
 const root = process.cwd();
 const dockerfile = await readRequiredFile("Dockerfile");
 const dockerignore = await readRequiredFile(".dockerignore");
@@ -29,20 +31,25 @@ for (const ignoredPath of ["node_modules", "dist", "coverage", "reports", "tests
 }
 
 const containerJob = ci.jobs?.["container-packaging"];
-if (!containerJob) {
+if (!isRecord(containerJob)) {
   throw new Error("CI workflow is missing container-packaging job");
 }
 
-const containerJobText = JSON.stringify(containerJob);
-for (const required of [
-  "docker build",
-  "rebac-api-smoke",
-  "did not become healthy within 20 seconds",
-  "/v1/ready",
-  "REBAC_API_KEYS=ci-smoke"
-]) {
-  requireIncludes(containerJobText, required, "container-packaging job");
-}
+const buildStep = findStep(containerJob, "Build rebac-api image");
+requireExactStepRun(
+  buildStep,
+  "docker build --target runtime --tag access-kit-rebac-api:${{ github.sha }} .",
+  "container build step"
+);
+
+const smokeStep = findStep(containerJob, "Smoke test rebac-api image");
+const smokeRun = readStepRun(smokeStep, "container smoke step");
+requireIncludes(smokeRun, "--name rebac-api-smoke", "container smoke step");
+requireIncludes(smokeRun, "--env REBAC_API_KEYS=ci-smoke", "container smoke step");
+requireIncludes(smokeRun, "did not become healthy within 20 seconds", "container smoke step");
+requireIncludes(smokeRun, "http://127.0.0.1:3000/v1/ready", "container smoke step");
+requireIncludes(smokeRun, 'test "$unauth_status" = "401"', "container smoke step");
+requireIncludes(smokeRun, 'test "$auth_status" = "200"', "container smoke step");
 
 console.log("Validated deployable API container packaging.");
 console.log("PASS Dockerfile builds and runs the rebac-api runtime as a non-root container.");
@@ -62,4 +69,40 @@ function requireLine(contents: string, line: string, label: string): void {
   if (!contents.split(/\r?\n/).includes(line)) {
     throw new Error(`${label} is missing required line: ${line}`);
   }
+}
+
+function findStep(job: WorkflowJob, name: string): WorkflowJob {
+  const steps = job.steps;
+
+  if (!Array.isArray(steps)) {
+    throw new Error("container-packaging job is missing steps");
+  }
+
+  const step = steps.find((entry) => isRecord(entry) && entry.name === name);
+
+  if (!isRecord(step)) {
+    throw new Error(`container-packaging job is missing step: ${name}`);
+  }
+
+  return step;
+}
+
+function readStepRun(step: WorkflowJob, label: string): string {
+  if (typeof step.run !== "string") {
+    throw new Error(`${label} must include a run script`);
+  }
+
+  return step.run;
+}
+
+function requireExactStepRun(step: WorkflowJob, expected: string, label: string): void {
+  const run = readStepRun(step, label).trim();
+
+  if (run !== expected) {
+    throw new Error(`${label} run expected ${expected} but found ${run}`);
+  }
+}
+
+function isRecord(value: unknown): value is WorkflowJob {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
