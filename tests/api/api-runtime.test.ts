@@ -1377,6 +1377,10 @@ describe("ReBAC API runtime", () => {
       action: "read",
       resourceId: "document:case-plan"
     });
+    const readiness = await post<EnforcementReadinessReportJson>("/v1/connectors/mock/enforcement-readiness", {
+      mode: "enforcement",
+      control: controlledEnforcement()
+    });
     await post("/v1/subjects", {
       id: "user:service-persistent",
       type: "user",
@@ -1388,10 +1392,29 @@ describe("ReBAC API runtime", () => {
       createdAt: TEST_NOW
     });
 
-    expect(persistence.auditRepository?.listAuditEvents().map((event) => event.eventType)).toEqual(["decision.allowed", "subject.created"]);
+    expect(persistence.auditRepository?.listAuditEvents().map((event) => event.eventType)).toEqual([
+      "decision.allowed",
+      "connector.enforcement_readiness_checked",
+      "subject.created"
+    ]);
     expect(persistence.graphRepository?.exportGraph().subjects.map((subject) => subject.id)).toContain("user:service-persistent");
     expect(persistence.jobRepository?.exportJobs().decisions).toHaveLength(1);
-    expect(persistence.stateRepository?.readState()?.auditEvents?.map((event) => event.eventType)).toEqual(["decision.allowed", "subject.created"]);
+    expect(persistence.jobRepository?.exportJobs().enforcementReadinessReports.map((report) => report.id)).toContain(readiness.id);
+    expect(persistence.stateRepository?.readState()?.auditEvents?.map((event) => event.eventType)).toEqual([
+      "decision.allowed",
+      "connector.enforcement_readiness_checked",
+      "subject.created"
+    ]);
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => "2026-05-21T18:00:00.000Z",
+        persistence
+      })
+    });
+    const hydratedReadiness = await get<{ items: Array<{ id: string }> }>("/v1/connectors/mock/enforcement-readiness");
+
+    expect(hydratedReadiness.items.map((report) => report.id)).toContain(readiness.id);
     await expect(readdir(join(storageRoot, "state"))).resolves.toEqual(expect.arrayContaining([
       "graph-state.json",
       "job-state.json",

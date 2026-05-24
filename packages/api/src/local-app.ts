@@ -408,6 +408,7 @@ export async function checkEnforcementReadiness(
   }, { persistState: false });
   const report = { ...reportWithoutAuditIds, auditEventIds: [auditEvent.eventId] };
   app.store.recordEnforcementReadinessReport(report);
+  persistJobEnforcementReadinessReport(app, report, checkedAt);
   persistAppState(app, checkedAt);
   return report;
 }
@@ -1272,6 +1273,18 @@ function persistJobDiscoveryRun(app: RebacLocalApp, run: DiscoveryRun, storedAt:
     app.jobRepository?.recordDiscoveryRun(run);
   } catch (error) {
     recordPersistenceRepositoryError(app.persistenceDegradations, "job", "recordDiscoveryRun", storedAt, error);
+  }
+}
+
+function persistJobEnforcementReadinessReport(
+  app: RebacLocalApp,
+  report: EnforcementReadinessReport,
+  storedAt: string
+): void {
+  try {
+    app.jobRepository?.recordEnforcementReadinessReport(report);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "recordEnforcementReadinessReport", storedAt, error);
   }
 }
 
