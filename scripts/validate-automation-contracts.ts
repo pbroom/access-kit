@@ -81,6 +81,10 @@ for (const needle of ["pnpm steward:check", "pnpm backlog:batch", "schedule:"]) 
   }
 }
 
+if ((prStewardWorkflow.match(/set -o pipefail/g) ?? []).length < 2) {
+  throw new Error("PR steward workflow must preserve command failures when piping output through tee.");
+}
+
 if (!nextReadySlice) {
   throw new Error("Backlog must keep at least one dependency-cleared ready next slice.");
 }
