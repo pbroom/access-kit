@@ -52,8 +52,10 @@ const expectedStoredReadinessReport = assessPersistenceDeploymentReadiness(
 );
 try {
   deepStrictEqual(storedReadinessReport, expectedStoredReadinessReport);
-} catch {
-  throw new Error("Persistence deployment readiness report is stale. Regenerate deploy/persistence/readiness-report.example.json.");
+} catch (cause) {
+  throw new Error("Persistence deployment readiness report is stale. Regenerate deploy/persistence/readiness-report.example.json.", {
+    cause
+  });
 }
 if (readinessReport.status !== "ready") {
   const failures = readinessReport.checks.filter((check) => check.status !== "pass").map((check) => check.name);
