@@ -19,6 +19,7 @@ import type { AuditEventRepository } from "./repositories.js";
 import { InMemoryRebacStore, type RebacSeedData } from "./store.js";
 
 export type PersistenceComponent = "graph" | "audit" | "job";
+export type PersistenceReadinessCheckComponent = PersistenceComponent | "deployment";
 export type PersistenceBackendKind =
   | "memory"
   | "local_file"
@@ -53,7 +54,7 @@ export interface PersistenceBackendDescriptor {
 
 export interface PersistenceReadinessCheck {
   name: string;
-  component: PersistenceComponent;
+  component: PersistenceReadinessCheckComponent;
   status: ValidationCheckStatus;
   message: string;
   evidence?: JsonRecord;
@@ -66,6 +67,32 @@ export interface PersistenceReadinessReport {
   descriptors: PersistenceBackendDescriptor[];
   requiredCapabilities: Record<PersistenceComponent, PersistenceCapability[]>;
   version: "persistence-readiness:v1";
+}
+
+export type PersistenceDeploymentEnvironment = "local_proof_point" | "production";
+
+export interface PersistenceDeploymentControls {
+  identityProviderBackedAccess: boolean;
+  operatorAuthorization: boolean;
+  secretsExternalized: boolean;
+  backupRestoreTested: boolean;
+  changeApprovalRequired: boolean;
+  monitoringConfigured: boolean;
+  migrationPlanReviewed: boolean;
+}
+
+export interface PersistenceDeploymentManifest {
+  environment: PersistenceDeploymentEnvironment;
+  generatedAt: string;
+  descriptors: PersistenceBackendDescriptor[];
+  controls: PersistenceDeploymentControls;
+  evidenceRefs: string[];
+  version: "persistence-deployment-manifest:v1";
+}
+
+export interface PersistenceDeploymentReadinessReport extends Omit<PersistenceReadinessReport, "version"> {
+  manifest: PersistenceDeploymentManifest;
+  version: "persistence-deployment-readiness:v1";
 }
 
 export interface RebacGraphSnapshot {
@@ -124,6 +151,7 @@ export interface RebacJobRepository {
   getProvisioningJobByIdempotencyKey(idempotencyKey: string): ProvisioningJob | undefined;
   listProvisioningJobs(): ProvisioningJob[];
   upsertDriftFinding(finding: DriftFinding): DriftFinding;
+  getDriftFinding(id: CanonicalId): DriftFinding | undefined;
   listDriftFindings(filter?: DriftFindingFilter): DriftFinding[];
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun;
   listReconciliationRuns(): ReconciliationRun[];
@@ -151,6 +179,22 @@ export const requiredProductionPersistenceCapabilities: Record<PersistenceCompon
   audit: ["audit_append", "audit_hash_chain", "audit_immutability", "audit_retention", "backup_restore"],
   job: ["job_enqueue", "idempotency_lookup", "transactional_writes", "backup_restore"]
 };
+
+export const requiredProductionBackendKinds: Record<PersistenceComponent, PersistenceBackendKind> = {
+  graph: "external_graph",
+  audit: "external_append_only_audit",
+  job: "external_queue"
+};
+
+export const requiredProductionDeploymentControls: Array<keyof PersistenceDeploymentControls> = [
+  "identityProviderBackedAccess",
+  "operatorAuthorization",
+  "secretsExternalized",
+  "backupRestoreTested",
+  "changeApprovalRequired",
+  "monitoringConfigured",
+  "migrationPlanReviewed"
+];
 
 export class InMemoryRebacPersistenceRepository implements RebacGraphRepository, RebacJobRepository, DescribedPersistenceRepository {
   readonly #store: InMemoryRebacStore;
@@ -272,6 +316,10 @@ export class InMemoryRebacPersistenceRepository implements RebacGraphRepository,
 
   upsertDriftFinding(finding: DriftFinding): DriftFinding {
     return clone(this.#store.upsertDriftFinding(clone(finding)));
+  }
+
+  getDriftFinding(id: CanonicalId): DriftFinding | undefined {
+    return cloneOptional(this.#store.getDriftFinding(id));
   }
 
   listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {
@@ -417,6 +465,102 @@ export function assessPersistenceReadiness(
     descriptors: clone(descriptors),
     requiredCapabilities: clone(requiredCapabilities),
     version: "persistence-readiness:v1"
+  };
+}
+
+export function assessPersistenceDeploymentReadiness(
+  manifest: PersistenceDeploymentManifest,
+  checkedAt: string,
+  requiredCapabilities: Record<PersistenceComponent, PersistenceCapability[]> = requiredProductionPersistenceCapabilities,
+  requiredBackendKinds: Record<PersistenceComponent, PersistenceBackendKind> = requiredProductionBackendKinds,
+  requiredControls: Array<keyof PersistenceDeploymentControls> = requiredProductionDeploymentControls
+): PersistenceDeploymentReadinessReport {
+  const baseReport = assessPersistenceReadiness(manifest.descriptors, checkedAt, requiredCapabilities);
+  const checks: PersistenceReadinessCheck[] = [
+    ...baseReport.checks,
+    {
+      name: "deployment_environment_production",
+      component: "deployment",
+      status: manifest.environment === "production" ? "pass" : "fail",
+      message:
+        manifest.environment === "production"
+          ? "Persistence deployment manifest targets production."
+          : "Persistence deployment manifest is not marked for production.",
+      evidence: { environment: manifest.environment }
+    },
+    {
+      name: "deployment_manifest_evidence_refs",
+      component: "deployment",
+      status: manifest.evidenceRefs.length > 0 ? "pass" : "fail",
+      message:
+        manifest.evidenceRefs.length > 0
+          ? "Persistence deployment manifest includes evidence references."
+          : "Persistence deployment manifest must include deployment evidence references.",
+      evidence: { evidenceRefs: manifest.evidenceRefs }
+    }
+  ];
+
+  const descriptorsByComponent = new Map<PersistenceComponent, PersistenceBackendDescriptor[]>();
+  for (const descriptor of manifest.descriptors) {
+    const componentDescriptors = descriptorsByComponent.get(descriptor.component) ?? [];
+    componentDescriptors.push(descriptor);
+    descriptorsByComponent.set(descriptor.component, componentDescriptors);
+  }
+
+  for (const component of Object.keys(requiredBackendKinds) as PersistenceComponent[]) {
+    const componentDescriptors = descriptorsByComponent.get(component) ?? [];
+    const descriptor = componentDescriptors[0];
+    const requiredBackend = requiredBackendKinds[component];
+
+    if (componentDescriptors.length > 1) {
+      checks.push({
+        name: `${component}_repository_backend_kind`,
+        component,
+        status: "fail",
+        message: `${component} persistence backend kind cannot be verified while multiple descriptors are configured.`,
+        evidence: {
+          requiredBackend,
+          actualBackends: componentDescriptors.map((entry) => entry.backend)
+        }
+      });
+      continue;
+    }
+
+    checks.push({
+      name: `${component}_repository_backend_kind`,
+      component,
+      status: descriptor?.backend === requiredBackend ? "pass" : "fail",
+      message:
+        descriptor?.backend === requiredBackend
+          ? `${component} persistence backend uses the required production backend kind.`
+          : `${component} persistence backend must use ${requiredBackend} for production readiness.`,
+      evidence: {
+        requiredBackend,
+        actualBackend: descriptor?.backend
+      }
+    });
+  }
+
+  for (const control of requiredControls) {
+    checks.push({
+      name: `deployment_control_${control}`,
+      component: "deployment",
+      status: manifest.controls[control] ? "pass" : "fail",
+      message: manifest.controls[control]
+        ? `Deployment control ${control} is evidenced.`
+        : `Deployment control ${control} must be evidenced before production readiness.`,
+      evidence: { control, value: manifest.controls[control] }
+    });
+  }
+
+  return {
+    status: checks.every((check) => check.status === "pass") ? "ready" : "blocked",
+    checkedAt,
+    checks,
+    descriptors: clone(manifest.descriptors),
+    requiredCapabilities: clone(requiredCapabilities),
+    manifest: clone(manifest),
+    version: "persistence-deployment-readiness:v1"
   };
 }
 

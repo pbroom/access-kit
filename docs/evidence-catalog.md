@@ -29,6 +29,9 @@ This is not a complete system security plan, production evidence vault, WORM arc
 | Audit events | `schemas/audit-event.schema.json` | Decision and operational traceability. |
 | Audit integrity | `schemas/audit-integrity.schema.json` | Hash-chain verification. |
 | Audit export | `schemas/audit-export.schema.json` | SIEM-ready JSONL package shape. |
+| Persistence deployment manifest | `schemas/persistence-deployment-manifest.schema.json` | Production persistence backend and deployment-control gate. |
+| Persistence deployment readiness | `schemas/persistence-deployment-readiness.schema.json` | Deterministic deployment-readiness report contract. |
+| Persistence deployment evidence | `deploy/persistence/production-manifest.example.json` | Synthetic IaC, release, backup/restore, and operator-control references. |
 | Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest. |
 | Validation report | `reports/proof-point-validation.md` | Generated proof-point evidence. |
 | Runbooks | `runbooks/*.md` | Operational procedures and expected evidence. |

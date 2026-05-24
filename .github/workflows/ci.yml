@@ -59,6 +59,9 @@ jobs:
       - name: Validate deployment manifests
         run: pnpm validate:deployment-manifests
 
+      - name: Validate persistence deployment evidence
+        run: pnpm validate:persistence-deployment
+
   quality:
     name: Quality (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest

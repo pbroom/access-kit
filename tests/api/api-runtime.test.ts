@@ -1756,8 +1756,9 @@ describe("ReBAC API runtime", () => {
 
     const control = controlledEnforcement();
     const readiness = await createReadyReadinessReport("mock", control, "^chg:approved-only$");
-    app.store.recordEnforcementReadinessReport({
+    const blockedReadiness = app.store.recordEnforcementReadinessReport({
       ...readiness,
+      id: `${readiness.id}:blocked`,
       status: "blocked",
       checks: [
         ...readiness.checks,
@@ -1781,7 +1782,7 @@ describe("ReBAC API runtime", () => {
         dryRun: false,
         approval: controlledApproval(),
         control,
-        readinessReportId: readiness.id
+        readinessReportId: blockedReadiness.id
       })
     });
 

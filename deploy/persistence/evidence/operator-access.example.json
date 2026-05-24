@@ -1,0 +1,18 @@
+{
+  "version": "persistence-operator-access:v1",
+  "environment": "production",
+  "reviewedAt": "2026-05-24T00:00:00.000Z",
+  "reviewedBy": "role:security-reviewer",
+  "controls": {
+    "identityProviderBackedAccess": true,
+    "operatorAuthorization": true,
+    "secretsExternalized": true,
+    "monitoringConfigured": true,
+    "migrationPlanReviewed": true
+  },
+  "evidenceRefs": [
+    "docs/security-model.md",
+    "docs/deployment-runbook.md",
+    "deploy/kubernetes/configmap.yaml"
+  ]
+}

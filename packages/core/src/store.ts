@@ -160,6 +160,7 @@ export class InMemoryRebacStore {
   }
 
   recordDiscoveryRun(run: DiscoveryRun): DiscoveryRun {
+    assertNotRecorded(this.#discoveryRuns, run.id, "Discovery run");
     this.#discoveryRuns.set(run.id, run);
     return run;
   }
@@ -187,6 +188,7 @@ export class InMemoryRebacStore {
   }
 
   recordEnforcementReadinessReport(report: EnforcementReadinessReport): EnforcementReadinessReport {
+    assertNotRecorded(this.#enforcementReadinessReports, report.id, "Enforcement readiness report");
     this.#enforcementReadinessReports.set(report.id, report);
     return report;
   }
@@ -231,12 +233,17 @@ export class InMemoryRebacStore {
     });
   }
 
+  getDriftFinding(id: CanonicalId): DriftFinding | undefined {
+    return this.#driftFindings.get(id);
+  }
+
   upsertDriftFinding(finding: DriftFinding): DriftFinding {
     this.#driftFindings.set(finding.id, finding);
     return finding;
   }
 
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun {
+    assertNotRecorded(this.#reconciliationRuns, run.id, "Reconciliation run");
     this.#reconciliationRuns.set(run.id, run);
     return run;
   }
@@ -269,5 +276,11 @@ export class InMemoryRebacStore {
         (!filter.from || event.occurredAt >= filter.from)
       );
     });
+  }
+}
+
+function assertNotRecorded<T>(items: Map<CanonicalId, T>, id: CanonicalId, entityName: string): void {
+  if (items.has(id)) {
+    throw new Error(`${entityName} ${id} has already been recorded.`);
   }
 }

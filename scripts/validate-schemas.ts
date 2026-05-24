@@ -21,6 +21,8 @@ const schemaByExample = new Map<string, string>([
   ["audit-export.json", "schemas/audit-export.schema.json"],
   ["drift-finding.json", "schemas/drift-finding.schema.json"],
   ["audit-integrity.json", "schemas/audit-integrity.schema.json"],
+  ["persistence-deployment-manifest.json", "schemas/persistence-deployment-manifest.schema.json"],
+  ["persistence-deployment-readiness.json", "schemas/persistence-deployment-readiness.schema.json"],
   ["evidence-export.json", "schemas/evidence-export.schema.json"]
 ]);
 

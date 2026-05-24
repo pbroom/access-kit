@@ -1,0 +1,29 @@
+{
+  "version": "persistence-backup-restore:v1",
+  "environment": "production",
+  "testedAt": "2026-05-24T00:00:00.000Z",
+  "testedBy": "role:platform-operator",
+  "results": [
+    {
+      "component": "graph",
+      "location": "external://graph/access-kit-prod-relationship-graph",
+      "status": "pass",
+      "rpoMinutes": 15,
+      "rtoMinutes": 60
+    },
+    {
+      "component": "audit",
+      "location": "external://audit/access-kit-prod-audit-ledger",
+      "status": "pass",
+      "rpoMinutes": 0,
+      "rtoMinutes": 120
+    },
+    {
+      "component": "job",
+      "location": "external://queue/access-kit-prod-job-queue",
+      "status": "pass",
+      "rpoMinutes": 15,
+      "rtoMinutes": 60
+    }
+  ]
+}
