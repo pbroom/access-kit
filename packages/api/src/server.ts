@@ -388,6 +388,26 @@ function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): 
       }
     },
     {
+      name: "graph_repository",
+      status: app.graphRepository ? "pass" : "warn",
+      message: app.graphRepository
+        ? "Runtime graph repository is configured for local proof-point persistence."
+        : "Runtime graph repository is not configured; graph state is in-memory only.",
+      evidence: {
+        configured: Boolean(app.graphRepository)
+      }
+    },
+    {
+      name: "job_repository",
+      status: app.jobRepository ? "pass" : "warn",
+      message: app.jobRepository
+        ? "Runtime job repository is configured for local proof-point persistence."
+        : "Runtime job repository is not configured; job state is in-memory only.",
+      evidence: {
+        configured: Boolean(app.jobRepository)
+      }
+    },
+    {
       name: "audit_repository",
       status: app.auditRepository ? "pass" : "warn",
       message: app.auditRepository

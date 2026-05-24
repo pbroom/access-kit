@@ -1,4 +1,5 @@
 import { once } from "node:events";
+import { mkdtempSync } from "node:fs";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
@@ -9,11 +10,14 @@ import {
   AuditRecorder,
   LocalAppendOnlyAuditRepository,
   LocalFileEvidenceRepository,
+  LocalJsonFileGraphRepository,
+  LocalJsonFileJobRepository,
   LocalJsonFileStateRepository,
   type AuditEvent,
   type AuditEventRepository,
   type AuditIntegrityReport,
   type ConnectorAdapter,
+  type DecisionResult,
   type DriftFinding,
   type EnforcementControl,
   type EnforcementReadinessReport,
@@ -67,10 +71,14 @@ describe("ReBAC API runtime", () => {
     const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-readiness-"));
     tempDirs.push(storageRoot);
     const stateRepository = new LocalJsonFileStateRepository({ rootDir: join(storageRoot, "state") });
+    const graphRepository = new LocalJsonFileGraphRepository({ rootDir: join(storageRoot, "state") });
+    const jobRepository = new LocalJsonFileJobRepository({ rootDir: join(storageRoot, "state") });
     const evidenceRepository = new LocalFileEvidenceRepository({ rootDir: join(storageRoot, "evidence") });
     await restartServer({
       now: () => TEST_NOW,
       apiKeys: ["readiness-token"],
+      graphRepository,
+      jobRepository,
       stateRepository,
       auditRepository: evidenceRepository,
       evidenceRepository
@@ -92,6 +100,8 @@ describe("ReBAC API runtime", () => {
       evidence: { configured: true }
     });
     expect(checksByName.get("api_authentication")?.evidence).not.toHaveProperty("tokenMaterialLogged");
+    expect(checksByName.get("graph_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("job_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("state_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("audit_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("evidence_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
@@ -912,6 +922,157 @@ describe("ReBAC API runtime", () => {
     expect(state?.auditEvents?.map((event) => event.eventType)).toContain("audit.integrity_verified");
   });
 
+  it("recovers graph and runtime job records from repository persistence across API restarts", async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-runtime-repositories-"));
+    tempDirs.push(storageRoot);
+    const graphPath = join(storageRoot, "graph-state.json");
+    const jobsPath = join(storageRoot, "job-state.json");
+    const createPersistence = () => ({
+      graphRepository: new LocalJsonFileGraphRepository({ graphPath, now: () => TEST_NOW }),
+      jobRepository: new LocalJsonFileJobRepository({ jobsPath, now: () => TEST_NOW })
+    });
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: sequenceNow(
+          "2026-05-21T17:00:00.000Z",
+          "2026-05-21T17:00:01.000Z",
+          "2026-05-21T17:00:02.000Z"
+        ),
+        persistence: createPersistence()
+      })
+    });
+    await post("/v1/subjects", {
+      id: "user:repository-analyst",
+      type: "user",
+      displayName: "Repository Analyst",
+      sourceSystem: "synthetic",
+      lifecycleState: "active",
+      identifiers: { employeeId: "E-REPOSITORY" },
+      version: "subject:v1",
+      createdAt: "2026-05-21T17:00:00.000Z"
+    });
+    const relationshipResponse = await fetch(`${baseUrl}/v1/relationships`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-repository-relationship" },
+      body: JSON.stringify({
+        id: "relationship:repository-analyst-document",
+        subjectId: "user:repository-analyst",
+        relation: "reader_of",
+        objectId: "document:case-plan",
+        sourceSystem: "synthetic",
+        assertedAt: "2026-05-21T17:00:01.000Z",
+        status: "active",
+        version: "tuple:v1",
+        createdAt: "2026-05-21T17:00:01.000Z"
+      })
+    });
+    const firstDecision = await post<{ decisionId: string; decision: string }>("/v1/decision/check", {
+      subjectId: "user:repository-analyst",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    const persistedGraph = new LocalJsonFileGraphRepository({ graphPath }).exportGraph();
+    const persistedJobs = new LocalJsonFileJobRepository({ jobsPath }).exportJobs();
+
+    expect(relationshipResponse.status).toBe(200);
+    expect(firstDecision.decision).toBe("allow");
+    expect(persistedGraph.subjects.map((subject) => subject.id)).toContain("user:repository-analyst");
+    expect(persistedGraph.relationships.map((relationship) => relationship.id)).toContain("relationship:repository-analyst-document");
+    expect(persistedGraph).not.toHaveProperty("auditEvents");
+    expect(persistedJobs.decisions.map((decision) => decision.decisionId)).toContain(firstDecision.decisionId);
+    expect(persistedJobs).not.toHaveProperty("auditEvents");
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => "2026-05-21T18:00:00.000Z",
+        persistence: createPersistence()
+      })
+    });
+    const recoveredSubject = await get<{ id: string }>("/v1/subjects/user%3Arepository-analyst");
+    const recoveredRelationships = await get<{ items: Array<{ id: string }> }>(
+      "/v1/relationships?subjectId=user%3Arepository-analyst"
+    );
+    const recoveredDecision = await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:repository-analyst",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(recoveredSubject.id).toBe("user:repository-analyst");
+    expect(recoveredRelationships.items.map((relationship) => relationship.id)).toContain("relationship:repository-analyst-document");
+    expect(recoveredDecision.decision).toBe("allow");
+  });
+
+  it("uses the initial repository snapshots when seeding empty runtime repositories", () => {
+    const storageRoot = mkdtempSync(join(tmpdir(), "access-kit-runtime-repository-seed-"));
+    tempDirs.push(storageRoot);
+    const graphRepository = new LocalJsonFileGraphRepository({ rootDir: join(storageRoot, "graph") });
+    const jobRepository = new LocalJsonFileJobRepository({ rootDir: join(storageRoot, "jobs") });
+    const exportGraph = graphRepository.exportGraph.bind(graphRepository);
+    const exportJobs = jobRepository.exportJobs.bind(jobRepository);
+    let graphExports = 0;
+    let jobExports = 0;
+    graphRepository.exportGraph = () => {
+      graphExports += 1;
+      return exportGraph();
+    };
+    jobRepository.exportJobs = () => {
+      jobExports += 1;
+      return exportJobs();
+    };
+
+    createRebacLocalApp({
+      persistence: {
+        graphRepository,
+        jobRepository
+      }
+    });
+
+    expect(graphExports).toBe(1);
+    expect(jobExports).toBe(1);
+  });
+
+  it("records startup repository seed degradations with ISO timestamps", () => {
+    const storageRoot = mkdtempSync(join(tmpdir(), "access-kit-runtime-repository-startup-"));
+    tempDirs.push(storageRoot);
+    const app = createRebacLocalApp({
+      now: sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:00:01.000Z"),
+      seed: {
+        subjects: [
+          {
+            id: "user:seeded",
+            type: "user",
+            displayName: "Seeded User",
+            sourceSystem: "synthetic",
+            lifecycleState: "active",
+            identifiers: { employeeId: "E-SEEDED" },
+            version: "subject:v1",
+            createdAt: TEST_NOW
+          }
+        ],
+        decisions: [createSeedDecision()]
+      },
+      persistence: {
+        graphRepository: new ThrowingSeedGraphRepository({ rootDir: join(storageRoot, "graph") }),
+        jobRepository: new ThrowingSeedJobRepository({ rootDir: join(storageRoot, "jobs") })
+      }
+    });
+
+    expect(app.persistenceDegradations).toEqual([
+      expect.objectContaining({
+        component: "graph",
+        operation: "seedRuntimeRepository",
+        occurredAt: "2026-05-21T17:00:00.000Z"
+      }),
+      expect.objectContaining({
+        component: "job",
+        operation: "seedRuntimeRepository",
+        occurredAt: "2026-05-21T17:00:01.000Z"
+      })
+    ]);
+  });
+
   it("keeps the snapshot audit chain authoritative when the audit file is ahead", async () => {
     const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-dual-persistence-"));
     tempDirs.push(storageRoot);
@@ -1081,6 +1242,8 @@ describe("ReBAC API runtime", () => {
 
     expect(persistence.auditRepository).toBeInstanceOf(LocalAppendOnlyAuditRepository);
     expect(persistence.evidenceRepository).toBeInstanceOf(LocalFileEvidenceRepository);
+    expect(persistence.graphRepository).toBeInstanceOf(LocalJsonFileGraphRepository);
+    expect(persistence.jobRepository).toBeInstanceOf(LocalJsonFileJobRepository);
     expect(persistence.stateRepository).toBeInstanceOf(LocalJsonFileStateRepository);
 
     await restartServer({
@@ -1094,9 +1257,26 @@ describe("ReBAC API runtime", () => {
       action: "read",
       resourceId: "document:case-plan"
     });
+    await post("/v1/subjects", {
+      id: "user:service-persistent",
+      type: "user",
+      displayName: "Service Persistent",
+      sourceSystem: "synthetic",
+      lifecycleState: "active",
+      identifiers: { employeeId: "E-SERVICE" },
+      version: "subject:v1",
+      createdAt: TEST_NOW
+    });
 
-    expect(persistence.auditRepository?.listAuditEvents().map((event) => event.eventType)).toEqual(["decision.allowed"]);
-    expect(persistence.stateRepository?.readState()?.auditEvents?.map((event) => event.eventType)).toEqual(["decision.allowed"]);
+    expect(persistence.auditRepository?.listAuditEvents().map((event) => event.eventType)).toEqual(["decision.allowed", "subject.created"]);
+    expect(persistence.graphRepository?.exportGraph().subjects.map((subject) => subject.id)).toContain("user:service-persistent");
+    expect(persistence.jobRepository?.exportJobs().decisions).toHaveLength(1);
+    expect(persistence.stateRepository?.readState()?.auditEvents?.map((event) => event.eventType)).toEqual(["decision.allowed", "subject.created"]);
+    await expect(readdir(join(storageRoot, "state"))).resolves.toEqual(expect.arrayContaining([
+      "graph-state.json",
+      "job-state.json",
+      "runtime-state.json"
+    ]));
     await expect(readdir(join(storageRoot, "evidence"))).resolves.toContain("append-only-audit-events.jsonl");
     await expect(readdir(join(storageRoot, "evidence"))).resolves.not.toContain("audit-events.jsonl");
   });
@@ -2267,6 +2447,18 @@ class ThrowingAuditRepository implements AuditEventRepository {
   }
 }
 
+class ThrowingSeedGraphRepository extends LocalJsonFileGraphRepository {
+  upsertSubject(): never {
+    throw new Error("graph repository locked");
+  }
+}
+
+class ThrowingSeedJobRepository extends LocalJsonFileJobRepository {
+  recordDecision(): never {
+    throw new Error("job repository locked");
+  }
+}
+
 class ThrowingEvidenceRepository implements EvidencePackageRepository {
   writeEvidenceExport(): never {
     throw new Error("read-only volume");
@@ -2308,6 +2500,22 @@ function createRecordingStateRepository(): { repository: RebacStateRepository; s
         };
       }
     }
+  };
+}
+
+function createSeedDecision(): DecisionResult {
+  return {
+    decisionId: "decision:seeded",
+    decision: "allow",
+    subjectId: "user:seeded",
+    action: "read",
+    resourceId: "document:case-plan",
+    reasonCode: "ALLOW_RELATIONSHIP_PATH",
+    policyVersion: "policy:seed",
+    relationshipVersion: "relationship:seed",
+    relationshipPath: [],
+    constraints: {},
+    evaluatedAt: TEST_NOW
   };
 }
 

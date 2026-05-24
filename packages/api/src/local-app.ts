@@ -53,6 +53,8 @@ import {
   type ReconciliationRun,
   type RelationshipTuple,
   type Resource,
+  type RebacGraphRepository,
+  type RebacJobRepository,
   type RebacSeedData,
   type RebacStateRepository,
   type SystemBoundaryEvidence,
@@ -64,19 +66,23 @@ export interface RebacLocalAppOptions {
   actor?: string;
   seed?: RebacSeedData;
   persistence?: RebacRuntimePersistence;
+  graphRepository?: RebacGraphRepository;
+  jobRepository?: RebacJobRepository;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
 }
 
 export interface RebacRuntimePersistence {
+  graphRepository?: RebacGraphRepository;
+  jobRepository?: RebacJobRepository;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
 }
 
 export interface RebacPersistenceDegradation {
-  component: "audit" | "evidence" | "state";
+  component: "audit" | "evidence" | "graph" | "job" | "state";
   operation: string;
   occurredAt: string;
   message: string;
@@ -98,6 +104,8 @@ export interface RebacLocalApp {
   auditRecorder: AuditRecorder;
   persistence: RebacRuntimePersistence;
   persistenceDegradations: RebacPersistenceDegradation[];
+  graphRepository?: RebacGraphRepository;
+  jobRepository?: RebacJobRepository;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
@@ -110,6 +118,9 @@ interface RecordAuditOptions {
   occurredAt?: string;
   persistState?: boolean;
 }
+
+type RebacGraphSnapshot = ReturnType<RebacGraphRepository["exportGraph"]>;
+type RebacJobSnapshot = ReturnType<RebacJobRepository["exportJobs"]>;
 
 const appRecordSequences = new WeakMap<RebacLocalApp, Map<string, number>>();
 
@@ -155,8 +166,11 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
   const actor = options.actor ?? "service:api";
   const persistence = normalizeRuntimePersistence(options);
   const persistenceDegradations: RebacPersistenceDegradation[] = [];
-  const persistedState = persistence.stateRepository?.readState();
-  const store = new InMemoryRebacStore(persistedState ?? options.seed ?? createLocalEngineSeed());
+  const persistedGraph = persistence.graphRepository?.exportGraph();
+  const persistedJobs = persistence.jobRepository?.exportJobs();
+  const seed = initialRuntimeSeed(persistence, options.seed ?? createLocalEngineSeed(), persistedGraph, persistedJobs);
+  const store = new InMemoryRebacStore(seed);
+  seedEmptyRuntimeRepositories(persistence, store, persistenceDegradations, now, persistedGraph, persistedJobs);
   const auditRecorder = new AuditRecorder(initialAuditEvents(persistence, store));
   const engine = new RebacDecisionEngine(store, {
     now,
@@ -182,6 +196,8 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     auditRecorder,
     persistence,
     persistenceDegradations,
+    graphRepository: persistence.graphRepository,
+    jobRepository: persistence.jobRepository,
     stateRepository: persistence.stateRepository,
     auditRepository: persistence.auditRepository,
     evidenceRepository: persistence.evidenceRepository,
@@ -192,40 +208,46 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
 }
 
 export function checkDecision(app: RebacLocalApp, request: DecisionRequest): ReturnType<RebacDecisionEngine["check"]> {
-  return app.engine.check(request);
+  const decision = app.engine.check(request);
+  persistJobDecision(app, decision);
+  return decision;
 }
 
 export function explainDecision(app: RebacLocalApp, request: DecisionRequest): ReturnType<RebacDecisionEngine["explain"]> {
-  return app.engine.explain(request);
+  const decision = app.engine.explain(request);
+  persistJobDecision(app, decision);
+  return decision;
 }
 
 export function createSubject(app: RebacLocalApp, subject: Subject): Subject {
   const saved = app.store.upsertSubject(subject);
-  recordAudit(app, {
+  const event = recordAudit(app, {
     eventType: "subject.created",
     actor: app.actor,
     subjectId: saved.id,
     correlationId: `corr:${saved.id}:${saved.version}`,
     payload: asJsonRecord(saved)
   });
+  persistGraphSubject(app, saved, event.occurredAt);
   return saved;
 }
 
 export function createResource(app: RebacLocalApp, resource: Resource): Resource {
   const saved = app.store.upsertResource(resource);
-  recordAudit(app, {
+  const event = recordAudit(app, {
     eventType: "resource.discovered",
     actor: app.actor,
     resourceId: saved.id,
     correlationId: `corr:${saved.id}:${saved.version}`,
     payload: asJsonRecord(saved)
   });
+  persistGraphResource(app, saved, event.occurredAt);
   return saved;
 }
 
 export function putRelationship(app: RebacLocalApp, relationship: RelationshipTuple): RelationshipTuple {
   const saved = app.store.upsertRelationship(relationship);
-  recordAudit(app, {
+  const event = recordAudit(app, {
     eventType: "relationship.created",
     actor: app.actor,
     subjectId: saved.subjectId,
@@ -233,6 +255,7 @@ export function putRelationship(app: RebacLocalApp, relationship: RelationshipTu
     correlationId: `corr:${saved.id}:${saved.version}`,
     payload: asJsonRecord(saved)
   });
+  persistGraphRelationship(app, saved, event.occurredAt);
   return saved;
 }
 
@@ -240,7 +263,7 @@ export function deleteRelationship(app: RebacLocalApp, relationshipId: string): 
   const deleted = app.store.deleteRelationship(relationshipId, app.now());
 
   if (deleted) {
-    recordAudit(app, {
+    const event = recordAudit(app, {
       eventType: "relationship.deleted",
       actor: app.actor,
       subjectId: deleted.subjectId,
@@ -248,6 +271,7 @@ export function deleteRelationship(app: RebacLocalApp, relationshipId: string): 
       correlationId: `corr:${deleted.id}:deleted`,
       payload: asJsonRecord(deleted)
     });
+    persistGraphRelationship(app, deleted, event.occurredAt);
   }
 
   return deleted;
@@ -474,6 +498,7 @@ export async function createProvisioningPlan(
   }
 
   const decision = app.engine.explain(request);
+  persistJobDecision(app, decision);
   const plan = {
     ...prepareProvisioningPlan(
       app,
@@ -509,6 +534,7 @@ export async function createProvisioningPlan(
   });
   recordPlanApprovalAudit(app, plan);
   recordCompensationAudit(app, plan);
+  persistJobProvisioningPlan(app, plan, plan.createdAt);
   return plan;
 }
 
@@ -564,6 +590,7 @@ export async function createRevocationPlan(
   });
   recordPlanApprovalAudit(app, plan);
   recordCompensationAudit(app, plan);
+  persistJobProvisioningPlan(app, plan, plan.createdAt);
   return plan;
 }
 
@@ -694,6 +721,7 @@ export async function createProvisioningJob(
   ];
   const job = { ...jobWithoutAuditIds, auditEventIds };
   app.store.upsertProvisioningJob(job);
+  persistJobProvisioningJob(app, job, completedAt);
   persistAppState(app, completedAt);
   return job;
 }
@@ -816,6 +844,8 @@ async function createControlledEnforcementJob(
 
   const job = { ...jobWithoutAuditIds, auditEventIds };
   app.store.upsertProvisioningJob(job);
+  persistJobProvisioningPlan(app, { ...plan, status: completed ? "applied" : "failed", updatedAt: completedAt }, completedAt);
+  persistJobProvisioningJob(app, job, completedAt);
   persistAppState(app, completedAt);
   return job;
 }
@@ -1072,6 +1102,94 @@ function appendAuditEvent(
   }
 }
 
+function initialRuntimeSeed(
+  persistence: RebacRuntimePersistence,
+  fallbackSeed: RebacSeedData,
+  graph: RebacGraphSnapshot | undefined,
+  jobs: RebacJobSnapshot | undefined
+): RebacSeedData {
+  const baseSeed = persistence.stateRepository?.readState() ?? fallbackSeed;
+
+  return {
+    ...baseSeed,
+    ...(graph && hasPersistedGraphRecords(graph)
+      ? {
+          subjects: graph.subjects,
+          resources: graph.resources,
+          relationships: graph.relationships,
+          nativeGrants: graph.nativeGrants
+        }
+      : {}),
+    ...(jobs && hasPersistedRuntimeJobRecords(jobs)
+      ? {
+          provisioningPlans: jobs.provisioningPlans,
+          provisioningJobs: jobs.provisioningJobs,
+          decisions: jobs.decisions
+        }
+      : {})
+  };
+}
+
+function hasPersistedGraphRecords(graph: RebacGraphSnapshot): boolean {
+  return graph.subjects.length > 0
+    || graph.resources.length > 0
+    || graph.relationships.length > 0
+    || graph.nativeGrants.length > 0;
+}
+
+function hasPersistedRuntimeJobRecords(jobs: RebacJobSnapshot): boolean {
+  return jobs.provisioningPlans.length > 0
+    || jobs.provisioningJobs.length > 0
+    || jobs.decisions.length > 0;
+}
+
+function seedEmptyRuntimeRepositories(
+  persistence: RebacRuntimePersistence,
+  store: InMemoryRebacStore,
+  degradations: RebacPersistenceDegradation[],
+  now: () => string,
+  persistedGraph: RebacGraphSnapshot | undefined,
+  persistedJobs: RebacJobSnapshot | undefined
+): void {
+  const seed = store.exportSeedData();
+
+  try {
+    if (persistence.graphRepository && persistedGraph && !hasPersistedGraphRecords(persistedGraph)) {
+      seed.subjects?.forEach((subject) => persistence.graphRepository?.upsertSubject(subject));
+      seed.resources?.forEach((resource) => persistence.graphRepository?.upsertResource(resource));
+      seed.relationships?.forEach((relationship) => persistence.graphRepository?.upsertRelationship(relationship));
+      seed.nativeGrants?.forEach((grant) => persistence.graphRepository?.upsertNativeGrant(grant));
+    }
+  } catch (error) {
+    recordPersistenceRepositoryError(degradations, "graph", "seedRuntimeRepository", now(), error);
+  }
+
+  try {
+    if (persistence.jobRepository && persistedJobs && !hasPersistedRuntimeJobRecords(persistedJobs)) {
+      seed.provisioningPlans?.forEach((plan) => persistence.jobRepository?.upsertProvisioningPlan(plan));
+      seed.provisioningJobs?.forEach((job) => persistence.jobRepository?.upsertProvisioningJob(job));
+      seed.decisions?.forEach((decision) => persistence.jobRepository?.recordDecision(decision));
+    }
+  } catch (error) {
+    recordPersistenceRepositoryError(degradations, "job", "seedRuntimeRepository", now(), error);
+  }
+}
+
+function recordPersistenceRepositoryError(
+  degradations: RebacPersistenceDegradation[],
+  component: RebacPersistenceDegradation["component"],
+  operation: string,
+  occurredAt: string,
+  error: unknown
+): void {
+  recordPersistenceDegradation(degradations, {
+    component,
+    operation,
+    occurredAt,
+    message: error instanceof Error ? error.message : String(error)
+  });
+}
+
 function initialAuditEvents(persistence: RebacRuntimePersistence, store: InMemoryRebacStore): AuditEvent[] {
   if (persistence.stateRepository) {
     return store.listAuditEvents();
@@ -1097,6 +1215,54 @@ function auditRepositoryMatches(repository: AuditEventRepository, expectedEvents
 
 function persistAppState(app: RebacLocalApp, storedAt: string): void {
   persistStoreSnapshot(app.persistence.stateRepository, app.store, storedAt, app.persistenceDegradations);
+}
+
+function persistGraphSubject(app: RebacLocalApp, subject: Subject, storedAt: string): void {
+  try {
+    app.graphRepository?.upsertSubject(subject);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "graph", "upsertSubject", storedAt, error);
+  }
+}
+
+function persistGraphResource(app: RebacLocalApp, resource: Resource, storedAt: string): void {
+  try {
+    app.graphRepository?.upsertResource(resource);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "graph", "upsertResource", storedAt, error);
+  }
+}
+
+function persistGraphRelationship(app: RebacLocalApp, relationship: RelationshipTuple, storedAt: string): void {
+  try {
+    app.graphRepository?.upsertRelationship(relationship);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "graph", "upsertRelationship", storedAt, error);
+  }
+}
+
+function persistJobDecision(app: RebacLocalApp, decision: DecisionResult): void {
+  try {
+    app.jobRepository?.recordDecision(decision);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "recordDecision", decision.evaluatedAt, error);
+  }
+}
+
+function persistJobProvisioningPlan(app: RebacLocalApp, plan: ProvisioningPlan, storedAt: string): void {
+  try {
+    app.jobRepository?.upsertProvisioningPlan(plan);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "upsertProvisioningPlan", storedAt, error);
+  }
+}
+
+function persistJobProvisioningJob(app: RebacLocalApp, job: ProvisioningJob, storedAt: string): void {
+  try {
+    app.jobRepository?.upsertProvisioningJob(job);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "upsertProvisioningJob", storedAt, error);
+  }
 }
 
 function persistStoreSnapshot(
@@ -1149,6 +1315,8 @@ function writeEvidenceExport(
 
 function normalizeRuntimePersistence(options: RebacLocalAppOptions): RebacRuntimePersistence {
   return {
+    graphRepository: options.persistence?.graphRepository ?? options.graphRepository,
+    jobRepository: options.persistence?.jobRepository ?? options.jobRepository,
     stateRepository: options.persistence?.stateRepository ?? options.stateRepository,
     auditRepository: options.persistence?.auditRepository ?? options.auditRepository,
     evidenceRepository: options.persistence?.evidenceRepository ?? options.evidenceRepository

@@ -22,7 +22,7 @@ The container sets these defaults:
 - `REBAC_STATE_PATH=/var/lib/access-kit/state/runtime-state.json`
 - `REBAC_EVIDENCE_ROOT=/var/lib/access-kit/evidence`
 
-Mount `/var/lib/access-kit` to preserve local runtime snapshots, append-only audit JSONL records, and local proof-point evidence packages across restarts. These files remain validation artifacts, not production database, WORM audit storage, or approved SIEM retention.
+Mount `/var/lib/access-kit` to preserve local runtime snapshots, graph/job repository JSON files, append-only audit JSONL records, and local proof-point evidence packages across restarts. These files remain validation artifacts, not production database, WORM audit storage, approved queue storage, or approved SIEM retention.
 
 Because the container binds to a non-loopback host, it refuses to start unless `REBAC_API_KEYS` contains at least one bearer token. Loopback-only local development can still run without keys.
 
