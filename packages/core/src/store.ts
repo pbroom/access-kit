@@ -31,6 +31,8 @@ export interface RebacSeedData {
   persistenceDegradations?: PersistenceDegradationReceipt[];
 }
 
+const MAX_PERSISTENCE_DEGRADATIONS = 20;
+
 export class InMemoryRebacStore {
   readonly #subjects = new Map<CanonicalId, Subject>();
   readonly #resources = new Map<CanonicalId, Resource>();
@@ -284,8 +286,20 @@ export class InMemoryRebacStore {
   }
 
   recordPersistenceDegradation(degradation: PersistenceDegradationReceipt): PersistenceDegradationReceipt {
+    if (this.#persistenceDegradations.length >= MAX_PERSISTENCE_DEGRADATIONS) {
+      this.#persistenceDegradations.shift();
+    }
+
     this.#persistenceDegradations.push(degradation);
     return degradation;
+  }
+
+  replacePersistenceDegradations(degradations: PersistenceDegradationReceipt[]): void {
+    this.#persistenceDegradations.splice(
+      0,
+      this.#persistenceDegradations.length,
+      ...degradations.slice(-MAX_PERSISTENCE_DEGRADATIONS)
+    );
   }
 
   listPersistenceDegradations(): PersistenceDegradationReceipt[] {

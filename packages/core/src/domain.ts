@@ -359,7 +359,6 @@ export interface PersistenceDegradationReceipt {
   operation: string;
   occurredAt: IsoDateTime | "startup";
   message: string;
-  workflowId?: CanonicalId;
   version: "persistence-degradation:v1";
 }
 

@@ -1521,11 +1521,17 @@ describe("ReBAC API runtime", () => {
     });
   });
 
-  it("bounds retained persistence degradations for readiness checks", () => {
+  it("bounds retained persistence degradations for readiness checks", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-bounded-degraded-state-"));
+    tempDirs.push(stateRoot);
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: stateRoot });
     const timestamps = Array.from({ length: 25 }, (_, index) => new Date(Date.parse(TEST_NOW) + index * 1000).toISOString());
     const app = createRebacLocalApp({
       now: sequenceNow(...timestamps),
-      auditRepository: new ThrowingAuditRepository()
+      persistence: {
+        auditRepository: new ThrowingAuditRepository(),
+        stateRepository
+      }
     });
 
     for (let index = 0; index < timestamps.length; index += 1) {
@@ -1543,6 +1549,18 @@ describe("ReBAC API runtime", () => {
       occurredAt: "2026-05-21T17:00:05.000Z"
     });
     expect(app.persistenceDegradations.at(-1)).toMatchObject({
+      component: "audit",
+      operation: "appendAuditEvent",
+      occurredAt: "2026-05-21T17:00:24.000Z"
+    });
+    const persistedDegradations = stateRepository.readState()?.persistenceDegradations ?? [];
+    expect(persistedDegradations).toHaveLength(20);
+    expect(persistedDegradations[0]).toMatchObject({
+      component: "audit",
+      operation: "appendAuditEvent",
+      occurredAt: "2026-05-21T17:00:05.000Z"
+    });
+    expect(persistedDegradations.at(-1)).toMatchObject({
       component: "audit",
       operation: "appendAuditEvent",
       occurredAt: "2026-05-21T17:00:24.000Z"

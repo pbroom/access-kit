@@ -128,9 +128,8 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
   const seed = initialRuntimeSeed(persistence, options.seed ?? createLocalEngineSeed(), persistedGraph, persistedJobs);
   const store = new InMemoryRebacStore(seed);
   persistenceDegradations.push(...store.listPersistenceDegradations());
-  const startupDegradationStart = persistenceDegradations.length;
   seedEmptyRuntimeRepositories(persistence, store, persistenceDegradations, now, persistedGraph, persistedJobs);
-  persistenceDegradations.slice(startupDegradationStart).forEach((degradation) => store.recordPersistenceDegradation(degradation));
+  store.replacePersistenceDegradations(persistenceDegradations);
   const auditRecorder = new AuditRecorder(initialAuditEvents(persistence, store));
   const engine = new RebacDecisionEngine(store, {
     now,
@@ -138,9 +137,8 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     auditRecorder,
     onAuditEvent: (event) => {
       const priorStoreAuditEvents = persistence.stateRepository ? store.listAuditEvents().slice(0, -1) : undefined;
-      const degradationStart = persistenceDegradations.length;
       appendAuditEvent(persistence.auditRepository, event, event.occurredAt, priorStoreAuditEvents, persistenceDegradations);
-      persistenceDegradations.slice(degradationStart).forEach((degradation) => store.recordPersistenceDegradation(degradation));
+      store.replacePersistenceDegradations(persistenceDegradations);
       persistStoreSnapshot(persistence.stateRepository, store, event.occurredAt, persistenceDegradations);
     }
   });
@@ -1027,9 +1025,8 @@ export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options:
   const event = app.auditRecorder.record(input, options.occurredAt ?? app.now());
   const priorStoreAuditEvents = app.persistence.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
-  const degradationStart = app.persistenceDegradations.length;
   appendAuditEvent(app.persistence.auditRepository, event, event.occurredAt, priorStoreAuditEvents, app.persistenceDegradations);
-  app.persistenceDegradations.slice(degradationStart).forEach((degradation) => app.store.recordPersistenceDegradation(degradation));
+  app.store.replacePersistenceDegradations(app.persistenceDegradations);
   if (options.persistState ?? true) {
     persistAppState(app, event.occurredAt);
   }
@@ -1355,6 +1352,7 @@ function persistStoreSnapshot(
       message: error instanceof Error ? error.message : String(error),
       version: "persistence-degradation:v1"
     });
+    store.replacePersistenceDegradations(degradations);
   }
 }
 
