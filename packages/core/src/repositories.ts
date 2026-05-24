@@ -1025,9 +1025,16 @@ function migrateLegacyRuntimeState(value: unknown): RebacSeedData {
       throw new Error(`Legacy ReBAC runtime state contains unsupported field: ${key}`);
     }
 
-    if (!Array.isArray(value[key])) {
+    const items = value[key];
+    if (!Array.isArray(items)) {
       throw new Error(`Legacy ReBAC runtime state field ${key} must be an array.`);
     }
+
+    items.forEach((item, index) => {
+      if (!isRecord(item)) {
+        throw new Error(`Legacy ReBAC runtime state field ${key} item ${index} must be an object.`);
+      }
+    });
   }
 
   return value as RebacSeedData;

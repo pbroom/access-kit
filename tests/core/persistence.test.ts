@@ -506,6 +506,15 @@ describe("persistent ReBAC repository contracts", () => {
     expect(() => repository.readState()).toThrow("Legacy ReBAC runtime state field subjects must be an array.");
   });
 
+  it("rejects legacy runtime state arrays with non-object items", () => {
+    const statePath = join(mkdtempSync(join(tmpdir(), "rebac-state-")), "runtime-state.json");
+    writeFileSync(statePath, JSON.stringify({ subjects: ["user:bob"] }), "utf8");
+
+    const repository = new LocalJsonFileStateRepository({ statePath });
+
+    expect(() => repository.readState()).toThrow("Legacy ReBAC runtime state field subjects item 0 must be an object.");
+  });
+
   it("blocks proof-point persistence from production readiness", () => {
     const report = assessPersistenceReadiness(
       [

@@ -148,6 +148,7 @@ export interface EnforcementReadinessRequest {
 
 const CHANGE_TICKET_PATTERN_MAX_LENGTH = 128;
 const CHANGE_TICKET_VALUE_MAX_LENGTH = 256;
+const MAX_PERSISTENCE_DEGRADATIONS = 20;
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
@@ -1028,9 +1029,9 @@ export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
 
 export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options: RecordAuditOptions = {}): AuditEvent {
   const event = app.auditRecorder.record(input, options.occurredAt ?? app.now());
-  const priorStoreAuditEvents = app.stateRepository ? app.store.listAuditEvents() : undefined;
+  const priorStoreAuditEvents = app.persistence.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
-  appendAuditEvent(app.auditRepository, event, event.occurredAt, priorStoreAuditEvents, app.persistenceDegradations);
+  appendAuditEvent(app.persistence.auditRepository, event, event.occurredAt, priorStoreAuditEvents, app.persistenceDegradations);
   if (options.persistState ?? true) {
     persistAppState(app, event.occurredAt);
   }
@@ -1046,7 +1047,7 @@ function appendAuditEvent(
 ): void {
   try {
     if (repository && expectedPriorEvents && !auditRepositoryMatches(repository, expectedPriorEvents)) {
-      degradations.push({
+      recordPersistenceDegradation(degradations, {
         component: "audit",
         operation: "appendAuditEvent",
         occurredAt: storedAt,
@@ -1057,7 +1058,7 @@ function appendAuditEvent(
 
     repository?.appendAuditEvent(event, storedAt);
   } catch (error) {
-    degradations.push({
+    recordPersistenceDegradation(degradations, {
       component: "audit",
       operation: "appendAuditEvent",
       occurredAt: storedAt,
@@ -1090,7 +1091,7 @@ function auditRepositoryMatches(repository: AuditEventRepository, expectedEvents
 }
 
 function persistAppState(app: RebacLocalApp, storedAt: string): void {
-  persistStoreSnapshot(app.stateRepository, app.store, storedAt, app.persistenceDegradations);
+  persistStoreSnapshot(app.persistence.stateRepository, app.store, storedAt, app.persistenceDegradations);
 }
 
 function persistStoreSnapshot(
@@ -1102,13 +1103,24 @@ function persistStoreSnapshot(
   try {
     repository?.writeState(store.exportSeedData(), storedAt);
   } catch (error) {
-    degradations.push({
+    recordPersistenceDegradation(degradations, {
       component: "state",
       operation: "writeState",
       occurredAt: storedAt,
       message: error instanceof Error ? error.message : String(error)
     });
   }
+}
+
+function recordPersistenceDegradation(
+  degradations: RebacPersistenceDegradation[],
+  degradation: RebacPersistenceDegradation
+): void {
+  if (degradations.length >= MAX_PERSISTENCE_DEGRADATIONS) {
+    degradations.shift();
+  }
+
+  degradations.push(degradation);
 }
 
 function writeEvidenceExport(

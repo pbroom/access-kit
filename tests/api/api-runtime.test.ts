@@ -23,6 +23,7 @@ import {
   type RebacStateRepository
 } from "../../packages/core/src/index.js";
 import {
+  checkDecision,
   checkEnforcementReadiness,
   createProvisioningJob,
   createProvisioningPlan,
@@ -1153,6 +1154,34 @@ describe("ReBAC API runtime", () => {
     expect(degradation).toMatchObject({
       status: "warn",
       evidence: { degradedWrites: 2, components: ["audit"] }
+    });
+  });
+
+  it("bounds retained persistence degradations for readiness checks", () => {
+    const timestamps = Array.from({ length: 25 }, (_, index) => new Date(Date.parse(TEST_NOW) + index * 1000).toISOString());
+    const app = createRebacLocalApp({
+      now: sequenceNow(...timestamps),
+      auditRepository: new ThrowingAuditRepository()
+    });
+
+    for (let index = 0; index < timestamps.length; index += 1) {
+      checkDecision(app, {
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan"
+      });
+    }
+
+    expect(app.persistenceDegradations).toHaveLength(20);
+    expect(app.persistenceDegradations[0]).toMatchObject({
+      component: "audit",
+      operation: "appendAuditEvent",
+      occurredAt: "2026-05-21T17:00:05.000Z"
+    });
+    expect(app.persistenceDegradations.at(-1)).toMatchObject({
+      component: "audit",
+      operation: "appendAuditEvent",
+      occurredAt: "2026-05-21T17:00:24.000Z"
     });
   });
 
