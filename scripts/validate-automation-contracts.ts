@@ -3,6 +3,7 @@ import { join } from "node:path";
 import YAML from "yaml";
 import { findNextReadySlice, backlogStatuses, readBacklog } from "./lib/automation.js";
 import { automationContract, type LabelContract, type PackageScriptContract } from "./lib/automation-contract.js";
+import { requireAutomationSecurityBaseline } from "./lib/automation-security-baseline.js";
 
 interface PackageJson {
   scripts?: Record<string, string>;
@@ -25,6 +26,7 @@ const activeBacklogStatuses = new Set<string>([inProgressStatus, inReviewStatus]
 const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8")) as PackageJson;
 const automationDoc = await readFile(join(root, "docs", "automation.md"), "utf8");
 const ciWorkflow = await readFile(join(root, ".github", "workflows", "ci.yml"), "utf8");
+const securityWorkflow = await readFile(join(root, ".github", "workflows", "security.yml"), "utf8");
 const prStewardWorkflow = await readFile(join(root, ".github", "workflows", "pr-steward.yml"), "utf8");
 const labelsManifest = YAML.parse(
   await readFile(join(root, ".github", "labels.yml"), "utf8")
@@ -35,6 +37,13 @@ requireValidationPlans(packageJson.scripts ?? {}, automationContract.validationP
 requireNodeImportTsxScripts(packageJson.scripts ?? {}, automationContract.nodeImportTsxScripts);
 requireDocNeedles(automationDoc, automationContract.docs.automationRequiredText);
 requireLabels(labelsManifest, automationContract.labels.definitions);
+requireAutomationSecurityBaseline({
+  packageScripts: packageJson.scripts ?? {},
+  labelNames: getLabelNames(labelsManifest),
+  mergeBlockerLabels: automationContract.labels.mergeBlockers,
+  ciWorkflow,
+  securityWorkflow
+});
 
 if (!ciWorkflow.includes(automationContract.ci.automationGateCommand)) {
   throw new Error("CI workflow must run pnpm validate:automation.");
@@ -149,4 +158,8 @@ function requireLabels(manifest: LabelManifest, definitions: readonly LabelContr
       throw new Error(`.github/labels.yml label ${definition.name} differs from automation contract manifest.`);
     }
   }
+}
+
+function getLabelNames(manifest: LabelManifest): string[] {
+  return (manifest.labels ?? []).flatMap((label) => (typeof label.name === "string" ? [label.name] : []));
 }
