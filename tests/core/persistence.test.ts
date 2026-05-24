@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   AuditRecorder,
   auditEventHash,
+  assessPersistenceDeploymentReadiness,
   assessPersistenceReadiness,
   createLocalEngineSeed,
   InMemoryRebacPersistenceRepository,
@@ -18,6 +19,7 @@ import {
   type EnforcementReadinessReport,
   type NativeGrant,
   type PersistenceBackendDescriptor,
+  type PersistenceDeploymentManifest,
   type ProvisioningJob,
   type ProvisioningPlan,
   type RebacJobRepository,
@@ -566,6 +568,80 @@ describe("persistent ReBAC repository contracts", () => {
     expect(report.requiredCapabilities.audit).toContain("audit_immutability");
   });
 
+  it("marks a production persistence manifest ready when backend kinds, capabilities, and controls are evidenced", () => {
+    const manifest = createProductionPersistenceManifest();
+    const report = assessPersistenceDeploymentReadiness(manifest, now);
+
+    expect(report.status).toBe("ready");
+    expect(report.version).toBe("persistence-deployment-readiness:v1");
+    expect(report.manifest).toEqual(manifest);
+    expect(report.checks.every((check) => check.status === "pass")).toBe(true);
+    expect(report.checks.map((check) => check.name)).toContain("deployment_control_identityProviderBackedAccess");
+    expect(report.checks.map((check) => check.name)).toContain("audit_repository_backend_kind");
+  });
+
+  it("blocks local proof-point repositories from production deployment readiness", () => {
+    const localGraph = new LocalJsonFileGraphRepository({
+      graphPath: join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json"),
+      now: () => now
+    });
+    const localAudit = new LocalAppendOnlyAuditRepository({
+      auditPath: join(mkdtempSync(join(tmpdir(), "rebac-audit-")), "append-only-audit-events.jsonl"),
+      retentionDays: 365
+    });
+    const localJobs = new LocalJsonFileJobRepository({
+      jobsPath: join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json"),
+      now: () => now
+    });
+    const manifest: PersistenceDeploymentManifest = {
+      environment: "local_proof_point",
+      generatedAt: now,
+      descriptors: [
+        localGraph.describePersistence(),
+        localAudit.describePersistence(),
+        localJobs.describePersistence()
+      ],
+      controls: createDeploymentControls(),
+      evidenceRefs: ["reports/proof-point-validation.md"],
+      version: "persistence-deployment-manifest:v1"
+    };
+
+    const report = assessPersistenceDeploymentReadiness(manifest, now);
+
+    expect(report.status).toBe("blocked");
+    expect(failingCheckNames(report.checks)).toEqual([
+      "graph_repository_durable",
+      "graph_repository_capabilities",
+      "audit_repository_durable",
+      "audit_repository_capabilities",
+      "audit_repository_immutable",
+      "job_repository_durable",
+      "deployment_environment_production",
+      "graph_repository_backend_kind",
+      "audit_repository_backend_kind",
+      "job_repository_backend_kind"
+    ]);
+  });
+
+  it("blocks production persistence manifests without deployment control evidence", () => {
+    const manifest: PersistenceDeploymentManifest = {
+      ...createProductionPersistenceManifest(),
+      controls: {
+        ...createDeploymentControls(),
+        backupRestoreTested: false
+      },
+      evidenceRefs: []
+    };
+
+    const report = assessPersistenceDeploymentReadiness(manifest, now);
+
+    expect(report.status).toBe("blocked");
+    expect(failingCheckNames(report.checks)).toEqual([
+      "deployment_manifest_evidence_refs",
+      "deployment_control_backupRestoreTested"
+    ]);
+  });
+
   it("blocks duplicate persistence descriptors for the same component", () => {
     const descriptors: PersistenceBackendDescriptor[] = [
       {
@@ -634,6 +710,62 @@ function readFirstJsonlRecord<T>(path: string): T {
   }
 
   return JSON.parse(line) as T;
+}
+
+function createProductionPersistenceManifest(): PersistenceDeploymentManifest {
+  return {
+    environment: "production",
+    generatedAt: now,
+    descriptors: [
+      {
+        component: "graph",
+        backend: "external_graph",
+        durable: true,
+        immutable: false,
+        capabilities: ["graph_read", "graph_write", "relationship_query", "transactional_writes", "backup_restore"],
+        location: "external://graph/rebac-primary",
+        version: "persistence-backend:v1"
+      },
+      {
+        component: "audit",
+        backend: "external_append_only_audit",
+        durable: true,
+        immutable: true,
+        capabilities: ["audit_append", "audit_hash_chain", "audit_immutability", "audit_retention", "backup_restore"],
+        retentionDays: 2555,
+        location: "external://audit/rebac-ledger",
+        version: "persistence-backend:v1"
+      },
+      {
+        component: "job",
+        backend: "external_queue",
+        durable: true,
+        immutable: false,
+        capabilities: ["job_enqueue", "idempotency_lookup", "transactional_writes", "backup_restore"],
+        location: "external://queue/rebac-jobs",
+        version: "persistence-backend:v1"
+      }
+    ],
+    controls: createDeploymentControls(),
+    evidenceRefs: [
+      "evidence/persistence/graph-backup-restore.json",
+      "evidence/persistence/audit-retention.json",
+      "evidence/persistence/job-queue-replay.json"
+    ],
+    version: "persistence-deployment-manifest:v1"
+  };
+}
+
+function createDeploymentControls(): PersistenceDeploymentManifest["controls"] {
+  return {
+    identityProviderBackedAccess: true,
+    operatorAuthorization: true,
+    secretsExternalized: true,
+    backupRestoreTested: true,
+    changeApprovalRequired: true,
+    monitoringConfigured: true,
+    migrationPlanReviewed: true
+  };
 }
 
 function createSubject(): Subject {

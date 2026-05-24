@@ -24,6 +24,12 @@ Required production capabilities:
 
 The readiness report blocks local memory and local file proof points from being treated as production storage. Audit backends must also declare immutability controls and at least one year of retention.
 
+## Deployment Manifest
+
+`PersistenceDeploymentManifest` raises the readiness check from individual backend descriptors to a deployment-level production gate. It requires production environment intent, exactly one external backend kind for graph, audit, and jobs, evidence references, and deployment controls for identity-provider-backed access, operator authorization, externalized secrets, backup/restore testing, change approval, monitoring, and migration review.
+
+`assessPersistenceDeploymentReadiness` combines backend descriptor readiness with the deployment manifest checks. Local proof-point adapters remain blocked even when they implement the local contract because production readiness requires `external_graph`, `external_append_only_audit`, and `external_queue` backend kinds plus deployment control evidence.
+
 ## Current Adapters
 
 `InMemoryRebacPersistenceRepository` is a conformance adapter for tests and local proof points. It implements the graph and job repository contracts over the existing in-memory store, returns defensive copies, and advertises itself as non-durable memory storage. It is not a production database adapter.

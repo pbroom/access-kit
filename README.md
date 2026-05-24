@@ -14,7 +14,7 @@ This repository currently delivers:
 - Synthetic Entra ID, SharePoint, and AWS-style read-only connector fixtures with no real tenant access.
 - Restartable local API runtime for check, explain, inventory, relationship, read-only connector discovery, discovery run history, native-grant readback, dry-run provisioning jobs, reconciliation, audit, SIEM-ready audit export, and complete local ATO evidence package flows.
 - File-backed runtime state snapshots, public health/readiness probes, a `rebac-api` service entrypoint, container packaging proof points, release packaging contracts for signatures/provenance, and reference Kubernetes deployment manifests.
-- Persistent storage repository contracts, local graph/audit/job adapters, and readiness checks for graph, audit, and job backends.
+- Persistent storage repository contracts, local graph/audit/job adapters, and production persistence manifest readiness checks for graph, audit, and job backends.
 - Bearer-token API guard that is optional for loopback local development and required for non-loopback runtimes, with unauthenticated attempts audited and token material excluded from logs.
 - CLI commands that call the API instead of evaluating authorization locally.
 - Policy proof-point fixtures for deny/default, relationship allow, deny override, expiration, suspension, idempotency, and drift.
