@@ -107,6 +107,12 @@ kubectl apply -k deploy/kubernetes
 
 The signed-image admission policy example lives at `deploy/policies/kyverno/rebac-api-signed-image-policy.yaml`. It is a policy contract for clusters that use Kyverno and cosign keyless verification; production clusters still need environment approval before enforcing it.
 
+## Persistence Deployment Evidence Gate
+
+The synthetic production persistence manifest lives at `deploy/persistence/production-manifest.example.json` and is validated by `pnpm validate:persistence-deployment`.
+
+That gate ties the manifest to retained evidence references for IaC outputs, release approval, backup/restore results, and operator controls under `deploy/persistence/evidence/`. The example proves the deployment contract shape only: production use still needs environment-specific storage selection, real IaC outputs, approved identity-provider access, monitored secret handling, and retained change records.
+
 ## Rollback
 
 Rollback is a digest change, not an in-place image mutation:

@@ -10,6 +10,7 @@ The repo treats API and evidence contracts as first-class CI gates.
 - `pnpm validate:packaging` validates the deployable API Dockerfile, runtime healthcheck, non-root container contract, and container CI smoke-test wiring.
 - `pnpm validate:release-packaging` validates the GHCR release workflow, publish gates, SBOM/provenance metadata, artifact attestation, and keyless signing wiring.
 - `pnpm validate:deployment-manifests` validates the Kubernetes manifests, probe wiring, secret references, restricted runtime security, network policy, and signed-image admission policy example.
+- `pnpm validate:persistence-deployment` validates the schema-backed synthetic production persistence manifest, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm build` verify TypeScript quality across supported Node versions.
 - `pnpm evidence:check` regenerates proof-point evidence in check mode and fails when the committed report no longer matches the normalized generated output.
 - `pnpm audit --audit-level high`, Gitleaks, and CodeQL provide initial dependency, secret, and static-analysis coverage.
@@ -30,7 +31,7 @@ The repo treats API and evidence contracts as first-class CI gates.
 - Publish to GHCR only for release tags or explicit `publish=true` manual dispatches.
 - Emit SBOM/provenance metadata, push GitHub artifact attestations, and sign the published digest with keyless cosign.
 
-`deploy/kubernetes/` and `deploy/policies/kyverno/` are validated in the contract-validation job so probe and admission-policy drift fails before review.
+`deploy/kubernetes/`, `deploy/policies/kyverno/`, and `deploy/persistence/` are validated in the contract-validation job so probe, admission-policy, and persistence deployment evidence drift fails before review.
 
 `.github/workflows/security.yml` runs:
 

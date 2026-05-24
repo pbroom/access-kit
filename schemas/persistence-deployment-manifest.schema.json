@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/persistence-deployment-manifest.schema.json",
+  "title": "PersistenceDeploymentManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["environment", "generatedAt", "descriptors", "controls", "evidenceRefs", "version"],
+  "properties": {
+    "environment": { "type": "string", "enum": ["local_proof_point", "production"] },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "descriptors": {
+      "type": "array",
+      "minItems": 3,
+      "items": { "$ref": "#/$defs/persistenceBackendDescriptor" }
+    },
+    "controls": { "$ref": "#/$defs/persistenceDeploymentControls" },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "version": { "type": "string", "const": "persistence-deployment-manifest:v1" }
+  },
+  "$defs": {
+    "persistenceBackendDescriptor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "backend", "durable", "immutable", "capabilities", "location", "version"],
+      "properties": {
+        "component": { "type": "string", "enum": ["graph", "audit", "job"] },
+        "backend": {
+          "type": "string",
+          "enum": ["memory", "local_file", "external_graph", "external_append_only_audit", "external_queue"]
+        },
+        "durable": { "type": "boolean" },
+        "immutable": { "type": "boolean" },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "graph_read",
+              "graph_write",
+              "relationship_query",
+              "native_grant_readback",
+              "audit_append",
+              "audit_hash_chain",
+              "audit_immutability",
+              "audit_retention",
+              "job_enqueue",
+              "idempotency_lookup",
+              "transactional_writes",
+              "backup_restore"
+            ]
+          }
+        },
+        "retentionDays": { "type": "integer", "minimum": 1 },
+        "location": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "const": "persistence-backend:v1" }
+      }
+    },
+    "persistenceDeploymentControls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identityProviderBackedAccess",
+        "operatorAuthorization",
+        "secretsExternalized",
+        "backupRestoreTested",
+        "changeApprovalRequired",
+        "monitoringConfigured",
+        "migrationPlanReviewed"
+      ],
+      "properties": {
+        "identityProviderBackedAccess": { "type": "boolean" },
+        "operatorAuthorization": { "type": "boolean" },
+        "secretsExternalized": { "type": "boolean" },
+        "backupRestoreTested": { "type": "boolean" },
+        "changeApprovalRequired": { "type": "boolean" },
+        "monitoringConfigured": { "type": "boolean" },
+        "migrationPlanReviewed": { "type": "boolean" }
+      }
+    }
+  }
+}

@@ -30,6 +30,8 @@ The readiness report blocks local memory and local file proof points from being 
 
 `assessPersistenceDeploymentReadiness` combines backend descriptor readiness with the deployment manifest checks. Local proof-point adapters remain blocked even when they implement the local contract because production readiness requires `external_graph`, `external_append_only_audit`, and `external_queue` backend kinds plus deployment control evidence.
 
+`schemas/persistence-deployment-manifest.schema.json` and `deploy/persistence/production-manifest.example.json` make this gate reviewable outside TypeScript. `pnpm validate:persistence-deployment` validates the synthetic manifest against the schema, runs the readiness assessment, checks that referenced IaC/release/backup/operator evidence exists, and proves a local proof-point manifest remains blocked from production readiness.
+
 ## Current Adapters
 
 `InMemoryRebacPersistenceRepository` is a conformance adapter for tests and local proof points. It implements the graph and job repository contracts over the existing in-memory store, returns defensive copies, and advertises itself as non-durable memory storage. It is not a production database adapter.
@@ -49,4 +51,4 @@ Production adapters should be added behind the same contracts:
 - durable queue/job storage for discovery, reconciliation, provisioning, decision recording, and evidence work
 - environment-specific backup, restore, retention, and migration evidence
 
-No live provider write path should depend on local JSON snapshots, local JSONL audit files, or in-memory repositories. Local graph, audit, and job persistence are development and validation adapters, not production approval paths.
+No live provider write path should depend on local JSON snapshots, local JSONL audit files, or in-memory repositories. Local graph, audit, and job persistence are development and validation adapters, not production approval paths. The manifest evidence under `deploy/persistence/` is synthetic and must be replaced by deployment-specific IaC outputs and retained approval evidence before production use.
