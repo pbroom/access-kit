@@ -6,6 +6,7 @@ import {
   type WorkflowContract,
   type WorkflowJobContract
 } from "./lib/automation-contract.js";
+import { isPinnedRequiredActionUse, isRequiredActionUse } from "./lib/github-action-ref.js";
 
 type WorkflowJob = Record<string, unknown>;
 type WorkflowStep = Record<string, unknown>;
@@ -75,10 +76,19 @@ function requireJob(workflow: WorkflowDocument, contract: WorkflowJobContract): 
   }
 
   const missingUses = (contract.requiredUses ?? []).filter(
-    (action) => !uses.some((usedAction) => usedAction === action || usedAction.startsWith(`${action}@`))
+    (action) => !uses.some((usedAction) => isRequiredActionUse(usedAction, action))
   );
   if (missingUses.length > 0) {
     throw new Error(`Workflow job ${contract.name} is missing required action: ${missingUses.join(", ")}`);
+  }
+
+  const unpinnedUses = (contract.requiredUses ?? []).filter((action) =>
+    uses.some((usedAction) => isRequiredActionUse(usedAction, action) && !isPinnedRequiredActionUse(usedAction, action))
+  );
+  if (unpinnedUses.length > 0) {
+    throw new Error(
+      `Workflow job ${contract.name} must pin required actions to full 40-character SHA refs: ${unpinnedUses.join(", ")}`
+    );
   }
 
   const missingRunSnippets = (contract.requiredRunSnippets ?? []).filter(

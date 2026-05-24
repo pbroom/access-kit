@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YAML from "yaml";
+import { isPinnedRequiredActionUse } from "./lib/github-action-ref.js";
 
 type WorkflowJob = Record<string, unknown>;
 
@@ -130,8 +131,8 @@ function findStep(job: WorkflowJob, name: string): WorkflowJob {
 function requireStepUses(job: WorkflowJob, name: string, actionPrefix: string): void {
   const step = findStep(job, name);
 
-  if (typeof step.uses !== "string" || !step.uses.startsWith(`${actionPrefix}@`)) {
-    throw new Error(`${name} must use ${actionPrefix} with a pinned ref`);
+  if (typeof step.uses !== "string" || !isPinnedRequiredActionUse(step.uses, actionPrefix)) {
+    throw new Error(`${name} must use ${actionPrefix} pinned to a full 40-character SHA ref`);
   }
 }
 
