@@ -36,6 +36,14 @@ requireScripts(packageJson.scripts ?? {}, [
   "security:pass",
   "labels:sync"
 ]);
+requireNodeImportTsxScripts(packageJson.scripts ?? {}, [
+  "pr:status",
+  "steward:check",
+  "backlog:next",
+  "stack:ready",
+  "labels:sync",
+  "labels:check"
+]);
 
 requireDocNeedles(automationDoc, [
   "pnpm pr:status",
@@ -80,6 +88,18 @@ function requireScripts(scripts: Record<string, string>, names: string[]): void 
   for (const name of names) {
     if (!scripts[name]) {
       throw new Error(`package.json is missing script ${name}.`);
+    }
+  }
+}
+
+function requireNodeImportTsxScripts(scripts: Record<string, string>, names: string[]): void {
+  for (const name of names) {
+    const command = scripts[name];
+
+    if (!command?.startsWith("node --import tsx ")) {
+      throw new Error(
+        `package.json script ${name} must use node --import tsx to avoid tsx CLI IPC in automation.`
+      );
     }
   }
 }

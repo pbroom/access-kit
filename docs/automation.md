@@ -24,6 +24,8 @@ Run `pnpm labels:sync` to create or update labels from `.github/labels.yml`. The
 
 Run `pnpm pr:status` to inspect open PRs, labels, CI rollups, and next actions. `pnpm steward:check` is the same dry-run status command and is intended for scheduled or recurring automation.
 
+The steward commands invoke TypeScript through `node --import tsx` so they do not depend on the `tsx` CLI launcher IPC path in restricted automation environments.
+
 When a PR has `ready-for-automation`, the recurring steward may:
 
 - pull the branch and inspect failing checks or review findings;
