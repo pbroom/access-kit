@@ -95,6 +95,8 @@ interface RecordAuditOptions {
   persistState?: boolean;
 }
 
+const appRecordSequences = new WeakMap<RebacLocalApp, Map<string, number>>();
+
 type NativeAccessFilter = Partial<
   Pick<NativeGrant, "sourceConnectorId" | "subjectId" | "nativePermission"> & {
     grantType: NativeGrantType;
@@ -237,7 +239,7 @@ export async function syncConnector(
 ): Promise<DiscoveryRun> {
   const connector = getConnector(app, connectorId);
   const startedAt = app.now();
-  const runSequence = app.store.listDiscoveryRuns({ connectorId }).length + 1;
+  const runSequence = nextAppRecordSequence(app, `discovery:${connectorId}`, app.store.listDiscoveryRuns({ connectorId }).length);
   const runKey = `${connectorId}:${compactTimestamp(startedAt)}:${runSequence}`;
   connector.mode = mode;
   const metadata = connector.getDiscoveryMetadata?.();
@@ -288,7 +290,6 @@ export async function syncConnector(
     updatedAt: completedAt
   };
 
-  app.store.recordDiscoveryRun(run);
   const auditEvent = recordAudit(app, {
     eventType: "connector.discovery_completed",
     actor: app.actor,
@@ -306,7 +307,7 @@ export async function syncConnector(
       evidence: run.evidence,
       discoveryRunId: run.id
     }
-  });
+  }, { persistState: false });
 
   const completedRun = { ...run, auditEventIds: [auditEvent.eventId] };
   app.store.recordDiscoveryRun(completedRun);
@@ -402,13 +403,12 @@ export async function checkEnforcementReadiness(
     version: "enforcement-readiness:v1",
     createdAt: checkedAt
   };
-  app.store.recordEnforcementReadinessReport(reportWithoutAuditIds);
   const auditEvent = recordAudit(app, {
     eventType: "connector.enforcement_readiness_checked",
     actor: app.actor,
     correlationId: `corr:${reportId}`,
     payload: asJsonRecord(reportWithoutAuditIds)
-  });
+  }, { persistState: false });
   const report = { ...reportWithoutAuditIds, auditEventIds: [auditEvent.eventId] };
   app.store.recordEnforcementReadinessReport(report);
   persistAppState(app, checkedAt);
@@ -417,7 +417,8 @@ export async function checkEnforcementReadiness(
 
 function createEnforcementReadinessReportId(app: RebacLocalApp, connectorId: string, checkedAt: string): string {
   const reports = app.store.listEnforcementReadinessReports({ connectorId });
-  return `readiness:${connectorId}:${compactTimestamp(checkedAt)}:${reports.length + 1}`;
+  const sequence = nextAppRecordSequence(app, `readiness:${connectorId}`, reports.length);
+  return `readiness:${connectorId}:${compactTimestamp(checkedAt)}:${sequence}`;
 }
 
 export function listEnforcementReadinessReports(
@@ -805,7 +806,8 @@ export function getProvisioningJob(app: RebacLocalApp, jobId: string): Provision
 export async function runReconciliation(app: RebacLocalApp, connectorId: string): Promise<ReconciliationRun> {
   const connector = getConnector(app, connectorId);
   const startedAt = app.now();
-  const runSequence = app.store.listReconciliationRuns().filter((run) => run.connectorId === connectorId).length + 1;
+  const existingRuns = app.store.listReconciliationRuns().filter((run) => run.connectorId === connectorId).length;
+  const runSequence = nextAppRecordSequence(app, `reconciliation:${connectorId}`, existingRuns);
   const findings = await connector.detectDrift();
   const auditEventIds: string[] = [];
 
@@ -839,7 +841,6 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
     createdAt: startedAt,
     completedAt
   };
-  app.store.recordReconciliationRun(run);
   const completedEvent = recordAudit(app, {
     eventType: "reconciliation.completed",
     actor: app.actor,
@@ -851,7 +852,7 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
       counts: run.counts,
       findingIds: findings.map((finding) => finding.id)
     }
-  });
+  }, { persistState: false });
   const completedRun = { ...run, auditEventIds: [...auditEventIds, completedEvent.eventId] };
   app.store.recordReconciliationRun(completedRun);
   persistAppState(app, completedAt);
@@ -1649,6 +1650,19 @@ function asJsonRecord(value: object): JsonRecord {
 
 function compactTimestamp(timestamp: string): string {
   return timestamp.replaceAll(/[^0-9a-z]/gi, "").toLowerCase();
+}
+
+function nextAppRecordSequence(app: RebacLocalApp, key: string, existingCount: number): number {
+  let sequences = appRecordSequences.get(app);
+
+  if (!sequences) {
+    sequences = new Map();
+    appRecordSequences.set(app, sequences);
+  }
+
+  const sequence = Math.max(sequences.get(key) ?? 0, existingCount) + 1;
+  sequences.set(key, sequence);
+  return sequence;
 }
 
 function normalizePlanConnector(plan: ProvisioningPlan, connectorId: string): ProvisioningPlan {

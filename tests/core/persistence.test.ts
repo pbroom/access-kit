@@ -20,6 +20,7 @@ import {
   type PersistenceBackendDescriptor,
   type ProvisioningJob,
   type ProvisioningPlan,
+  type RebacJobRepository,
   type ReconciliationRun,
   type RelationshipTuple,
   type Resource,
@@ -400,9 +401,21 @@ describe("persistent ReBAC repository contracts", () => {
     expect(new LocalJsonFileJobRepository({ jobsPath, now: () => now }).listProvisioningPlans()).toEqual([updatedPlan]);
   });
 
-  it("rejects duplicate recorded local job run identifiers", () => {
-    const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
-    const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+  it.each<{ name: string; createRepository: () => RebacJobRepository }>([
+    {
+      name: "in-memory",
+      createRepository: () => new InMemoryRebacPersistenceRepository(createLocalEngineSeed())
+    },
+    {
+      name: "local JSON",
+      createRepository: () =>
+        new LocalJsonFileJobRepository({
+          jobsPath: join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json"),
+          now: () => now
+        })
+    }
+  ])("rejects duplicate recorded $name job run identifiers", ({ createRepository }) => {
+    const repository = createRepository();
     const discoveryRun = createDiscoveryRun();
     const readinessReport = createEnforcementReadinessReport();
     const reconciliationRun = createReconciliationRun(createDriftFinding());
