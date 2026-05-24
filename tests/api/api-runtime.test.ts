@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { join } from "node:path";
@@ -7,6 +7,9 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   AuditRecorder,
+  LocalAppendOnlyAuditRepository,
+  LocalFileEvidenceRepository,
+  LocalJsonFileStateRepository,
   type AuditEvent,
   type AuditEventRepository,
   type AuditIntegrityReport,
@@ -25,12 +28,12 @@ import {
   createProvisioningPlan,
   createRebacApiServer,
   createRebacLocalApp,
+  createLocalRuntimePersistence,
   readRebacApiRuntimeConfig,
   runReconciliation,
   syncConnector,
   type RebacApiServerOptions
 } from "../../packages/api/src/index.js";
-import { LocalFileEvidenceRepository, LocalJsonFileStateRepository } from "../../packages/core/src/index.js";
 
 type JsonObject = Record<string, unknown>;
 type EnforcementReadinessReportJson = JsonObject & EnforcementReadinessReport;
@@ -91,6 +94,10 @@ describe("ReBAC API runtime", () => {
     expect(checksByName.get("state_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("audit_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("evidence_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
+    expect(checksByName.get("persistence_degradation")).toMatchObject({
+      status: "pass",
+      evidence: { degradedWrites: 0 }
+    });
     expect(checksByName.get("connectors")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("connectors")?.evidence).not.toHaveProperty("connectorIds");
   });
@@ -784,15 +791,18 @@ describe("ReBAC API runtime", () => {
     expect(auditExport.auditIntegrity).toMatchObject({ status: "verified", eventCount: 2 });
   });
 
-  it("persists audit events and evidence packages through the file-backed repository", async () => {
+  it("persists audit events through append-only storage and evidence packages through the file-backed repository", async () => {
     const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-evidence-"));
     tempDirs.push(storageRoot);
-    const repository = new LocalFileEvidenceRepository({ rootDir: storageRoot });
+    const auditRepository = new LocalAppendOnlyAuditRepository({ rootDir: storageRoot });
+    const evidenceRepository = new LocalFileEvidenceRepository({ rootDir: storageRoot });
     await restartServer({
       app: createRebacLocalApp({
         now: () => "2026-05-21T17:00:00.000Z",
-        auditRepository: repository,
-        evidenceRepository: repository
+        persistence: {
+          auditRepository,
+          evidenceRepository
+        }
       })
     });
 
@@ -812,10 +822,10 @@ describe("ReBAC API runtime", () => {
         immutable: boolean;
       };
     }>("/v1/evidence/export?controls=AC-3,AU-6");
-    const storedEvidence = repository.readEvidenceExport(evidence.exportId);
+    const storedEvidence = evidenceRepository.readEvidenceExport(evidence.exportId);
 
     expect(integrity).toMatchObject({ status: "verified", eventCount: 1 });
-    expect(repository.listAuditEvents().map((event) => event.eventType)).toEqual([
+    expect(auditRepository.listAuditEvents().map((event) => event.eventType)).toEqual([
       "decision.allowed",
       "audit.integrity_verified",
       "evidence.generated"
@@ -904,13 +914,15 @@ describe("ReBAC API runtime", () => {
   it("keeps the snapshot audit chain authoritative when the audit file is ahead", async () => {
     const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-dual-persistence-"));
     tempDirs.push(storageRoot);
-    const auditRepository = new LocalFileEvidenceRepository({ rootDir: storageRoot });
+    const auditRepository = new LocalAppendOnlyAuditRepository({ rootDir: storageRoot });
     const stateRepository = new LocalJsonFileStateRepository({ rootDir: storageRoot });
     await restartServer({
       app: createRebacLocalApp({
         now: () => "2026-05-21T17:00:00.000Z",
-        auditRepository,
-        stateRepository
+        persistence: {
+          auditRepository,
+          stateRepository
+        }
       })
     });
 
@@ -941,8 +953,10 @@ describe("ReBAC API runtime", () => {
     await restartServer({
       app: createRebacLocalApp({
         now: sequenceNow("2026-05-21T17:00:02.000Z", "2026-05-21T17:00:03.000Z"),
-        auditRepository,
-        stateRepository
+        persistence: {
+          auditRepository,
+          stateRepository
+        }
       })
     });
     await post("/v1/decision/check", {
@@ -1056,6 +1070,36 @@ describe("ReBAC API runtime", () => {
     });
   });
 
+  it("builds service runtime persistence with append-only audit and file-backed evidence repositories", async () => {
+    const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-runtime-persistence-"));
+    tempDirs.push(storageRoot);
+    const persistence = createLocalRuntimePersistence({
+      statePath: join(storageRoot, "state", "runtime-state.json"),
+      evidenceRoot: join(storageRoot, "evidence")
+    });
+
+    expect(persistence.auditRepository).toBeInstanceOf(LocalAppendOnlyAuditRepository);
+    expect(persistence.evidenceRepository).toBeInstanceOf(LocalFileEvidenceRepository);
+    expect(persistence.stateRepository).toBeInstanceOf(LocalJsonFileStateRepository);
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => TEST_NOW,
+        persistence
+      })
+    });
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(persistence.auditRepository?.listAuditEvents().map((event) => event.eventType)).toEqual(["decision.allowed"]);
+    expect(persistence.stateRepository?.readState()?.auditEvents?.map((event) => event.eventType)).toEqual(["decision.allowed"]);
+    await expect(readdir(join(storageRoot, "evidence"))).resolves.toContain("append-only-audit-events.jsonl");
+    await expect(readdir(join(storageRoot, "evidence"))).resolves.not.toContain("audit-events.jsonl");
+  });
+
   it("requires API keys when the runtime binds beyond loopback", () => {
     expect(() => readRebacApiRuntimeConfig({ REBAC_API_HOST: "0.0.0.0" })).toThrow(
       "REBAC_API_KEYS must be set when REBAC_API_HOST is not a loopback host."
@@ -1097,11 +1141,19 @@ describe("ReBAC API runtime", () => {
     });
     const integrity = await get<{ status: string; eventCount: number; auditEventId: string }>("/v1/audit/integrity");
     const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+    const readiness = await get<{
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    }>("/v1/ready");
+    const degradation = readiness.checks.find((check) => check.name === "persistence_degradation");
 
     expect(decision.decision).toBe("allow");
     expect(integrity).toMatchObject({ status: "verified", eventCount: 0 });
     expect(integrity.auditEventId).toMatch(/^evt:/);
     expect(audit.items.map((event) => event.eventType)).toEqual(["decision.allowed", "audit.integrity_verified"]);
+    expect(degradation).toMatchObject({
+      status: "warn",
+      evidence: { degradedWrites: 2, components: ["audit"] }
+    });
   });
 
   it("returns evidence exports without exposing failed storage details", async () => {

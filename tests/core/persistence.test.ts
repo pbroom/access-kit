@@ -12,6 +12,7 @@ import {
   LocalAppendOnlyAuditRepository,
   LocalJsonFileGraphRepository,
   LocalJsonFileJobRepository,
+  LocalJsonFileStateRepository,
   type AuditEvent,
   type DecisionResult,
   type DiscoveryRun,
@@ -482,6 +483,27 @@ describe("persistent ReBAC repository contracts", () => {
       immutable: false,
       capabilities: ["job_enqueue", "idempotency_lookup", "transactional_writes", "backup_restore"]
     });
+  });
+
+  it("migrates legacy runtime state only when it has known array fields", () => {
+    const statePath = join(mkdtempSync(join(tmpdir(), "rebac-state-")), "runtime-state.json");
+    writeFileSync(statePath, JSON.stringify({ subjects: [createSubject()], relationships: [] }), "utf8");
+
+    const repository = new LocalJsonFileStateRepository({ statePath });
+
+    expect(repository.readState()).toMatchObject({
+      subjects: [expect.objectContaining({ id: "user:bob" })],
+      relationships: []
+    });
+  });
+
+  it("rejects malformed legacy runtime state instead of silently casting it", () => {
+    const statePath = join(mkdtempSync(join(tmpdir(), "rebac-state-")), "runtime-state.json");
+    writeFileSync(statePath, JSON.stringify({ subjects: {}, unknown: [] }), "utf8");
+
+    const repository = new LocalJsonFileStateRepository({ statePath });
+
+    expect(() => repository.readState()).toThrow("Legacy ReBAC runtime state field subjects must be an array.");
   });
 
   it("blocks proof-point persistence from production readiness", () => {

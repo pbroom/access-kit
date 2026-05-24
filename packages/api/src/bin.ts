@@ -3,16 +3,12 @@ import type { Socket } from "node:net";
 import { createRebacApiServer } from "./server.js";
 import { createRebacLocalApp } from "./local-app.js";
 import { readRebacApiRuntimeConfig } from "./runtime-config.js";
-import { LocalFileEvidenceRepository, LocalJsonFileStateRepository } from "@access-kit/core";
+import { createLocalRuntimePersistence } from "./runtime-persistence.js";
 
 const config = readRebacApiRuntimeConfig();
-const evidenceRepository = config.evidenceRoot ? new LocalFileEvidenceRepository({ rootDir: config.evidenceRoot }) : undefined;
-const stateRepository = config.statePath ? new LocalJsonFileStateRepository({ statePath: config.statePath }) : undefined;
 const app = createRebacLocalApp({
   actor: config.actor,
-  auditRepository: evidenceRepository,
-  evidenceRepository,
-  stateRepository
+  persistence: createLocalRuntimePersistence(config)
 });
 const server = createRebacApiServer({ app, apiKeys: config.apiKeys });
 const sockets = new Set<Socket>();

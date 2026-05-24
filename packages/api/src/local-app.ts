@@ -63,9 +63,23 @@ export interface RebacLocalAppOptions {
   now?: () => string;
   actor?: string;
   seed?: RebacSeedData;
+  persistence?: RebacRuntimePersistence;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
+}
+
+export interface RebacRuntimePersistence {
+  stateRepository?: RebacStateRepository;
+  auditRepository?: AuditEventRepository;
+  evidenceRepository?: EvidencePackageRepository;
+}
+
+export interface RebacPersistenceDegradation {
+  component: "audit" | "evidence" | "state";
+  operation: string;
+  occurredAt: string;
+  message: string;
 }
 
 export class RebacLocalAppError extends Error {
@@ -82,6 +96,8 @@ export interface RebacLocalApp {
   store: InMemoryRebacStore;
   engine: RebacDecisionEngine;
   auditRecorder: AuditRecorder;
+  persistence: RebacRuntimePersistence;
+  persistenceDegradations: RebacPersistenceDegradation[];
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
@@ -136,17 +152,19 @@ const CHANGE_TICKET_VALUE_MAX_LENGTH = 256;
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
   const actor = options.actor ?? "service:api";
-  const persistedState = options.stateRepository?.readState();
+  const persistence = normalizeRuntimePersistence(options);
+  const persistenceDegradations: RebacPersistenceDegradation[] = [];
+  const persistedState = persistence.stateRepository?.readState();
   const store = new InMemoryRebacStore(persistedState ?? options.seed ?? createLocalEngineSeed());
-  const auditRecorder = new AuditRecorder(initialAuditEvents(options, store));
+  const auditRecorder = new AuditRecorder(initialAuditEvents(persistence, store));
   const engine = new RebacDecisionEngine(store, {
     now,
     actor,
     auditRecorder,
     onAuditEvent: (event) => {
-      const priorStoreAuditEvents = options.stateRepository ? store.listAuditEvents().slice(0, -1) : undefined;
-      appendAuditEvent(options.auditRepository, event, event.occurredAt, priorStoreAuditEvents);
-      persistStoreSnapshot(options.stateRepository, store, event.occurredAt);
+      const priorStoreAuditEvents = persistence.stateRepository ? store.listAuditEvents().slice(0, -1) : undefined;
+      appendAuditEvent(persistence.auditRepository, event, event.occurredAt, priorStoreAuditEvents, persistenceDegradations);
+      persistStoreSnapshot(persistence.stateRepository, store, event.occurredAt, persistenceDegradations);
     }
   });
   const connectorList: ConnectorAdapter[] = [
@@ -161,9 +179,11 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     store,
     engine,
     auditRecorder,
-    stateRepository: options.stateRepository,
-    auditRepository: options.auditRepository,
-    evidenceRepository: options.evidenceRepository,
+    persistence,
+    persistenceDegradations,
+    stateRepository: persistence.stateRepository,
+    auditRepository: persistence.auditRepository,
+    evidenceRepository: persistence.evidenceRepository,
     connectors,
     now,
     actor
@@ -1010,7 +1030,7 @@ export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options:
   const event = app.auditRecorder.record(input, options.occurredAt ?? app.now());
   const priorStoreAuditEvents = app.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
-  appendAuditEvent(app.auditRepository, event, event.occurredAt, priorStoreAuditEvents);
+  appendAuditEvent(app.auditRepository, event, event.occurredAt, priorStoreAuditEvents, app.persistenceDegradations);
   if (options.persistState ?? true) {
     persistAppState(app, event.occurredAt);
   }
@@ -1021,25 +1041,37 @@ function appendAuditEvent(
   repository: AuditEventRepository | undefined,
   event: AuditEvent,
   storedAt: string,
-  expectedPriorEvents?: AuditEvent[]
+  expectedPriorEvents: AuditEvent[] | undefined,
+  degradations: RebacPersistenceDegradation[]
 ): void {
   try {
     if (repository && expectedPriorEvents && !auditRepositoryMatches(repository, expectedPriorEvents)) {
+      degradations.push({
+        component: "audit",
+        operation: "appendAuditEvent",
+        occurredAt: storedAt,
+        message: "Audit repository did not match the authoritative runtime snapshot; append was skipped."
+      });
       return;
     }
 
     repository?.appendAuditEvent(event, storedAt);
-  } catch {
-    // Local repositories are proof-point persistence only; API operations should still return computed results.
+  } catch (error) {
+    degradations.push({
+      component: "audit",
+      operation: "appendAuditEvent",
+      occurredAt: storedAt,
+      message: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
-function initialAuditEvents(options: RebacLocalAppOptions, store: InMemoryRebacStore): AuditEvent[] {
-  if (options.stateRepository) {
+function initialAuditEvents(persistence: RebacRuntimePersistence, store: InMemoryRebacStore): AuditEvent[] {
+  if (persistence.stateRepository) {
     return store.listAuditEvents();
   }
 
-  return options.auditRepository?.listAuditEvents() ?? store.listAuditEvents();
+  return persistence.auditRepository?.listAuditEvents() ?? store.listAuditEvents();
 }
 
 function authoritativeAuditEvents(app: RebacLocalApp): AuditEvent[] {
@@ -1058,18 +1090,24 @@ function auditRepositoryMatches(repository: AuditEventRepository, expectedEvents
 }
 
 function persistAppState(app: RebacLocalApp, storedAt: string): void {
-  persistStoreSnapshot(app.stateRepository, app.store, storedAt);
+  persistStoreSnapshot(app.stateRepository, app.store, storedAt, app.persistenceDegradations);
 }
 
 function persistStoreSnapshot(
   repository: RebacStateRepository | undefined,
   store: InMemoryRebacStore,
-  storedAt: string
+  storedAt: string,
+  degradations: RebacPersistenceDegradation[]
 ): void {
   try {
     repository?.writeState(store.exportSeedData(), storedAt);
-  } catch {
-    // Runtime snapshot storage is best-effort until production persistence is selected.
+  } catch (error) {
+    degradations.push({
+      component: "state",
+      operation: "writeState",
+      occurredAt: storedAt,
+      message: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
@@ -1083,6 +1121,14 @@ function writeEvidenceExport(
   } catch {
     return undefined;
   }
+}
+
+function normalizeRuntimePersistence(options: RebacLocalAppOptions): RebacRuntimePersistence {
+  return {
+    stateRepository: options.persistence?.stateRepository ?? options.stateRepository,
+    auditRepository: options.persistence?.auditRepository ?? options.auditRepository,
+    evidenceRepository: options.persistence?.evidenceRepository ?? options.evidenceRepository
+  };
 }
 
 interface ControlImplementationDefinition {

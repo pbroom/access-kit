@@ -735,7 +735,7 @@ export class LocalJsonFileStateRepository implements RebacStateRepository {
       return parsed.state;
     }
 
-    return parsed as RebacSeedData;
+    return migrateLegacyRuntimeState(parsed);
   }
 
   writeState(state: RebacSeedData, storedAt: string): RebacStateStorageReceipt {
@@ -998,6 +998,43 @@ function countStateEntities(state: RebacSeedData): RebacStateStorageReceipt["ent
     decisions: state.decisions?.length ?? 0,
     auditEvents: state.auditEvents?.length ?? 0
   };
+}
+
+function migrateLegacyRuntimeState(value: unknown): RebacSeedData {
+  if (!isRecord(value)) {
+    throw new Error("ReBAC runtime state must use the rebac-runtime-state:v1 envelope or a legacy state object.");
+  }
+
+  const allowedKeys = new Set([
+    "subjects",
+    "resources",
+    "relationships",
+    "nativeGrants",
+    "discoveryRuns",
+    "enforcementReadinessReports",
+    "provisioningPlans",
+    "provisioningJobs",
+    "driftFindings",
+    "reconciliationRuns",
+    "decisions",
+    "auditEvents"
+  ]);
+
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) {
+      throw new Error(`Legacy ReBAC runtime state contains unsupported field: ${key}`);
+    }
+
+    if (!Array.isArray(value[key])) {
+      throw new Error(`Legacy ReBAC runtime state field ${key} must be an array.`);
+    }
+  }
+
+  return value as RebacSeedData;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function cloneOptional<T>(value: T | undefined): T | undefined {
