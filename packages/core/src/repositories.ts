@@ -275,7 +275,7 @@ export class LocalJsonFileGraphRepository implements RebacGraphRepository, Descr
       updatedAt: deletedAt
     };
     this.#graph.relationships = upsertById(this.#graph.relationships, deleted);
-    this.#persist(deletedAt);
+    this.#persist(this.#now());
     return clone(deleted);
   }
 
@@ -314,14 +314,14 @@ export class LocalJsonFileGraphRepository implements RebacGraphRepository, Descr
       return undefined;
     }
 
-    const parsed = JSON.parse(readFileSync(this.#graphPath, "utf8")) as Partial<StoredRebacGraph> | RebacGraphSnapshot;
+    const parsed = JSON.parse(readFileSync(this.#graphPath, "utf8")) as Partial<StoredRebacGraph>;
 
-    if (isStoredRebacGraph(parsed)) {
-      assertStoredGraphIntegrity(parsed);
-      return normalizeGraphSnapshot(parsed.graph);
+    if (!isStoredRebacGraph(parsed)) {
+      throw new Error("ReBAC graph state must use the rebac-graph-state:v1 envelope.");
     }
 
-    return normalizeGraphSnapshot(parsed as Partial<RebacGraphSnapshot>);
+    assertStoredGraphIntegrity(parsed);
+    return normalizeGraphSnapshot(parsed.graph);
   }
 
   #persist(storedAt: string): RebacGraphStorageReceipt {

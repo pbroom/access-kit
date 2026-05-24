@@ -116,17 +116,26 @@ describe("persistent ReBAC repository contracts", () => {
     expect(reopened.getSubject(subject.id)?.displayName).toBe("Bob Example");
   });
 
-  it("marks deleted relationships in the persisted graph snapshot", () => {
+  it("marks deleted relationships in the persisted graph snapshot without backdating storage time", () => {
     const graphPath = join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json");
-    const repository = new LocalJsonFileGraphRepository({ graphPath, now: () => now });
+    const storedAt = "2026-05-21T19:00:00.000Z";
+    const repository = new LocalJsonFileGraphRepository({ graphPath, now: () => storedAt });
     const relationship = createRelationship();
+    const deletedAt = "2026-05-21T18:00:00.000Z";
 
     repository.upsertRelationship(relationship);
-    expect(repository.deleteRelationship(relationship.id, "2026-05-21T18:00:00.000Z")).toMatchObject({
+    expect(repository.deleteRelationship(relationship.id, deletedAt)).toMatchObject({
       id: relationship.id,
       status: "deleted",
-      updatedAt: "2026-05-21T18:00:00.000Z"
+      updatedAt: deletedAt
     });
+
+    const stored = JSON.parse(readFileSync(graphPath, "utf8")) as {
+      storedAt: string;
+      graph: { relationships: RelationshipTuple[] };
+    };
+    expect(stored.storedAt).toBe(storedAt);
+    expect(stored.graph.relationships[0]?.updatedAt).toBe(deletedAt);
 
     const reopened = new LocalJsonFileGraphRepository({ graphPath, now: () => now });
     expect(reopened.getRelationship(relationship.id)).toMatchObject({
@@ -149,6 +158,16 @@ describe("persistent ReBAC repository contracts", () => {
 
     expect(() => new LocalJsonFileGraphRepository({ graphPath, now: () => now })).toThrow(
       "ReBAC graph state hash does not match the stored graph payload."
+    );
+  });
+
+  it("rejects legacy raw graph snapshots without a hash envelope", () => {
+    const graphPath = join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json");
+
+    writeFileSync(graphPath, `${JSON.stringify({ subjects: [createSubject()] })}\n`, "utf8");
+
+    expect(() => new LocalJsonFileGraphRepository({ graphPath, now: () => now })).toThrow(
+      "ReBAC graph state must use the rebac-graph-state:v1 envelope."
     );
   });
 
