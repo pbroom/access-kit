@@ -28,6 +28,7 @@ import {
   type RebacLocalApp,
   type RebacLocalAppOptions
 } from "./local-app.js";
+import { validateRuntimeRequestSchema, type RuntimeRequestSchemaName } from "./request-schemas.js";
 import type {
   DecisionRequest,
   DiscoveryRunStatus,
@@ -49,6 +50,48 @@ export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
   apiKeys?: readonly string[];
 }
+
+export interface ApiRouteSurface {
+  method: "DELETE" | "GET" | "POST" | "PUT";
+  path: string;
+}
+
+export const API_ROUTE_SURFACES: ApiRouteSurface[] = [
+  { method: "GET", path: "/v1/health" },
+  { method: "GET", path: "/v1/ready" },
+  { method: "POST", path: "/v1/decision/check" },
+  { method: "POST", path: "/v1/decision/explain" },
+  { method: "POST", path: "/v1/decision/batch-check" },
+  { method: "GET", path: "/v1/subjects" },
+  { method: "POST", path: "/v1/subjects" },
+  { method: "GET", path: "/v1/subjects/{id}" },
+  { method: "GET", path: "/v1/subjects/{id}/access" },
+  { method: "GET", path: "/v1/resources" },
+  { method: "POST", path: "/v1/resources" },
+  { method: "GET", path: "/v1/resources/{id}" },
+  { method: "GET", path: "/v1/resources/{id}/access" },
+  { method: "GET", path: "/v1/resources/{id}/native-access" },
+  { method: "GET", path: "/v1/relationships" },
+  { method: "PUT", path: "/v1/relationships" },
+  { method: "DELETE", path: "/v1/relationships" },
+  { method: "POST", path: "/v1/policies/{id}/validate" },
+  { method: "POST", path: "/v1/policies/{id}/publish" },
+  { method: "POST", path: "/v1/provisioning/plans" },
+  { method: "POST", path: "/v1/provisioning/jobs" },
+  { method: "GET", path: "/v1/provisioning/jobs/{id}" },
+  { method: "POST", path: "/v1/reconciliation/run" },
+  { method: "GET", path: "/v1/reconciliation/findings" },
+  { method: "GET", path: "/v1/discovery/runs" },
+  { method: "GET", path: "/v1/audit/events" },
+  { method: "GET", path: "/v1/audit/integrity" },
+  { method: "GET", path: "/v1/audit/export" },
+  { method: "GET", path: "/v1/evidence/export" },
+  { method: "GET", path: "/v1/connectors" },
+  { method: "POST", path: "/v1/connectors/{id}/test" },
+  { method: "GET", path: "/v1/connectors/{id}/enforcement-readiness" },
+  { method: "POST", path: "/v1/connectors/{id}/enforcement-readiness" },
+  { method: "POST", path: "/v1/connectors/{id}/sync" }
+];
 
 interface ProvisioningPlanRequest {
   subjectId?: unknown;
@@ -597,16 +640,13 @@ async function routeDecision(
 
   if (segments[2] === "batch-check") {
     const batch = await readJson<unknown>(request);
-    const requests = parseDecisionBatch(batch);
-
-    if (!requests) {
-      sendJson(response, 400, {
-        code: "INVALID_BATCH_REQUESTS",
-        message: "batch-check requires a requests array of decision requests",
-        correlationId: "corr:bad-request"
-      });
-      return;
-    }
+    const parsed = readSchemaBacked<{ requests: DecisionRequest[] }>(
+      "decisionBatch",
+      batch,
+      "INVALID_BATCH_REQUESTS",
+      "batch-check requires a requests array of decision requests"
+    );
+    const requests = parsed.requests.map((item) => normalizeDecisionRequest(item));
 
     sendJson(response, 200, { results: requests.map((item) => checkDecision(app, item)) });
     return;
@@ -737,7 +777,7 @@ async function routeRelationships(
   }
 
   if (request.method === "PUT") {
-    sendJson(response, 200, putRelationship(app, await readJson<RelationshipTuple>(request)));
+    sendJson(response, 200, putRelationship(app, readRelationship(await readJson<unknown>(request))));
     return;
   }
 
@@ -987,22 +1027,14 @@ async function readJson<T>(request: IncomingMessage): Promise<T> {
 }
 
 async function readDecisionRequest(request: IncomingMessage): Promise<DecisionRequest> {
-  const parsed = parseDecisionRequest(await readJson<unknown>(request));
-
-  if (!parsed) {
-    throw new HttpError(400, "INVALID_DECISION_REQUEST", "Decision requests require subjectId, action, and resourceId");
-  }
-
-  return parsed;
-}
-
-function parseDecisionBatch(value: unknown): DecisionRequest[] | undefined {
-  if (!isRecord(value) || !Array.isArray(value.requests)) {
-    return undefined;
-  }
-
-  const requests = value.requests.map(parseDecisionRequest);
-  return requests.every((item) => item !== undefined) ? requests : undefined;
+  return normalizeDecisionRequest(
+    readSchemaBacked<DecisionRequest>(
+      "decisionRequest",
+      await readJson<unknown>(request),
+      "INVALID_DECISION_REQUEST",
+      "Decision requests require subjectId, action, and resourceId"
+    )
+  );
 }
 
 function parseDecisionRequest(value: unknown): DecisionRequest | undefined {
@@ -1028,59 +1060,54 @@ function parseDecisionRequest(value: unknown): DecisionRequest | undefined {
 }
 
 function readSubject(value: unknown): Subject {
-  if (
-    !isRecord(value) ||
-    !hasStringFields(value, ["id", "type", "displayName", "sourceSystem", "lifecycleState", "version", "createdAt"]) ||
-    !isStringRecord(value.identifiers) ||
-    (value.attributes !== undefined && !isRecord(value.attributes)) ||
-    (value.lastSeenAt !== undefined && typeof value.lastSeenAt !== "string")
-  ) {
-    throw new HttpError(
-      400,
-      "INVALID_SUBJECT",
-      "subjects require id, type, displayName, sourceSystem, lifecycleState, identifiers, version, and createdAt"
-    );
-  }
-
-  return value as unknown as Subject;
+  return readSchemaBacked<Subject>(
+    "subject",
+    value,
+    "INVALID_SUBJECT",
+    "subjects require the canonical subject schema"
+  );
 }
 
 function readResource(value: unknown): Resource {
-  if (
-    !isRecord(value) ||
-    !hasStringFields(value, [
-      "id",
-      "type",
-      "displayName",
-      "sourceSystem",
-      "ownerId",
-      "dataStewardId",
-      "technicalOwnerId",
-      "classification",
-      "lifecycleState",
-      "version",
-      "createdAt"
-    ]) ||
-    (value.parentId !== undefined && typeof value.parentId !== "string") ||
-    (value.attributes !== undefined && !isRecord(value.attributes)) ||
-    (value.lastSeenAt !== undefined && typeof value.lastSeenAt !== "string")
-  ) {
-    throw new HttpError(
-      400,
-      "INVALID_RESOURCE",
-      "resources require id, type, displayName, sourceSystem, owners, classification, lifecycleState, version, and createdAt"
-    );
+  return readSchemaBacked<Resource>(
+    "resource",
+    value,
+    "INVALID_RESOURCE",
+    "resources require the canonical resource schema"
+  );
+}
+
+function readRelationship(value: unknown): RelationshipTuple {
+  return readSchemaBacked<RelationshipTuple>(
+    "relationship",
+    value,
+    "INVALID_RELATIONSHIP",
+    "relationships require the canonical relationship schema"
+  );
+}
+
+function readSchemaBacked<T>(
+  schemaName: RuntimeRequestSchemaName,
+  value: unknown,
+  code: string,
+  message: string
+): T {
+  const errors = validateRuntimeRequestSchema(schemaName, value);
+
+  if (errors.length > 0) {
+    throw new HttpError(400, code, `${message}: ${errors.join("; ")}`);
   }
 
-  return value as unknown as Resource;
+  return value as T;
 }
 
-function hasStringFields(value: Record<string, unknown>, fields: string[]): boolean {
-  return fields.every((field) => typeof value[field] === "string" && value[field].length > 0);
-}
-
-function isStringRecord(value: unknown): value is Record<string, string> {
-  return isRecord(value) && Object.values(value).every((item) => typeof item === "string");
+function normalizeDecisionRequest(value: DecisionRequest): DecisionRequest {
+  return {
+    subjectId: value.subjectId,
+    action: value.action,
+    resourceId: value.resourceId,
+    context: value.context
+  };
 }
 
 function readDiscoveryMode(mode: unknown): "read_only" {

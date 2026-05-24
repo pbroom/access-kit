@@ -300,7 +300,11 @@ describe("ReBAC API runtime", () => {
   });
 
   it("validates batch-check requests before evaluating them", async () => {
-    for (const body of [{}, { requests: null }]) {
+    for (const body of [
+      {},
+      { requests: null },
+      { requests: [{ subjectId: "user:alice", action: "read", resourceId: "document:case-plan", unexpected: true }] }
+    ]) {
       const response = await fetch(`${baseUrl}/v1/decision/batch-check`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -354,6 +358,41 @@ describe("ReBAC API runtime", () => {
     expect(subjectBody.code).toBe("INVALID_SUBJECT");
     expect(resourceResponse.status).toBe(400);
     expect(resourceBody.code).toBe("INVALID_RESOURCE");
+  });
+
+  it("rejects schema-invalid decision and relationship payloads before runtime mutation", async () => {
+    const decisionResponse = await fetch(`${baseUrl}/v1/decision/check`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        unexpected: true
+      })
+    });
+    const relationshipResponse = await fetch(`${baseUrl}/v1/relationships`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-invalid-relationship" },
+      body: JSON.stringify({
+        id: "relationship:bad-status",
+        subjectId: "user:alice",
+        relation: "reader_of",
+        objectId: "document:case-plan",
+        sourceSystem: "mock",
+        assertedAt: "2026-05-21T17:00:00.000Z",
+        status: "unknown",
+        version: "tuple:v1",
+        createdAt: "2026-05-21T17:00:00.000Z"
+      })
+    });
+    const relationships = await get<{ items: Array<{ id: string }> }>("/v1/relationships");
+
+    await expect(decisionResponse.json()).resolves.toMatchObject({ code: "INVALID_DECISION_REQUEST" });
+    await expect(relationshipResponse.json()).resolves.toMatchObject({ code: "INVALID_RELATIONSHIP" });
+    expect(decisionResponse.status).toBe(400);
+    expect(relationshipResponse.status).toBe(400);
+    expect(relationships.items.map((relationship) => relationship.id)).not.toContain("relationship:bad-status");
   });
 
   it("uses the configured actor for decision audit events", async () => {

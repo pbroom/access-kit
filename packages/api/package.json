@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@access-kit/connectors-mock": "workspace:*",
-    "@access-kit/core": "workspace:*"
+    "@access-kit/core": "workspace:*",
+    "ajv": "^8.17.1"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json"
