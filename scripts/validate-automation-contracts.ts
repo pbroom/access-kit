@@ -42,14 +42,14 @@ requireDocNeedles(automationDoc, [
   "pnpm backlog:next",
   "pnpm stack:ready",
   "pnpm security:pass",
-  "ready-for-codex",
+  "ready-for-automation",
   "needs-human",
   "ready-to-merge"
 ]);
 
 requireLabels(labelsManifest, [
   "stack",
-  "ready-for-codex",
+  "ready-for-automation",
   "needs-human",
   "security-pass-required",
   "blocked",

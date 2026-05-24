@@ -11,8 +11,8 @@ This repo uses a lightweight steward loop so implementation slices can move thro
 GitHub labels carry PR state:
 
 - `stack` marks PRs that belong to the active implementation stack.
-- `ready-for-codex` means Codex may fix CI, Greptle, or review issues inside the accepted scope.
-- `needs-human` means Codex should pause until a decision is made.
+- `ready-for-automation` means an approved steward automation may fix CI, Greptle, or review issues inside the accepted scope.
+- `needs-human` means steward automation should pause until a decision is made.
 - `security-pass-required` means the PR needs `pnpm security:pass` before it can be merge-ready.
 - `blocked` means the PR cannot progress without an external dependency or decision.
 - `ready-to-merge` means a human has approved the PR after checks and security pass are clean.
@@ -24,7 +24,7 @@ Run `pnpm labels:sync` to create or update labels from `.github/labels.yml`. The
 
 Run `pnpm pr:status` to inspect open PRs, labels, CI rollups, and next actions. `pnpm steward:check` is the same dry-run status command and is intended for scheduled or recurring automation.
 
-When a PR has `ready-for-codex`, the recurring steward may:
+When a PR has `ready-for-automation`, the recurring steward may:
 
 - pull the branch and inspect failing checks or review findings;
 - make scoped fixes;

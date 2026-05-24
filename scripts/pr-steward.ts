@@ -61,7 +61,7 @@ function toStewardStatus(pr: GitHubPullRequest): PullRequestStewardStatus {
   }
 
   if (!hasStateLabel(labels)) {
-    actions.push("Apply one state label: ready-for-codex, needs-human, blocked, or ready-to-merge.");
+    actions.push("Apply one state label: ready-for-automation, needs-human, blocked, or ready-to-merge.");
   }
 
   return {
@@ -73,7 +73,7 @@ function toStewardStatus(pr: GitHubPullRequest): PullRequestStewardStatus {
 }
 
 function hasStateLabel(labels: string[]): boolean {
-  return ["ready-for-codex", "needs-human", "blocked", "ready-to-merge"].some((label) =>
+  return ["ready-for-automation", "needs-human", "blocked", "ready-to-merge"].some((label) =>
     labels.includes(label)
   );
 }

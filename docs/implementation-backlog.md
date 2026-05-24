@@ -13,8 +13,8 @@ This file is the durable source of truth for implementation slice coordination. 
 ## Operating Rules
 
 - Scope selection and merges remain human-gated.
-- Codex may fix CI failures, review findings, and contract drift for PRs labeled `ready-for-codex`.
-- Codex must stop on `needs-human` or `blocked`.
+- Approved steward automation may fix CI failures, review findings, and contract drift for PRs labeled `ready-for-automation`.
+- Steward automation must stop on `needs-human` or `blocked`.
 - Every implementation slice should define acceptance checks and a security note before work starts.
 - The first `ready` row is the default candidate for `pnpm backlog:next`.
 
@@ -30,7 +30,7 @@ This file is the durable source of truth for implementation slice coordination. 
 | AK-006 | Phase 5 ATO evidence hardening | merged | codex/rebac-phase5-complete | - | Audit export, evidence packages, control mapping, runbooks, and assessor docs validate. | Evidence exports avoid secrets and production identifiers. | Keep evidence generation reproducible. |
 | AK-007 | Deployable API packaging and runtime guardrails | merged | codex/rebac-api-deployment-manifests | #29 | Container, release, Kubernetes, auth, health, and readiness validation pass. | Non-loopback API runtimes require bearer-token auth. | Maintain deployment validation as a CI gate. |
 | AK-008 | Persistent graph storage contracts | merged | codex/rebac-storage-contracts-v2 | #30 | Persistence interfaces, docs, and storage contract tests pass. | Storage boundaries must preserve deterministic decisions and audit evidence. | Build runtime storage behind the merged boundary. |
-| AK-009 | PR steward and next-slice automation loop | in_review | codex/rebac-pr-steward-automation | pending | Backlog, labels, PR steward scripts, next-slice script, stack readiness, and CI validation land. | Automation may coordinate and fix issues but must not merge without human approval. | Wait for CI, review, security pass, and human merge. |
+| AK-009 | PR steward and next-slice automation loop | in_review | codex/rebac-pr-steward-automation | #31 | Backlog, labels, PR steward scripts, next-slice script, stack readiness, and CI validation land. | Automation may coordinate and fix issues but must not merge without human approval. | Wait for review and human merge. |
 | AK-010 | Durable repository storage implementation | ready | codex/rebac-durable-storage-runtime | - | API runtime can load, persist, and recover repository state through the storage boundary. | State snapshots must avoid secret material and keep audit records append-friendly. | Start after AK-009 merges. |
 | AK-011 | Connector state persistence integration | ready | codex/rebac-connector-persistence | - | Discovery runs, native grants, drift findings, and connector evidence persist across restarts. | Read-only connector posture remains default. | Start after durable storage runtime is stable. |
 | AK-012 | Evidence export integrity package | ready | codex/rebac-evidence-integrity-package | - | Evidence export includes manifest hashes and verifier documentation. | Hashes must be reproducible and must not expose secrets. | Start after persisted audit and evidence state are available. |

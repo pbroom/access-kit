@@ -2,9 +2,9 @@ labels:
   - name: stack
     color: "1f6feb"
     description: Pull request belongs to a stacked implementation sequence.
-  - name: ready-for-codex
+  - name: ready-for-automation
     color: "2ea043"
-    description: Codex may resolve CI, review, or contract issues without a new scope decision.
+    description: Automation may resolve CI, review, or contract issues without a new scope decision.
   - name: needs-human
     color: "d29922"
     description: Human decision is required before more implementation work continues.
