@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T15:18:14.379Z
+Generated at: 2026-05-24T15:25:19.897Z
 
-Branch: codex/rebac-persistent-graph-adapter
+Branch: 
 
 Node: v24.4.1
 
@@ -31,14 +31,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-append-only-audit
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-append-only-audit
 > tsx scripts/validate-schemas.ts
 
 Validated 13 schemas and 13 example fixtures.
@@ -60,10 +60,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-append-only-audit
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-persistent-graph-adapter/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-append-only-audit/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -73,7 +73,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-append-only-audit
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -93,23 +93,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-append-only-audit
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistent-graph-adapter
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-append-only-audit
 
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  11:18:09
-   Duration  153ms (transform 34ms, setup 0ms, import 50ms, tests 7ms, environment 0ms)
+   Start at  11:25:14
+   Duration  173ms (transform 37ms, setup 0ms, import 56ms, tests 7ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-append-only-audit
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -120,7 +120,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-append-only-audit
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -131,7 +131,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-append-only-audit
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -142,49 +142,49 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-append-only-audit
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistent-graph-adapter
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-append-only-audit
 
 
  Test Files  3 passed (3)
-      Tests  36 passed (36)
-   Start at  11:18:11
-   Duration  221ms (transform 204ms, setup 0ms, import 268ms, tests 25ms, environment 0ms)
+      Tests  40 passed (40)
+   Start at  11:25:17
+   Duration  232ms (transform 220ms, setup 0ms, import 281ms, tests 30ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-append-only-audit
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistent-graph-adapter
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-append-only-audit
 
 
  Test Files  1 passed (1)
       Tests  67 passed (67)
-   Start at  11:18:12
-   Duration  479ms (transform 120ms, setup 0ms, import 159ms, tests 222ms, environment 0ms)
+   Start at  11:25:18
+   Duration  488ms (transform 122ms, setup 0ms, import 163ms, tests 229ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-persistent-graph-adapter
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-append-only-audit
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-persistent-graph-adapter
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-append-only-audit
 
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  11:18:13
-   Duration  356ms (transform 295ms, setup 0ms, import 400ms, tests 137ms, environment 0ms)
+   Start at  11:25:19
+   Duration  359ms (transform 300ms, setup 0ms, import 398ms, tests 140ms, environment 0ms)
 ```
 
 
@@ -198,16 +198,17 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 - Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.
 - Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.
 - Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.
-- Local core engine tests for deterministic check/explain, decision audit emission, persistent graph/job repository contracts, local JSON graph persistence and tamper checks, defensive in-memory conformance behavior, and persistence-readiness gates for graph, audit, and job backends.
+- Local core engine tests for deterministic check/explain, decision audit emission, persistent graph/job repository contracts, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, defensive in-memory conformance behavior, and persistence-readiness gates for graph, audit, and job backends.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 
 ## Outstanding Requirements
 
 - Replace local JSON graph persistence with a production relationship graph and policy model store.
-- Implement production append-only audit and queue/job adapters behind the persistent storage contracts.
+- Replace local append-only audit persistence with production WORM or immutable ledger-backed audit storage.
+- Implement production queue/job adapters behind the persistent storage contracts.
 - Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
-- Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, file-backed storage proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
+- Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
 - Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Persist discovery runs and native-grant readback in production data stores rather than local JSON snapshots.
 - Replace local dry-run provisioning, controlled synthetic enforcement, readiness gates, and reconciliation jobs with durable queues, retries, and dead-letter handling.

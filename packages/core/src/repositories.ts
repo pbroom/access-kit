@@ -15,6 +15,7 @@ import type {
   Subject
 } from "./domain.js";
 import type {
+  DescribedAuditEventRepository,
   DescribedPersistenceRepository,
   NativeGrantFilter,
   PersistenceBackendDescriptor,
@@ -80,6 +81,12 @@ export interface LocalFileEvidenceRepositoryOptions {
   rootDir: string;
 }
 
+export interface LocalAppendOnlyAuditRepositoryOptions {
+  rootDir?: string;
+  auditPath?: string;
+  retentionDays?: number;
+}
+
 export interface LocalJsonFileGraphRepositoryOptions {
   rootDir?: string;
   graphPath?: string;
@@ -97,6 +104,15 @@ interface StoredRebacGraph {
   graphHash: string;
   graph: RebacGraphSnapshot;
   entityCounts: RebacGraphStorageReceipt["entityCounts"];
+}
+
+interface StoredAuditEventRecord {
+  version: "rebac-audit-event-record:v1";
+  sequence: number;
+  storedAt: string;
+  eventHash: string;
+  previousEventHash?: string;
+  event: AuditEvent;
 }
 
 interface StoredRebacState {
@@ -183,6 +199,103 @@ export class LocalFileEvidenceRepository implements AuditEventRepository, Eviden
     }
 
     return JSON.parse(readFileSync(location, "utf8")) as EvidenceExport;
+  }
+}
+
+export class LocalAppendOnlyAuditRepository implements DescribedAuditEventRepository {
+  readonly #auditPath: string;
+  readonly #location: string;
+  readonly #retentionDays: number;
+
+  constructor(options: LocalAppendOnlyAuditRepositoryOptions) {
+    this.#auditPath = options.auditPath ?? join(requiredRootDir(options, "LocalAppendOnlyAuditRepository"), "append-only-audit-events.jsonl");
+    this.#location = basename(this.#auditPath);
+    this.#retentionDays = options.retentionDays ?? 365;
+    mkdirSync(dirname(this.#auditPath), { recursive: true });
+  }
+
+  describePersistence(): PersistenceBackendDescriptor {
+    return {
+      component: "audit",
+      backend: "local_file",
+      durable: false,
+      immutable: false,
+      capabilities: ["audit_append", "audit_hash_chain", "audit_retention"],
+      retentionDays: this.#retentionDays,
+      location: this.#location,
+      version: "persistence-backend:v1"
+    };
+  }
+
+  appendAuditEvent(event: AuditEvent, storedAt: string): AuditStorageReceipt {
+    const records = this.#readRecords();
+    assertStoredAuditRecords(records);
+
+    if (records.some((record) => record.event.eventId === event.eventId)) {
+      throw new Error(`Audit event ${event.eventId} has already been appended.`);
+    }
+
+    const previousRecord = records.at(-1);
+    const expectedPreviousEventHash = previousRecord?.eventHash;
+
+    if (event.previousEventHash !== expectedPreviousEventHash) {
+      throw new Error("Audit event previousEventHash does not match the current append-only tail.");
+    }
+
+    const eventHash = auditEventHash(event);
+    const record: StoredAuditEventRecord = {
+      version: "rebac-audit-event-record:v1",
+      sequence: records.length + 1,
+      storedAt,
+      eventHash,
+      previousEventHash: event.previousEventHash,
+      event: clone(event)
+    };
+    appendFileSync(this.#auditPath, `${stableStringify(record)}\n`, "utf8");
+
+    return {
+      eventId: event.eventId,
+      sequence: record.sequence,
+      eventHash,
+      previousEventHash: event.previousEventHash,
+      storedAt,
+      backend: "local_file",
+      location: this.#location,
+      immutable: false,
+      version: "audit-storage-receipt:v1"
+    };
+  }
+
+  listAuditEvents(): AuditEvent[] {
+    const records = this.#readRecords();
+    assertStoredAuditRecords(records);
+    return clone(records.map((record) => record.event));
+  }
+
+  verifyIntegrity(verifiedAt: string): AuditIntegrityReport {
+    const records = this.#readRecords();
+    const events = records.map((record) => record.event);
+    const report = verifyAuditChain(events, verifiedAt);
+    const recordFindings = auditRecordIntegrityFindings(records);
+
+    return {
+      ...report,
+      status: report.status === "verified" && recordFindings.length === 0 ? "verified" : "failed",
+      findings: [...recordFindings, ...report.findings]
+    };
+  }
+
+  #readRecords(): StoredAuditEventRecord[] {
+    if (!existsSync(this.#auditPath)) {
+      return [];
+    }
+
+    const lines = readFileSync(this.#auditPath, "utf8")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    return lines.map((line) => JSON.parse(line) as StoredAuditEventRecord);
   }
 }
 
@@ -448,6 +561,14 @@ function assertStoredGraphIntegrity(stored: StoredRebacGraph): void {
   }
 }
 
+function assertStoredAuditRecords(records: StoredAuditEventRecord[]): void {
+  const findings = auditRecordIntegrityFindings(records);
+
+  if (findings.length > 0) {
+    throw new Error(`Stored audit log integrity check failed: ${findings[0]?.message ?? "unknown finding"}`);
+  }
+}
+
 function assertStoredStateIntegrity(stored: StoredRebacState): void {
   const expectedStateHash = `sha256:${stableHash(stored.state)}`;
 
@@ -463,6 +584,49 @@ function emptyGraphSnapshot(): RebacGraphSnapshot {
     relationships: [],
     nativeGrants: []
   };
+}
+
+function auditRecordIntegrityFindings(records: StoredAuditEventRecord[]): AuditIntegrityReport["findings"] {
+  return records.flatMap((record, index) => {
+    const findings: AuditIntegrityReport["findings"] = [];
+    const expectedSequence = index + 1;
+    const expectedEventHash = auditEventHash(record.event);
+
+    if (record.sequence !== expectedSequence) {
+      findings.push({
+        code: "AUDIT_RECORD_SEQUENCE_MISMATCH",
+        message: "Stored audit record sequence does not match append-only order.",
+        severity: "critical",
+        eventId: record.event.eventId,
+        expected: String(expectedSequence),
+        actual: String(record.sequence)
+      });
+    }
+
+    if (record.eventHash !== expectedEventHash) {
+      findings.push({
+        code: "AUDIT_RECORD_HASH_MISMATCH",
+        message: "Stored audit record hash does not match the current event payload.",
+        severity: "critical",
+        eventId: record.event.eventId,
+        expected: expectedEventHash,
+        actual: record.eventHash
+      });
+    }
+
+    if (record.previousEventHash !== record.event.previousEventHash) {
+      findings.push({
+        code: "AUDIT_RECORD_PREVIOUS_HASH_MISMATCH",
+        message: "Stored audit record previous hash does not match the event previousEventHash.",
+        severity: "critical",
+        eventId: record.event.eventId,
+        expected: record.event.previousEventHash ?? "<none>",
+        actual: record.previousEventHash ?? "<none>"
+      });
+    }
+
+    return findings;
+  });
 }
 
 function normalizeGraphSnapshot(graph: Partial<RebacGraphSnapshot>): RebacGraphSnapshot {

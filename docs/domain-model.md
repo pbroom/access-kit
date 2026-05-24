@@ -50,6 +50,8 @@ The domain model is not an identity directory, provider permission model, SIEM s
 
 `LocalJsonFileGraphRepository` persists subjects, resources, relationship tuples, and native grants as a hash-checked local graph snapshot for development and validation. It deliberately excludes provisioning jobs, decisions, audit events, and evidence packages.
 
+`LocalAppendOnlyAuditRepository` persists audit events as append-only JSONL records with stored event hashes and previous-event hash checks. It is a local integrity proof point, not a production WORM audit store.
+
 `RebacStateRepository` records restartable synthetic runtime state snapshots for subjects, resources, relationships, native grants, discovery runs, readiness reports, provisioning plans and jobs, reconciliation runs, decisions, drift findings, and audit events. The local JSON implementation is a deployment-packaging proof point, not a production graph database or queue.
 
 `RebacGraphRepository`, `RebacJobRepository`, and `AuditEventRepository` are the production-shaped persistence boundaries. Graph storage owns canonical subjects, resources, relationship tuples, and observed native grants. Job storage owns discovery, readiness, provisioning, drift, reconciliation, and decision records. Audit storage owns the append-only event stream and integrity checks. Production readiness requires durable graph writes, append-only immutable audit retention, idempotent durable job storage, transactional behavior where needed, and backup/restore evidence.
