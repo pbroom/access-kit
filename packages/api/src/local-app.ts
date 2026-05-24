@@ -1008,7 +1008,12 @@ export function exportEvidencePackage(
     payload: asJsonRecord(exportMetadata)
   });
 
-  const storageReceipt = writeEvidenceExport(app.evidenceRepository, exportMetadata, evidenceEvent.occurredAt);
+  const storageReceipt = writeEvidenceExport(
+    app.evidenceRepository,
+    exportMetadata,
+    evidenceEvent.occurredAt,
+    app.persistenceDegradations
+  );
   return storageReceipt ? { ...exportMetadata, storageReceipt } : exportMetadata;
 }
 
@@ -1126,11 +1131,18 @@ function recordPersistenceDegradation(
 function writeEvidenceExport(
   repository: EvidencePackageRepository | undefined,
   exportMetadata: EvidenceExport,
-  storedAt: string
+  storedAt: string,
+  degradations: RebacPersistenceDegradation[]
 ): EvidenceStorageReceipt | undefined {
   try {
     return repository?.writeEvidenceExport(exportMetadata, storedAt);
-  } catch {
+  } catch (error) {
+    recordPersistenceDegradation(degradations, {
+      component: "evidence",
+      operation: "writeEvidenceExport",
+      occurredAt: storedAt,
+      message: error instanceof Error ? error.message : String(error)
+    });
     return undefined;
   }
 }

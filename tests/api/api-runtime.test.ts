@@ -1199,9 +1199,17 @@ describe("ReBAC API runtime", () => {
     });
 
     const evidence = await get<{ exportId: string; storageReceipt?: unknown }>("/v1/evidence/export");
+    const readiness = await get<{
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    }>("/v1/ready");
+    const degradation = readiness.checks.find((check) => check.name === "persistence_degradation");
 
     expect(evidence.exportId).toMatch(/^evidence:/);
     expect(evidence.storageReceipt).toBeUndefined();
+    expect(degradation).toMatchObject({
+      status: "warn",
+      evidence: { degradedWrites: 1, components: ["evidence"] }
+    });
   });
 
   it("runs read-only mock connector discovery and exposes native access readback", async () => {
