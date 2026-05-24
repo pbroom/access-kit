@@ -115,6 +115,11 @@ interface StoredAuditEventRecord {
   event: AuditEvent;
 }
 
+interface ReadAuditEventRecordsResult {
+  records: StoredAuditEventRecord[];
+  findings: AuditIntegrityReport["findings"];
+}
+
 interface StoredRebacState {
   version: "rebac-runtime-state:v1";
   storedAt: string;
@@ -228,8 +233,8 @@ export class LocalAppendOnlyAuditRepository implements DescribedAuditEventReposi
   }
 
   appendAuditEvent(event: AuditEvent, storedAt: string): AuditStorageReceipt {
-    const records = this.#readRecords();
-    assertStoredAuditRecords(records);
+    const { records, findings } = this.#readRecords();
+    assertStoredAuditRecords(records, findings);
 
     if (records.some((record) => record.event.eventId === event.eventId)) {
       throw new Error(`Audit event ${event.eventId} has already been appended.`);
@@ -267,16 +272,16 @@ export class LocalAppendOnlyAuditRepository implements DescribedAuditEventReposi
   }
 
   listAuditEvents(): AuditEvent[] {
-    const records = this.#readRecords();
-    assertStoredAuditRecords(records);
+    const { records, findings } = this.#readRecords();
+    assertStoredAuditRecords(records, findings);
     return clone(records.map((record) => record.event));
   }
 
   verifyIntegrity(verifiedAt: string): AuditIntegrityReport {
-    const records = this.#readRecords();
+    const { records, findings } = this.#readRecords();
     const events = records.map((record) => record.event);
     const report = verifyAuditChain(events, verifiedAt);
-    const recordFindings = auditRecordIntegrityFindings(records);
+    const recordFindings = [...findings, ...auditRecordIntegrityFindings(records)];
 
     return {
       ...report,
@@ -285,9 +290,9 @@ export class LocalAppendOnlyAuditRepository implements DescribedAuditEventReposi
     };
   }
 
-  #readRecords(): StoredAuditEventRecord[] {
+  #readRecords(): ReadAuditEventRecordsResult {
     if (!existsSync(this.#auditPath)) {
-      return [];
+      return { records: [], findings: [] };
     }
 
     const lines = readFileSync(this.#auditPath, "utf8")
@@ -295,7 +300,24 @@ export class LocalAppendOnlyAuditRepository implements DescribedAuditEventReposi
       .map((line) => line.trim())
       .filter(Boolean);
 
-    return lines.map((line) => JSON.parse(line) as StoredAuditEventRecord);
+    const records: StoredAuditEventRecord[] = [];
+    const findings: AuditIntegrityReport["findings"] = [];
+
+    for (const [index, line] of lines.entries()) {
+      try {
+        records.push(JSON.parse(line) as StoredAuditEventRecord);
+      } catch (error) {
+        findings.push({
+          code: "MALFORMED_RECORD",
+          message: `Stored audit record line ${index + 1} is not valid JSON.`,
+          severity: "critical",
+          expected: "valid JSONL audit record",
+          actual: error instanceof Error ? error.message : "unparseable audit record"
+        });
+      }
+    }
+
+    return { records, findings };
   }
 }
 
@@ -561,8 +583,11 @@ function assertStoredGraphIntegrity(stored: StoredRebacGraph): void {
   }
 }
 
-function assertStoredAuditRecords(records: StoredAuditEventRecord[]): void {
-  const findings = auditRecordIntegrityFindings(records);
+function assertStoredAuditRecords(
+  records: StoredAuditEventRecord[],
+  parseFindings: AuditIntegrityReport["findings"] = []
+): void {
+  const findings = [...parseFindings, ...auditRecordIntegrityFindings(records)];
 
   if (findings.length > 0) {
     throw new Error(`Stored audit log integrity check failed: ${findings[0]?.message ?? "unknown finding"}`);

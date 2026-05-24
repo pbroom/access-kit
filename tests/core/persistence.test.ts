@@ -255,9 +255,9 @@ describe("persistent ReBAC repository contracts", () => {
     const [firstEvent] = createAuditEvents();
 
     repository.appendAuditEvent(firstEvent, now);
-    const stored = JSON.parse(readFileSync(auditPath, "utf8")) as {
+    const stored = readFirstJsonlRecord<{
       event: AuditEvent;
-    };
+    }>(auditPath);
     stored.event.payload = { tampered: true };
     writeFileSync(auditPath, `${JSON.stringify(stored)}\n`, "utf8");
 
@@ -266,6 +266,31 @@ describe("persistent ReBAC repository contracts", () => {
     expect(report.status).toBe("failed");
     expect(report.findings.map((finding) => finding.code)).toContain("AUDIT_RECORD_HASH_MISMATCH");
     expect(() => repository.listAuditEvents()).toThrow("Stored audit log integrity check failed");
+  });
+
+  it("reports malformed audit JSONL records as integrity findings", () => {
+    const auditPath = join(mkdtempSync(join(tmpdir(), "rebac-audit-")), "append-only-audit-events.jsonl");
+    const repository = new LocalAppendOnlyAuditRepository({ auditPath, retentionDays: 365 });
+
+    writeFileSync(auditPath, "{\"version\":\"rebac-audit-event-record:v1\"\n", "utf8");
+
+    const report = repository.verifyIntegrity("2026-05-21T17:02:00.000Z");
+
+    expect(report).toMatchObject({
+      status: "failed",
+      eventCount: 0,
+      findings: [
+        expect.objectContaining({
+          code: "MALFORMED_RECORD",
+          severity: "critical",
+          message: "Stored audit record line 1 is not valid JSON."
+        })
+      ]
+    });
+    expect(() => repository.listAuditEvents()).toThrow("Stored audit log integrity check failed");
+    expect(() => repository.appendAuditEvent(createAuditEvents()[0], now)).toThrow(
+      "Stored audit log integrity check failed"
+    );
   });
 
   it("describes local append-only audit persistence without claiming production immutability", () => {
@@ -425,6 +450,19 @@ describe("persistent ReBAC repository contracts", () => {
 
 function failingCheckNames(checks: Array<{ name: string; status: string }>): string[] {
   return checks.filter((check) => check.status === "fail").map((check) => check.name);
+}
+
+function readFirstJsonlRecord<T>(path: string): T {
+  const line = readFileSync(path, "utf8")
+    .split("\n")
+    .map((entry) => entry.trim())
+    .find(Boolean);
+
+  if (!line) {
+    throw new Error(`Expected ${path} to contain a JSONL record.`);
+  }
+
+  return JSON.parse(line) as T;
 }
 
 function createSubject(): Subject {

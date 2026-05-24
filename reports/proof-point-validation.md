@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T15:25:19.897Z
+Generated at: 2026-05-24T15:29:09.296Z
 
-Branch: 
+Branch: codex/rebac-append-only-audit
 
 Node: v24.4.1
 
@@ -102,8 +102,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  3 passed (3)
-   Start at  11:25:14
-   Duration  173ms (transform 37ms, setup 0ms, import 56ms, tests 7ms, environment 0ms)
+   Start at  11:29:03
+   Duration  160ms (transform 36ms, setup 0ms, import 51ms, tests 6ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -150,9 +150,9 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
 
  Test Files  3 passed (3)
-      Tests  40 passed (40)
-   Start at  11:25:17
-   Duration  232ms (transform 220ms, setup 0ms, import 281ms, tests 30ms, environment 0ms)
+      Tests  41 passed (41)
+   Start at  11:29:06
+   Duration  299ms (transform 271ms, setup 0ms, import 361ms, tests 41ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -167,8 +167,8 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
  Test Files  1 passed (1)
       Tests  67 passed (67)
-   Start at  11:25:18
-   Duration  488ms (transform 122ms, setup 0ms, import 163ms, tests 229ms, environment 0ms)
+   Start at  11:29:07
+   Duration  555ms (transform 134ms, setup 0ms, import 177ms, tests 268ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -183,8 +183,8 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 
  Test Files  3 passed (3)
       Tests  30 passed (30)
-   Start at  11:25:19
-   Duration  359ms (transform 300ms, setup 0ms, import 398ms, tests 140ms, environment 0ms)
+   Start at  11:29:08
+   Duration  402ms (transform 330ms, setup 0ms, import 443ms, tests 158ms, environment 0ms)
 ```
 
 
