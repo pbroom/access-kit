@@ -380,6 +380,7 @@ function buildProvisioningJobPayload(options: ProvisioningOptions, context: CliC
     },
     control: {
       syntheticOnly: options.syntheticOnly === true,
+      // The CLI keeps live writes disabled until a runbook-backed provider-write flag exists.
       liveProviderWrites: false,
       incidentMode: options.incidentMode === true,
       breakGlass: options.breakGlass === true
