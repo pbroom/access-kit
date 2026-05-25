@@ -1121,17 +1121,13 @@ export function exportEvidencePackage(
     payload: asJsonRecord(exportMetadata)
   }, { persistState: false });
 
-  let storageReceipt: EvidenceStorageReceipt | undefined;
-  commitRuntimePersistence(app, evidenceEvent.occurredAt, [
-    () => {
-      storageReceipt = writeEvidenceExport(
-        app.evidenceRepository,
-        exportMetadata,
-        evidenceEvent.occurredAt,
-        app.persistenceDegradations
-      );
-    }
-  ]);
+  const storageReceipt = writeEvidenceExport(
+    app.evidenceRepository,
+    exportMetadata,
+    evidenceEvent.occurredAt,
+    app.persistenceDegradations
+  );
+  commitRuntimePersistence(app, evidenceEvent.occurredAt, []);
   return storageReceipt ? { ...exportMetadata, storageReceipt } : exportMetadata;
 }
 
