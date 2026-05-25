@@ -13,6 +13,8 @@ import {
   LocalJsonFileGraphRepository,
   LocalJsonFileJobRepository,
   LocalJsonFileStateRepository,
+  sha256,
+  stableStringify,
   type AuditEvent,
   type AuditEventRepository,
   type AuditIntegrityReport,
@@ -583,16 +585,25 @@ describe("ReBAC API runtime", () => {
       periodEnd: string;
       generatedAt: string;
       auditIntegrity: { status: string; eventCount: number };
+      integrityManifest: {
+        packageHash: string;
+        hashAlgorithm: string;
+        canonicalization: string;
+        sections: Array<{ name: string; hash: string; itemCount?: number }>;
+        verifier: { documentationPath: string; verificationSteps: string[] };
+      };
       controlMappings: Array<{ controlId: string; status: string; sourceEventIds: string[]; gaps: string[] }>;
       conmonMetrics: Array<{ name: string; value: number }>;
       poamItems: Array<{ controlId: string; status: string }>;
       siemExport: { format: string; eventCount: number; includesPayloadHashes: boolean };
       systemBoundary: { environment: string; liveTenantData: boolean; components: Array<{ id: string; type: string }> };
       dataFlows: Array<{ id: string; destination: string; liveTenantData: boolean }>;
+      artifacts: Array<{ name: string; type: string; format: string }>;
       controlStatements: Array<{ controlId: string; reviewerRole: string; sourceArtifactNames: string[] }>;
       accessReviews: Array<{ status: string; subjectCount: number; resourceCount: number; sourceEventIds: string[] }>;
       exceptionRegister: unknown[];
       operationalEvidence: Array<{ type: string; status: string; gaps: string[] }>;
+      storageReceipt?: unknown;
     }>("/v1/evidence/export");
 
     expect(evidence.periodStart).toBe("2026-05-20T01:00:00.000Z");
@@ -600,6 +611,27 @@ describe("ReBAC API runtime", () => {
     expect(evidence.periodEnd).toBe("2026-05-21T17:00:00.000Z");
     expect(evidence.generatedAt).toBe("2026-05-21T17:00:00.000Z");
     expect(evidence.auditIntegrity).toMatchObject({ status: "verified", eventCount: 1 });
+    const { integrityManifest, storageReceipt: _storageReceipt, ...evidenceWithoutManifest } = evidence;
+    void _storageReceipt;
+    const sectionsByName = new Map(integrityManifest.sections.map((section) => [section.name, section]));
+    expect(integrityManifest).toMatchObject({
+      hashAlgorithm: "sha256",
+      canonicalization: "stable-json",
+      packageHash: `sha256:${sha256(evidenceWithoutManifest)}`,
+      verifier: {
+        documentationPath: "docs/evidence-integrity-verifier.md",
+        verificationSteps: expect.arrayContaining([
+          "Remove integrityManifest from the evidence package.",
+          "Compute sha256 over the canonical package and compare it with integrityManifest.packageHash."
+        ])
+      }
+    });
+    expect(sectionsByName.get("controlMappings")).toMatchObject({
+      hash: `sha256:${sha256(evidence.controlMappings)}`,
+      itemCount: evidence.controlMappings.length
+    });
+    expect(sectionsByName.get("systemBoundary")?.hash).toBe(`sha256:${sha256(evidence.systemBoundary)}`);
+    expect(stableStringify(integrityManifest)).not.toMatch(/payload|token|secret/i);
     expect(evidence.controlMappings).toEqual(expect.arrayContaining([
       expect.objectContaining({ controlId: "AC-3", status: "implemented" })
     ]));
@@ -611,6 +643,13 @@ describe("ReBAC API runtime", () => {
       expect.objectContaining({ controlId: "AC-2", status: "planned" })
     ]));
     expect(evidence.siemExport).toMatchObject({ format: "jsonl", eventCount: 1, includesPayloadHashes: true });
+    expect(evidence.artifacts).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        name: "evidence-integrity-verifier",
+        type: "security_evidence",
+        format: "markdown"
+      })
+    ]));
     expect(evidence.systemBoundary).toMatchObject({ environment: "local_proof_point", liveTenantData: false });
     expect(evidence.systemBoundary.components).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: "component:api-runtime", type: "control_plane" })
@@ -832,6 +871,7 @@ describe("ReBAC API runtime", () => {
         location: string;
         immutable: boolean;
       };
+      integrityManifest: { packageHash: string };
     }>("/v1/evidence/export?controls=AC-3,AU-6");
     const storedEvidence = evidenceRepository.readEvidenceExport(evidence.exportId);
 
@@ -847,6 +887,7 @@ describe("ReBAC API runtime", () => {
       immutable: false
     });
     expect(evidence.storageReceipt.packageHash).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(evidence.storageReceipt.packageHash).toBe(evidence.integrityManifest.packageHash);
     expect(evidence.storageReceipt.location).toMatch(/^evidence-packages\/evidence_[a-z0-9]+\.json$/);
     expect(evidence.storageReceipt.location).not.toContain(storageRoot);
     expect(storedEvidence?.storageReceipt?.packageHash).toBe(evidence.storageReceipt.packageHash);

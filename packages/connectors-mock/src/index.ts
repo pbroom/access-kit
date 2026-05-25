@@ -1,4 +1,5 @@
 import {
+  attachEvidenceIntegrityManifest,
   verifyAuditChain,
   type AuditEvent,
   type ConnectorAdapter,
@@ -615,7 +616,7 @@ function createRevocationPlan(connectorId: string, nativeGrantId: string, resour
 
 function createEvidence(connectorId: string, events: AuditEvent[]): EvidenceExport {
   const auditIntegrity = verifyAuditChain(events, now);
-  return {
+  return attachEvidenceIntegrityManifest({
     exportId: `evidence:${connectorId}`,
     framework: "nist-800-53",
     controls: ["AC-2", "AC-3", "AU-2"],
@@ -721,5 +722,5 @@ function createEvidence(connectorId: string, events: AuditEvent[]): EvidenceExpo
         gaps: ["Live connector authorization, consent, and tenant-boundary review remain future production work."]
       }
     ]
-  };
+  });
 }

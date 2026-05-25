@@ -220,7 +220,7 @@ export class LocalFileEvidenceRepository implements AuditEventRepository, Eviden
   writeEvidenceExport(evidence: EvidenceExport, storedAt: string): EvidenceStorageReceipt {
     const filename = `${sanitizeFileSegment(evidence.exportId)}.json`;
     const location = join(this.#evidenceDir, filename);
-    const packageHash = `sha256:${stableHash(evidence)}`;
+    const packageHash = evidence.integrityManifest.packageHash;
     const receipt: EvidenceStorageReceipt = {
       exportId: evidence.exportId,
       packageHash,

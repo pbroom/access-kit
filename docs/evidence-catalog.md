@@ -32,13 +32,14 @@ This is not a complete system security plan, production evidence vault, WORM arc
 | Persistence deployment manifest | `schemas/persistence-deployment-manifest.schema.json` | Production persistence backend and deployment-control gate. |
 | Persistence deployment readiness | `schemas/persistence-deployment-readiness.schema.json` | Deterministic deployment-readiness report contract. |
 | Persistence deployment evidence | `deploy/persistence/production-manifest.example.json` | Synthetic IaC, release, backup/restore, and operator-control references. |
-| Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest. |
+| Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest with reproducible integrity hashes. |
+| Evidence integrity verifier | [Evidence Integrity Verifier](evidence-integrity-verifier.md) | Steps for recomputing package and section hashes from stable JSON. |
 | Validation report | `reports/proof-point-validation.md` | Generated proof-point evidence. |
 | Runbooks | `runbooks/*.md` | Operational procedures and expected evidence. |
 
 ## Evidence Export Package
 
-The `EvidenceExport` contract can include framework, controls, time period, source event IDs, audit integrity, control mappings, control statements, artifacts, system boundary, data flows, access reviews, exceptions, ConMon metrics, POA&M inputs, operational evidence, SIEM metadata, and storage receipt.
+The `EvidenceExport` contract can include framework, controls, time period, source event IDs, audit integrity, an integrity manifest, control mappings, control statements, artifacts, system boundary, data flows, access reviews, exceptions, ConMon metrics, POA&M inputs, operational evidence, SIEM metadata, and storage receipt.
 
 If the goal is an evidence package, use `schemas/evidence-export.schema.json`. Add a separate `evidence-object` schema only if atomic evidence objects become a distinct contract.
 
@@ -48,7 +49,7 @@ An assessor samples AC-3 for May 2026. The operator exports evidence for `AC-3`,
 
 ## Security Considerations
 
-- Evidence packages must not include secrets, tokens, live tenant IDs, production emails, or sensitive provider payloads.
+- Evidence packages and integrity manifests must not include secrets, tokens, live tenant IDs, production emails, or sensitive provider payloads.
 - Local file-backed receipts are proof points, not production immutability.
 - Production evidence requires retention, access control, tamper evidence, and reviewer approval.
 - Mark assumptions, gaps, and planned controls clearly.

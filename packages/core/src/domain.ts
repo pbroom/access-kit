@@ -413,6 +413,28 @@ export interface EvidenceArtifact {
   format: EvidenceExportFormat | "jsonl";
 }
 
+export interface EvidenceSectionHash {
+  name: string;
+  hash: string;
+  itemCount?: number;
+}
+
+export interface EvidenceVerifierDocumentation {
+  documentationPath: string;
+  summary: string;
+  verificationSteps: string[];
+}
+
+export interface EvidenceIntegrityManifest {
+  packageHash: string;
+  hashAlgorithm: "sha256";
+  canonicalization: "stable-json";
+  generatedAt: IsoDateTime;
+  sections: EvidenceSectionHash[];
+  verifier: EvidenceVerifierDocumentation;
+  version: "evidence-integrity-manifest:v1";
+}
+
 export interface ConMonMetric {
   name: string;
   value: number;
@@ -572,6 +594,7 @@ export interface EvidenceExport {
   responsibleRole: string;
   format: EvidenceExportFormat;
   auditIntegrity: AuditIntegrityReport;
+  integrityManifest: EvidenceIntegrityManifest;
   controlMappings: EvidenceControlMapping[];
   artifacts: EvidenceArtifact[];
   conmonMetrics: ConMonMetric[];

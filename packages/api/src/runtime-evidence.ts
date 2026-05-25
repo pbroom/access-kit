@@ -205,6 +205,12 @@ export function buildEvidenceArtifacts(format: EvidenceExportFormat, eventCount:
       type: "security_evidence",
       description: "Operational proof points for SBOM, dependency scanning, incident response, contingency, and configuration baseline evidence.",
       format
+    },
+    {
+      name: "evidence-integrity-verifier",
+      type: "security_evidence",
+      description: "Verifier documentation for recomputing stable-json package and section hashes.",
+      format: "markdown"
     }
   ];
 }

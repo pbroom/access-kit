@@ -1,5 +1,6 @@
 import {
   AuditRecorder,
+  attachEvidenceIntegrityManifest,
   createLocalEngineSeed,
   InMemoryRebacStore,
   RebacDecisionEngine,
@@ -939,7 +940,7 @@ export function exportEvidencePackage(
   const exceptionRegister = buildExceptionRegister(app, generatedAt);
   const operationalEvidence = buildOperationalEvidence(generatedAt);
   const artifacts = buildEvidenceArtifacts(format, events.length);
-  const exportMetadata: EvidenceExport = {
+  const exportMetadata = attachEvidenceIntegrityManifest({
     exportId: `evidence:${generatedAt.replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`,
     framework: options.framework ?? "nist-800-53",
     controls,
@@ -984,7 +985,7 @@ export function exportEvidencePackage(
     accessReviews,
     exceptionRegister,
     operationalEvidence
-  };
+  });
 
   const evidenceEvent = recordAudit(app, {
     eventType: "evidence.generated",
