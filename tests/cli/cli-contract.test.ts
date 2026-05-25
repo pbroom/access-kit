@@ -1,4 +1,8 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import YAML from "yaml";
+import { API_ROUTE_SURFACES } from "../../packages/api/src/index.js";
 import { buildCli, CLI_COMMANDS } from "../../packages/cli/src/index.js";
 
 describe("CLI contract", () => {
@@ -45,5 +49,30 @@ describe("CLI contract", () => {
     expect(help).toContain("audit");
     expect(help).toContain("evidence");
     expect(help).toContain("connector");
+  });
+
+  it("keeps OpenAPI, runtime routes, and CLI command surfaces in parity", async () => {
+    const openApi = YAML.parse(
+      await readFile(join(process.cwd(), "openapi/rebac-control-plane.yaml"), "utf8")
+    ) as { paths: Record<string, Record<string, unknown>> };
+    const openApiSurfaces = new Set(
+      Object.entries(openApi.paths).flatMap(([path, operations]) =>
+        Object.keys(operations)
+          .filter((method) => ["delete", "get", "post", "put"].includes(method))
+          .map((method) => `${method.toUpperCase()} ${path}`)
+      )
+    );
+    const runtimeSurfaces = new Set(API_ROUTE_SURFACES.map((surface) => `${surface.method} ${surface.path}`));
+
+    expect(API_ROUTE_SURFACES.length).toBe(new Set(API_ROUTE_SURFACES.map((surface) => `${surface.method} ${surface.path}`)).size);
+
+    for (const surface of runtimeSurfaces) {
+      expect(openApiSurfaces, `${surface} must be documented in OpenAPI`).toContain(surface);
+    }
+
+    for (const command of CLI_COMMANDS) {
+      expect(openApiSurfaces, `${command.path} must target an OpenAPI operation`).toContain(command.apiSurface);
+      expect(runtimeSurfaces, `${command.path} must target an implemented runtime route`).toContain(command.apiSurface);
+    }
   });
 });
