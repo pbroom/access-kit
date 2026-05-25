@@ -2,6 +2,14 @@
 
 This file is the durable source of truth for implementation slice coordination. Update it in the same PR that changes a slice state so Codex, CI, and humans are reading the same map.
 
+## Source Of Truth Contract
+
+This repository backlog is the source of truth for implementation execution. Codex, CI, automation, and PR stack planning use this file for backlog IDs, status, priority, dependencies, parallel-safety, area ownership, branch/PR traceability, acceptance checks, security notes, and next actions.
+
+Linear mirrors this backlog for human planning, labels, ownership, comments, and roadmap visibility. When this file changes, update the matching Linear issue in the same work session. If Linear changes first, mirror the change back into this file before treating it as executable.
+
+If this file and Linear disagree, treat this file as authoritative for Codex execution and flag the Linear drift. Keep the stable `AK-###` ID in both places so repo rows, Linear issues, branches, PRs, and evidence remain traceable.
+
 ## Status Vocabulary
 
 - `ready` means the slice is scoped and can be started after the current stack is clear.

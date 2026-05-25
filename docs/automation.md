@@ -4,7 +4,9 @@ This repo uses a lightweight steward loop so implementation slices can move thro
 
 ## Source Of Truth
 
-[Implementation Backlog](implementation-backlog.md) is the durable roadmap. Each slice has a status, priority, dependency list, parallel-safety flag, conflict area, branch, PR reference, acceptance checks, security notes, and next action. `pnpm backlog:batch` reads the dependency-cleared `ready` rows and prints the next parallel-safe batch.
+[Implementation Backlog](implementation-backlog.md) is the durable roadmap and source of truth for implementation execution. Each slice has a status, priority, dependency list, parallel-safety flag, conflict area, branch, PR reference, acceptance checks, security notes, and next action. `pnpm backlog:batch` reads the dependency-cleared `ready` rows and prints the next parallel-safe batch.
+
+Linear mirrors the backlog for human planning, ownership, comments, labels, and roadmap visibility. When the repo backlog changes, update the matching Linear issue in the same work session; if Linear changes first, mirror it back into the repo backlog before treating it as executable. If the two disagree, the repo backlog is authoritative for Codex execution and the Linear drift should be flagged.
 
 The typed automation contract manifest in `scripts/lib/automation-contract.ts` is the canonical implementation source for validation plans, package-script requirements, PR state-label policy, stack readiness rules, CI workflow expectations, steward workflow checks, and proof-point evidence generation.
 
