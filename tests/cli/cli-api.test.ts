@@ -444,19 +444,20 @@ describe("CLI API wrapper", () => {
   });
 
   it("runs policy commands through the local API", async () => {
-    await runCli("policy", "validate", "policy:model");
+    const created = await createPolicyForCli("cli model");
+    const policyId = String(created.id);
+
+    await runCli("policy", "validate", policyId);
     expect(lastOutput()).toMatchObject({
-      policyId: "policy:model",
-      mode: "validate",
-      status: "valid"
+      valid: true,
+      checks: [{ name: "syntax", status: "pass" }]
     });
 
-    await runCli("policy", "publish", "policy:model", "--change-ticket", "chg:policy");
+    await runCli("policy", "publish", policyId, "--change-ticket", "chg:policy");
     expect(lastOutput()).toMatchObject({
-      policyId: "policy:model",
+      id: policyId,
       status: "published",
-      changeTicket: "chg:policy",
-      approverId: "user:cli-operator"
+      publishedAt: expect.any(String)
     });
   });
 
@@ -567,6 +568,21 @@ async function runCliWithFetch(
 function sequenceNow(...timestamps: string[]): () => string {
   let index = 0;
   return () => timestamps[index++] ?? timestamps.at(-1) ?? "2026-05-21T17:00:00.000Z";
+}
+
+async function createPolicyForCli(name: string): Promise<Record<string, unknown>> {
+  const response = await fetch(`${baseUrl}/v1/policies`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": `idem-cli-policy-${name}` },
+    body: JSON.stringify({
+      name,
+      model: { effect: "allow" },
+      tests: [{ name: "cli policy smoke" }]
+    })
+  });
+
+  expect(response.ok).toBe(true);
+  return response.json() as Promise<Record<string, unknown>>;
 }
 
 function lastOutput(): Record<string, unknown> {

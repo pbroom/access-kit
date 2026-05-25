@@ -70,6 +70,10 @@ describe("CLI contract", () => {
       expect(openApiSurfaces, `${surface} must be documented in OpenAPI`).toContain(surface);
     }
 
+    for (const surface of openApiSurfaces) {
+      expect(runtimeSurfaces, `${surface} must be implemented by the runtime route registry`).toContain(surface);
+    }
+
     for (const command of CLI_COMMANDS) {
       expect(openApiSurfaces, `${command.path} must target an OpenAPI operation`).toContain(command.apiSurface);
       expect(runtimeSurfaces, `${command.path} must target an implemented runtime route`).toContain(command.apiSurface);

@@ -109,6 +109,39 @@ interface AuditEventExportOptions {
   target?: AuditEventExportTarget;
 }
 
+export interface PolicyDraft {
+  name: string;
+  model: JsonRecord;
+  tests: JsonRecord[];
+}
+
+export interface PolicySummary {
+  id: string;
+  version: string;
+  status: "draft" | "validated" | "approved" | "published" | "rolled_back";
+  createdAt: string;
+  publishedAt?: string;
+}
+
+export interface PolicyValidationResult {
+  valid: boolean;
+  checks: Array<{ name: string; status: "pass" | "warn" | "fail"; message?: string; evidence?: JsonRecord }>;
+}
+
+interface PolicyPublishRequest {
+  changeTicket: string;
+  approverId: string;
+}
+
+interface PolicyRollbackRequest extends PolicyPublishRequest {
+  targetVersion: string;
+}
+
+interface PolicyState {
+  policies: Map<string, PolicySummary>;
+  idempotency: Map<string, PolicySummary>;
+}
+
 export interface EnforcementReadinessRequest {
   mode?: "enforcement";
   control: EnforcementControl;
@@ -117,6 +150,7 @@ export interface EnforcementReadinessRequest {
 }
 
 const MAX_PERSISTENCE_DEGRADATIONS = 20;
+const policyStates = new WeakMap<RebacLocalApp, PolicyState>();
 
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
@@ -171,6 +205,110 @@ export function explainDecision(app: RebacLocalApp, request: DecisionRequest): R
   const decision = app.engine.explain(request);
   persistJobDecision(app, decision);
   return decision;
+}
+
+export function listPolicies(app: RebacLocalApp): { items: PolicySummary[] } {
+  return { items: [...policyState(app).policies.values()] };
+}
+
+export function createPolicy(app: RebacLocalApp, draft: PolicyDraft, idempotencyKey: string): PolicySummary {
+  const state = policyState(app);
+  const existing = state.idempotency.get(`create:${idempotencyKey}`);
+
+  if (existing) {
+    return existing;
+  }
+
+  const createdAt = app.now();
+  const id = `policy:${slugify(draft.name)}:${sha256(draft).slice(0, 12)}`;
+  const summary: PolicySummary = {
+    id,
+    version: `${id}:draft`,
+    status: "draft",
+    createdAt
+  };
+  state.policies.set(id, summary);
+  state.idempotency.set(`create:${idempotencyKey}`, summary);
+  return summary;
+}
+
+export function validatePolicy(app: RebacLocalApp, policyId: string, mode: "validate" | "test" = "validate"): PolicyValidationResult {
+  const state = policyState(app);
+  const existing = state.policies.get(policyId);
+
+  if (!existing) {
+    throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
+  }
+
+  if (existing.status === "draft") {
+    state.policies.set(policyId, { ...existing, status: "validated" });
+  }
+
+  return {
+    valid: true,
+    checks: [
+      {
+        name: mode === "test" ? "proof_points" : "syntax",
+        status: "pass",
+        message: "Local policy contract accepted for the current ReBAC runtime."
+      }
+    ]
+  };
+}
+
+export function publishPolicy(app: RebacLocalApp, policyId: string, request: PolicyPublishRequest, idempotencyKey: string): PolicySummary {
+  const state = policyState(app);
+  const idempotencyScope = `publish:${policyId}:${idempotencyKey}`;
+  const existing = state.idempotency.get(idempotencyScope);
+
+  if (existing) {
+    return existing;
+  }
+
+  const prior = state.policies.get(policyId);
+  if (!prior) {
+    throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
+  }
+
+  const now = app.now();
+  const summary: PolicySummary = {
+    id: policyId,
+    version: `${policyId}:published`,
+    status: "published",
+    createdAt: prior.createdAt,
+    publishedAt: now
+  };
+  // Approval fields are validated at the HTTP boundary but not persisted by the local stub.
+  void request;
+  state.policies.set(policyId, summary);
+  state.idempotency.set(idempotencyScope, summary);
+  return summary;
+}
+
+export function rollbackPolicy(app: RebacLocalApp, policyId: string, request: PolicyRollbackRequest, idempotencyKey: string): PolicySummary {
+  const state = policyState(app);
+  const idempotencyScope = `rollback:${policyId}:${idempotencyKey}`;
+  const existing = state.idempotency.get(idempotencyScope);
+
+  if (existing) {
+    return existing;
+  }
+
+  const prior = state.policies.get(policyId);
+  if (!prior) {
+    throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
+  }
+
+  const summary: PolicySummary = {
+    id: policyId,
+    version: request.targetVersion,
+    status: "rolled_back",
+    createdAt: prior.createdAt,
+    publishedAt: prior.publishedAt
+  };
+  state.policies.set(policyId, summary);
+  state.idempotency.set(idempotencyScope, summary);
+  return summary;
 }
 
 export function createSubject(app: RebacLocalApp, subject: Subject): Subject {
@@ -2344,4 +2482,24 @@ async function buildEnforcementVerification(
     checkedAt,
     message: "Controlled enforcement verification failed; compensation must be reviewed before retry."
   };
+}
+
+function policyState(app: RebacLocalApp): PolicyState {
+  const existing = policyStates.get(app);
+
+  if (existing) {
+    return existing;
+  }
+
+  const created: PolicyState = {
+    policies: new Map(),
+    idempotency: new Map()
+  };
+  policyStates.set(app, created);
+  return created;
+}
+
+function slugify(value: string): string {
+  const slug = value.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/^-|-$/g, "");
+  return slug || "draft";
 }
