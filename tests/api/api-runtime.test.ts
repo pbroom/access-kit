@@ -2209,6 +2209,22 @@ describe("ReBAC API runtime", () => {
     expect(body.code).toBe("IDEMPOTENCY_KEY_REUSED");
   });
 
+  it("does not record a new decision when provisioning plan idempotency replays", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    const request = {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    };
+
+    const first = await createProvisioningPlan(app, request, "mock", { mode: "dry_run" }, "idem-direct-plan");
+    const decisionsAfterFirst = app.store.listDecisions();
+    const replay = await createProvisioningPlan(app, request, "mock", { mode: "dry_run" }, "idem-direct-plan");
+
+    expect(replay.id).toBe(first.id);
+    expect(app.store.listDecisions()).toHaveLength(decisionsAfterFirst.length);
+  });
+
   it("replays revocation plans by idempotency key and rejects conflicting grants", async () => {
     const requestBody = {
       grantId: "native-grant:mock:document:case-plan:user:alice:read:direct",

@@ -577,15 +577,17 @@ export async function createProvisioningPlan(
   options: ProvisioningExecutionOptions = {},
   idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
-  const decision = app.engine.explain(request);
-  persistJobDecision(app, decision);
   return createProvisioningPlanFlow(
     app,
     connectorId,
     options,
     idempotencyKey,
     (existing) => planMatchesDecisionRequest(existing, request, connectorId, options),
-    (connector) => connector.planProvisioningChange(decision)
+    (connector) => {
+      const decision = app.engine.explain(request);
+      persistJobDecision(app, decision);
+      return connector.planProvisioningChange(decision);
+    }
   );
 }
 
