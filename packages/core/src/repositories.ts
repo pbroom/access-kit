@@ -1,7 +1,18 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { createHash } from "node:crypto";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { auditEventHash, stableStringify, verifyAuditChain } from "./audit.js";
+import {
+  assertObjectArrayFields,
+  assertStoredPayloadHash,
+  countGraphEntities,
+  countJobEntities,
+  countStateEntities,
+  migrateLegacyRuntimeState,
+  normalizeGraphSnapshot,
+  normalizeJobSnapshot,
+  stableHash,
+  writeJsonFileAtomically
+} from "./repository-envelopes.js";
 import type {
   AuditEvent,
   AuditIntegrityReport,
@@ -499,6 +510,7 @@ export class LocalJsonFileGraphRepository implements RebacGraphRepository, Descr
       throw new Error("ReBAC graph state must use the rebac-graph-state:v1 envelope.");
     }
 
+    assertObjectArrayFields(parsed.graph, "ReBAC graph state payload", ["subjects", "resources", "relationships", "nativeGrants"]);
     assertStoredGraphIntegrity(parsed);
     return normalizeGraphSnapshot(parsed.graph);
   }
@@ -514,10 +526,7 @@ export class LocalJsonFileGraphRepository implements RebacGraphRepository, Descr
       graph,
       entityCounts
     };
-    const tempPath = `${this.#graphPath}.${process.pid}.${Date.now()}.tmp`;
-    mkdirSync(dirname(this.#graphPath), { recursive: true });
-    writeFileSync(tempPath, `${stableStringify(stored)}\n`, "utf8");
-    renameSync(tempPath, this.#graphPath);
+    writeJsonFileAtomically(this.#graphPath, stored);
     this.#graph = graph;
 
     return {
@@ -682,6 +691,15 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
       throw new Error("ReBAC job state must use the rebac-job-state:v1 envelope.");
     }
 
+    assertObjectArrayFields(parsed.jobs, "ReBAC job state payload", [
+      "discoveryRuns",
+      "enforcementReadinessReports",
+      "provisioningPlans",
+      "provisioningJobs",
+      "driftFindings",
+      "reconciliationRuns",
+      "decisions"
+    ]);
     assertStoredJobsIntegrity(parsed);
     return normalizeJobSnapshot(parsed.jobs);
   }
@@ -697,10 +715,7 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
       jobs,
       entityCounts
     };
-    const tempPath = `${this.#jobsPath}.${process.pid}.${Date.now()}.tmp`;
-    mkdirSync(dirname(this.#jobsPath), { recursive: true });
-    writeFileSync(tempPath, `${stableStringify(stored)}\n`, "utf8");
-    renameSync(tempPath, this.#jobsPath);
+    writeJsonFileAtomically(this.#jobsPath, stored);
     this.#jobs = jobs;
 
     return {
@@ -732,6 +747,21 @@ export class LocalJsonFileStateRepository implements RebacStateRepository {
     const parsed = JSON.parse(readFileSync(this.#statePath, "utf8")) as Partial<StoredRebacState> | RebacSeedData;
 
     if (isStoredRebacState(parsed)) {
+      assertObjectArrayFields(parsed.state, "ReBAC runtime state payload", [
+        "subjects",
+        "resources",
+        "relationships",
+        "nativeGrants",
+        "discoveryRuns",
+        "enforcementReadinessReports",
+        "provisioningPlans",
+        "provisioningJobs",
+        "driftFindings",
+        "reconciliationRuns",
+        "decisions",
+        "auditEvents",
+        "persistenceDegradations"
+      ]);
       assertStoredStateIntegrity(parsed);
       return parsed.state;
     }
@@ -749,10 +779,7 @@ export class LocalJsonFileStateRepository implements RebacStateRepository {
       state,
       entityCounts
     };
-    const tempPath = `${this.#statePath}.${process.pid}.${Date.now()}.tmp`;
-    mkdirSync(dirname(this.#statePath), { recursive: true });
-    writeFileSync(tempPath, `${stableStringify(stored)}\n`, "utf8");
-    renameSync(tempPath, this.#statePath);
+    writeJsonFileAtomically(this.#statePath, stored);
 
     return {
       storedAt,
@@ -767,10 +794,6 @@ export class LocalJsonFileStateRepository implements RebacStateRepository {
 
 function sanitizeFileSegment(value: string): string {
   return value.replaceAll(/[^a-z0-9_-]/gi, "_");
-}
-
-function stableHash(value: unknown): string {
-  return createHash("sha256").update(stableStringify(value)).digest("hex");
 }
 
 function requiredRootDir(
@@ -816,19 +839,11 @@ function isStoredRebacState(value: Partial<StoredRebacState> | RebacSeedData): v
 }
 
 function assertStoredJobsIntegrity(stored: StoredRebacJobs): void {
-  const expectedJobsHash = `sha256:${stableHash(stored.jobs)}`;
-
-  if (stored.jobsHash !== expectedJobsHash) {
-    throw new Error("ReBAC job state hash does not match the stored job payload.");
-  }
+  assertStoredPayloadHash(stored.jobs, stored.jobsHash, "ReBAC job state hash does not match the stored job payload.");
 }
 
 function assertStoredGraphIntegrity(stored: StoredRebacGraph): void {
-  const expectedGraphHash = `sha256:${stableHash(stored.graph)}`;
-
-  if (stored.graphHash !== expectedGraphHash) {
-    throw new Error("ReBAC graph state hash does not match the stored graph payload.");
-  }
+  assertStoredPayloadHash(stored.graph, stored.graphHash, "ReBAC graph state hash does not match the stored graph payload.");
 }
 
 function assertStoredAuditRecords(
@@ -843,11 +858,7 @@ function assertStoredAuditRecords(
 }
 
 function assertStoredStateIntegrity(stored: StoredRebacState): void {
-  const expectedStateHash = `sha256:${stableHash(stored.state)}`;
-
-  if (stored.stateHash !== expectedStateHash) {
-    throw new Error("ReBAC runtime state hash does not match the stored state payload.");
-  }
+  assertStoredPayloadHash(stored.state, stored.stateHash, "ReBAC runtime state hash does not match the stored state payload.");
 }
 
 function emptyJobSnapshot(): RebacJobSnapshot {
@@ -868,18 +879,6 @@ function emptyGraphSnapshot(): RebacGraphSnapshot {
     resources: [],
     relationships: [],
     nativeGrants: []
-  };
-}
-
-function normalizeJobSnapshot(jobs: Partial<RebacJobSnapshot>): RebacJobSnapshot {
-  return {
-    discoveryRuns: clone(jobs.discoveryRuns ?? []),
-    enforcementReadinessReports: clone(jobs.enforcementReadinessReports ?? []),
-    provisioningPlans: clone(jobs.provisioningPlans ?? []),
-    provisioningJobs: clone(jobs.provisioningJobs ?? []),
-    driftFindings: clone(jobs.driftFindings ?? []),
-    reconciliationRuns: clone(jobs.reconciliationRuns ?? []),
-    decisions: clone(jobs.decisions ?? [])
   };
 }
 
@@ -936,15 +935,6 @@ function upsertByDecisionId(items: DecisionResult[], item: DecisionResult): Deci
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
 }
 
-function normalizeGraphSnapshot(graph: Partial<RebacGraphSnapshot>): RebacGraphSnapshot {
-  return {
-    subjects: clone(graph.subjects ?? []),
-    resources: clone(graph.resources ?? []),
-    relationships: clone(graph.relationships ?? []),
-    nativeGrants: clone(graph.nativeGrants ?? [])
-  };
-}
-
 function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {
   const index = items.findIndex((entry) => entry.id === item.id);
 
@@ -961,90 +951,6 @@ function appendUniqueById<T extends { id: CanonicalId }>(items: T[], item: T, en
   }
 
   return [...items, item];
-}
-
-function countJobEntities(jobs: RebacJobSnapshot): RebacJobStorageReceipt["entityCounts"] {
-  return {
-    discoveryRuns: jobs.discoveryRuns.length,
-    enforcementReadinessReports: jobs.enforcementReadinessReports.length,
-    provisioningPlans: jobs.provisioningPlans.length,
-    provisioningJobs: jobs.provisioningJobs.length,
-    driftFindings: jobs.driftFindings.length,
-    reconciliationRuns: jobs.reconciliationRuns.length,
-    decisions: jobs.decisions.length
-  };
-}
-
-function countGraphEntities(graph: RebacGraphSnapshot): RebacGraphStorageReceipt["entityCounts"] {
-  return {
-    subjects: graph.subjects.length,
-    resources: graph.resources.length,
-    relationships: graph.relationships.length,
-    nativeGrants: graph.nativeGrants.length
-  };
-}
-
-function countStateEntities(state: RebacSeedData): RebacStateStorageReceipt["entityCounts"] {
-  return {
-    subjects: state.subjects?.length ?? 0,
-    resources: state.resources?.length ?? 0,
-    relationships: state.relationships?.length ?? 0,
-    nativeGrants: state.nativeGrants?.length ?? 0,
-    discoveryRuns: state.discoveryRuns?.length ?? 0,
-    enforcementReadinessReports: state.enforcementReadinessReports?.length ?? 0,
-    provisioningPlans: state.provisioningPlans?.length ?? 0,
-    provisioningJobs: state.provisioningJobs?.length ?? 0,
-    driftFindings: state.driftFindings?.length ?? 0,
-    reconciliationRuns: state.reconciliationRuns?.length ?? 0,
-    decisions: state.decisions?.length ?? 0,
-    auditEvents: state.auditEvents?.length ?? 0,
-    persistenceDegradations: state.persistenceDegradations?.length ?? 0
-  };
-}
-
-function migrateLegacyRuntimeState(value: unknown): RebacSeedData {
-  if (!isRecord(value)) {
-    throw new Error("ReBAC runtime state must use the rebac-runtime-state:v1 envelope or a legacy state object.");
-  }
-
-  const allowedKeys = new Set([
-    "subjects",
-    "resources",
-    "relationships",
-    "nativeGrants",
-    "discoveryRuns",
-    "enforcementReadinessReports",
-    "provisioningPlans",
-    "provisioningJobs",
-    "driftFindings",
-    "reconciliationRuns",
-    "decisions",
-    "auditEvents",
-    "persistenceDegradations"
-  ]);
-
-  for (const key of Object.keys(value)) {
-    if (!allowedKeys.has(key)) {
-      throw new Error(`Legacy ReBAC runtime state contains unsupported field: ${key}`);
-    }
-
-    const items = value[key];
-    if (!Array.isArray(items)) {
-      throw new Error(`Legacy ReBAC runtime state field ${key} must be an array.`);
-    }
-
-    items.forEach((item, index) => {
-      if (!isRecord(item)) {
-        throw new Error(`Legacy ReBAC runtime state field ${key} item ${index} must be an object.`);
-      }
-    });
-  }
-
-  return value as RebacSeedData;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function cloneOptional<T>(value: T | undefined): T | undefined {
