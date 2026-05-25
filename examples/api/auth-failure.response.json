@@ -1,0 +1,5 @@
+{
+  "code": "UNAUTHENTICATED",
+  "message": "A valid bearer token is required.",
+  "correlationId": "corr:auth:missing"
+}
