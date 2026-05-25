@@ -78,6 +78,10 @@ interface RecordAuditOptions {
   persistState?: boolean;
 }
 
+interface RuntimePersistenceCommitOptions {
+  persistState?: boolean;
+}
+
 type RebacGraphSnapshot = ReturnType<RebacGraphRepository["exportGraph"]>;
 type RebacJobSnapshot = ReturnType<RebacJobRepository["exportJobs"]>;
 
@@ -637,7 +641,9 @@ async function createProvisioningPlanFlow(
   };
   app.store.upsertProvisioningPlan(plan);
   recordProvisioningPlanAudit(app, plan);
-  persistJobProvisioningPlan(app, plan, plan.createdAt);
+  commitRuntimePersistence(app, plan.createdAt, [
+    () => persistJobProvisioningPlan(app, plan, plan.createdAt)
+  ]);
   return plan;
 }
 
@@ -649,7 +655,7 @@ function recordProvisioningPlanAudit(app: RebacLocalApp, plan: ProvisioningPlan)
     resourceId: plan.resourceId,
     correlationId: `corr:${plan.id}`,
     payload: asJsonRecord(plan)
-  });
+  }, { persistState: false });
   recordAudit(app, {
     eventType: "provisioning.planned",
     actor: app.actor,
@@ -664,7 +670,7 @@ function recordProvisioningPlanAudit(app: RebacLocalApp, plan: ProvisioningPlan)
       actionIds: plan.actions.map((action) => action.actionId),
       idempotencyKeys: plan.actions.map((action) => action.idempotencyKey)
     }
-  });
+  }, { persistState: false });
   recordPlanApprovalAudit(app, plan);
   recordCompensationAudit(app, plan);
 }
@@ -1113,7 +1119,7 @@ export function exportEvidencePackage(
     actor: app.actor,
     correlationId: `corr:${exportMetadata.exportId}`,
     payload: asJsonRecord(exportMetadata)
-  });
+  }, { persistState: false });
 
   const storageReceipt = writeEvidenceExport(
     app.evidenceRepository,
@@ -1121,6 +1127,7 @@ export function exportEvidencePackage(
     evidenceEvent.occurredAt,
     app.persistenceDegradations
   );
+  commitRuntimePersistence(app, evidenceEvent.occurredAt, []);
   return storageReceipt ? { ...exportMetadata, storageReceipt } : exportMetadata;
 }
 
@@ -1143,11 +1150,9 @@ export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options:
   const event = app.auditRecorder.record(input, options.occurredAt ?? app.now());
   const priorStoreAuditEvents = app.persistence.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
-  appendAuditEvent(app.persistence.auditRepository, event, event.occurredAt, priorStoreAuditEvents, app.persistenceDegradations);
-  app.store.replacePersistenceDegradations(app.persistenceDegradations);
-  if (options.persistState ?? true) {
-    persistAppState(app, event.occurredAt);
-  }
+  commitRuntimePersistence(app, event.occurredAt, [
+    () => appendAuditEvent(app.persistence.auditRepository, event, event.occurredAt, priorStoreAuditEvents, app.persistenceDegradations)
+  ], { persistState: options.persistState ?? true });
   return event;
 }
 
@@ -1370,6 +1375,22 @@ function auditRepositoryMatches(repository: AuditEventRepository, expectedEvents
 
 function persistAppState(app: RebacLocalApp, storedAt: string): void {
   persistStoreSnapshot(app.persistence.stateRepository, app.store, storedAt, app.persistenceDegradations);
+}
+
+function commitRuntimePersistence(
+  app: RebacLocalApp,
+  storedAt: string,
+  operations: Array<() => void>,
+  options: RuntimePersistenceCommitOptions = {}
+): void {
+  for (const operation of operations) {
+    operation();
+  }
+
+  app.store.replacePersistenceDegradations(app.persistenceDegradations);
+  if (options.persistState ?? true) {
+    persistAppState(app, storedAt);
+  }
 }
 
 function persistGraphSubject(app: RebacLocalApp, subject: Subject, storedAt: string): void {
@@ -2324,7 +2345,7 @@ function recordPlanApprovalAudit(app: RebacLocalApp, plan: ProvisioningPlan): vo
       approval: plan.approval,
       control: plan.control
     }
-  });
+  }, { persistState: false });
 }
 
 function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
@@ -2344,7 +2365,7 @@ function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): vo
         actionId: action.actionId,
         compensation: action.compensation
       }
-    });
+    }, { persistState: false });
   }
 }
 

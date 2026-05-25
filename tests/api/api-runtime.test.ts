@@ -1549,6 +1549,8 @@ describe("ReBAC API runtime", () => {
 
     expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.discovery_completed", "discoveryRuns");
     expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.enforcement_readiness_checked", "enforcementReadinessReports");
+    expectSnapshotsWithProvisioningPlanEvent(snapshots, "provisioning.planned");
+    expectSnapshotsWithProvisioningPlanEvent(snapshots, "provisioning.compensation_planned");
     expectSnapshotsWithEventToIncludeCollection(snapshots, "provisioning.skipped", "provisioningJobs");
     expectSnapshotsWithEventToIncludeCollection(snapshots, "connector.permission_changed", "provisioningJobs");
     expectSnapshotsWithEventToIncludeCollection(snapshots, "provisioning.completed", "provisioningJobs");
@@ -1795,9 +1797,12 @@ describe("ReBAC API runtime", () => {
   });
 
   it("returns evidence exports without exposing failed storage details", async () => {
+    const { repository, snapshots } = createRecordingStateRepository();
+
     await restartServer({
       app: createRebacLocalApp({
         now: () => TEST_NOW,
+        stateRepository: repository,
         evidenceRepository: new ThrowingEvidenceRepository()
       })
     });
@@ -1819,6 +1824,9 @@ describe("ReBAC API runtime", () => {
       status: "warn",
       evidence: { degradedWrites: 1, components: ["evidence"] }
     });
+    expect(snapshots.at(-1)?.persistenceDegradations).toEqual([
+      expect.objectContaining({ component: "evidence", operation: "writeEvidenceExport" })
+    ]);
   });
 
   it("runs read-only mock connector discovery and exposes native access readback", async () => {
@@ -3052,6 +3060,21 @@ function expectSnapshotsWithEventToIncludeCollection(
 
       expect(record).toBeDefined();
       expect(record?.auditEventIds).toContain(event.eventId);
+    }
+  }
+
+  expect(matchingEvents).toBeGreaterThan(0);
+}
+
+function expectSnapshotsWithProvisioningPlanEvent(snapshots: RebacSeedData[], eventType: string): void {
+  let matchingEvents = 0;
+
+  for (const snapshot of snapshots) {
+    for (const event of snapshot.auditEvents?.filter((item) => item.eventType === eventType) ?? []) {
+      matchingEvents += 1;
+      const planId = (event.payload as JsonObject).planId;
+      expect(typeof planId).toBe("string");
+      expect(snapshot.provisioningPlans?.some((plan) => plan.id === planId)).toBe(true);
     }
   }
 
