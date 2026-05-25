@@ -263,9 +263,9 @@ describe("CLI API wrapper", () => {
       "user:approver",
       "--change-ticket",
       "chg:phase4",
-      "--readiness-report",
-      "readiness:mock:phase4",
-      "--synthetic-only"
+      "--synthetic-only",
+      "--reason",
+      "Synthetic controlled enforcement proof point"
     );
 
     expect(requests[0]?.body).toEqual({
@@ -294,7 +294,20 @@ describe("CLI API wrapper", () => {
       planId: "plan:mock:decision",
       approverId: "user:approver",
       mode: "enforcement",
-      dryRun: false
+      dryRun: false,
+      approval: {
+        decision: "approved",
+        approverId: "user:approver",
+        changeTicket: "chg:phase4",
+        approvedAt: "2026-05-21T17:00:00.000Z",
+        reason: "Synthetic controlled enforcement proof point"
+      },
+      control: {
+        syntheticOnly: true,
+        liveProviderWrites: false,
+        incidentMode: false,
+        breakGlass: false
+      }
     });
   });
 
