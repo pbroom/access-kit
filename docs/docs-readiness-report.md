@@ -88,7 +88,7 @@ The documentation goal is complete for the repository foundation after this foll
 - `docs/cli.md`
 - `docs/security-model.md`
 - `docs/ato-evidence-model.md`
-- `docs/outstanding-requirements.md`
+- `docs/implementation-backlog.md`
 - `docs/ci.md`
 - `adrs/0001-api-first-cli-first.md` through `adrs/0010-fail-behavior.md`
 - `openapi/rebac-control-plane.yaml`
@@ -219,7 +219,7 @@ The documentation connects architecture, control families, implementation behavi
 
 ## Blockers
 
-No documentation-goal blockers remain. Production ATO/runtime blockers are out of scope for this documentation goal and are listed in [Outstanding Requirements](outstanding-requirements.md).
+No documentation-goal blockers remain. Production ATO/runtime blockers are out of scope for this documentation goal and are tracked in the [Implementation Backlog](implementation-backlog.md).
 
 ## Recommended Next Steps
 

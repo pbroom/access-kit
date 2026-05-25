@@ -27,7 +27,7 @@ This is not an authorization package, authorization decision, production SSP, or
 7. Review connector, provisioning, drift, and runbook coverage.
 8. Review audit integrity and evidence export coverage.
 9. Run validation commands or inspect `reports/proof-point-validation.md`.
-10. Compare known gaps in [Outstanding Requirements](outstanding-requirements.md) and [Docs Readiness Report](docs-readiness-report.md).
+10. Compare known gaps in the [Implementation Backlog](implementation-backlog.md) and [Docs Readiness Report](docs-readiness-report.md).
 
 ## Concrete Sampling Scenario
 

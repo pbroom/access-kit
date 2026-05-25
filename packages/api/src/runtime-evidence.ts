@@ -86,7 +86,7 @@ export function buildOperationalEvidence(generatedAt: string): OperationalEviden
       ownerRole: "System Owner",
       generatedAt,
       summary: "Evidence package declares backup and restore evidence requirements for future durable graph, audit, and evidence stores.",
-      evidenceRefs: ["docs/outstanding-requirements.md"],
+      evidenceRefs: ["docs/implementation-backlog.md"],
       gaps: ["No production database, retention policy, restore test, or recovery time objective exists in the local runtime."]
     },
     {
