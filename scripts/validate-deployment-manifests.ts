@@ -141,18 +141,7 @@ requireEquals(
 );
 requireEquals(clientPodLabels["access-kit.io/rebac-api-client"], "true", "network policy client pod label");
 
-const signedImagePolicyText = JSON.stringify(signedImagePolicy);
-for (const required of [
-  "verifyImages",
-  "verifyDigest",
-  "mutateDigest",
-  "keyless",
-  "https://token.actions.githubusercontent.com",
-  "container-release.yml",
-  "rebac-api-v.*"
-]) {
-  requireIncludes(signedImagePolicyText, required, "signed-image admission policy");
-}
+validateSignedImagePolicy(signedImagePolicy);
 
 console.log("Validated deployable API Kubernetes manifests.");
 console.log("PASS Kubernetes manifests wire health/readiness probes, persistent state, secret references, and restricted runtime security.");
@@ -192,6 +181,74 @@ function requireSecretEnv(env: unknown[], name: string, secretName: string, key:
   const secretKeyRef = asRecord(asRecord(entry.valueFrom, `${name} valueFrom`).secretKeyRef, `${name} secretKeyRef`);
   requireEquals(secretKeyRef.name, secretName, `${name} secret name`);
   requireEquals(secretKeyRef.key, key, `${name} secret key`);
+}
+
+function validateSignedImagePolicy(policy: Manifest): void {
+  const spec = asRecord(policy.spec, "signed-image admission policy spec");
+  requireEquals(spec.validationFailureAction, "Audit", "signed-image admission validation action");
+  requireEquals(spec.background, true, "signed-image admission background mode");
+
+  const rules = asArray(spec.rules, "signed-image admission rules");
+  const digestRule = findNamedRecord(rules, "require-immutable-digest", "signed-image digest rule");
+  validateDigestRule(digestRule);
+
+  const signatureRule = findNamedRecord(rules, "verify-release-signature", "signed-image signature rule");
+  validateSignatureRule(signatureRule);
+}
+
+function validateDigestRule(rule: Manifest): void {
+  const match = asRecord(rule.match, "signed-image digest rule match");
+  const resources = readFirstMatchedResources(match, "signed-image digest rule");
+  requireIncludes(asStringArray(resources.kinds, "signed-image digest rule kinds"), "Pod", "signed-image digest rule kinds");
+  requireIncludes(asStringArray(resources.namespaces, "signed-image digest rule namespaces"), "access-kit", "signed-image digest rule namespaces");
+
+  const pattern = asRecord(asRecord(rule.validate, "signed-image digest rule validate").pattern, "signed-image digest rule pattern");
+  const podSpec = asRecord(pattern.spec, "signed-image digest rule pod spec pattern");
+  const containers = asNonEmptyArray(podSpec["=(containers)"], "signed-image digest rule containers pattern");
+  const container = asRecord(containers[0], "signed-image digest rule container pattern");
+  requireEquals(
+    container["=(image)"],
+    "ghcr.io/*/access-kit/rebac-api@sha256:*",
+    "signed-image digest rule image pattern"
+  );
+}
+
+function validateSignatureRule(rule: Manifest): void {
+  const match = asRecord(rule.match, "signed-image signature rule match");
+  const resources = readFirstMatchedResources(match, "signed-image signature rule");
+  requireIncludes(asStringArray(resources.kinds, "signed-image signature rule kinds"), "Pod", "signed-image signature rule kinds");
+  requireIncludes(asStringArray(resources.namespaces, "signed-image signature rule namespaces"), "access-kit", "signed-image signature rule namespaces");
+
+  const verifyImages = asNonEmptyArray(rule.verifyImages, "signed-image signature rule verifyImages");
+  const verifyImage = asRecord(verifyImages[0], "signed-image signature rule verifyImages[0]");
+  requireIncludes(
+    asStringArray(verifyImage.imageReferences, "signed-image signature image references"),
+    "ghcr.io/*/access-kit/rebac-api*",
+    "signed-image signature image references"
+  );
+  requireEquals(verifyImage.required, true, "signed-image signature required");
+  requireEquals(verifyImage.verifyDigest, true, "signed-image signature verifyDigest");
+  requireEquals(verifyImage.mutateDigest, false, "signed-image signature mutateDigest");
+
+  const attestors = asNonEmptyArray(verifyImage.attestors, "signed-image signature attestors");
+  const attestor = asRecord(attestors[0], "signed-image signature attestor");
+  const entries = asNonEmptyArray(attestor.entries, "signed-image signature attestor entries");
+  const keyless = asRecord(asRecord(entries[0], "signed-image signature attestor entry").keyless, "signed-image keyless attestor");
+  requireEquals(
+    keyless.issuer,
+    "https://token.actions.githubusercontent.com",
+    "signed-image keyless issuer"
+  );
+  requireEquals(
+    keyless.subjectRegExp,
+    "https://github.com/.*/access-kit/.github/workflows/container-release.yml@refs/tags/rebac-api-v.*",
+    "signed-image keyless subject regexp"
+  );
+}
+
+function readFirstMatchedResources(match: Manifest, label: string): Manifest {
+  const any = asNonEmptyArray(match.any, `${label} match any`);
+  return asRecord(asRecord(any[0], `${label} match any[0]`).resources, `${label} resources`);
 }
 
 function findNamedRecord(values: unknown[], name: string, label: string): Manifest {
@@ -241,6 +298,15 @@ function asArray(value: unknown, label: string): unknown[] {
   }
 
   return value;
+}
+
+function asNonEmptyArray(value: unknown, label: string): unknown[] {
+  const array = asArray(value, label);
+  if (array.length === 0) {
+    throw new Error(`${label} must have at least one entry`);
+  }
+
+  return array;
 }
 
 function asStringArray(value: unknown, label: string): string[] {

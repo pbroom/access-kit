@@ -1,9 +1,15 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YAML from "yaml";
-import { automationContract, type WorkflowContract } from "./lib/automation-contract.js";
+import {
+  automationContract,
+  type WorkflowContract,
+  type WorkflowJobContract
+} from "./lib/automation-contract.js";
+import { isPinnedRequiredActionUse, isRequiredActionUse } from "./lib/github-action-ref.js";
 
 type WorkflowJob = Record<string, unknown>;
+type WorkflowStep = Record<string, unknown>;
 
 interface WorkflowDocument {
   path: string;
@@ -20,7 +26,7 @@ for (const contract of workflows) {
   const workflow = await readWorkflow(contract.path);
 
   for (const job of contract.jobs) {
-    requireJob(workflow, job.name, job.requiredEntries);
+    requireJob(workflow, job);
   }
 
   if (contract.cancelInProgress !== undefined) {
@@ -48,19 +54,75 @@ async function readWorkflow(path: string): Promise<WorkflowDocument> {
   return { ...parsed, path };
 }
 
-function requireJob(workflow: WorkflowDocument, jobName: string, needles: readonly string[]): void {
-  const job = workflow.jobs?.[jobName];
+function requireJob(workflow: WorkflowDocument, contract: WorkflowJobContract): void {
+  const job = workflow.jobs?.[contract.name];
 
   if (!job) {
-    throw new Error(`Workflow ${workflow.path} is missing job ${jobName}`);
+    throw new Error(`Workflow ${workflow.path} is missing job ${contract.name}`);
   }
 
-  const jobText = JSON.stringify(job);
-  const missing = needles.filter((needle) => !jobText.includes(needle));
+  const needsStepRuns = Boolean(contract.requiredRuns?.length || contract.requiredRunSnippets?.length);
+  const needsStepUses = Boolean(contract.requiredUses?.length);
+  const steps = needsStepRuns || (needsStepUses && !isReusableWorkflowJob(job)) ? requireSteps(job) : readOptionalSteps(job);
+  const runs = steps.map((step) => (typeof step.run === "string" ? step.run.trim() : ""));
+  const uses = [
+    ...steps.map((step) => (typeof step.uses === "string" ? step.uses : "")),
+    typeof job.uses === "string" ? job.uses : ""
+  ];
 
-  if (missing.length > 0) {
-    throw new Error(`Workflow job ${jobName} is missing required entry: ${missing.join(", ")}`);
+  const missingRuns = (contract.requiredRuns ?? []).filter((run) => !runs.includes(run));
+  if (missingRuns.length > 0) {
+    throw new Error(`Workflow job ${contract.name} is missing required run command: ${missingRuns.join(", ")}`);
   }
+
+  const missingUses = (contract.requiredUses ?? []).filter(
+    (action) => !uses.some((usedAction) => isRequiredActionUse(usedAction, action))
+  );
+  if (missingUses.length > 0) {
+    throw new Error(`Workflow job ${contract.name} is missing required action: ${missingUses.join(", ")}`);
+  }
+
+  const unpinnedUses = (contract.requiredUses ?? []).filter((action) =>
+    uses.some((usedAction) => isRequiredActionUse(usedAction, action) && !isPinnedRequiredActionUse(usedAction, action))
+  );
+  if (unpinnedUses.length > 0) {
+    throw new Error(
+      `Workflow job ${contract.name} must pin required actions to full 40-character SHA refs: ${unpinnedUses.join(", ")}`
+    );
+  }
+
+  const missingRunSnippets = (contract.requiredRunSnippets ?? []).filter(
+    (snippet) => !runs.some((run) => run.includes(snippet))
+  );
+  if (missingRunSnippets.length > 0) {
+    throw new Error(
+      `Workflow job ${contract.name} is missing required run snippet: ${missingRunSnippets.join(", ")}`
+    );
+  }
+}
+
+function isReusableWorkflowJob(job: WorkflowJob): boolean {
+  return typeof job.uses === "string";
+}
+
+function readOptionalSteps(job: WorkflowJob): WorkflowStep[] {
+  return Array.isArray(job.steps) ? requireSteps(job) : [];
+}
+
+function requireSteps(job: WorkflowJob): WorkflowStep[] {
+  const steps = job.steps;
+
+  if (!Array.isArray(steps)) {
+    throw new Error("Workflow job is missing steps");
+  }
+
+  return steps.map((step) => {
+    if (!isRecord(step)) {
+      throw new Error("Workflow job step must be an object");
+    }
+
+    return step;
+  });
 }
 
 function requireWorkflowConcurrency(workflow: WorkflowDocument, expected: boolean): void {
@@ -69,4 +131,8 @@ function requireWorkflowConcurrency(workflow: WorkflowDocument, expected: boolea
   if (cancelInProgress !== expected) {
     throw new Error(`Workflow ${workflow.path} cancel-in-progress must be ${String(expected)}`);
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
