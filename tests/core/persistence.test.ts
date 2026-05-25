@@ -175,6 +175,24 @@ describe("persistent ReBAC repository contracts", () => {
     );
   });
 
+  it("rejects malformed local graph envelope payloads before hashing or normalizing", () => {
+    const graphPath = join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json");
+    const repository = new LocalJsonFileGraphRepository({ graphPath, now: () => now });
+
+    repository.flush(now);
+    const stored = JSON.parse(readFileSync(graphPath, "utf8")) as {
+      graph: { subjects: unknown };
+      graphHash: string;
+    };
+    stored.graph.subjects = {};
+    stored.graphHash = "sha256:not-the-current-payload";
+    writeFileSync(graphPath, `${JSON.stringify(stored)}\n`, "utf8");
+
+    expect(() => new LocalJsonFileGraphRepository({ graphPath, now: () => now })).toThrow(
+      "ReBAC graph state payload field subjects must be an array."
+    );
+  });
+
   it("rejects legacy raw graph snapshots without a hash envelope", () => {
     const graphPath = join(mkdtempSync(join(tmpdir(), "rebac-graph-")), "graph-state.json");
 
@@ -455,6 +473,24 @@ describe("persistent ReBAC repository contracts", () => {
     );
   });
 
+  it("rejects malformed local job envelope payloads before hashing or normalizing", () => {
+    const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
+    const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
+
+    repository.flush(now);
+    const stored = JSON.parse(readFileSync(jobsPath, "utf8")) as {
+      jobs: { provisioningPlans: unknown };
+      jobsHash: string;
+    };
+    stored.jobs.provisioningPlans = {};
+    stored.jobsHash = "sha256:not-the-current-payload";
+    writeFileSync(jobsPath, `${JSON.stringify(stored)}\n`, "utf8");
+
+    expect(() => new LocalJsonFileJobRepository({ jobsPath, now: () => now })).toThrow(
+      "ReBAC job state payload field provisioningPlans must be an array."
+    );
+  });
+
   it("rejects unversioned local job snapshots before serving job data", () => {
     const jobsPath = join(mkdtempSync(join(tmpdir(), "rebac-jobs-")), "job-state.json");
     const repository = new LocalJsonFileJobRepository({ jobsPath, now: () => now });
@@ -504,6 +540,22 @@ describe("persistent ReBAC repository contracts", () => {
     const repository = new LocalJsonFileStateRepository({ statePath });
 
     expect(() => repository.readState()).toThrow("Legacy ReBAC runtime state field subjects must be an array.");
+  });
+
+  it("rejects malformed runtime state envelope payloads before serving state", () => {
+    const statePath = join(mkdtempSync(join(tmpdir(), "rebac-state-")), "runtime-state.json");
+    const repository = new LocalJsonFileStateRepository({ statePath });
+
+    repository.writeState({ subjects: [createSubject()] }, now);
+    const stored = JSON.parse(readFileSync(statePath, "utf8")) as {
+      state: { subjects: unknown };
+      stateHash: string;
+    };
+    stored.state.subjects = {};
+    stored.stateHash = "sha256:not-the-current-payload";
+    writeFileSync(statePath, `${JSON.stringify(stored)}\n`, "utf8");
+
+    expect(() => repository.readState()).toThrow("ReBAC runtime state payload field subjects must be an array.");
   });
 
   it("rejects legacy runtime state arrays with non-object items", () => {
