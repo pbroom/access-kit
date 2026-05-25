@@ -1,5 +1,15 @@
-import { randomUUID, timingSafeEqual } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import {
+  authenticateRequest,
+  bearerChallenge,
+  normalizeApiKeys,
+  recordAuthenticationFailure,
+  type AuthenticationFailureReason,
+  type AuthenticationFailureSample
+} from "./api-auth.js";
+import { HttpError, notFound, sendJson } from "./api-http.js";
+import { buildRuntimeReadiness } from "./api-readiness.js";
 import {
   checkDecision,
   checkEnforcementReadiness,
@@ -19,7 +29,6 @@ import {
   listDiscoveryRuns,
   putRelationship,
   readNativeAccess,
-  recordAudit,
   runReconciliation,
   syncConnector,
   testConnector,
@@ -46,52 +55,12 @@ import type {
   Subject
 } from "@access-kit/core";
 
+export { API_ROUTE_SURFACES, type ApiRouteSurface } from "./api-routes.js";
+
 export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
   apiKeys?: readonly string[];
 }
-
-export interface ApiRouteSurface {
-  method: "DELETE" | "GET" | "POST" | "PUT";
-  path: string;
-}
-
-export const API_ROUTE_SURFACES: ApiRouteSurface[] = [
-  { method: "GET", path: "/v1/health" },
-  { method: "GET", path: "/v1/ready" },
-  { method: "POST", path: "/v1/decision/check" },
-  { method: "POST", path: "/v1/decision/explain" },
-  { method: "POST", path: "/v1/decision/batch-check" },
-  { method: "GET", path: "/v1/subjects" },
-  { method: "POST", path: "/v1/subjects" },
-  { method: "GET", path: "/v1/subjects/{id}" },
-  { method: "GET", path: "/v1/subjects/{id}/access" },
-  { method: "GET", path: "/v1/resources" },
-  { method: "POST", path: "/v1/resources" },
-  { method: "GET", path: "/v1/resources/{id}" },
-  { method: "GET", path: "/v1/resources/{id}/access" },
-  { method: "GET", path: "/v1/resources/{id}/native-access" },
-  { method: "GET", path: "/v1/relationships" },
-  { method: "PUT", path: "/v1/relationships" },
-  { method: "DELETE", path: "/v1/relationships" },
-  { method: "POST", path: "/v1/policies/{id}/validate" },
-  { method: "POST", path: "/v1/policies/{id}/publish" },
-  { method: "POST", path: "/v1/provisioning/plans" },
-  { method: "POST", path: "/v1/provisioning/jobs" },
-  { method: "GET", path: "/v1/provisioning/jobs/{id}" },
-  { method: "POST", path: "/v1/reconciliation/run" },
-  { method: "GET", path: "/v1/reconciliation/findings" },
-  { method: "GET", path: "/v1/discovery/runs" },
-  { method: "GET", path: "/v1/audit/events" },
-  { method: "GET", path: "/v1/audit/integrity" },
-  { method: "GET", path: "/v1/audit/export" },
-  { method: "GET", path: "/v1/evidence/export" },
-  { method: "GET", path: "/v1/connectors" },
-  { method: "POST", path: "/v1/connectors/{id}/test" },
-  { method: "GET", path: "/v1/connectors/{id}/enforcement-readiness" },
-  { method: "POST", path: "/v1/connectors/{id}/enforcement-readiness" },
-  { method: "POST", path: "/v1/connectors/{id}/sync" }
-];
 
 interface ProvisioningPlanRequest {
   subjectId?: unknown;
@@ -123,30 +92,6 @@ interface EnforcementReadinessRequest {
   changeTicketPattern?: unknown;
 }
 
-type RuntimeReadinessStatus = "ready" | "ready_with_warnings" | "not_ready";
-type RuntimeReadinessCheckStatus = "pass" | "warn" | "fail";
-type AuthenticationStatus = "authenticated" | "missing" | "invalid";
-type AuthenticationFailureReason = Exclude<AuthenticationStatus, "authenticated">;
-
-interface AuthenticationFailureSample {
-  sampledAtMs: number;
-  suppressedCount: number;
-}
-
-interface RuntimeReadinessCheck {
-  name: string;
-  status: RuntimeReadinessCheckStatus;
-  message: string;
-  evidence?: Record<string, unknown>;
-}
-
-interface RuntimeReadinessResponse {
-  status: RuntimeReadinessStatus;
-  version: string;
-  checkedAt: string;
-  checks: RuntimeReadinessCheck[];
-}
-
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
@@ -157,21 +102,6 @@ const discoveryStatuses = new Set(["queued", "running", "completed", "completed_
 const enforcementReadinessStatuses = new Set(["ready", "blocked"]);
 const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
 const nativePrincipalTypes = new Set(["user", "group", "service_account", "service_principal", "managed_identity", "external_user", "unknown"]);
-const bearerScheme = "bearer ";
-const maxAuthorizationHeaderBytes = 8192;
-const maxBearerTokenBytes = 4096;
-const authenticationFailureAuditSampleWindowMs = 60_000;
-
-class HttpError extends Error {
-  constructor(
-    readonly statusCode: number,
-    readonly code: string,
-    message: string
-  ) {
-    super(message);
-  }
-}
-
 export function createRebacApiServer(options: RebacApiServerOptions = {}): Server {
   const app = options.app ?? createRebacLocalApp(options);
   const apiKeys = normalizeApiKeys(options.apiKeys);
@@ -347,246 +277,6 @@ async function routeRequest(
   }
 
   notFound(response);
-}
-
-function normalizeApiKeys(apiKeys: readonly string[] | undefined): string[] {
-  const normalized = (apiKeys ?? []).map((apiKey) => apiKey.trim()).filter(Boolean);
-
-  if (normalized.some((apiKey) => byteLength(apiKey) > maxBearerTokenBytes)) {
-    throw new Error("API keys must be 4096 bytes or less.");
-  }
-
-  return [...new Set(normalized)];
-}
-
-function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): RuntimeReadinessResponse {
-  const connectorIds = [...app.connectors.keys()].sort();
-  const checks: RuntimeReadinessCheck[] = [
-    {
-      name: "api_runtime",
-      status: "pass",
-      message: "API runtime accepted the readiness probe."
-    },
-    {
-      name: "api_authentication",
-      status: apiKeys.length > 0 ? "pass" : "warn",
-      message: apiKeys.length > 0
-        ? "Bearer-token guard is configured for protected API routes."
-        : "Bearer-token guard is not configured; only local development should run without API keys.",
-      evidence: {
-        configured: apiKeys.length > 0
-      }
-    },
-    {
-      name: "state_repository",
-      status: app.stateRepository ? "pass" : "warn",
-      message: app.stateRepository
-        ? "Runtime state snapshot repository is configured."
-        : "Runtime state snapshot repository is not configured; state is in-memory only.",
-      evidence: {
-        configured: Boolean(app.stateRepository)
-      }
-    },
-    {
-      name: "graph_repository",
-      status: app.graphRepository ? "pass" : "warn",
-      message: app.graphRepository
-        ? "Runtime graph repository is configured for local proof-point persistence."
-        : "Runtime graph repository is not configured; graph state is in-memory only.",
-      evidence: {
-        configured: Boolean(app.graphRepository)
-      }
-    },
-    {
-      name: "job_repository",
-      status: app.jobRepository ? "pass" : "warn",
-      message: app.jobRepository
-        ? "Runtime job repository is configured for local proof-point persistence."
-        : "Runtime job repository is not configured; job state is in-memory only.",
-      evidence: {
-        configured: Boolean(app.jobRepository)
-      }
-    },
-    {
-      name: "audit_repository",
-      status: app.auditRepository ? "pass" : "warn",
-      message: app.auditRepository
-        ? "Audit repository is configured for local proof-point persistence."
-        : "Audit repository is not configured; audit events are in-memory only.",
-      evidence: {
-        configured: Boolean(app.auditRepository)
-      }
-    },
-    {
-      name: "evidence_repository",
-      status: app.evidenceRepository ? "pass" : "warn",
-      message: app.evidenceRepository
-        ? "Evidence package repository is configured for local proof-point persistence."
-        : "Evidence package repository is not configured; evidence packages are generated in-memory only.",
-      evidence: {
-        configured: Boolean(app.evidenceRepository)
-      }
-    },
-    {
-      name: "persistence_degradation",
-      status: app.persistenceDegradations.length > 0 ? "warn" : "pass",
-      message: app.persistenceDegradations.length > 0
-        ? "Runtime persistence has recorded degraded local proof-point writes."
-        : "Runtime persistence has not recorded degraded local proof-point writes.",
-      evidence: {
-        degradedWrites: app.persistenceDegradations.length,
-        components: [...new Set(app.persistenceDegradations.map((item) => item.component))].sort()
-      }
-    },
-    {
-      name: "connectors",
-      status: connectorIds.length > 0 ? "pass" : "fail",
-      message: connectorIds.length > 0
-        ? `${connectorIds.length} connector adapters are registered.`
-        : "No connector adapters are registered.",
-      evidence: {
-        configured: connectorIds.length > 0
-      }
-    }
-  ];
-
-  return {
-    status: summarizeReadiness(checks),
-    version: "0.1.0",
-    checkedAt: app.now(),
-    checks
-  };
-}
-
-function summarizeReadiness(checks: readonly RuntimeReadinessCheck[]): RuntimeReadinessStatus {
-  if (checks.some((check) => check.status === "fail")) {
-    return "not_ready";
-  }
-
-  if (checks.some((check) => check.status === "warn")) {
-    return "ready_with_warnings";
-  }
-
-  return "ready";
-}
-
-function authenticateRequest(request: IncomingMessage, apiKeys: readonly string[]): AuthenticationStatus {
-  if (apiKeys.length === 0) {
-    return "authenticated";
-  }
-
-  const token = readBearerToken(request);
-
-  if (!token) {
-    return hasBearerAuthorization(request) ? "invalid" : "missing";
-  }
-
-  return apiKeys.some((apiKey) => constantTimeEqual(apiKey, token)) ? "authenticated" : "invalid";
-}
-
-function bearerChallenge(status: AuthenticationStatus): string {
-  return status === "invalid"
-    ? 'Bearer realm="rebac-control-plane", error="invalid_token"'
-    : 'Bearer realm="rebac-control-plane"';
-}
-
-function readBearerToken(request: IncomingMessage): string | undefined {
-  const authorization = request.headers.authorization;
-  if (typeof authorization !== "string" || byteLength(authorization) > maxAuthorizationHeaderBytes) {
-    return undefined;
-  }
-
-  const trimmed = authorization.trim();
-  if (!trimmed.toLowerCase().startsWith(bearerScheme)) {
-    return undefined;
-  }
-
-  const token = trimmed.slice(bearerScheme.length).trim();
-  if (byteLength(token) > maxBearerTokenBytes) {
-    return undefined;
-  }
-
-  return token ? token : undefined;
-}
-
-function hasBearerAuthorization(request: IncomingMessage): boolean {
-  const authorization = request.headers.authorization;
-  return typeof authorization === "string" && authorization.trim().toLowerCase().startsWith(bearerScheme);
-}
-
-function constantTimeEqual(expected: string, actual: string): boolean {
-  const expectedBytes = Buffer.from(expected);
-  const actualBytes = Buffer.from(actual);
-  const expectedLength = expectedBytes.byteLength;
-  const actualLength = actualBytes.byteLength;
-  const expectedPadded = Buffer.alloc(maxBearerTokenBytes);
-  const actualPadded = Buffer.alloc(maxBearerTokenBytes);
-  expectedBytes.copy(expectedPadded);
-  actualBytes.copy(actualPadded);
-
-  return timingSafeEqual(expectedPadded, actualPadded)
-    && expectedLength === actualLength
-    && expectedLength <= maxBearerTokenBytes
-    && actualLength <= maxBearerTokenBytes;
-}
-
-function byteLength(value: string): number {
-  return Buffer.byteLength(value, "utf8");
-}
-
-function recordAuthenticationFailure(
-  app: RebacLocalApp,
-  request: IncomingMessage,
-  url: URL,
-  authentication: AuthenticationFailureReason,
-  authenticationFailureSamples: Map<AuthenticationFailureReason, AuthenticationFailureSample>,
-  authenticationFailureAuditScope: string
-): void {
-  const occurredAt = app.now();
-  const occurredAtMs = timestampMs(occurredAt);
-  const priorSample = authenticationFailureSamples.get(authentication);
-
-  if (priorSample && occurredAtMs - priorSample.sampledAtMs < authenticationFailureAuditSampleWindowMs) {
-    priorSample.suppressedCount += 1;
-    return;
-  }
-
-  const suppressedSinceLastSample = priorSample?.suppressedCount ?? 0;
-  authenticationFailureSamples.set(authentication, {
-    sampledAtMs: occurredAtMs,
-    suppressedCount: 0
-  });
-
-  recordAudit(app, {
-    eventType: "api.authentication_failed",
-    actor: "anonymous",
-    correlationId: `corr:auth:${authentication}:${authenticationFailureAuditScope}:${sampleWindowStart(occurredAtMs)}:${sanitizeAuditPath(url.pathname)}`,
-    payload: {
-      method: request.method ?? "GET",
-      path: url.pathname,
-      reason: authentication === "invalid" ? "invalid_bearer_token" : "missing_bearer_token",
-      sampled: true,
-      sampleWindowMs: authenticationFailureAuditSampleWindowMs,
-      suppressedSinceLastSample,
-      tokenLogged: false
-    }
-  }, {
-    occurredAt,
-    persistState: false
-  });
-}
-
-function timestampMs(timestamp: string): number {
-  const parsed = Date.parse(timestamp);
-  return Number.isFinite(parsed) ? parsed : Date.now();
-}
-
-function sampleWindowStart(timestamp: number): number {
-  return Math.floor(timestamp / authenticationFailureAuditSampleWindowMs) * authenticationFailureAuditSampleWindowMs;
-}
-
-function sanitizeAuditPath(path: string): string {
-  return path.replaceAll(/[^a-z0-9_:-]/gi, "_").toLowerCase();
 }
 
 async function routePolicies(
@@ -1468,17 +1158,4 @@ function readAuditFilterDateTime(value: string | null, name: string): string | u
   }
 
   return new Date(value).toISOString();
-}
-
-function sendJson(response: ServerResponse, statusCode: number, body: unknown): void {
-  response.writeHead(statusCode, { "content-type": "application/json" });
-  response.end(JSON.stringify(body));
-}
-
-function notFound(response: ServerResponse): void {
-  sendJson(response, 404, {
-    code: "NOT_FOUND",
-    message: "Route or object was not found",
-    correlationId: "corr:not-found"
-  });
 }
