@@ -31,6 +31,7 @@ const requiredProofPointNames = new Set([
   "group-level deny override beats direct allow path",
   "expired access is denied",
   "suspended user is denied",
+  "suspended intermediate group is not traversed",
   "duplicate event idempotency is specified",
   "drift is represented as security finding"
 ]);

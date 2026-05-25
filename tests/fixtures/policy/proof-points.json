@@ -361,6 +361,44 @@
     "expectedReasonCode": "DENY_SUBJECT_NOT_ACTIVE"
   },
   {
+    "kind": "decision",
+    "name": "suspended intermediate group is not traversed",
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "relationships": [
+      {
+        "id": "relationship:alice-suspended-reviewers",
+        "subjectId": "user:alice",
+        "relation": "member_of",
+        "objectId": "group:suspended-reviewers",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      },
+      {
+        "id": "relationship:suspended-reviewers-document",
+        "subjectId": "group:suspended-reviewers",
+        "relation": "reader_of",
+        "objectId": "document:case-plan",
+        "sourceSystem": "mock",
+        "assertedAt": "2026-05-21T17:00:00.000Z",
+        "status": "active",
+        "version": "tuple:v1",
+        "createdAt": "2026-05-21T17:00:00.000Z"
+      }
+    ],
+    "subjectStatus": "active",
+    "nodeStatuses": {
+      "group:suspended-reviewers": "suspended"
+    },
+    "now": "2026-05-21T17:00:00.000Z",
+    "expect": "deny",
+    "expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+  },
+  {
     "kind": "idempotency",
     "name": "duplicate event idempotency is specified",
     "idempotencyKey": "idem:grant-alice-read-case-plan",

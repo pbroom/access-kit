@@ -2,6 +2,7 @@ import type {
   DecisionResult,
   DecisionValue,
   DriftFinding,
+  LifecycleState,
   RelationshipTuple,
   Resource,
   ResourceType,
@@ -18,7 +19,8 @@ export interface DecisionProofPoint {
   action: string;
   resourceId: string;
   relationships: RelationshipTuple[];
-  subjectStatus?: "active" | "suspended" | "terminated";
+  subjectStatus?: LifecycleState;
+  nodeStatuses?: Record<string, LifecycleState>;
   now: string;
   expect: DecisionValue;
   expectedReasonCode: string;
@@ -101,12 +103,12 @@ export function createDecisionProofPointStore(proof: DecisionProofPoint): InMemo
   const subjects = new Map<string, Subject>();
   const resources = new Map<string, Resource>();
 
-  upsertGraphNode(proof.subjectId, proof.subjectStatus ?? "active");
-  upsertGraphNode(proof.resourceId, "active");
+  upsertGraphNode(proof.subjectId);
+  upsertGraphNode(proof.resourceId);
 
   for (const relationship of proof.relationships) {
-    upsertGraphNode(relationship.subjectId, "active");
-    upsertGraphNode(relationship.objectId, "active");
+    upsertGraphNode(relationship.subjectId);
+    upsertGraphNode(relationship.objectId);
   }
 
   return new InMemoryRebacStore({
@@ -115,8 +117,9 @@ export function createDecisionProofPointStore(proof: DecisionProofPoint): InMemo
     relationships: proof.relationships
   });
 
-  function upsertGraphNode(id: string, lifecycleState: Subject["lifecycleState"]): void {
+  function upsertGraphNode(id: string): void {
     const [prefix] = id.split(":", 1);
+    const lifecycleState = graphNodeLifecycleState(id);
 
     if (subjectTypes.has(prefix as SubjectType)) {
       if (subjects.has(id)) {
@@ -136,7 +139,11 @@ export function createDecisionProofPointStore(proof: DecisionProofPoint): InMemo
       return;
     }
 
-    const resourceType = resourceTypes.has(prefix as ResourceType) ? (prefix as ResourceType) : "application";
+    if (!resourceTypes.has(prefix as ResourceType)) {
+      throw new Error(`Unrecognized policy proof-point graph node prefix for id: ${id}`);
+    }
+
+    const resourceType = prefix as ResourceType;
     if (resources.has(id)) {
       return;
     }
@@ -154,5 +161,9 @@ export function createDecisionProofPointStore(proof: DecisionProofPoint): InMemo
       version: "resource:test-v1",
       createdAt: proof.now
     });
+  }
+
+  function graphNodeLifecycleState(id: string): LifecycleState {
+    return proof.nodeStatuses?.[id] ?? (id === proof.subjectId ? proof.subjectStatus ?? "active" : "active");
   }
 }

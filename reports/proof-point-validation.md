@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-25T03:07:58.471Z
+Generated at: 2026-05-25T12:40:12.706Z
 
 Branch: codex/rebac-proof-point-engine-parity
 
@@ -79,7 +79,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 > access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-ak019
 > tsx scripts/validate-policy-fixtures.ts
 
-Validated 12 policy proof points.
+Validated 13 policy proof points.
 PASS deny by default without relationship path
 PASS deny unsupported action despite read relationship
 PASS allow through relationship path
@@ -90,6 +90,7 @@ PASS deny override beats allow path
 PASS group-level deny override beats direct allow path
 PASS expired access is denied
 PASS suspended user is denied
+PASS suspended intermediate group is not traversed
 PASS duplicate event idempotency is specified
 PASS drift is represented as security finding
 ```
@@ -106,8 +107,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  23:07:52
-   Duration  403ms (transform 147ms, setup 0ms, import 261ms, tests 37ms, environment 0ms)
+   Start at  08:40:06
+   Duration  393ms (transform 142ms, setup 0ms, import 254ms, tests 33ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -165,9 +166,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  3 passed (3)
-      Tests  57 passed (57)
-   Start at  23:07:55
-   Duration  255ms (transform 247ms, setup 0ms, import 314ms, tests 45ms, environment 0ms)
+      Tests  58 passed (58)
+   Start at  08:40:09
+   Duration  242ms (transform 234ms, setup 0ms, import 295ms, tests 40ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -182,8 +183,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  1 passed (1)
       Tests  76 passed (76)
-   Start at  23:07:56
-   Duration  665ms (transform 168ms, setup 0ms, import 262ms, tests 303ms, environment 0ms)
+   Start at  08:40:10
+   Duration  660ms (transform 167ms, setup 0ms, import 262ms, tests 301ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -198,8 +199,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  3 passed (3)
       Tests  31 passed (31)
-   Start at  23:07:57
-   Duration  458ms (transform 431ms, setup 0ms, import 770ms, tests 181ms, environment 0ms)
+   Start at  08:40:11
+   Duration  438ms (transform 418ms, setup 0ms, import 747ms, tests 167ms, environment 0ms)
 ```
 
 

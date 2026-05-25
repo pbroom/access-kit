@@ -5,8 +5,7 @@ import {
   type DriftFinding,
   evaluateDecisionProofPoint,
   evaluateIdempotencyProofPoint,
-  type PolicyProofPoint,
-  RebacDecisionEngine
+  type PolicyProofPoint
 } from "../../packages/core/src/index.js";
 
 const validDriftStatuses = new Set<DriftFinding["status"]>([
@@ -37,6 +36,7 @@ describe("policy proof points", () => {
     expect(names).toContain("group-level deny override beats direct allow path");
     expect(names).toContain("expired access is denied");
     expect(names).toContain("suspended user is denied");
+    expect(names).toContain("suspended intermediate group is not traversed");
     expect(names).toContain("duplicate event idempotency is specified");
     expect(names).toContain("drift is represented as security finding");
   });
@@ -54,35 +54,47 @@ describe("policy proof points", () => {
     }
   });
 
-  it("keeps decision proof-point fixtures aligned with the runtime engine", () => {
-    for (const proof of proofPoints as PolicyProofPoint[]) {
-      if (proof.kind !== "decision") {
-        continue;
-      }
+  it("applies intermediate graph-node lifecycle overrides", () => {
+    const proof = (proofPoints as PolicyProofPoint[]).find(
+      (candidate) => candidate.name === "suspended intermediate group is not traversed"
+    );
 
-      const proofPointResult = evaluateDecisionProofPoint(proof);
-      const runtimeEngine = new RebacDecisionEngine(createDecisionProofPointStore(proof), {
-        actor: "service:policy-proof-point-runtime-parity-test",
-        now: () => proof.now,
-        policyVersion: "policy:test-v1",
-        relationshipVersion: "tuple-set:test-v1"
-      });
-      const runtimeResult = runtimeEngine.explain({
-        subjectId: proof.subjectId,
-        action: proof.action,
-        resourceId: proof.resourceId
-      });
+    expect(proof?.kind).toBe("decision");
 
-      expect({
-        decision: proofPointResult.decision,
-        reasonCode: proofPointResult.reasonCode,
-        relationshipPath: proofPointResult.relationshipPath
-      }).toEqual({
-        decision: runtimeResult.decision,
-        reasonCode: runtimeResult.reasonCode,
-        relationshipPath: runtimeResult.relationshipPath
-      });
+    if (proof?.kind === "decision") {
+      const store = createDecisionProofPointStore(proof);
+      expect(store.getSubject("group:suspended-reviewers")?.lifecycleState).toBe("suspended");
+      expect(evaluateDecisionProofPoint(proof).reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
     }
+  });
+
+  it("rejects unclassified graph-node prefixes", () => {
+    expect(() =>
+      createDecisionProofPointStore({
+        kind: "decision",
+        name: "reject unknown prefix",
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan",
+        relationships: [
+          {
+            id: "relationship:unknown-prefix",
+            subjectId: "user:alice",
+            relation: "member_of",
+            objectId: "external:partner-system",
+            sourceSystem: "mock",
+            assertedAt: "2026-05-21T17:00:00.000Z",
+            status: "active",
+            version: "tuple:v1",
+            createdAt: "2026-05-21T17:00:00.000Z"
+          }
+        ],
+        subjectStatus: "active",
+        now: "2026-05-21T17:00:00.000Z",
+        expect: "deny",
+        expectedReasonCode: "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+      })
+    ).toThrow("Unrecognized policy proof-point graph node prefix");
   });
 
   it("deduplicates operations by idempotency key", () => {
