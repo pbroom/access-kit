@@ -354,6 +354,14 @@ export interface AuditEvent {
   payload: JsonRecord;
 }
 
+export interface PersistenceDegradationReceipt {
+  component: "audit" | "evidence" | "graph" | "job" | "state";
+  operation: string;
+  occurredAt: IsoDateTime | "startup";
+  message: string;
+  version: "persistence-degradation:v1";
+}
+
 export interface AuditIntegrityFinding {
   code: string;
   message: string;

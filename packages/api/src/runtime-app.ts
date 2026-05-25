@@ -4,6 +4,7 @@ import type {
   ConnectorAdapter,
   EvidencePackageRepository,
   InMemoryRebacStore,
+  PersistenceDegradationReceipt,
   RebacDecisionEngine,
   RebacGraphRepository,
   RebacJobRepository,
@@ -31,12 +32,7 @@ export interface RebacRuntimePersistence {
   evidenceRepository?: EvidencePackageRepository;
 }
 
-export interface RebacPersistenceDegradation {
-  component: "audit" | "evidence" | "graph" | "job" | "state";
-  operation: string;
-  occurredAt: string;
-  message: string;
-}
+export type RebacPersistenceDegradation = PersistenceDegradationReceipt;
 
 export class RebacLocalAppError extends Error {
   constructor(

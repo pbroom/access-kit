@@ -1234,7 +1234,7 @@ describe("ReBAC API runtime", () => {
     ]));
   });
 
-  it("keeps the snapshot audit chain authoritative when the audit file is ahead", async () => {
+  it("recovers append-only audit events when the audit file is ahead of the state snapshot", async () => {
     const storageRoot = await mkdtemp(join(tmpdir(), "access-kit-dual-persistence-"));
     tempDirs.push(storageRoot);
     const auditRepository = new LocalAppendOnlyAuditRepository({ rootDir: storageRoot });
@@ -1290,9 +1290,10 @@ describe("ReBAC API runtime", () => {
     const integrity = await get<{ status: string; eventCount: number }>("/v1/audit/integrity");
     const auditEvents = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
 
-    expect(integrity).toMatchObject({ status: "verified", eventCount: 2 });
+    expect(integrity).toMatchObject({ status: "verified", eventCount: 3 });
     expect(auditEvents.items.map((event) => event.eventType)).toEqual([
       "decision.allowed",
+      "audit.exported",
       "decision.allowed",
       "audit.integrity_verified"
     ]);
@@ -1521,11 +1522,17 @@ describe("ReBAC API runtime", () => {
     });
   });
 
-  it("bounds retained persistence degradations for readiness checks", () => {
+  it("bounds retained persistence degradations for readiness checks", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-bounded-degraded-state-"));
+    tempDirs.push(stateRoot);
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: stateRoot });
     const timestamps = Array.from({ length: 25 }, (_, index) => new Date(Date.parse(TEST_NOW) + index * 1000).toISOString());
     const app = createRebacLocalApp({
       now: sequenceNow(...timestamps),
-      auditRepository: new ThrowingAuditRepository()
+      persistence: {
+        auditRepository: new ThrowingAuditRepository(),
+        stateRepository
+      }
     });
 
     for (let index = 0; index < timestamps.length; index += 1) {
@@ -1546,6 +1553,63 @@ describe("ReBAC API runtime", () => {
       component: "audit",
       operation: "appendAuditEvent",
       occurredAt: "2026-05-21T17:00:24.000Z"
+    });
+    const persistedDegradations = stateRepository.readState()?.persistenceDegradations ?? [];
+    expect(persistedDegradations).toHaveLength(20);
+    expect(persistedDegradations[0]).toMatchObject({
+      component: "audit",
+      operation: "appendAuditEvent",
+      occurredAt: "2026-05-21T17:00:05.000Z"
+    });
+    expect(persistedDegradations.at(-1)).toMatchObject({
+      component: "audit",
+      operation: "appendAuditEvent",
+      occurredAt: "2026-05-21T17:00:24.000Z"
+    });
+  });
+
+  it("recovers degraded persistence receipts from runtime state after restart", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-degraded-state-"));
+    tempDirs.push(stateRoot);
+    const stateRepository = new LocalJsonFileStateRepository({ rootDir: stateRoot });
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => TEST_NOW,
+        persistence: {
+          auditRepository: new ThrowingAuditRepository(),
+          stateRepository
+        }
+      })
+    });
+
+    await post<{ decision: string }>("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(stateRepository.readState()?.persistenceDegradations).toEqual([
+      expect.objectContaining({
+        component: "audit",
+        operation: "appendAuditEvent",
+        version: "persistence-degradation:v1"
+      })
+    ]);
+
+    await restartServer({
+      app: createRebacLocalApp({
+        now: () => "2026-05-21T18:00:00.000Z",
+        stateRepository
+      })
+    });
+    const readiness = await get<{
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    }>("/v1/ready");
+    const degradation = readiness.checks.find((check) => check.name === "persistence_degradation");
+
+    expect(degradation).toMatchObject({
+      status: "warn",
+      evidence: { degradedWrites: 1, components: ["audit"] }
     });
   });
 
@@ -2678,7 +2742,8 @@ function createRecordingStateRepository(): { repository: RebacStateRepository; s
             driftFindings: state.driftFindings?.length ?? 0,
             reconciliationRuns: state.reconciliationRuns?.length ?? 0,
             decisions: state.decisions?.length ?? 0,
-            auditEvents: state.auditEvents?.length ?? 0
+            auditEvents: state.auditEvents?.length ?? 0,
+            persistenceDegradations: state.persistenceDegradations?.length ?? 0
           },
           version: "rebac-state-storage-receipt:v1"
         };
@@ -2742,9 +2807,11 @@ function expectSnapshotsWithEventToIncludeCollection(
     for (const event of snapshot.auditEvents?.filter((item) => item.eventType === eventType) ?? []) {
       matchingEvents += 1;
       const recordId = primaryRecordIdForEvent(event);
-      const records = (snapshot[collection] ?? []) as Array<{ id: string }>;
+      const records = (snapshot[collection] ?? []) as Array<{ id: string; auditEventIds?: string[] }>;
+      const record = records.find((item) => item.id === recordId);
 
-      expect(records.some((record) => record.id === recordId)).toBe(true);
+      expect(record).toBeDefined();
+      expect(record?.auditEventIds).toContain(event.eventId);
     }
   }
 

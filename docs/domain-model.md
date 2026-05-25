@@ -118,6 +118,8 @@ A `DecisionResult` can allow `user:alice` to `read` the document through that pa
 
 Audit events should reference canonical subject IDs, resource IDs, policy versions, relationship versions, reason codes, correlation IDs, and source event IDs. Evidence exports should include domain objects only when needed for control inspection and should preserve the distinction between decisions, intended state, native state, drift, and evidence.
 
+Runtime state snapshots also retain `PersistenceDegradationReceipt` entries for local proof-point write failures when a state repository is configured. These receipts are not a substitute for atomic production transactions, but they prevent graph, job, audit, or state write failures from disappearing after a restart.
+
 ## Related Controls
 
 AC, AU, CM, CA, IA, and PT controls depend on stable object identity, versioning, minimization, and traceability.

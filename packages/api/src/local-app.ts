@@ -125,9 +125,11 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
   const persistenceDegradations: RebacPersistenceDegradation[] = [];
   const persistedGraph = persistence.graphRepository?.exportGraph();
   const persistedJobs = persistence.jobRepository?.exportJobs();
-  const seed = initialRuntimeSeed(persistence, options.seed ?? createLocalEngineSeed(), persistedGraph, persistedJobs);
+  const seed = initialRuntimeSeed(persistence, options.seed ?? createLocalEngineSeed(), persistedGraph, persistedJobs, now);
   const store = new InMemoryRebacStore(seed);
+  persistenceDegradations.push(...store.listPersistenceDegradations());
   seedEmptyRuntimeRepositories(persistence, store, persistenceDegradations, now, persistedGraph, persistedJobs);
+  store.replacePersistenceDegradations(persistenceDegradations);
   const auditRecorder = new AuditRecorder(initialAuditEvents(persistence, store));
   const engine = new RebacDecisionEngine(store, {
     now,
@@ -136,6 +138,7 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     onAuditEvent: (event) => {
       const priorStoreAuditEvents = persistence.stateRepository ? store.listAuditEvents().slice(0, -1) : undefined;
       appendAuditEvent(persistence.auditRepository, event, event.occurredAt, priorStoreAuditEvents, persistenceDegradations);
+      store.replacePersistenceDegradations(persistenceDegradations);
       persistStoreSnapshot(persistence.stateRepository, store, event.occurredAt, persistenceDegradations);
     }
   });
@@ -648,8 +651,8 @@ export async function createProvisioningJob(
           dryRun: true,
           reason: result.message,
           providerWrite: false
-        }
-      }).eventId
+      }
+      }, { persistState: false }).eventId
     ),
     recordAudit(app, {
       eventType: "provisioning.verified",
@@ -663,7 +666,7 @@ export async function createProvisioningJob(
         connectorId: plan.connectorId,
         verification
       }
-    }).eventId,
+    }, { persistState: false }).eventId,
     recordAudit(app, {
       eventType: "provisioning.completed",
       actor: app.actor,
@@ -671,7 +674,7 @@ export async function createProvisioningJob(
       resourceId: plan.resourceId,
       correlationId: `corr:${jobId}:completed`,
       payload: asJsonRecord(jobWithoutAuditIds)
-    }).eventId
+    }, { persistState: false }).eventId
   ];
   const job = { ...jobWithoutAuditIds, auditEventIds };
   app.store.upsertProvisioningJob(job);
@@ -763,8 +766,8 @@ async function createControlledEnforcementJob(
           providerWrite: false,
           approval,
           control
-        }
-      }).eventId
+      }
+      }, { persistState: false }).eventId
     ),
     recordAudit(app, {
       eventType: "provisioning.verified",
@@ -778,11 +781,11 @@ async function createControlledEnforcementJob(
         connectorId: plan.connectorId,
         verification
       }
-    }).eventId
+    }, { persistState: false }).eventId
   ];
 
   if (!completed) {
-    auditEventIds.push(...recordRollbackPlannedAudit(app, request.jobId, plan));
+    auditEventIds.push(...recordRollbackPlannedAudit(app, request.jobId, plan, { persistState: false }));
   }
 
   auditEventIds.push(
@@ -793,7 +796,7 @@ async function createControlledEnforcementJob(
       resourceId: plan.resourceId,
       correlationId: `corr:${request.jobId}:${completed ? "completed" : "failed"}`,
       payload: asJsonRecord(jobWithoutAuditIds)
-    }).eventId
+    }, { persistState: false }).eventId
   );
 
   const job = { ...jobWithoutAuditIds, auditEventIds };
@@ -1023,6 +1026,7 @@ export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options:
   const priorStoreAuditEvents = app.persistence.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
   appendAuditEvent(app.persistence.auditRepository, event, event.occurredAt, priorStoreAuditEvents, app.persistenceDegradations);
+  app.store.replacePersistenceDegradations(app.persistenceDegradations);
   if (options.persistState ?? true) {
     persistAppState(app, event.occurredAt);
   }
@@ -1042,7 +1046,8 @@ function appendAuditEvent(
         component: "audit",
         operation: "appendAuditEvent",
         occurredAt: storedAt,
-        message: "Audit repository did not match the authoritative runtime snapshot; append was skipped."
+        message: "Audit repository did not match the authoritative runtime snapshot; append was skipped.",
+        version: "persistence-degradation:v1"
       });
       return;
     }
@@ -1053,7 +1058,8 @@ function appendAuditEvent(
       component: "audit",
       operation: "appendAuditEvent",
       occurredAt: storedAt,
-      message: error instanceof Error ? error.message : String(error)
+      message: error instanceof Error ? error.message : String(error),
+      version: "persistence-degradation:v1"
     });
   }
 }
@@ -1062,12 +1068,15 @@ function initialRuntimeSeed(
   persistence: RebacRuntimePersistence,
   fallbackSeed: RebacSeedData,
   graph: RebacGraphSnapshot | undefined,
-  jobs: RebacJobSnapshot | undefined
+  jobs: RebacJobSnapshot | undefined,
+  now: () => string
 ): RebacSeedData {
   const baseSeed = persistence.stateRepository?.readState() ?? fallbackSeed;
+  const auditEvents = recoverAppendOnlyAuditEvents(persistence, baseSeed, now);
 
   return {
     ...baseSeed,
+    ...(auditEvents ? { auditEvents } : {}),
     ...(graph && shouldUsePersistedGraph(graph, baseSeed)
       ? {
           subjects: graph.subjects,
@@ -1096,6 +1105,29 @@ function shouldUsePersistedGraph(graph: RebacGraphSnapshot, baseSeed: RebacSeedD
     && containsAllById(graph.resources, baseSeed.resources)
     && containsAllById(graph.relationships, baseSeed.relationships)
     && containsAllById(graph.nativeGrants, baseSeed.nativeGrants);
+}
+
+function recoverAppendOnlyAuditEvents(
+  persistence: RebacRuntimePersistence,
+  baseSeed: RebacSeedData,
+  now: () => string
+): AuditEvent[] | undefined {
+  if (!persistence.stateRepository || !persistence.auditRepository) {
+    return baseSeed.auditEvents;
+  }
+
+  const storedEvents = baseSeed.auditEvents ?? [];
+  const repositoryEvents = persistence.auditRepository.listAuditEvents();
+
+  if (repositoryEvents.length <= storedEvents.length || !auditEventsStartWith(repositoryEvents, storedEvents)) {
+    return baseSeed.auditEvents;
+  }
+
+  return verifyAuditChain(repositoryEvents, now()).status === "verified" ? repositoryEvents : baseSeed.auditEvents;
+}
+
+function auditEventsStartWith(events: AuditEvent[], prefix: AuditEvent[]): boolean {
+  return prefix.every((event, index) => stableStringify(event) === stableStringify(events[index]));
 }
 
 function hasPersistedGraphRecords(graph: RebacGraphSnapshot): boolean {
@@ -1190,7 +1222,8 @@ function recordPersistenceRepositoryError(
     component,
     operation,
     occurredAt,
-    message: error instanceof Error ? error.message : String(error)
+    message: error instanceof Error ? error.message : String(error),
+    version: "persistence-degradation:v1"
   });
 }
 
@@ -1342,8 +1375,10 @@ function persistStoreSnapshot(
       component: "state",
       operation: "writeState",
       occurredAt: storedAt,
-      message: error instanceof Error ? error.message : String(error)
+      message: error instanceof Error ? error.message : String(error),
+      version: "persistence-degradation:v1"
     });
+    store.replacePersistenceDegradations(degradations);
   }
 }
 
@@ -1371,7 +1406,8 @@ function writeEvidenceExport(
       component: "evidence",
       operation: "writeEvidenceExport",
       occurredAt: storedAt,
-      message: error instanceof Error ? error.message : String(error)
+      message: error instanceof Error ? error.message : String(error),
+      version: "persistence-degradation:v1"
     });
     return undefined;
   }
@@ -2194,7 +2230,12 @@ function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): vo
   }
 }
 
-function recordRollbackPlannedAudit(app: RebacLocalApp, jobId: string, plan: ProvisioningPlan): string[] {
+function recordRollbackPlannedAudit(
+  app: RebacLocalApp,
+  jobId: string,
+  plan: ProvisioningPlan,
+  options: RecordAuditOptions = {}
+): string[] {
   return plan.actions
     .filter((action) => action.compensation)
     .map((action) =>
@@ -2210,7 +2251,7 @@ function recordRollbackPlannedAudit(app: RebacLocalApp, jobId: string, plan: Pro
           actionId: action.actionId,
           compensation: action.compensation
         }
-      }).eventId
+      }, options).eventId
     );
 }
 

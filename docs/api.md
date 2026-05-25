@@ -74,7 +74,7 @@ Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock`
 
 ## Phase 5 ATO Evidence
 
-`GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, local graph/job/state wiring, local audit/evidence repositories, persistence degradation, and whether connector adapters are configured. The endpoint is public for orchestrator probes and never returns token material or connector identifiers.
+`GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, local graph/job/state wiring, local audit/evidence repositories, persistence degradation, and whether connector adapters are configured. Degraded persistence receipts are retained in runtime state when the state repository is available, so restart checks can still disclose local proof-point write failures. The endpoint is public for orchestrator probes and never returns token material or connector identifiers.
 
 The core package also defines persistent graph, audit, and job repository contracts plus persistence-readiness and deployment-manifest readiness reports for future production stores. The API runtime can recover explicit graph writes, connector discovery state, decisions, provisioning records, and reconciliation evidence through the local graph/job repositories. Local JSON and file repositories are still proof points; production deployment must wire durable adapters before live connector writes.
 

@@ -71,6 +71,7 @@ export interface RebacStateStorageReceipt {
     reconciliationRuns: number;
     decisions: number;
     auditEvents: number;
+    persistenceDegradations: number;
   };
   version: string;
 }
@@ -996,7 +997,8 @@ function countStateEntities(state: RebacSeedData): RebacStateStorageReceipt["ent
     driftFindings: state.driftFindings?.length ?? 0,
     reconciliationRuns: state.reconciliationRuns?.length ?? 0,
     decisions: state.decisions?.length ?? 0,
-    auditEvents: state.auditEvents?.length ?? 0
+    auditEvents: state.auditEvents?.length ?? 0,
+    persistenceDegradations: state.persistenceDegradations?.length ?? 0
   };
 }
 
@@ -1017,7 +1019,8 @@ function migrateLegacyRuntimeState(value: unknown): RebacSeedData {
     "driftFindings",
     "reconciliationRuns",
     "decisions",
-    "auditEvents"
+    "auditEvents",
+    "persistenceDegradations"
   ]);
 
   for (const key of Object.keys(value)) {
