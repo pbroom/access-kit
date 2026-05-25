@@ -587,6 +587,73 @@ describe("ReBAC API runtime", () => {
     expect(relationships.items.map((relationship) => relationship.id)).not.toContain("relationship:bad-date");
   });
 
+  it("rejects schema-invalid policy, provisioning, readiness, sync, and reconciliation payloads", async () => {
+    const requests: Array<{ path: string; idempotencyKey?: string; body: unknown; expectedCode: string }> = [
+      {
+        path: "/v1/policies",
+        idempotencyKey: "idem-invalid-policy-draft",
+        body: { name: "bad", model: {}, tests: [], unexpected: true },
+        expectedCode: "INVALID_POLICY_DRAFT"
+      },
+      {
+        path: "/v1/policies/policy:model/publish",
+        idempotencyKey: "idem-invalid-policy-publish",
+        body: { changeTicket: "CHG-1", approverId: "user:approver", extra: true },
+        expectedCode: "INVALID_POLICY_PUBLISH_REQUEST"
+      },
+      {
+        path: "/v1/policies/policy:model/rollback",
+        idempotencyKey: "idem-invalid-policy-rollback",
+        body: { targetVersion: "policy:old", changeTicket: "CHG-2", approverId: "user:approver", extra: true },
+        expectedCode: "INVALID_POLICY_ROLLBACK_REQUEST"
+      },
+      {
+        path: "/v1/provisioning/plans",
+        idempotencyKey: "idem-invalid-plan-schema",
+        body: { subjectId: "user:alice", action: "read", resourceId: "document:case-plan", dryRun: true, extra: true },
+        expectedCode: "INVALID_PROVISIONING_REQUEST"
+      },
+      {
+        path: "/v1/provisioning/jobs",
+        idempotencyKey: "idem-invalid-job-schema",
+        body: { planId: "plan:one", approverId: "user:operator", unexpected: true },
+        expectedCode: "INVALID_PROVISIONING_JOB_REQUEST"
+      },
+      {
+        path: "/v1/connectors/mock/enforcement-readiness",
+        body: { control: { syntheticOnly: true, liveProviderWrites: false, incidentMode: false, breakGlass: false }, extra: true },
+        expectedCode: "INVALID_ENFORCEMENT_READINESS_REQUEST"
+      },
+      {
+        path: "/v1/connectors/mock/sync",
+        body: { mode: "enforcement" },
+        expectedCode: "UNSUPPORTED_CONNECTOR_MODE"
+      },
+      {
+        path: "/v1/reconciliation/run",
+        body: { connectorId: "mock", dryRun: false },
+        expectedCode: "INVALID_RECONCILIATION_REQUEST"
+      }
+    ];
+
+    for (const request of requests) {
+      const response = await fetch(`${baseUrl}${request.path}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(request.idempotencyKey ? { "idempotency-key": request.idempotencyKey } : {})
+        },
+        body: JSON.stringify(request.body)
+      });
+      const body = (await response.json()) as { code: string };
+
+      expect(response.status, request.path).toBe(400);
+      expect(body.code, request.path).toBe(request.expectedCode);
+    }
+
+    await expect(get<{ items: JsonObject[] }>("/v1/policies")).resolves.toEqual({ items: [] });
+  });
+
   it("uses the configured actor for decision audit events", async () => {
     await restartServer({
       now: () => "2026-05-21T17:00:00.000Z",
@@ -1912,7 +1979,7 @@ describe("ReBAC API runtime", () => {
     const body = (await response.json()) as { code: string };
 
     expect(response.status).toBe(400);
-    expect(body.code).toBe("MISSING_CONNECTOR_MODE");
+    expect(body.code).toBe("UNSUPPORTED_CONNECTOR_MODE");
   });
 
   it("runs dry-run reconciliation", async () => {
@@ -2001,7 +2068,7 @@ describe("ReBAC API runtime", () => {
       const payload = (await response.json()) as { code: string };
 
       expect(response.status).toBe(400);
-      expect(payload.code).toBe("DRY_RUN_REQUIRED");
+      expect(payload.code).toBe("INVALID_RECONCILIATION_REQUEST");
     }
   });
 
@@ -2674,7 +2741,7 @@ describe("ReBAC API runtime", () => {
     const body = (await response.json()) as { code: string };
 
     expect(response.status).toBe(400);
-    expect(body.code).toBe("MISSING_CONNECTOR_ID");
+    expect(body.code).toBe("INVALID_RECONCILIATION_REQUEST");
   });
 });
 

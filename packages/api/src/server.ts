@@ -529,15 +529,7 @@ async function routeReconciliation(
   segments: string[]
 ): Promise<void> {
   if (segments[2] === "run" && request.method === "POST") {
-    const body = await readJson<{ connectorId: string; dryRun?: unknown }>(request);
-
-    if (typeof body.connectorId !== "string" || !body.connectorId) {
-      throw new HttpError(400, "MISSING_CONNECTOR_ID", "connectorId is required");
-    }
-
-    if (body.dryRun !== true) {
-      throw new HttpError(400, "DRY_RUN_REQUIRED", "Local reconciliation only supports dryRun: true");
-    }
+    const body = readReconciliationRunRequest(await readJson<unknown>(request));
 
     sendJson(response, 202, await runReconciliation(app, body.connectorId));
     return;
@@ -557,9 +549,9 @@ async function routeProvisioning(
   response: ServerResponse,
   segments: string[]
 ): Promise<void> {
-  if (segments[2] === "plans" && segments.length === 3 && request.method === "POST") {
+    if (segments[2] === "plans" && segments.length === 3 && request.method === "POST") {
     const idempotencyKey = readIdempotencyKey(request);
-    const body = await readJson<ProvisioningPlanRequest>(request);
+    const body = readProvisioningPlanRequest(await readJson<unknown>(request));
     const mode = readProvisioningMode(body.mode, body.dryRun);
     const approval = readProvisioningApproval(body.approval);
     const control = readEnforcementControl(body.control);
@@ -601,7 +593,7 @@ async function routeProvisioning(
   }
 
   if (segments[2] === "jobs" && segments.length === 3 && request.method === "POST") {
-    const body = await readJson<ProvisioningJobRequest>(request);
+    const body = readProvisioningJobRequest(await readJson<unknown>(request));
 
     if (typeof body.planId !== "string" || !body.planId) {
       throw new HttpError(400, "MISSING_PLAN_ID", "planId is required");
@@ -705,13 +697,13 @@ async function routeConnectors(
   }
 
   if (segments[3] === "enforcement-readiness" && request.method === "POST") {
-    const body = await readJson<EnforcementReadinessRequest>(request);
+    const body = readEnforcementReadinessBody(await readJson<unknown>(request));
     sendJson(response, 200, await checkEnforcementReadiness(app, connectorId, readEnforcementReadinessRequest(body)));
     return;
   }
 
   if (segments[3] === "sync" && request.method === "POST") {
-    const body = await readJson<{ mode?: unknown }>(request);
+    const body = readConnectorSyncRequest(await readJson<unknown>(request));
     sendJson(response, 202, await syncConnector(app, connectorId, readDiscoveryMode(body.mode)));
     return;
   }
@@ -804,22 +796,12 @@ function readRelationship(value: unknown): RelationshipTuple {
 }
 
 function readPolicyDraft(value: unknown): PolicyDraft {
-  if (
-    !isRecord(value) ||
-    typeof value.name !== "string" ||
-    !value.name ||
-    !isRecord(value.model) ||
-    !Array.isArray(value.tests) ||
-    !value.tests.every(isRecord)
-  ) {
-    throw new HttpError(400, "INVALID_POLICY_DRAFT", "policy drafts require name, model, and tests");
-  }
-
-  return {
-    name: value.name,
-    model: value.model,
-    tests: value.tests
-  };
+  return readSchemaBacked<PolicyDraft>(
+    "policyDraft",
+    value,
+    "INVALID_POLICY_DRAFT",
+    "policy drafts require name, model, and tests"
+  );
 }
 
 function readPolicyValidationMode(value: unknown): "validate" | "test" | undefined {
@@ -835,44 +817,66 @@ function readPolicyValidationMode(value: unknown): "validate" | "test" | undefin
 }
 
 function readPolicyPublishRequest(value: unknown): { changeTicket: string; approverId: string } {
-  if (
-    !isRecord(value) ||
-    typeof value.changeTicket !== "string" ||
-    !value.changeTicket ||
-    typeof value.approverId !== "string" ||
-    !value.approverId
-  ) {
-    throw new HttpError(400, "INVALID_POLICY_PUBLISH_REQUEST", "policy publish requires changeTicket and approverId");
-  }
-
-  return {
-    changeTicket: value.changeTicket,
-    approverId: value.approverId
-  };
+  return readSchemaBacked<{ changeTicket: string; approverId: string }>(
+    "policyPublish",
+    value,
+    "INVALID_POLICY_PUBLISH_REQUEST",
+    "policy publish requires changeTicket and approverId"
+  );
 }
 
 function readPolicyRollbackRequest(value: unknown): { targetVersion: string; changeTicket: string; approverId: string } {
-  if (
-    !isRecord(value) ||
-    typeof value.targetVersion !== "string" ||
-    !value.targetVersion ||
-    typeof value.changeTicket !== "string" ||
-    !value.changeTicket ||
-    typeof value.approverId !== "string" ||
-    !value.approverId
-  ) {
-    throw new HttpError(
-      400,
-      "INVALID_POLICY_ROLLBACK_REQUEST",
-      "policy rollback requires targetVersion, changeTicket, and approverId"
-    );
-  }
+  return readSchemaBacked<{ targetVersion: string; changeTicket: string; approverId: string }>(
+    "policyRollback",
+    value,
+    "INVALID_POLICY_ROLLBACK_REQUEST",
+    "policy rollback requires targetVersion, changeTicket, and approverId"
+  );
+}
 
-  return {
-    targetVersion: value.targetVersion,
-    changeTicket: value.changeTicket,
-    approverId: value.approverId
-  };
+function readProvisioningPlanRequest(value: unknown): ProvisioningPlanRequest {
+  return readSchemaBacked<ProvisioningPlanRequest>(
+    "provisioningPlan",
+    value,
+    "INVALID_PROVISIONING_REQUEST",
+    "Provisioning plans require a dry-run or controlled enforcement request"
+  );
+}
+
+function readProvisioningJobRequest(value: unknown): ProvisioningJobRequest {
+  return readSchemaBacked<ProvisioningJobRequest>(
+    "provisioningJob",
+    value,
+    "INVALID_PROVISIONING_JOB_REQUEST",
+    "Provisioning jobs require planId and approverId"
+  );
+}
+
+function readReconciliationRunRequest(value: unknown): { connectorId: string; dryRun: true } {
+  return readSchemaBacked<{ connectorId: string; dryRun: true }>(
+    "reconciliationRun",
+    value,
+    "INVALID_RECONCILIATION_REQUEST",
+    "Reconciliation runs require connectorId and dryRun: true"
+  );
+}
+
+function readEnforcementReadinessBody(value: unknown): EnforcementReadinessRequest {
+  return readSchemaBacked<EnforcementReadinessRequest>(
+    "enforcementReadiness",
+    value,
+    "INVALID_ENFORCEMENT_READINESS_REQUEST",
+    "Enforcement readiness requires a control block"
+  );
+}
+
+function readConnectorSyncRequest(value: unknown): { mode: "read_only" } {
+  return readSchemaBacked<{ mode: "read_only" }>(
+    "connectorSync",
+    value,
+    "UNSUPPORTED_CONNECTOR_MODE",
+    "connector sync requires mode read_only"
+  );
 }
 
 function readSchemaBacked<T>(

@@ -1,8 +1,16 @@
 import { Ajv2020, type ValidateFunction } from "ajv/dist/2020.js";
 
 export type RuntimeRequestSchemaName =
+  | "connectorSync"
   | "decisionBatch"
   | "decisionRequest"
+  | "enforcementReadiness"
+  | "policyDraft"
+  | "policyPublish"
+  | "policyRollback"
+  | "provisioningJob"
+  | "provisioningPlan"
+  | "reconciliationRun"
   | "relationship"
   | "resource"
   | "subject";
@@ -17,6 +25,30 @@ ajv.addFormat("date-time", {
 const idPattern = "^[a-z0-9_:-]+$";
 const dateTime = { type: "string", format: "date-time" } as const;
 const jsonObject = { type: "object", additionalProperties: true } as const;
+const enforcementControlSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["syntheticOnly", "liveProviderWrites", "incidentMode", "breakGlass"],
+  properties: {
+    syntheticOnly: { type: "boolean" },
+    liveProviderWrites: { type: "boolean" },
+    incidentMode: { type: "boolean" },
+    breakGlass: { type: "boolean" }
+  }
+} as const;
+const provisioningApprovalSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["decision", "approverId", "changeTicket", "approvedAt"],
+  properties: {
+    decision: { const: "approved" },
+    approverId: { type: "string", minLength: 1 },
+    changeTicket: { type: "string", minLength: 1 },
+    approvedAt: { type: "string", minLength: 1 },
+    expiresAt: { type: "string", minLength: 1 },
+    reason: { type: "string", minLength: 1 }
+  }
+} as const;
 
 const decisionRequestSchema = {
   type: "object",
@@ -33,6 +65,14 @@ const decisionRequestSchema = {
 } as const;
 
 const schemas: Record<RuntimeRequestSchemaName, object> = {
+  connectorSync: {
+    type: "object",
+    additionalProperties: false,
+    required: ["mode"],
+    properties: {
+      mode: { const: "read_only" }
+    }
+  },
   decisionRequest: decisionRequestSchema,
   decisionBatch: {
     type: "object",
@@ -44,6 +84,89 @@ const schemas: Record<RuntimeRequestSchemaName, object> = {
         minItems: 1,
         items: decisionRequestSchema
       }
+    }
+  },
+  enforcementReadiness: {
+    type: "object",
+    additionalProperties: false,
+    required: ["control"],
+    properties: {
+      mode: { const: "enforcement" },
+      control: enforcementControlSchema,
+      requiredApproverRole: { type: "string", minLength: 1 },
+      changeTicketPattern: { type: "string", minLength: 1 }
+    }
+  },
+  policyDraft: {
+    type: "object",
+    additionalProperties: false,
+    required: ["name", "model", "tests"],
+    properties: {
+      name: { type: "string", minLength: 1 },
+      model: jsonObject,
+      tests: {
+        type: "array",
+        items: jsonObject
+      }
+    }
+  },
+  policyPublish: {
+    type: "object",
+    additionalProperties: false,
+    required: ["changeTicket", "approverId"],
+    properties: {
+      changeTicket: { type: "string", minLength: 1 },
+      approverId: { type: "string", minLength: 1 }
+    }
+  },
+  policyRollback: {
+    type: "object",
+    additionalProperties: false,
+    required: ["targetVersion", "changeTicket", "approverId"],
+    properties: {
+      targetVersion: { type: "string", minLength: 1 },
+      changeTicket: { type: "string", minLength: 1 },
+      approverId: { type: "string", minLength: 1 }
+    }
+  },
+  provisioningJob: {
+    type: "object",
+    additionalProperties: false,
+    required: ["planId", "approverId"],
+    properties: {
+      planId: { type: "string", minLength: 1 },
+      approverId: { type: "string", minLength: 1 },
+      mode: { enum: ["dry_run", "enforcement"] },
+      dryRun: { type: "boolean" },
+      approval: provisioningApprovalSchema,
+      control: enforcementControlSchema
+    }
+  },
+  provisioningPlan: {
+    type: "object",
+    additionalProperties: false,
+    required: ["dryRun"],
+    properties: {
+      subjectId: { type: "string", minLength: 1 },
+      action: { type: "string", minLength: 1 },
+      resourceId: { type: "string", minLength: 1 },
+      context: jsonObject,
+      mode: { enum: ["dry_run", "enforcement"] },
+      dryRun: { type: "boolean" },
+      grantId: { type: "string", minLength: 1 },
+      connectorId: { type: "string" },
+      approval: provisioningApprovalSchema,
+      control: enforcementControlSchema,
+      readinessReportId: { type: "string", minLength: 1 }
+    }
+  },
+  reconciliationRun: {
+    type: "object",
+    additionalProperties: false,
+    required: ["connectorId", "dryRun"],
+    properties: {
+      connectorId: { type: "string", minLength: 1 },
+      dryRun: { const: true }
     }
   },
   subject: {
