@@ -4,6 +4,9 @@ import {
   summarizeChecks,
   type GitHubPullRequest
 } from "./lib/github-cli.js";
+import { automationContract } from "./lib/automation-contract.js";
+
+const { labels: labelPolicy } = automationContract;
 
 const prs = listOpenPullRequests().filter(isStackPr);
 
@@ -26,7 +29,7 @@ console.log(`Stack ready: ${prs.map((pr) => `#${pr.number}`).join(", ")}`);
 
 function isStackPr(pr: GitHubPullRequest): boolean {
   const labels = labelNames(pr);
-  return labels.includes("stack") || labels.includes("ready-to-merge");
+  return labelPolicy.stackMembership.some((label) => labels.includes(label));
 }
 
 function readinessBlockers(pr: GitHubPullRequest): string[] {
@@ -37,13 +40,13 @@ function readinessBlockers(pr: GitHubPullRequest): string[] {
     blockers.push("PR is still a draft.");
   }
 
-  for (const label of ["blocked", "needs-human", "security-pass-required"]) {
+  for (const label of labelPolicy.mergeBlockers) {
     if (labels.includes(label)) {
       blockers.push(`PR still has ${label}.`);
     }
   }
 
-  if (!labels.includes("ready-to-merge")) {
+  if (!labels.includes(labelPolicy.readyToMerge)) {
     blockers.push("PR is missing ready-to-merge.");
   }
 

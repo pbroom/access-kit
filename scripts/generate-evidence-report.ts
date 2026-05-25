@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { automationContract } from "./lib/automation-contract.js";
 
 interface CommandResult {
   name: string;
@@ -14,20 +15,7 @@ const reportPath = join(root, "reports/proof-point-validation.md");
 const checkMode = process.argv.includes("--check");
 const ansiEscapePattern = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
 const vitestFileSummaryPattern = /^[^\n]*\.test\.ts \(\d+ tests?\)[^\n]*\n?/gm;
-const commands: Array<{ name: string; args: string[] }> = [
-  { name: "typecheck", args: ["typecheck"] },
-  { name: "schema validation", args: ["validate:schemas"] },
-  { name: "OpenAPI validation", args: ["validate:openapi"] },
-  { name: "policy fixture validation", args: ["validate:policy"] },
-  { name: "CLI command contract", args: ["validate:cli-contract"] },
-  { name: "container packaging validation", args: ["validate:packaging"] },
-  { name: "release packaging validation", args: ["validate:release-packaging"] },
-  { name: "deployment manifest validation", args: ["validate:deployment-manifests"] },
-  { name: "persistence deployment evidence validation", args: ["validate:persistence-deployment"] },
-  { name: "core engine tests", args: ["test:core"] },
-  { name: "API runtime tests", args: ["test:api"] },
-  { name: "CLI API smoke tests", args: ["test:cli"] }
-];
+const commands = automationContract.evidence.commands;
 
 const results = commands.map(runPnpm);
 const branch = run("git", ["branch", "--show-current"]).output.trim();
@@ -111,36 +99,15 @@ ${trimOutput(result.output)}
 
 ## Covered Proof Points
 
-- TypeScript strict type checking.
-- JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, and evidence export examples.
-- OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, and enforcement-readiness path groups.
-- Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
-- CLI command contract mapping each operator command to an API surface.
-- Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.
-- Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.
-- Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.
-- Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
-- Local core engine tests for deterministic check/explain, decision audit emission, persistent graph/job repository contracts, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, defensive in-memory conformance behavior, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
-- API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, discovery run history, native access filtering, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
-- CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
+${automationContract.evidence.coveredProofPoints.map((proofPoint) => `- ${proofPoint}`).join("\n")}
 
 ## Outstanding Requirements
 
-- Replace local JSON graph persistence with a production relationship graph and policy model store.
-- Replace local append-only audit persistence with production WORM or immutable ledger-backed audit storage.
-- Replace local JSON job persistence with production queue/job storage behind the persistent storage contracts.
-- Replace synthetic production persistence manifest evidence with environment-specific IaC outputs, approvals, and retained evidence artifacts.
-- Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
-- Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
-- Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
-- Persist discovery runs and native-grant readback in production data stores rather than local JSON snapshots.
-- Replace local JSON dry-run provisioning, controlled synthetic enforcement, readiness gates, and reconciliation jobs with durable queues, retries, and dead-letter handling.
-- Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, emergency revocation behavior, and connector least-privilege review are complete.
-- Replace local ATO package proof points with deployment-specific diagrams, assessor-reviewed control statements, retained SBOM/security artifacts, access review campaigns, exception workflow, backup/restore test evidence, and ConMon delivery.
+${automationContract.evidence.outstandingRequirements.map((requirement) => `- ${requirement}`).join("\n")}
 `;
 }
 
-function runPnpm(command: { name: string; args: string[] }): CommandResult {
+function runPnpm(command: { name: string; args: readonly string[] }): CommandResult {
   const result = run("corepack", ["pnpm", ...command.args]);
   return {
     name: command.name,

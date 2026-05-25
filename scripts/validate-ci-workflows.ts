@@ -1,10 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YAML from "yaml";
+import { automationContract, type WorkflowContract } from "./lib/automation-contract.js";
 
 type WorkflowJob = Record<string, unknown>;
 
 interface WorkflowDocument {
+  path: string;
   name?: unknown;
   concurrency?: Record<string, unknown>;
   jobs?: Record<string, WorkflowJob>;
@@ -12,41 +14,19 @@ interface WorkflowDocument {
 
 const root = process.cwd();
 
-const ci = await readWorkflow(".github/workflows/ci.yml");
-const security = await readWorkflow(".github/workflows/security.yml");
+const workflows: readonly WorkflowContract[] = automationContract.ci.workflows;
 
-requireJob(ci, "contract-validation", [
-  "pnpm validate:contracts",
-  "pnpm validate:docs",
-  "pnpm validate:automation",
-  "pnpm validate:ci",
-  "pnpm validate:packaging",
-  "pnpm validate:release-packaging",
-  "pnpm validate:deployment-manifests",
-  "pnpm validate:persistence-deployment"
-]);
-requireJob(ci, "quality", [
-  "pnpm typecheck",
-  "pnpm lint",
-  "pnpm test",
-  "pnpm build"
-]);
-requireJob(ci, "evidence", ["pnpm evidence:check"]);
-requireJob(ci, "container-packaging", [
-  "docker build",
-  "rebac-api-smoke",
-  "did not become healthy within 20 seconds",
-  "/v1/ready",
-  "REBAC_API_KEYS=ci-smoke"
-]);
-requireJob(security, "dependency-audit", ["pnpm audit --audit-level high"]);
-requireSecurityConcurrency(security);
-requireJob(security, "secret-scan", ["gitleaks/gitleaks-action"]);
-requireJob(security, "codeql", [
-  "github/codeql-action/init",
-  "github/codeql-action/analyze",
-  "pnpm build"
-]);
+for (const contract of workflows) {
+  const workflow = await readWorkflow(contract.path);
+
+  for (const job of contract.jobs) {
+    requireJob(workflow, job.name, job.requiredEntries);
+  }
+
+  if (contract.cancelInProgress !== undefined) {
+    requireWorkflowConcurrency(workflow, contract.cancelInProgress);
+  }
+}
 
 console.log("Validated CI workflow contract.");
 console.log(
@@ -65,14 +45,14 @@ async function readWorkflow(path: string): Promise<WorkflowDocument> {
     throw new Error(`Workflow ${path} is missing jobs`);
   }
 
-  return parsed;
+  return { ...parsed, path };
 }
 
-function requireJob(workflow: WorkflowDocument, jobName: string, needles: string[]): void {
+function requireJob(workflow: WorkflowDocument, jobName: string, needles: readonly string[]): void {
   const job = workflow.jobs?.[jobName];
 
   if (!job) {
-    throw new Error(`Workflow ${String(workflow.name)} is missing job ${jobName}`);
+    throw new Error(`Workflow ${workflow.path} is missing job ${jobName}`);
   }
 
   const jobText = JSON.stringify(job);
@@ -83,10 +63,10 @@ function requireJob(workflow: WorkflowDocument, jobName: string, needles: string
   }
 }
 
-function requireSecurityConcurrency(workflow: WorkflowDocument): void {
+function requireWorkflowConcurrency(workflow: WorkflowDocument, expected: boolean): void {
   const cancelInProgress = workflow.concurrency?.["cancel-in-progress"];
 
-  if (cancelInProgress !== false) {
-    throw new Error("Security workflow must not cancel in-progress scheduled scans");
+  if (cancelInProgress !== expected) {
+    throw new Error(`Workflow ${workflow.path} cancel-in-progress must be ${String(expected)}`);
   }
 }
