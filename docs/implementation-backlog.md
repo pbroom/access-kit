@@ -36,16 +36,16 @@ If this file and Linear disagree, treat this file as authoritative for Codex exe
 
 ## Named Value Releases
 
-These releases are planning frames, not alternate backlog statuses. They group dependency-aware slices into a product journey so reviewers can see why the backlog is ordered this way.
+These releases are planning frames, not alternate backlog statuses. They group dependency-aware slices into a product journey so reviewers can see why the backlog is ordered this way. When a slice depends on another slice in the same release, the prerequisite appears earlier in the `Primary Slices` list.
 
 | Release | Goal | Primary Slices |
 | --- | --- | --- |
-| Release 1: Developer assessment and local integration | Make Access Kit easy to evaluate locally and wire into a first protected route without reading the whole docs tree. | AK-013 through AK-025, AK-062, AK-046, AK-026, AK-029, AK-030, AK-031, AK-048, AK-049, AK-072, AK-061 |
-| Release 2: Policy modeling and assurance | Move from fixed proof-point semantics to a minimal versioned ReBAC model with tests before adding richer context constraints. | AK-027, AK-028, AK-052, AK-054, AK-053, AK-055, AK-071 |
+| Release 1: Developer assessment and local integration | Make Access Kit easy to evaluate locally and wire into a first protected route without reading the whole docs tree. | AK-013 through AK-025, AK-062, AK-046, AK-026, AK-029, AK-030, AK-031, AK-048, AK-049, AK-072, AK-061, AK-063, AK-064, AK-065 |
+| Release 2: Policy modeling and assurance | Move from fixed proof-point semantics to a minimal versioned ReBAC model with tests before adding richer context constraints. | AK-027, AK-028, AK-052, AK-054, AK-053, AK-047 |
 | Release 3: Live read-only provider discovery | Prove provider semantics safely through staged read-only Microsoft Graph and AWS discovery. | AK-032, AK-033, AK-067, AK-068, AK-069, AK-070, AK-034, AK-056, AK-057, AK-050, AK-051 |
-| Release 4: Production runtime and immutable audit | Replace local proof-point runtime pieces with durable state, queues, audit, admin controls, operations, and operator workflows. | AK-035, AK-036, AK-037, AK-039, AK-041, AK-058, AK-059, AK-060 |
+| Release 4: Production runtime and immutable audit | Replace local proof-point runtime pieces with durable state, queues, audit, admin controls, operations, and operator workflows. | AK-035, AK-036, AK-037, AK-055, AK-071, AK-039, AK-066, AK-041, AK-058, AK-060 |
 | Release 5: Controlled enforcement pilot | Add one narrow live write path only after live-read confidence, durable jobs, immutable audit, and admin authorization exist. | AK-038, AK-040 |
-| Release 6: Compliance automation and governance | Turn retained evidence into signed, machine-readable compliance artifacts and durable governance workflows. | AK-042, AK-043, AK-044, AK-045 |
+| Release 6: Compliance automation and governance | Turn retained evidence into signed, machine-readable compliance artifacts and durable governance workflows. | AK-042, AK-043, AK-044, AK-045, AK-059 |
 
 ## Review Enhancement Context
 
