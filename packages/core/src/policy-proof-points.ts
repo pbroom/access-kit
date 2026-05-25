@@ -2,9 +2,14 @@ import type {
   DecisionResult,
   DecisionValue,
   DriftFinding,
-  RelationshipPathStep,
-  RelationshipTuple
+  RelationshipTuple,
+  Resource,
+  ResourceType,
+  Subject,
+  SubjectType
 } from "./domain.js";
+import { RebacDecisionEngine } from "./engine.js";
+import { InMemoryRebacStore } from "./store.js";
 
 export interface DecisionProofPoint {
   kind: "decision";
@@ -39,59 +44,47 @@ export type PolicyProofPoint =
   | IdempotencyProofPoint
   | DriftProofPoint;
 
-const allowRelationsByAction = new Map([
-  ["read", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
-  ["view", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
-  ["write", new Set(["contributor_to", "owner_of", "admin_of"])],
-  ["contribute", new Set(["contributor_to", "owner_of", "admin_of"])],
-  ["admin", new Set(["owner_of", "admin_of"])],
-  ["administer", new Set(["owner_of", "admin_of"])],
-  ["manage", new Set(["owner_of", "admin_of"])]
+const subjectTypes = new Set<SubjectType>([
+  "user",
+  "group",
+  "service_account",
+  "service_principal",
+  "managed_identity",
+  "device",
+  "workload"
 ]);
 
-const traversableRelations = new Set([
-  "member_of",
-  "contributor_to",
-  "viewer_of",
-  "reader_of",
-  "owner_of",
-  "admin_of",
-  "contains"
+const resourceTypes = new Set<ResourceType>([
+  "organization",
+  "workspace",
+  "application",
+  "sharepoint_site",
+  "team",
+  "folder",
+  "document",
+  "power_app",
+  "flow",
+  "dataverse_environment",
+  "aws_account",
+  "aws_role",
+  "dataset",
+  "api"
 ]);
-
-const denyRelations = new Set(["denied", "denied_read", "quarantined_from"]);
 
 export function evaluateDecisionProofPoint(proof: DecisionProofPoint): DecisionResult {
-  const activeRelationships = proof.relationships.filter((relationship) => {
-    if (relationship.status !== "active") {
-      return false;
-    }
-
-    return !relationship.expiresAt || Date.parse(relationship.expiresAt) > Date.parse(proof.now);
+  const store = createDecisionProofPointStore(proof);
+  const engine = new RebacDecisionEngine(store, {
+    actor: "service:policy-proof-point-evaluator",
+    now: () => proof.now,
+    policyVersion: "policy:test-v1",
+    relationshipVersion: "tuple-set:test-v1"
   });
 
-  if (proof.subjectStatus === "suspended" || proof.subjectStatus === "terminated") {
-    return decision(proof, "deny", "DENY_SUBJECT_NOT_ACTIVE", []);
-  }
-
-  const explicitDeny = activeRelationships.find(
-    (relationship) =>
-      relationship.subjectId === proof.subjectId &&
-      relationship.objectId === proof.resourceId &&
-      denyRelations.has(relationship.relation)
-  );
-
-  if (explicitDeny) {
-    return decision(proof, "deny", "DENY_EXPLICIT_OVERRIDE", [toPathStep(explicitDeny)]);
-  }
-
-  const path = findAllowPath(activeRelationships, proof.subjectId, proof.resourceId, proof.action);
-
-  if (path.length > 0) {
-    return decision(proof, "allow", "ALLOW_VIA_RELATIONSHIP_PATH", path);
-  }
-
-  return decision(proof, "deny", "DENY_DEFAULT_NO_RELATIONSHIP_PATH", []);
+  return engine.explain({
+    subjectId: proof.subjectId,
+    action: proof.action,
+    resourceId: proof.resourceId
+  });
 }
 
 export function evaluateIdempotencyProofPoint(proof: IdempotencyProofPoint): number {
@@ -104,101 +97,62 @@ export function evaluateIdempotencyProofPoint(proof: IdempotencyProofPoint): num
   return effectiveKeys.size;
 }
 
-function decision(
-  proof: DecisionProofPoint,
-  value: DecisionValue,
-  reasonCode: string,
-  relationshipPath: RelationshipPathStep[]
-): DecisionResult {
-  return {
-    decisionId: `decision:${proof.name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`,
-    decision: value,
-    subjectId: proof.subjectId,
-    action: proof.action,
-    resourceId: proof.resourceId,
-    reasonCode,
-    policyVersion: "policy:test-v1",
-    relationshipVersion: "tuple-set:test-v1",
-    relationshipPath,
-    constraints: {
-      deterministic: true,
-      llmDecisioning: false
-    },
-    evaluatedAt: proof.now
-  };
-}
+export function createDecisionProofPointStore(proof: DecisionProofPoint): InMemoryRebacStore {
+  const subjects = new Map<string, Subject>();
+  const resources = new Map<string, Resource>();
 
-function findAllowPath(
-  relationships: RelationshipTuple[],
-  subjectId: string,
-  resourceId: string,
-  action: string
-): RelationshipPathStep[] {
-  const allowedRelations = allowRelationsByAction.get(action.toLowerCase()) ?? new Set<string>();
-  const queue: Array<{ currentId: string; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
-    { currentId: subjectId, hasActionGrant: false, path: [] }
-  ];
-  const bestGrantByNode = new Map<string, boolean>([[subjectId, false]]);
+  upsertGraphNode(proof.subjectId, proof.subjectStatus ?? "active");
+  upsertGraphNode(proof.resourceId, "active");
 
-  while (queue.length > 0) {
-    const next = queue.shift();
-
-    if (!next) {
-      break;
-    }
-
-    if (bestGrantByNode.get(next.currentId) === true && !next.hasActionGrant) {
-      continue;
-    }
-
-    for (const relationship of relationships) {
-      if (relationship.subjectId !== next.currentId) {
-        continue;
-      }
-
-      const step = toPathStep(relationship);
-      const path = [...next.path, step];
-      const relationGrantsAction = allowedRelations.has(relationship.relation);
-
-      if (relationship.objectId === resourceId && relationGrantsAction) {
-        return path;
-      }
-
-      if (
-        relationship.relation === "contains" &&
-        relationship.objectId === resourceId &&
-        next.hasActionGrant
-      ) {
-        return path;
-      }
-
-      if (relationship.objectId === resourceId) {
-        continue;
-      }
-
-      if (traversableRelations.has(relationship.relation)) {
-        const hasActionGrant = next.hasActionGrant || relationGrantsAction;
-        const previousBest = bestGrantByNode.get(relationship.objectId);
-
-        if (previousBest !== true && previousBest !== hasActionGrant) {
-          bestGrantByNode.set(relationship.objectId, hasActionGrant);
-          queue.push({
-            currentId: relationship.objectId,
-            hasActionGrant,
-            path
-          });
-        }
-      }
-    }
+  for (const relationship of proof.relationships) {
+    upsertGraphNode(relationship.subjectId, "active");
+    upsertGraphNode(relationship.objectId, "active");
   }
 
-  return [];
-}
+  return new InMemoryRebacStore({
+    subjects: [...subjects.values()],
+    resources: [...resources.values()],
+    relationships: proof.relationships
+  });
 
-function toPathStep(relationship: RelationshipTuple): RelationshipPathStep {
-  return {
-    subjectId: relationship.subjectId,
-    relation: relationship.relation,
-    objectId: relationship.objectId
-  };
+  function upsertGraphNode(id: string, lifecycleState: Subject["lifecycleState"]): void {
+    const [prefix] = id.split(":", 1);
+
+    if (subjectTypes.has(prefix as SubjectType)) {
+      if (subjects.has(id)) {
+        return;
+      }
+
+      subjects.set(id, {
+        id,
+        type: prefix as SubjectType,
+        displayName: id,
+        sourceSystem: "policy-proof-point",
+        lifecycleState,
+        identifiers: { id },
+        version: "subject:test-v1",
+        createdAt: proof.now
+      });
+      return;
+    }
+
+    const resourceType = resourceTypes.has(prefix as ResourceType) ? (prefix as ResourceType) : "application";
+    if (resources.has(id)) {
+      return;
+    }
+
+    resources.set(id, {
+      id,
+      type: resourceType,
+      displayName: id,
+      sourceSystem: "policy-proof-point",
+      ownerId: proof.subjectId,
+      dataStewardId: proof.subjectId,
+      technicalOwnerId: proof.subjectId,
+      classification: "internal",
+      lifecycleState,
+      version: "resource:test-v1",
+      createdAt: proof.now
+    });
+  }
 }

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import proofPoints from "../fixtures/policy/proof-points.json" assert { type: "json" };
 import {
+  createDecisionProofPointStore,
   type DriftFinding,
   evaluateDecisionProofPoint,
   evaluateIdempotencyProofPoint,
-  type PolicyProofPoint
+  type PolicyProofPoint,
+  RebacDecisionEngine
 } from "../../packages/core/src/index.js";
 
 const validDriftStatuses = new Set<DriftFinding["status"]>([
@@ -32,6 +34,7 @@ describe("policy proof points", () => {
     expect(names).toContain("allow through nested container relationship path");
     expect(names).toContain("allow through admin relationship path");
     expect(names).toContain("deny override beats allow path");
+    expect(names).toContain("group-level deny override beats direct allow path");
     expect(names).toContain("expired access is denied");
     expect(names).toContain("suspended user is denied");
     expect(names).toContain("duplicate event idempotency is specified");
@@ -48,6 +51,37 @@ describe("policy proof points", () => {
       expect(result.decision).toBe(proof.expect);
       expect(result.reasonCode).toBe(proof.expectedReasonCode);
       expect(result.constraints.llmDecisioning).toBe(false);
+    }
+  });
+
+  it("keeps decision proof-point fixtures aligned with the runtime engine", () => {
+    for (const proof of proofPoints as PolicyProofPoint[]) {
+      if (proof.kind !== "decision") {
+        continue;
+      }
+
+      const proofPointResult = evaluateDecisionProofPoint(proof);
+      const runtimeEngine = new RebacDecisionEngine(createDecisionProofPointStore(proof), {
+        actor: "service:policy-proof-point-runtime-parity-test",
+        now: () => proof.now,
+        policyVersion: "policy:test-v1",
+        relationshipVersion: "tuple-set:test-v1"
+      });
+      const runtimeResult = runtimeEngine.explain({
+        subjectId: proof.subjectId,
+        action: proof.action,
+        resourceId: proof.resourceId
+      });
+
+      expect({
+        decision: proofPointResult.decision,
+        reasonCode: proofPointResult.reasonCode,
+        relationshipPath: proofPointResult.relationshipPath
+      }).toEqual({
+        decision: runtimeResult.decision,
+        reasonCode: runtimeResult.reasonCode,
+        relationshipPath: runtimeResult.relationshipPath
+      });
     }
   });
 
