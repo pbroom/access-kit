@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T03:19:22.688Z
+Generated at: 2026-05-25T23:35:57.595Z
 
-Branch: codex/rebac-policy-model-authoring
+Branch: 
 
 Node: v24.4.1
 
@@ -32,14 +32,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-policy-test-harness
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-policy-test-harness
 > tsx scripts/validate-schemas.ts
 
 Validated 16 schemas and 16 example fixtures.
@@ -64,10 +64,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-policy-test-harness
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-policy-model-authoring/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-policy-test-harness/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -77,7 +77,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-policy-test-harness
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -100,23 +100,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-policy-test-harness
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-model-authoring
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-test-harness
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:19:15
-   Duration  386ms (transform 140ms, setup 0ms, import 252ms, tests 34ms, environment 0ms)
+   Start at  19:35:51
+   Duration  371ms (transform 132ms, setup 0ms, import 243ms, tests 33ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-policy-test-harness
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -127,7 +127,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-policy-test-harness
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -138,7 +138,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-policy-test-harness
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -149,7 +149,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-policy-test-harness
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -160,49 +160,49 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-policy-test-harness
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-model-authoring
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-test-harness
 
 
- Test Files  4 passed (4)
-      Tests  68 passed (68)
-   Start at  23:19:19
-   Duration  286ms (transform 329ms, setup 0ms, import 447ms, tests 50ms, environment 0ms)
+ Test Files  5 passed (5)
+      Tests  75 passed (75)
+   Start at  19:35:54
+   Duration  267ms (transform 460ms, setup 0ms, import 572ms, tests 54ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-policy-test-harness
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-model-authoring
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-test-harness
 
 
  Test Files  1 passed (1)
-      Tests  81 passed (81)
-   Start at  23:19:20
-   Duration  668ms (transform 167ms, setup 0ms, import 265ms, tests 294ms, environment 0ms)
+      Tests  80 passed (80)
+   Start at  19:35:55
+   Duration  611ms (transform 154ms, setup 0ms, import 250ms, tests 269ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-policy-model-authoring
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-policy-test-harness
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-model-authoring
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-test-harness
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  23:19:21
-   Duration  478ms (transform 380ms, setup 0ms, import 778ms, tests 190ms, environment 0ms)
+   Start at  19:35:56
+   Duration  424ms (transform 371ms, setup 0ms, import 724ms, tests 158ms, environment 0ms)
 ```
 
 

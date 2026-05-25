@@ -15,6 +15,7 @@ const reportPath = join(root, "reports/proof-point-validation.md");
 const checkMode = process.argv.includes("--check");
 const ansiEscapePattern = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
 const vitestFileSummaryPattern = /^[^\n]*\.test\.ts \(\d+ tests?\)[^\n]*\n?/gm;
+const vitestSlowTestPattern = /^[\s]*✓ .+ \d+ms\s*$/gm;
 const commands = automationContract.evidence.commands;
 
 const results = commands.map(runPnpm);
@@ -147,6 +148,7 @@ function normalizeReport(report: string): string {
     .replace(/^Node:.*$/m, "Node: <node>")
     .replace(/^pnpm:.*$/m, "pnpm: <pnpm>")
     .replace(vitestFileSummaryPattern, "")
+    .replace(vitestSlowTestPattern, "")
     .replace(/\/[^\s`]*access-kit[^\s`]*/g, "<repo>")
     .replace(/^[ ]RUN[ ]{2}v.+$/gm, " RUN  v<vitest> <repo>")
     .replace(/^[ ]{3}Start at .+$/gm, "   Start at  <time>")
