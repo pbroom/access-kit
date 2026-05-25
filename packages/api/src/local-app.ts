@@ -577,60 +577,18 @@ export async function createProvisioningPlan(
   options: ProvisioningExecutionOptions = {},
   idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
-  const connector = getConnector(app, connectorId);
-  const existing = idempotencyKey ? app.store.getProvisioningPlanByIdempotencyKey(idempotencyKey) : undefined;
-
-  if (existing) {
-    if (!planMatchesDecisionRequest(existing, request, connectorId, options)) {
-      throw new RebacLocalAppError(
-        409,
-        "IDEMPOTENCY_KEY_REUSED",
-        "Idempotency-Key was already used for a different provisioning plan request."
-      );
+  return createProvisioningPlanFlow(
+    app,
+    connectorId,
+    options,
+    idempotencyKey,
+    (existing) => planMatchesDecisionRequest(existing, request, connectorId, options),
+    (connector) => {
+      const decision = app.engine.explain(request);
+      persistJobDecision(app, decision);
+      return connector.planProvisioningChange(decision);
     }
-
-    return existing;
-  }
-
-  const decision = app.engine.explain(request);
-  persistJobDecision(app, decision);
-  const plan = {
-    ...prepareProvisioningPlan(
-      app,
-      connector,
-      normalizePlanConnector(await connector.planProvisioningChange(decision), connectorId),
-      options
-    ),
-    idempotencyKey
-  };
-  app.store.upsertProvisioningPlan(plan);
-  recordAudit(app, {
-    eventType: "provisioning.requested",
-    actor: app.actor,
-    subjectId: plan.subjectId,
-    resourceId: plan.resourceId,
-    correlationId: `corr:${plan.id}`,
-    payload: asJsonRecord(plan)
-  });
-  recordAudit(app, {
-    eventType: "provisioning.planned",
-    actor: app.actor,
-    subjectId: plan.subjectId,
-    resourceId: plan.resourceId,
-    correlationId: `corr:${plan.id}:planned`,
-    payload: {
-      planId: plan.id,
-      connectorId: plan.connectorId,
-      mode: plan.mode,
-      status: plan.status,
-      actionIds: plan.actions.map((action) => action.actionId),
-      idempotencyKeys: plan.actions.map((action) => action.idempotencyKey)
-    }
-  });
-  recordPlanApprovalAudit(app, plan);
-  recordCompensationAudit(app, plan);
-  persistJobProvisioningPlan(app, plan, plan.createdAt);
-  return plan;
+  );
 }
 
 export async function createRevocationPlan(
@@ -640,11 +598,29 @@ export async function createRevocationPlan(
   options: ProvisioningExecutionOptions = {},
   idempotencyKey?: string
 ): Promise<ProvisioningPlan> {
+  return createProvisioningPlanFlow(
+    app,
+    connectorId,
+    options,
+    idempotencyKey,
+    (existing) => planMatchesRevocationRequest(existing, nativeGrantId, connectorId, options),
+    (connector) => connector.revokeAccess(nativeGrantId)
+  );
+}
+
+async function createProvisioningPlanFlow(
+  app: RebacLocalApp,
+  connectorId: string,
+  options: ProvisioningExecutionOptions,
+  idempotencyKey: string | undefined,
+  matchesExisting: (plan: ProvisioningPlan) => boolean,
+  prepareConnectorPlan: (connector: ConnectorAdapter) => Promise<ProvisioningPlan>
+): Promise<ProvisioningPlan> {
   const connector = getConnector(app, connectorId);
   const existing = idempotencyKey ? app.store.getProvisioningPlanByIdempotencyKey(idempotencyKey) : undefined;
 
   if (existing) {
-    if (!planMatchesRevocationRequest(existing, nativeGrantId, connectorId, options)) {
+    if (!matchesExisting(existing)) {
       throw new RebacLocalAppError(
         409,
         "IDEMPOTENCY_KEY_REUSED",
@@ -656,10 +632,16 @@ export async function createRevocationPlan(
   }
 
   const plan = {
-    ...prepareProvisioningPlan(app, connector, normalizePlanConnector(await connector.revokeAccess(nativeGrantId), connectorId), options),
+    ...prepareProvisioningPlan(app, connector, normalizePlanConnector(await prepareConnectorPlan(connector), connectorId), options),
     idempotencyKey
   };
   app.store.upsertProvisioningPlan(plan);
+  recordProvisioningPlanAudit(app, plan);
+  persistJobProvisioningPlan(app, plan, plan.createdAt);
+  return plan;
+}
+
+function recordProvisioningPlanAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
   recordAudit(app, {
     eventType: "provisioning.requested",
     actor: app.actor,
@@ -685,8 +667,6 @@ export async function createRevocationPlan(
   });
   recordPlanApprovalAudit(app, plan);
   recordCompensationAudit(app, plan);
-  persistJobProvisioningPlan(app, plan, plan.createdAt);
-  return plan;
 }
 
 export async function createProvisioningJob(
