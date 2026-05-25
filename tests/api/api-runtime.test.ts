@@ -70,6 +70,17 @@ describe("ReBAC API runtime", () => {
   });
 
   it("implements documented policy route operations", async () => {
+    await restartServer({
+      now: sequenceNow(
+        "2026-05-21T17:00:00.000Z",
+        "2026-05-21T17:05:00.000Z",
+        "2026-05-21T17:10:00.000Z",
+        "2026-05-21T17:15:00.000Z",
+        "2026-05-21T17:20:00.000Z",
+        "2026-05-21T17:25:00.000Z"
+      )
+    });
+
     const listed = await get<{ items: JsonObject[] }>("/v1/policies");
     expect(listed.items).toEqual([]);
 
@@ -103,7 +114,7 @@ describe("ReBAC API runtime", () => {
     expect(published).toMatchObject({
       id: draft.id,
       status: "published",
-      publishedAt: TEST_NOW
+      publishedAt: "2026-05-21T17:05:00.000Z"
     });
 
     const rolledBack = await postWithIdempotency<JsonObject>(
@@ -120,6 +131,48 @@ describe("ReBAC API runtime", () => {
       version: "policy:previous",
       status: "rolled_back"
     });
+    expect(rolledBack.publishedAt).toBe(published.publishedAt);
+
+    const secondDraft = await postWithIdempotency<JsonObject>("/v1/policies", "idem-policy-create-second", {
+      name: "case escalation",
+      model: { effect: "allow" },
+      tests: [{ name: "escalation proof points" }]
+    });
+    const secondPublished = await postWithIdempotency<JsonObject>(
+      `/v1/policies/${encodeURIComponent(String(secondDraft.id))}/publish`,
+      "idem-policy-publish",
+      {
+        changeTicket: "CHG-2234",
+        approverId: "user:policy-approver"
+      }
+    );
+    expect(secondPublished.id).toBe(secondDraft.id);
+
+    const secondRolledBack = await postWithIdempotency<JsonObject>(
+      `/v1/policies/${encodeURIComponent(String(secondDraft.id))}/rollback`,
+      "idem-policy-rollback",
+      {
+        targetVersion: "policy:second-previous",
+        changeTicket: "CHG-2235",
+        approverId: "user:policy-approver"
+      }
+    );
+    expect(secondRolledBack).toMatchObject({
+      id: secondDraft.id,
+      version: "policy:second-previous",
+      status: "rolled_back"
+    });
+
+    const missingPolicy = await fetch(`${baseUrl}/v1/policies/${encodeURIComponent("policy:missing")}/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-policy-missing" },
+      body: JSON.stringify({
+        changeTicket: "CHG-3234",
+        approverId: "user:policy-approver"
+      })
+    });
+    expect(missingPolicy.status).toBe(404);
+    await expect(missingPolicy.json()).resolves.toMatchObject({ code: "POLICY_NOT_FOUND" });
   });
 
   it("serves readiness without auth and reports runtime guardrails", async () => {

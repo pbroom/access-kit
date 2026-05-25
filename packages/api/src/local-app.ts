@@ -254,46 +254,56 @@ export function validatePolicy(app: RebacLocalApp, policyId: string, mode: "vali
 
 export function publishPolicy(app: RebacLocalApp, policyId: string, request: PolicyPublishRequest, idempotencyKey: string): PolicySummary {
   const state = policyState(app);
-  const existing = state.idempotency.get(`publish:${idempotencyKey}`);
+  const idempotencyScope = `publish:${policyId}:${idempotencyKey}`;
+  const existing = state.idempotency.get(idempotencyScope);
 
   if (existing) {
     return existing;
   }
 
   const prior = state.policies.get(policyId);
+  if (!prior) {
+    throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
+  }
+
   const now = app.now();
   const summary: PolicySummary = {
     id: policyId,
     version: `${policyId}:published`,
     status: "published",
-    createdAt: prior?.createdAt ?? now,
+    createdAt: prior.createdAt,
     publishedAt: now
   };
+  // Approval fields are validated at the HTTP boundary but not persisted by the local stub.
   void request;
   state.policies.set(policyId, summary);
-  state.idempotency.set(`publish:${idempotencyKey}`, summary);
+  state.idempotency.set(idempotencyScope, summary);
   return summary;
 }
 
 export function rollbackPolicy(app: RebacLocalApp, policyId: string, request: PolicyRollbackRequest, idempotencyKey: string): PolicySummary {
   const state = policyState(app);
-  const existing = state.idempotency.get(`rollback:${idempotencyKey}`);
+  const idempotencyScope = `rollback:${policyId}:${idempotencyKey}`;
+  const existing = state.idempotency.get(idempotencyScope);
 
   if (existing) {
     return existing;
   }
 
   const prior = state.policies.get(policyId);
-  const now = app.now();
+  if (!prior) {
+    throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
+  }
+
   const summary: PolicySummary = {
     id: policyId,
     version: request.targetVersion,
     status: "rolled_back",
-    createdAt: prior?.createdAt ?? now,
-    publishedAt: now
+    createdAt: prior.createdAt,
+    publishedAt: prior.publishedAt
   };
   state.policies.set(policyId, summary);
-  state.idempotency.set(`rollback:${idempotencyKey}`, summary);
+  state.idempotency.set(idempotencyScope, summary);
   return summary;
 }
 
