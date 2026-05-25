@@ -312,13 +312,15 @@ function addProvisioningCommands(program: Command, context: CliContext): void {
     });
   }));
 
-  const apply = addControlledEnforcementOptions(provision.command("apply").argument("<plan-id>"));
+  const apply = addControlledEnforcementOptions(provision.command("apply").argument("<plan-id>"), {
+    includeReadinessReport: false
+  });
   apply.action(withApi(context, apply, (client, args) => {
     const options = apply.opts<ProvisioningOptions>();
     return client.post("/v1/provisioning/jobs", {
       planId: readString(args, 0, "plan-id"),
       approverId: options.approver ?? "user:cli-operator",
-      ...buildProvisioningJobPayload(options)
+      ...buildProvisioningJobPayload(options, context)
     });
   }));
 
@@ -334,19 +336,25 @@ function addProvisioningCommands(program: Command, context: CliContext): void {
   }));
 }
 
-function addControlledEnforcementOptions(command: Command): Command {
-  return command
+function addControlledEnforcementOptions(
+  command: Command,
+  options: { includeReadinessReport?: boolean } = {}
+): Command {
+  const configured = command
     .option("--mode <mode>", "dry_run")
     .option("--approver <id>")
     .option("--change-ticket <id>")
-    .option("--readiness-report <id>")
     .option("--reason <text>")
     .option("--synthetic-only")
     .option("--incident-mode")
     .option("--break-glass");
+
+  return options.includeReadinessReport === false
+    ? configured
+    : configured.option("--readiness-report <id>");
 }
 
-function buildProvisioningJobPayload(options: ProvisioningOptions): Record<string, unknown> {
+function buildProvisioningJobPayload(options: ProvisioningOptions, context: CliContext): Record<string, unknown> {
   const mode = options.mode ?? "dry_run";
 
   if (mode === "dry_run") {
@@ -362,7 +370,20 @@ function buildProvisioningJobPayload(options: ProvisioningOptions): Record<strin
 
   return {
     mode,
-    dryRun: false
+    dryRun: false,
+    approval: {
+      decision: "approved",
+      approverId: options.approver ?? "user:cli-operator",
+      changeTicket: required(options.changeTicket, "change-ticket"),
+      approvedAt: context.now(),
+      reason: options.reason
+    },
+    control: {
+      syntheticOnly: options.syntheticOnly === true,
+      liveProviderWrites: false,
+      incidentMode: options.incidentMode === true,
+      breakGlass: options.breakGlass === true
+    }
   };
 }
 

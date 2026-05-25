@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import type { Command } from "commander";
 import YAML from "yaml";
 import { API_ROUTE_SURFACES } from "../../packages/api/src/index.js";
 import { buildCli, CLI_COMMANDS } from "../../packages/cli/src/index.js";
@@ -51,6 +52,10 @@ describe("CLI contract", () => {
     expect(help).toContain("connector");
   });
 
+  it("keeps the command manifest aligned with registered Commander leaves", () => {
+    expect(new Set(commandLeafPaths(buildCli()))).toEqual(new Set(CLI_COMMANDS.map((command) => command.path)));
+  });
+
   it("keeps OpenAPI, runtime routes, and CLI command surfaces in parity", async () => {
     const openApi = YAML.parse(
       await readFile(join(process.cwd(), "openapi/rebac-control-plane.yaml"), "utf8")
@@ -80,3 +85,15 @@ describe("CLI contract", () => {
     }
   });
 });
+
+function commandLeafPaths(command: Command, parentPath: string[] = []): string[] {
+  return command.commands.flatMap((child) => {
+    const childPath = [...parentPath, child.name()];
+
+    if (child.commands.length === 0) {
+      return [childPath.join(" ")];
+    }
+
+    return commandLeafPaths(child, childPath);
+  });
+}
