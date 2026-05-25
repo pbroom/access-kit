@@ -11,7 +11,7 @@ The current implementation intentionally avoids live tenant access and productio
 | Local API runtime | API handlers for decisions, subjects, resources, relationships, connector flows, provisioning, reconciliation, audit, and evidence surfaces. | [#3](https://github.com/pbroom/access-kit/pull/3) |
 | CLI-over-API flow | CLI wrappers that call the API instead of making local authorization decisions. | [#4](https://github.com/pbroom/access-kit/pull/4) |
 | Contract and CI validation | First-class schema, OpenAPI, policy fixture, CLI contract, workflow, docs, packaging, deployment, test, build, and generated evidence validation. | [#6](https://github.com/pbroom/access-kit/pull/6), [#25](https://github.com/pbroom/access-kit/pull/25) |
-| Read-only discovery | Mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, native access filtering, and drift comparison support. | [#5](https://github.com/pbroom/access-kit/pull/5), [#7](https://github.com/pbroom/access-kit/pull/7) |
+| Read-only discovery | Mock and synthetic provider read-only discovery, discovery run history, observed native-grant readback, native access filtering, drift comparison support, and local repository-backed connector-state recovery. | [#5](https://github.com/pbroom/access-kit/pull/5), [#7](https://github.com/pbroom/access-kit/pull/7), [#46](https://github.com/pbroom/access-kit/pull/46) |
 | Dry-run provisioning | Dry-run provisioning jobs, idempotent job replay, verification intent, skipped-write evidence, and compensation records without connector writes. | [#8](https://github.com/pbroom/access-kit/pull/8) |
 | Controlled synthetic enforcement | Synthetic mock-only controlled enforcement, explicit approval fields, guardrail checks, and live provider write blocking. | [#9](https://github.com/pbroom/access-kit/pull/9) |
 | Connector enforcement readiness | Connector enforcement-readiness reports and readiness gates required before controlled synthetic enforcement. | [#10](https://github.com/pbroom/access-kit/pull/10) |
@@ -21,7 +21,7 @@ The current implementation intentionally avoids live tenant access and productio
 | API authentication guard | Optional bearer-token API guarding for non-loopback runtimes, audited authentication failures, and token material exclusion from logs/readiness output. | [#23](https://github.com/pbroom/access-kit/pull/23), [#29](https://github.com/pbroom/access-kit/pull/29) |
 | Deployable API packaging | Deployable API container packaging, container smoke tests, release packaging contracts for signatures/provenance, and reference Kubernetes deployment manifests. | [#26](https://github.com/pbroom/access-kit/pull/26), [#27](https://github.com/pbroom/access-kit/pull/27), [#28](https://github.com/pbroom/access-kit/pull/28) |
 | Persistent storage contracts | Persistent graph, audit, and job repository contracts plus production readiness gates for future durable stores. | [#30](https://github.com/pbroom/access-kit/pull/30) |
-| Local persistence adapters | Local JSON graph persistence, local append-only audit persistence, local JSON job persistence, tamper checks, and idempotency lookups as proof-point adapters. | [#32](https://github.com/pbroom/access-kit/pull/32), [#33](https://github.com/pbroom/access-kit/pull/33), [#34](https://github.com/pbroom/access-kit/pull/34) |
+| Local persistence adapters | Local JSON graph persistence, local append-only audit persistence, local JSON job persistence, connector-state recovery, tamper checks, and idempotency lookups as proof-point adapters. | [#32](https://github.com/pbroom/access-kit/pull/32), [#33](https://github.com/pbroom/access-kit/pull/33), [#34](https://github.com/pbroom/access-kit/pull/34), [#46](https://github.com/pbroom/access-kit/pull/46) |
 | Production persistence manifest evidence | Schema-backed production persistence manifest readiness checks, synthetic IaC/release/backup/operator-control evidence, and retained persistence-readiness report artifacts. | [#35](https://github.com/pbroom/access-kit/pull/35), [#36](https://github.com/pbroom/access-kit/pull/36), [#37](https://github.com/pbroom/access-kit/pull/37) |
 | Documentation foundation | Start-here docs, concept of operations, architecture, domain, API, CLI, security, ATO evidence, persistence, deployment, runbooks, assessor guidance, and docs readiness reporting. | [#22](https://github.com/pbroom/access-kit/pull/22), [#25](https://github.com/pbroom/access-kit/pull/25) |
 
@@ -41,8 +41,8 @@ The current implementation intentionally avoids live tenant access and productio
 - Complete security review for connector identity and least-privilege scopes.
 - Replace synthetic Entra ID, SharePoint, and AWS-style adapters with live read-only connectors after security review.
 - Define live connector consent, tenant boundary, pagination, throttling, and deletion semantics.
-- Persist discovery runs and native grants in a production database rather than local JSON snapshots.
-- Persist reconciliation runs and dry-run job evidence in durable queue/job storage rather than local JSON snapshots.
+- Replace local JSON graph/job connector-state proof points with production data stores for discovery runs, native grants, drift findings, and reconciliation evidence.
+- Persist dry-run job evidence in durable queue/job storage rather than local JSON snapshots.
 - Extend controlled enforcement beyond the synthetic mock proof point only after live connector write scopes, approvals, verification, rollback, least-privilege connector review, operational runbooks, and emergency revocation behavior are reviewed and evidenced.
 - Promote enforcement-readiness reports from local proof-point records to durable release gates for each connector/version pair.
 

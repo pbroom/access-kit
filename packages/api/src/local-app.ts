@@ -21,6 +21,7 @@ import {
   type DecisionRequest,
   type DecisionResult,
   type DiscoveryRun,
+  type DriftFinding,
   type EnforcementControl,
   type EnforcementReadinessCheck,
   type EnforcementReadinessReport,
@@ -245,11 +246,11 @@ export async function syncConnector(
   resources.forEach((resource) => app.store.upsertResource(resource));
   relationships.forEach((relationship) => app.store.upsertRelationship(relationship));
 
-  let nativeGrants = 0;
+  const nativeGrants: NativeGrant[] = [];
   for (const resource of resources) {
     const grants = await connector.readCurrentAccess(resource.id);
     grants.forEach((grant) => app.store.upsertNativeGrant(grant));
-    nativeGrants += grants.length;
+    nativeGrants.push(...grants);
   }
 
   const completedAt = app.now();
@@ -265,7 +266,7 @@ export async function syncConnector(
       subjects: subjects.length,
       resources: resources.length,
       relationships: relationships.length,
-      nativeGrants,
+      nativeGrants: nativeGrants.length,
       warnings: warnings.length
     },
     warnings,
@@ -276,7 +277,7 @@ export async function syncConnector(
       connectorCapabilities: Object.entries(connector.capabilities)
         .filter(([, enabled]) => enabled)
         .map(([name]) => name),
-      nativeAccessReadback: nativeGrants > 0
+      nativeAccessReadback: nativeGrants.length > 0
     },
     auditEventIds: [],
     version: "discovery-run:v1",
@@ -305,6 +306,8 @@ export async function syncConnector(
 
   const completedRun = { ...run, auditEventIds: [auditEvent.eventId] };
   app.store.recordDiscoveryRun(completedRun);
+  persistConnectorDiscoveryGraph(app, { subjects, resources, relationships, nativeGrants }, completedAt);
+  persistJobDiscoveryRun(app, completedRun, completedAt);
   persistAppState(app, completedAt);
   return completedRun;
 }
@@ -405,6 +408,7 @@ export async function checkEnforcementReadiness(
   }, { persistState: false });
   const report = { ...reportWithoutAuditIds, auditEventIds: [auditEvent.eventId] };
   app.store.recordEnforcementReadinessReport(report);
+  persistJobEnforcementReadinessReport(app, report, checkedAt);
   persistAppState(app, checkedAt);
   return report;
 }
@@ -813,6 +817,7 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
 
   for (const finding of findings) {
     app.store.upsertDriftFinding(finding);
+    persistJobDriftFinding(app, finding, finding.detectedAt);
     const event = recordAudit(app, {
       eventType: "drift.detected",
       actor: app.actor,
@@ -855,6 +860,7 @@ export async function runReconciliation(app: RebacLocalApp, connectorId: string)
   }, { persistState: false });
   const completedRun = { ...run, auditEventIds: [...auditEventIds, completedEvent.eventId] };
   app.store.recordReconciliationRun(completedRun);
+  persistJobReconciliationRun(app, completedRun, completedAt);
   persistAppState(app, completedAt);
   return completedRun;
 }
@@ -1071,8 +1077,12 @@ function initialRuntimeSeed(
       : {}),
     ...(jobs && shouldUsePersistedJobs(jobs, baseSeed)
       ? {
+          discoveryRuns: jobs.discoveryRuns,
+          enforcementReadinessReports: jobs.enforcementReadinessReports,
           provisioningPlans: jobs.provisioningPlans,
           provisioningJobs: jobs.provisioningJobs,
+          driftFindings: jobs.driftFindings,
+          reconciliationRuns: jobs.reconciliationRuns,
           decisions: jobs.decisions
         }
       : {})
@@ -1106,8 +1116,12 @@ function shouldUsePersistedJobs(jobs: RebacJobSnapshot, baseSeed: RebacSeedData)
 }
 
 function hasPersistedRuntimeJobRecords(jobs: RebacJobSnapshot): boolean {
-  return jobs.provisioningPlans.length > 0
+  return jobs.discoveryRuns.length > 0
+    || jobs.enforcementReadinessReports.length > 0
+    || jobs.provisioningPlans.length > 0
     || jobs.provisioningJobs.length > 0
+    || jobs.driftFindings.length > 0
+    || jobs.reconciliationRuns.length > 0
     || jobs.decisions.length > 0;
 }
 
@@ -1151,8 +1165,12 @@ function seedEmptyRuntimeRepositories(
 
   try {
     if (persistence.jobRepository && persistedJobs && !hasPersistedRuntimeJobRecords(persistedJobs)) {
+      seed.discoveryRuns?.forEach((run) => persistence.jobRepository?.recordDiscoveryRun(run));
+      seed.enforcementReadinessReports?.forEach((report) => persistence.jobRepository?.recordEnforcementReadinessReport(report));
       seed.provisioningPlans?.forEach((plan) => persistence.jobRepository?.upsertProvisioningPlan(plan));
       seed.provisioningJobs?.forEach((job) => persistence.jobRepository?.upsertProvisioningJob(job));
+      seed.driftFindings?.forEach((finding) => persistence.jobRepository?.upsertDriftFinding(finding));
+      seed.reconciliationRuns?.forEach((run) => persistence.jobRepository?.recordReconciliationRun(run));
       seed.decisions?.forEach((decision) => persistence.jobRepository?.recordDecision(decision));
     }
   } catch (error) {
@@ -1223,6 +1241,66 @@ function persistGraphRelationship(app: RebacLocalApp, relationship: Relationship
     app.graphRepository?.upsertRelationship(relationship);
   } catch (error) {
     recordPersistenceRepositoryError(app.persistenceDegradations, "graph", "upsertRelationship", storedAt, error);
+  }
+}
+
+function persistGraphNativeGrant(app: RebacLocalApp, grant: NativeGrant, storedAt: string): void {
+  try {
+    app.graphRepository?.upsertNativeGrant(grant);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "graph", "upsertNativeGrant", storedAt, error);
+  }
+}
+
+function persistConnectorDiscoveryGraph(
+  app: RebacLocalApp,
+  graph: {
+    subjects: Subject[];
+    resources: Resource[];
+    relationships: RelationshipTuple[];
+    nativeGrants: NativeGrant[];
+  },
+  storedAt: string
+): void {
+  graph.subjects.forEach((subject) => persistGraphSubject(app, subject, storedAt));
+  graph.resources.forEach((resource) => persistGraphResource(app, resource, storedAt));
+  graph.relationships.forEach((relationship) => persistGraphRelationship(app, relationship, storedAt));
+  graph.nativeGrants.forEach((grant) => persistGraphNativeGrant(app, grant, storedAt));
+}
+
+function persistJobDiscoveryRun(app: RebacLocalApp, run: DiscoveryRun, storedAt: string): void {
+  try {
+    app.jobRepository?.recordDiscoveryRun(run);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "recordDiscoveryRun", storedAt, error);
+  }
+}
+
+function persistJobEnforcementReadinessReport(
+  app: RebacLocalApp,
+  report: EnforcementReadinessReport,
+  storedAt: string
+): void {
+  try {
+    app.jobRepository?.recordEnforcementReadinessReport(report);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "recordEnforcementReadinessReport", storedAt, error);
+  }
+}
+
+function persistJobDriftFinding(app: RebacLocalApp, finding: DriftFinding, storedAt: string): void {
+  try {
+    app.jobRepository?.upsertDriftFinding(finding);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "upsertDriftFinding", storedAt, error);
+  }
+}
+
+function persistJobReconciliationRun(app: RebacLocalApp, run: ReconciliationRun, storedAt: string): void {
+  try {
+    app.jobRepository?.recordReconciliationRun(run);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "recordReconciliationRun", storedAt, error);
   }
 }
 
