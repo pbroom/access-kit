@@ -3,6 +3,7 @@ import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { stableStringify } from "./audit.js";
 import type { RebacGraphSnapshot, RebacJobSnapshot } from "./persistence.js";
+import type { RebacGraphStorageReceipt, RebacJobStorageReceipt, RebacStateStorageReceipt } from "./repositories.js";
 import type { RebacSeedData } from "./store.js";
 
 export function stableHash(value: unknown): string {
@@ -39,6 +40,7 @@ export function assertObjectArrayFields(
     const items = value[field];
 
     if (items === undefined) {
+      // Missing arrays are legacy-compatible and normalize to empty collections; present fields must be arrays.
       continue;
     }
 
@@ -75,7 +77,7 @@ export function normalizeGraphSnapshot(graph: Partial<RebacGraphSnapshot>): Reba
   };
 }
 
-export function countJobEntities(jobs: RebacJobSnapshot) {
+export function countJobEntities(jobs: RebacJobSnapshot): RebacJobStorageReceipt["entityCounts"] {
   return {
     discoveryRuns: jobs.discoveryRuns.length,
     enforcementReadinessReports: jobs.enforcementReadinessReports.length,
@@ -87,7 +89,7 @@ export function countJobEntities(jobs: RebacJobSnapshot) {
   };
 }
 
-export function countGraphEntities(graph: RebacGraphSnapshot) {
+export function countGraphEntities(graph: RebacGraphSnapshot): RebacGraphStorageReceipt["entityCounts"] {
   return {
     subjects: graph.subjects.length,
     resources: graph.resources.length,
@@ -96,7 +98,7 @@ export function countGraphEntities(graph: RebacGraphSnapshot) {
   };
 }
 
-export function countStateEntities(state: RebacSeedData) {
+export function countStateEntities(state: RebacSeedData): RebacStateStorageReceipt["entityCounts"] {
   return {
     subjects: state.subjects?.length ?? 0,
     resources: state.resources?.length ?? 0,

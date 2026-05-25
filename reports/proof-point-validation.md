@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-25T13:18:40.131Z
+Generated at: 2026-05-25T13:18:56.797Z
 
 Branch: 
 
@@ -107,8 +107,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  09:18:33
-   Duration  403ms (transform 147ms, setup 0ms, import 266ms, tests 33ms, environment 0ms)
+   Start at  09:18:50
+   Duration  402ms (transform 149ms, setup 0ms, import 267ms, tests 35ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -167,8 +167,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  3 passed (3)
       Tests  61 passed (61)
-   Start at  09:18:37
-   Duration  259ms (transform 266ms, setup 0ms, import 333ms, tests 43ms, environment 0ms)
+   Start at  09:18:53
+   Duration  251ms (transform 254ms, setup 0ms, import 322ms, tests 42ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -183,8 +183,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  1 passed (1)
       Tests  80 passed (80)
-   Start at  09:18:38
-   Duration  713ms (transform 174ms, setup 0ms, import 277ms, tests 333ms, environment 0ms)
+   Start at  09:18:54
+   Duration  732ms (transform 193ms, setup 0ms, import 305ms, tests 326ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -199,8 +199,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  3 passed (3)
       Tests  31 passed (31)
-   Start at  09:18:39
-   Duration  465ms (transform 421ms, setup 0ms, import 791ms, tests 177ms, environment 0ms)
+   Start at  09:18:55
+   Duration  466ms (transform 433ms, setup 0ms, import 794ms, tests 184ms, environment 0ms)
 ```
 
 
