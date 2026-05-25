@@ -28,8 +28,10 @@ const requiredProofPointNames = new Set([
   "allow through nested container relationship path",
   "allow through admin relationship path",
   "deny override beats allow path",
+  "group-level deny override beats direct allow path",
   "expired access is denied",
   "suspended user is denied",
+  "suspended intermediate group is not traversed",
   "duplicate event idempotency is specified",
   "drift is represented as security finding"
 ]);
