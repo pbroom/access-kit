@@ -2209,6 +2209,49 @@ describe("ReBAC API runtime", () => {
     expect(body.code).toBe("IDEMPOTENCY_KEY_REUSED");
   });
 
+  it("replays revocation plans by idempotency key and rejects conflicting grants", async () => {
+    const requestBody = {
+      grantId: "native-grant:mock:document:case-plan:user:alice:read:direct",
+      connectorId: "mock",
+      dryRun: true
+    };
+    const first = await postWithIdempotency<{
+      id: string;
+      connectorId: string;
+      idempotencyKey: string;
+      actions: Array<{ operation: string; requestedState: { nativeGrantId?: string }; compensation: { status: string } }>;
+    }>("/v1/provisioning/plans", "idem-revoke-plan", requestBody);
+    const replay = await postWithIdempotency<{ id: string }>("/v1/provisioning/plans", "idem-revoke-plan", requestBody);
+    const conflict = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-revoke-plan" },
+      body: JSON.stringify({
+        ...requestBody,
+        grantId: "native-grant:mock:document:case-plan:user:bob:read:direct"
+      })
+    });
+    const body = (await conflict.json()) as { code: string };
+    const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(first).toMatchObject({
+      connectorId: "mock",
+      idempotencyKey: "idem-revoke-plan"
+    });
+    expect(first.actions[0]).toMatchObject({
+      operation: "revoke",
+      requestedState: { nativeGrantId: "native-grant:mock:document:case-plan:user:alice:read:direct" },
+      compensation: { status: "planned" }
+    });
+    expect(replay.id).toBe(first.id);
+    expect(conflict.status).toBe(409);
+    expect(body.code).toBe("IDEMPOTENCY_KEY_REUSED");
+    expect(audit.items.map((event) => event.eventType)).toEqual(expect.arrayContaining([
+      "provisioning.requested",
+      "provisioning.planned",
+      "provisioning.compensation_planned"
+    ]));
+  });
+
   it("rejects idempotent provisioning job replay for a different plan", async () => {
     const firstPlan = await postWithIdempotency<{ id: string }>("/v1/provisioning/plans", "idem-phase3-plan-one", {
       subjectId: "user:alice",
