@@ -34,6 +34,8 @@ The readiness report blocks local memory and local file proof points from being 
 
 ## Current Adapters
 
+When the API runtime receives `REBAC_STATE_PATH`, `createLocalRuntimePersistence` wires the local JSON graph and job repositories beside the legacy runtime snapshot. Explicit subject, resource, relationship, decision, and provisioning operations write through those repositories and reload across restarts. Audit events stay in the append-only audit file or the compatibility state snapshot rather than being copied into graph or job state.
+
 `InMemoryRebacPersistenceRepository` is a conformance adapter for tests and local proof points. It implements the graph and job repository contracts over the existing in-memory store, returns defensive copies, and advertises itself as non-durable memory storage. It is not a production database adapter.
 
 `LocalJsonFileGraphRepository` is the first concrete graph adapter behind `RebacGraphRepository`. It persists only subjects, resources, relationship tuples, and native grants to a hash-checked JSON snapshot, reloads those graph facts across process starts, and leaves jobs, decisions, audit events, and evidence packages outside the graph file. It advertises `local_file` and `durable: false`, so production readiness remains blocked until an approved external graph backend is configured.

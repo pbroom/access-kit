@@ -12,10 +12,10 @@ The API package exposes a `rebac-api` entrypoint and container image for local d
 - `REBAC_API_PORT`, default `3000`
 - `REBAC_API_ACTOR`, default `service:api`
 - `REBAC_API_KEYS`, comma-separated bearer tokens for API access. Keys are optional only when `REBAC_API_HOST` is a loopback host.
-- `REBAC_STATE_PATH`, optional local JSON runtime state snapshot path
+- `REBAC_STATE_PATH`, optional local JSON runtime state snapshot path. When set, the service also stores graph facts in `graph-state.json` and runtime job records in `job-state.json` beside the snapshot.
 - `REBAC_EVIDENCE_ROOT`, optional local persistence root for append-only audit records and evidence packages
 
-When `REBAC_API_KEYS` is set, every `/v1` route except `/v1/health` and `/v1/ready` requires `Authorization: Bearer <token>`. The runtime refuses to bind beyond loopback without keys. Failed authentication attempts return `401`, set a bearer challenge, and emit `api.authentication_failed` audit evidence without logging token material. `REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state, and `REBAC_EVIDENCE_ROOT` wires the canonical local persistence boundary for append-only audit records plus evidence packages. These local files are not replacements for production graph, audit, queue, or evidence stores.
+When `REBAC_API_KEYS` is set, every `/v1` route except `/v1/health` and `/v1/ready` requires `Authorization: Bearer <token>`. The runtime refuses to bind beyond loopback without keys. Failed authentication attempts return `401`, set a bearer challenge, and emit `api.authentication_failed` audit evidence without logging token material. `REBAC_STATE_PATH` is a restartability proof point for synthetic runtime state and now wires local graph/job repositories for subjects, resources, relationships, decisions, and provisioning records. `REBAC_EVIDENCE_ROOT` wires the canonical local persistence boundary for append-only audit records plus evidence packages. These local files are not replacements for production graph, audit, queue, or evidence stores.
 
 The container packaging defaults `REBAC_API_HOST` to `0.0.0.0` and persists local proof-point state under `/var/lib/access-kit`. See `docs/deployment.md` and `docs/deployment-runbook.md` for build, smoke-test, release, signature, attestation, Kubernetes probe wiring, and rollback procedures.
 
@@ -74,9 +74,9 @@ Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock`
 
 ## Phase 5 ATO Evidence
 
-`GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, local state snapshot wiring, local audit/evidence repositories, persistence degradation, and whether connector adapters are configured. The endpoint is public for orchestrator probes and never returns token material or connector identifiers.
+`GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, local graph/job/state wiring, local audit/evidence repositories, persistence degradation, and whether connector adapters are configured. The endpoint is public for orchestrator probes and never returns token material or connector identifiers.
 
-The core package also defines persistent graph, audit, and job repository contracts plus persistence-readiness and deployment-manifest readiness reports for future production stores. The local JSON graph adapter persists graph facts, the local append-only audit adapter records hash-checked audit JSONL, and the local JSON job adapter persists operational job records for development and validation, but the current API runtime still treats configured local JSON and file repositories as proof points; production deployment must wire durable adapters before live connector writes.
+The core package also defines persistent graph, audit, and job repository contracts plus persistence-readiness and deployment-manifest readiness reports for future production stores. The API runtime can recover explicit graph writes, decisions, and provisioning records through the local graph/job repositories. Connector discovery runs, native grants, drift findings, and broader connector evidence remain a later connector-persistence slice. Local JSON and file repositories are still proof points; production deployment must wire durable adapters before live connector writes.
 
 `GET /v1/audit/integrity` verifies the append-only audit event hash chain. The report includes event count, first and last event identifiers, first and last event hashes, findings, and an audit event ID for the verification action.
 

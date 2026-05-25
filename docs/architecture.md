@@ -43,10 +43,10 @@ flowchart LR
 - The CLI command list maps operator commands to API operations.
 - The mock connector proves the adapter boundary without credentials or production mutation.
 - The local API runtime makes the OpenAPI-shaped surface executable with in-memory storage.
-- Optional local JSON state snapshots make the local API runtime restartable for synthetic proof points.
+- Optional local JSON state snapshots and local graph/job repository files make the local API runtime restartable for synthetic proof points.
 - The `rebac-api` service entrypoint reads host, port, actor, API keys, state path, and evidence repository settings from environment variables.
 - Optional bearer-token guarding protects API routes except public health/readiness probes and audits failed attempts without token material.
-- The `/v1/ready` probe reports runtime state, audit/evidence repository wiring, auth-guard configuration, and registered connector adapters without returning secrets.
+- The `/v1/ready` probe reports runtime graph/job/state, audit/evidence repository wiring, auth-guard configuration, and registered connector adapters without returning secrets.
 - The deployable API container builds the API workspace dependency closure, runs as a non-root Node 22 runtime, exposes port `3000`, and stores local proof-point state under `/var/lib/access-kit`.
 - The release packaging workflow publishes only on `rebac-api-v*` tags or explicit manual dispatch, records SBOM/provenance metadata, pushes GitHub artifact attestations, and signs published digests with keyless cosign.
 - The reference Kubernetes manifests wire startup, liveness, and readiness probes to the public health endpoints, keep bearer-token material in a secret reference, mount local state under `/var/lib/access-kit`, restrict pod runtime privileges, and provide a signed-image admission policy example for release digests.

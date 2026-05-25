@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-24T22:40:46.233Z
+Generated at: 2026-05-24T23:04:35.479Z
 
-Branch: codex/rebac-runtime-persistence-boundary
+Branch: codex/rebac-durable-storage-runtime
 
 Node: v24.4.1
 
@@ -32,14 +32,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-durable-storage-runtime
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-durable-storage-runtime
 > tsx scripts/validate-schemas.ts
 
 Validated 15 schemas and 15 example fixtures.
@@ -63,10 +63,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-durable-storage-runtime
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-runtime-persistence-boundary/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-durable-storage-runtime/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -76,7 +76,7 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-durable-storage-runtime
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 11 policy proof points.
@@ -96,23 +96,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-durable-storage-runtime
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-durable-storage-runtime
 
 
  Test Files  1 passed (1)
       Tests  4 passed (4)
-   Start at  18:40:40
-   Duration  322ms (transform 108ms, setup 0ms, import 202ms, tests 30ms, environment 0ms)
+   Start at  19:04:29
+   Duration  363ms (transform 127ms, setup 0ms, import 230ms, tests 35ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-durable-storage-runtime
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -123,7 +123,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-durable-storage-runtime
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -134,7 +134,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-durable-storage-runtime
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -145,7 +145,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-durable-storage-runtime
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -156,49 +156,49 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-durable-storage-runtime
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-durable-storage-runtime
 
 
  Test Files  3 passed (3)
       Tests  56 passed (56)
-   Start at  18:40:43
-   Duration  219ms (transform 200ms, setup 0ms, import 257ms, tests 36ms, environment 0ms)
+   Start at  19:04:32
+   Duration  247ms (transform 236ms, setup 0ms, import 298ms, tests 40ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-durable-storage-runtime
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-durable-storage-runtime
 
 
  Test Files  1 passed (1)
-      Tests  70 passed (70)
-   Start at  18:40:44
-   Duration  476ms (transform 120ms, setup 0ms, import 200ms, tests 183ms, environment 0ms)
+      Tests  74 passed (74)
+   Start at  19:04:33
+   Duration  596ms (transform 141ms, setup 0ms, import 231ms, tests 264ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-durable-storage-runtime
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-runtime-persistence-boundary
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-durable-storage-runtime
 
 
  Test Files  3 passed (3)
       Tests  31 passed (31)
-   Start at  18:40:45
-   Duration  377ms (transform 325ms, setup 0ms, import 609ms, tests 147ms, environment 0ms)
+   Start at  19:04:34
+   Duration  425ms (transform 379ms, setup 0ms, import 693ms, tests 165ms, environment 0ms)
 ```
 
 
