@@ -446,17 +446,15 @@ describe("CLI API wrapper", () => {
   it("runs policy commands through the local API", async () => {
     await runCli("policy", "validate", "policy:model");
     expect(lastOutput()).toMatchObject({
-      policyId: "policy:model",
-      mode: "validate",
-      status: "valid"
+      valid: true,
+      checks: [{ name: "syntax", status: "pass" }]
     });
 
     await runCli("policy", "publish", "policy:model", "--change-ticket", "chg:policy");
     expect(lastOutput()).toMatchObject({
-      policyId: "policy:model",
+      id: "policy:model",
       status: "published",
-      changeTicket: "chg:policy",
-      approverId: "user:cli-operator"
+      publishedAt: expect.any(String)
     });
   });
 

@@ -13,6 +13,7 @@ import { buildRuntimeReadiness } from "./api-readiness.js";
 import {
   checkDecision,
   checkEnforcementReadiness,
+  createPolicy,
   createProvisioningJob,
   createProvisioningPlan,
   createRebacLocalApp,
@@ -27,13 +28,18 @@ import {
   isSafeChangeTicketPattern,
   listEnforcementReadinessReports,
   listDiscoveryRuns,
+  listPolicies,
+  publishPolicy,
   putRelationship,
   readNativeAccess,
+  rollbackPolicy,
   runReconciliation,
   syncConnector,
   testConnector,
+  validatePolicy,
   verifyAuditIntegrity,
   RebacLocalAppError,
+  type PolicyDraft,
   type RebacLocalApp,
   type RebacLocalAppOptions
 } from "./local-app.js";
@@ -200,7 +206,7 @@ async function routeRequest(
   }
 
   if (segments[1] === "policies") {
-    await routePolicies(request, response, segments);
+    await routePolicies(app, request, response, segments);
     return;
   }
 
@@ -280,10 +286,21 @@ async function routeRequest(
 }
 
 async function routePolicies(
+  app: RebacLocalApp,
   request: IncomingMessage,
   response: ServerResponse,
   segments: string[]
 ): Promise<void> {
+  if (segments.length === 2 && request.method === "GET") {
+    sendJson(response, 200, listPolicies(app));
+    return;
+  }
+
+  if (segments.length === 2 && request.method === "POST") {
+    sendJson(response, 201, createPolicy(app, readPolicyDraft(await readJson<unknown>(request)), readIdempotencyKey(request)));
+    return;
+  }
+
   const policyId = segments[2];
   const action = segments[3];
 
@@ -295,43 +312,22 @@ async function routePolicies(
   const body = await readJson<unknown>(request);
 
   if (action === "validate") {
-    if (!isRecord(body) || (body.mode !== "validate" && body.mode !== "test")) {
+    const mode = readPolicyValidationMode(body);
+    if (!mode) {
       throw new HttpError(400, "INVALID_POLICY_VALIDATION_REQUEST", "policy validation requires mode validate or test");
     }
 
-    sendJson(response, 200, {
-      policyId,
-      mode: body.mode,
-      status: "valid",
-      checks: [
-        {
-          name: body.mode === "test" ? "proof_points" : "syntax",
-          status: "pass",
-          message: "Local policy contract accepted for the current ReBAC runtime."
-        }
-      ]
-    });
+    sendJson(response, 200, validatePolicy(app, policyId, mode));
     return;
   }
 
   if (action === "publish") {
-    if (
-      !isRecord(body) ||
-      typeof body.changeTicket !== "string" ||
-      !body.changeTicket ||
-      typeof body.approverId !== "string" ||
-      !body.approverId
-    ) {
-      throw new HttpError(400, "INVALID_POLICY_PUBLISH_REQUEST", "policy publish requires changeTicket and approverId");
-    }
+    sendJson(response, 200, publishPolicy(app, policyId, readPolicyPublishRequest(body), readIdempotencyKey(request)));
+    return;
+  }
 
-    sendJson(response, 200, {
-      policyId,
-      status: "published",
-      changeTicket: body.changeTicket,
-      approverId: body.approverId,
-      version: policyId
-    });
+  if (action === "rollback") {
+    sendJson(response, 200, rollbackPolicy(app, policyId, readPolicyRollbackRequest(body), readIdempotencyKey(request)));
     return;
   }
 
@@ -805,6 +801,78 @@ function readRelationship(value: unknown): RelationshipTuple {
     "INVALID_RELATIONSHIP",
     "relationships require the canonical relationship schema"
   );
+}
+
+function readPolicyDraft(value: unknown): PolicyDraft {
+  if (
+    !isRecord(value) ||
+    typeof value.name !== "string" ||
+    !value.name ||
+    !isRecord(value.model) ||
+    !Array.isArray(value.tests) ||
+    !value.tests.every(isRecord)
+  ) {
+    throw new HttpError(400, "INVALID_POLICY_DRAFT", "policy drafts require name, model, and tests");
+  }
+
+  return {
+    name: value.name,
+    model: value.model,
+    tests: value.tests
+  };
+}
+
+function readPolicyValidationMode(value: unknown): "validate" | "test" | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  if (value.mode === "validate" || value.mode === "test") {
+    return value.mode;
+  }
+
+  return undefined;
+}
+
+function readPolicyPublishRequest(value: unknown): { changeTicket: string; approverId: string } {
+  if (
+    !isRecord(value) ||
+    typeof value.changeTicket !== "string" ||
+    !value.changeTicket ||
+    typeof value.approverId !== "string" ||
+    !value.approverId
+  ) {
+    throw new HttpError(400, "INVALID_POLICY_PUBLISH_REQUEST", "policy publish requires changeTicket and approverId");
+  }
+
+  return {
+    changeTicket: value.changeTicket,
+    approverId: value.approverId
+  };
+}
+
+function readPolicyRollbackRequest(value: unknown): { targetVersion: string; changeTicket: string; approverId: string } {
+  if (
+    !isRecord(value) ||
+    typeof value.targetVersion !== "string" ||
+    !value.targetVersion ||
+    typeof value.changeTicket !== "string" ||
+    !value.changeTicket ||
+    typeof value.approverId !== "string" ||
+    !value.approverId
+  ) {
+    throw new HttpError(
+      400,
+      "INVALID_POLICY_ROLLBACK_REQUEST",
+      "policy rollback requires targetVersion, changeTicket, and approverId"
+    );
+  }
+
+  return {
+    targetVersion: value.targetVersion,
+    changeTicket: value.changeTicket,
+    approverId: value.approverId
+  };
 }
 
 function readSchemaBacked<T>(
