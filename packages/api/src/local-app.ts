@@ -236,7 +236,11 @@ export function validatePolicy(app: RebacLocalApp, policyId: string, mode: "vali
   const state = policyState(app);
   const existing = state.policies.get(policyId);
 
-  if (existing && existing.status === "draft") {
+  if (!existing) {
+    throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
+  }
+
+  if (existing.status === "draft") {
     state.policies.set(policyId, { ...existing, status: "validated" });
   }
 

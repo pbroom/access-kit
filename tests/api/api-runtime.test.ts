@@ -173,6 +173,14 @@ describe("ReBAC API runtime", () => {
     });
     expect(missingPolicy.status).toBe(404);
     await expect(missingPolicy.json()).resolves.toMatchObject({ code: "POLICY_NOT_FOUND" });
+
+    const missingValidation = await fetch(`${baseUrl}/v1/policies/${encodeURIComponent("policy:missing")}/validate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ mode: "validate" })
+    });
+    expect(missingValidation.status).toBe(404);
+    await expect(missingValidation.json()).resolves.toMatchObject({ code: "POLICY_NOT_FOUND" });
   });
 
   it("serves readiness without auth and reports runtime guardrails", async () => {
