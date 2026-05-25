@@ -531,14 +531,6 @@ async function routeReconciliation(
   if (segments[2] === "run" && request.method === "POST") {
     const body = readReconciliationRunRequest(await readJson<unknown>(request));
 
-    if (typeof body.connectorId !== "string" || !body.connectorId) {
-      throw new HttpError(400, "MISSING_CONNECTOR_ID", "connectorId is required");
-    }
-
-    if (body.dryRun !== true) {
-      throw new HttpError(400, "DRY_RUN_REQUIRED", "Local reconciliation only supports dryRun: true");
-    }
-
     sendJson(response, 202, await runReconciliation(app, body.connectorId));
     return;
   }

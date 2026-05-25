@@ -632,7 +632,7 @@ describe("ReBAC API runtime", () => {
       {
         path: "/v1/reconciliation/run",
         body: { connectorId: "mock", dryRun: false },
-        expectedCode: "DRY_RUN_REQUIRED"
+        expectedCode: "INVALID_RECONCILIATION_REQUEST"
       }
     ];
 
@@ -1979,7 +1979,7 @@ describe("ReBAC API runtime", () => {
     const body = (await response.json()) as { code: string };
 
     expect(response.status).toBe(400);
-    expect(body.code).toBe("MISSING_CONNECTOR_MODE");
+    expect(body.code).toBe("UNSUPPORTED_CONNECTOR_MODE");
   });
 
   it("runs dry-run reconciliation", async () => {
@@ -2068,7 +2068,7 @@ describe("ReBAC API runtime", () => {
       const payload = (await response.json()) as { code: string };
 
       expect(response.status).toBe(400);
-      expect(payload.code).toBe("DRY_RUN_REQUIRED");
+      expect(payload.code).toBe("INVALID_RECONCILIATION_REQUEST");
     }
   });
 
@@ -2741,7 +2741,7 @@ describe("ReBAC API runtime", () => {
     const body = (await response.json()) as { code: string };
 
     expect(response.status).toBe(400);
-    expect(body.code).toBe("MISSING_CONNECTOR_ID");
+    expect(body.code).toBe("INVALID_RECONCILIATION_REQUEST");
   });
 });
 

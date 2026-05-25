@@ -68,8 +68,9 @@ const schemas: Record<RuntimeRequestSchemaName, object> = {
   connectorSync: {
     type: "object",
     additionalProperties: false,
+    required: ["mode"],
     properties: {
-      mode: { type: "string" }
+      mode: { const: "read_only" }
     }
   },
   decisionRequest: decisionRequestSchema,
@@ -162,9 +163,10 @@ const schemas: Record<RuntimeRequestSchemaName, object> = {
   reconciliationRun: {
     type: "object",
     additionalProperties: false,
+    required: ["connectorId", "dryRun"],
     properties: {
-      connectorId: { type: "string" },
-      dryRun: { type: "boolean" }
+      connectorId: { type: "string", minLength: 1 },
+      dryRun: { const: true }
     }
   },
   subject: {
