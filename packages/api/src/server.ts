@@ -408,6 +408,17 @@ function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): 
       }
     },
     {
+      name: "persistence_degradation",
+      status: app.persistenceDegradations.length > 0 ? "warn" : "pass",
+      message: app.persistenceDegradations.length > 0
+        ? "Runtime persistence has recorded degraded local proof-point writes."
+        : "Runtime persistence has not recorded degraded local proof-point writes.",
+      evidence: {
+        degradedWrites: app.persistenceDegradations.length,
+        components: [...new Set(app.persistenceDegradations.map((item) => item.component))].sort()
+      }
+    },
+    {
       name: "connectors",
       status: connectorIds.length > 0 ? "pass" : "fail",
       message: connectorIds.length > 0
