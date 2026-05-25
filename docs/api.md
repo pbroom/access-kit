@@ -11,6 +11,8 @@
 
 `pnpm validate:openapi` compares those artifacts against OpenAPI so route, client, CLI, and runtime drift fails in CI.
 
+The generated human-readable reference lives at [Generated API Reference](api-reference.md). `pnpm generate:api-reference` refreshes it from OpenAPI, and `pnpm validate:api-reference` fails when the checked-in reference drifts.
+
 ## Versioning And Deprecation
 
 The OpenAPI `info.version` and `apiContractSnapshot.contractVersion` must match. Version `0.1.0` has no deprecated operations. Future deprecations must stay represented in OpenAPI, the contract snapshot, and generated clients with a migration note until the next major contract; removing an operation requires an explicit major-version contract change.
