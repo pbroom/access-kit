@@ -1056,8 +1056,7 @@ components:
         name:
           type: string
         model:
-          type: object
-          additionalProperties: true
+          $ref: "../schemas/policy-model.schema.json"
         tests:
           type: array
           items:

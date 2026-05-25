@@ -8,6 +8,7 @@ export const schemaManifest = [
   "schemas/native-grant.schema.json",
   "schemas/discovery-run.schema.json",
   "schemas/enforcement-readiness.schema.json",
+  "schemas/policy-model.schema.json",
   "schemas/provisioning-plan.schema.json",
   "schemas/audit-event.schema.json",
   "schemas/audit-export.schema.json",

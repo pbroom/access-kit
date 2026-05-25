@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-25T13:22:17.670Z
+Generated at: 2026-05-25T23:34:20.615Z
 
-Branch: 
+Branch: codex/rebac-policy-model-authoring
 
 Node: v24.4.1
 
@@ -32,17 +32,17 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-policy-model-authoring
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-policy-model-authoring
 > tsx scripts/validate-schemas.ts
 
-Validated 15 schemas and 15 example fixtures.
+Validated 16 schemas and 16 example fixtures.
 PASS audit-event.json -> schemas/audit-event.schema.json
 PASS audit-export.json -> schemas/audit-export.schema.json
 PASS audit-integrity.json -> schemas/audit-integrity.schema.json
@@ -54,6 +54,7 @@ PASS evidence-export.json -> schemas/evidence-export.schema.json
 PASS native-grant.json -> schemas/native-grant.schema.json
 PASS persistence-deployment-manifest.json -> schemas/persistence-deployment-manifest.schema.json
 PASS persistence-deployment-readiness.json -> schemas/persistence-deployment-readiness.schema.json
+PASS policy-model.json -> schemas/policy-model.schema.json
 PASS provisioning-plan.json -> schemas/provisioning-plan.schema.json
 PASS relationship.json -> schemas/relationship.schema.json
 PASS resource.json -> schemas/resource.schema.json
@@ -63,10 +64,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-policy-model-authoring
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-ak025/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-policy-model-authoring/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -76,10 +77,11 @@ PASS API examples validate against OpenAPI request and response schemas.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-policy-model-authoring
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
+PASS default policy model -> 14 checks
 PASS deny by default without relationship path
 PASS deny unsupported action despite read relationship
 PASS allow through relationship path
@@ -98,23 +100,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-policy-model-authoring
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak025
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-model-authoring
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  09:22:11
-   Duration  418ms (transform 159ms, setup 0ms, import 283ms, tests 37ms, environment 0ms)
+   Start at  19:34:14
+   Duration  401ms (transform 150ms, setup 0ms, import 271ms, tests 35ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-policy-model-authoring
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -125,7 +127,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-policy-model-authoring
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -136,7 +138,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-policy-model-authoring
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -147,7 +149,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-policy-model-authoring
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -158,49 +160,49 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-policy-model-authoring
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak025
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-model-authoring
 
 
- Test Files  3 passed (3)
-      Tests  61 passed (61)
-   Start at  09:22:14
-   Duration  263ms (transform 258ms, setup 0ms, import 326ms, tests 50ms, environment 0ms)
+ Test Files  4 passed (4)
+      Tests  67 passed (67)
+   Start at  19:34:17
+   Duration  249ms (transform 339ms, setup 0ms, import 419ms, tests 42ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-policy-model-authoring
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak025
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-model-authoring
 
 
  Test Files  1 passed (1)
       Tests  80 passed (80)
-   Start at  09:22:15
-   Duration  712ms (transform 174ms, setup 0ms, import 276ms, tests 334ms, environment 0ms)
+   Start at  19:34:18
+   Duration  603ms (transform 154ms, setup 0ms, import 248ms, tests 262ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-ak025
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-policy-model-authoring
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak025
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-model-authoring
 
 
  Test Files  3 passed (3)
-      Tests  32 passed (32)
-   Start at  09:22:16
-   Duration  515ms (transform 568ms, setup 0ms, import 960ms, tests 173ms, environment 0ms)
+      Tests  33 passed (33)
+   Start at  19:34:19
+   Duration  417ms (transform 352ms, setup 0ms, import 702ms, tests 157ms, environment 0ms)
 ```
 
 

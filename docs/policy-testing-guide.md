@@ -10,7 +10,7 @@ Application developers, platform engineers, security engineers, policy authors, 
 
 ## What This Is
 
-Policy testing uses synthetic proof points to verify deny-by-default, allow paths, explicit deny, expiration, suspended users, idempotency, and drift behavior. The canonical fixture is `tests/fixtures/policy/proof-points.json`.
+Policy testing combines a versioned policy model contract with synthetic proof points. `schemas/policy-model.schema.json` defines the portable model shape, `packages/core/src/policy-model.ts` validates model semantics, and `tests/fixtures/policy/proof-points.json` verifies deny-by-default, allow paths, explicit deny, expiration, suspended users, idempotency, and drift behavior.
 
 ## What This Is Not
 
@@ -30,6 +30,8 @@ Current proof points cover:
 - suspended subject denial
 - idempotent relationship write behavior
 - drift finding behavior
+
+Current model validation covers resource types, relations, action mappings, inheritance rules, deny rules, context and classification constraints, tenant boundaries, migrations, and generated-policy metadata warnings.
 
 ## Concrete Example
 
@@ -58,15 +60,17 @@ pnpm validate:policy
 
 Before a policy is published:
 
-1. Update or add proof points for the intended behavior.
-2. Confirm deny paths and revocation paths are covered.
-3. Confirm expiration, suspension, and explicit deny behavior.
-4. Run schema, OpenAPI, policy, and CLI contract validation.
-5. Ensure the change ticket and audit evidence reference the policy version.
+1. Validate the model against `schemas/policy-model.schema.json`.
+2. Run deterministic model validation with `validatePolicyModel`.
+3. Update or add proof points for the intended behavior.
+4. Confirm deny paths, revocation paths, expiration, suspension, and explicit deny behavior.
+5. Run schema, OpenAPI, policy, and CLI contract validation.
+6. Ensure the change ticket and audit evidence reference the policy version.
 
 ## Security Considerations
 
 - Do not publish policies that lack deny/default and revocation proof points.
+- Do not publish unvalidated models; the API returns `POLICY_NOT_VALIDATED` before publication.
 - Do not make allow rules broader than the relationship facts justify.
 - Do not use unreviewed generated text as policy logic.
 - Treat policy rollback as an operational runbook event with audit evidence.

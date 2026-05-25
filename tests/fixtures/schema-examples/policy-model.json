@@ -1,0 +1,195 @@
+{
+  "schemaVersion": "access-kit.policy-model.v1",
+  "id": "policy-model:local-rebac-v1",
+  "version": "policy:local-v1",
+  "resourceTypes": [
+    {
+      "type": "organization",
+      "classifications": ["internal"]
+    },
+    {
+      "type": "workspace",
+      "allowedParentTypes": ["organization"],
+      "classifications": ["internal"]
+    },
+    {
+      "type": "folder",
+      "allowedParentTypes": ["workspace", "folder"],
+      "classifications": ["internal", "confidential"]
+    },
+    {
+      "type": "document",
+      "allowedParentTypes": ["workspace", "folder"],
+      "classifications": ["internal", "confidential"]
+    },
+    {
+      "type": "application",
+      "allowedParentTypes": ["organization"],
+      "classifications": ["internal"]
+    },
+    {
+      "type": "dataset",
+      "allowedParentTypes": ["workspace"],
+      "classifications": ["internal", "confidential"]
+    },
+    {
+      "type": "api",
+      "allowedParentTypes": ["application"],
+      "classifications": ["internal"]
+    }
+  ],
+  "relations": [
+    {
+      "name": "member_of",
+      "kind": "membership",
+      "subjectTypes": ["user", "group"],
+      "objectTypes": ["group"]
+    },
+    {
+      "name": "contains",
+      "kind": "containment",
+      "subjectTypes": ["organization", "workspace", "folder"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    },
+    {
+      "name": "viewer_of",
+      "kind": "grant",
+      "subjectTypes": ["user", "group", "service_account"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    },
+    {
+      "name": "reader_of",
+      "kind": "grant",
+      "subjectTypes": ["user", "group", "service_account"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    },
+    {
+      "name": "contributor_to",
+      "kind": "grant",
+      "subjectTypes": ["user", "group", "service_account"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    },
+    {
+      "name": "owner_of",
+      "kind": "grant",
+      "subjectTypes": ["user", "group", "service_account"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    },
+    {
+      "name": "admin_of",
+      "kind": "grant",
+      "subjectTypes": ["user", "group", "service_account"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    },
+    {
+      "name": "denied",
+      "kind": "deny",
+      "subjectTypes": ["user", "group", "service_account"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    },
+    {
+      "name": "denied_read",
+      "kind": "deny",
+      "subjectTypes": ["user", "group", "service_account"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    },
+    {
+      "name": "quarantined_from",
+      "kind": "deny",
+      "subjectTypes": ["user", "group", "service_account"],
+      "objectTypes": ["workspace", "folder", "document", "application", "dataset", "api"]
+    }
+  ],
+  "actions": [
+    {
+      "name": "read",
+      "grants": ["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"]
+    },
+    {
+      "name": "view",
+      "grants": ["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"]
+    },
+    {
+      "name": "write",
+      "grants": ["contributor_to", "owner_of", "admin_of"]
+    },
+    {
+      "name": "contribute",
+      "grants": ["contributor_to", "owner_of", "admin_of"]
+    },
+    {
+      "name": "admin",
+      "grants": ["owner_of", "admin_of"]
+    },
+    {
+      "name": "administer",
+      "grants": ["owner_of", "admin_of"]
+    },
+    {
+      "name": "manage",
+      "grants": ["owner_of", "admin_of"]
+    }
+  ],
+  "inheritanceRules": [
+    {
+      "name": "group-membership-grants",
+      "relation": "member_of",
+      "through": "member_of",
+      "actions": ["read", "view", "write", "contribute", "admin", "administer", "manage"]
+    },
+    {
+      "name": "container-resource-grants",
+      "relation": "contains",
+      "through": "contains",
+      "actions": ["read", "view", "write", "contribute", "admin", "administer", "manage"]
+    }
+  ],
+  "denyRules": [
+    {
+      "name": "explicit-deny",
+      "relation": "denied",
+      "precedence": "override"
+    },
+    {
+      "name": "read-deny",
+      "relation": "denied_read",
+      "actions": ["read", "view"],
+      "precedence": "override"
+    },
+    {
+      "name": "quarantine-deny",
+      "relation": "quarantined_from",
+      "precedence": "override"
+    }
+  ],
+  "contextConstraints": [
+    {
+      "key": "purpose",
+      "type": "string"
+    },
+    {
+      "key": "riskScore",
+      "type": "number"
+    }
+  ],
+  "classificationConstraints": [
+    {
+      "classification": "internal",
+      "allowedActions": ["read", "view", "write", "contribute", "admin", "administer", "manage"]
+    },
+    {
+      "classification": "confidential",
+      "allowedActions": ["read", "view", "write", "contribute", "admin", "administer", "manage"]
+    }
+  ],
+  "tenantBoundary": {
+    "key": "tenantId",
+    "source": "resource",
+    "crossTenantTraversal": false
+  },
+  "migrations": [],
+  "metadata": {
+    "source": "fixture",
+    "validatedBy": "access-kit.policy-model.v1"
+  }
+}

@@ -56,6 +56,8 @@ rebac connector sync mock --mode read_only
 
 The package exposes the command tree and calls the API over HTTP. Use `--api-url` or `REBAC_API_URL` to point the CLI at a running local or deployed control-plane API. Authorization logic stays in the API/core engine; the CLI is only an operator wrapper.
 
+Policy commands follow the API lifecycle. `rebac policy validate` and `rebac policy test` ask the API to run deterministic model and proof-point checks; `rebac policy publish` requires a change ticket and fails closed when the target policy has not already passed validation.
+
 Read-only discovery uses `rebac connector sync <connector-id> --mode read_only`. Provider readback can then be inspected with `rebac resource native-access`, which returns observed native grants rather than intended grants or policy decisions. `rebac discovery runs` exposes run history, warning status, and cursor/evidence metadata for assessor and operator review.
 
 Dry-run provisioning uses `rebac provision plan` followed by `rebac provision apply`. By default, `apply` creates a dry-run job: provider writes are skipped, verification hooks run, compensation intent is recorded, and audit evidence is emitted.

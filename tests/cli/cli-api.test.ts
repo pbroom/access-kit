@@ -2,6 +2,7 @@ import { once } from "node:events";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createDefaultPolicyModel } from "../../packages/core/src/index.js";
 import { createRebacApiServer } from "../../packages/api/src/index.js";
 import { buildCli } from "../../packages/cli/src/index.js";
 
@@ -463,7 +464,10 @@ describe("CLI API wrapper", () => {
     await runCli("policy", "validate", policyId);
     expect(lastOutput()).toMatchObject({
       valid: true,
-      checks: [{ name: "syntax", status: "pass" }]
+      checks: expect.arrayContaining([
+        { name: "schema_version", status: "pass", message: expect.any(String) },
+        { name: "tenant_boundary_fail_closed", status: "pass", message: expect.any(String) }
+      ])
     });
 
     await runCli("policy", "publish", policyId, "--change-ticket", "chg:policy");
@@ -472,6 +476,23 @@ describe("CLI API wrapper", () => {
       status: "published",
       publishedAt: expect.any(String)
     });
+  });
+
+  it("fails closed when publishing an unvalidated policy through the CLI", async () => {
+    const created = await createPolicyForCli("cli unvalidated model");
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    try {
+      await runCli("policy", "publish", String(created.id), "--change-ticket", "chg:policy");
+      const stderr = errorSpy.mock.calls.map((call) => String(call[0])).join("");
+      expect(process.exitCode).toBe(1);
+      expect(stderr).toContain("POLICY_NOT_VALIDATED");
+      expect(output).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
   });
 
   it("reports API failures through Commander errors instead of raw rejections", async () => {
@@ -589,7 +610,7 @@ async function createPolicyForCli(name: string): Promise<Record<string, unknown>
     headers: { "content-type": "application/json", "idempotency-key": `idem-cli-policy-${name}` },
     body: JSON.stringify({
       name,
-      model: { effect: "allow" },
+      model: createDefaultPolicyModel(),
       tests: [{ name: "cli policy smoke" }]
     })
   });

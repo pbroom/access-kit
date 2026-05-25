@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/policy-model.schema.json",
+  "title": "PolicyModel",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "resourceTypes",
+    "relations",
+    "actions",
+    "inheritanceRules",
+    "denyRules",
+    "contextConstraints",
+    "classificationConstraints",
+    "tenantBoundary",
+    "migrations"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "access-kit.policy-model.v1" },
+    "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "version": { "type": "string", "minLength": 1 },
+    "resourceTypes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/resourceType" }
+    },
+    "relations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/relation" }
+    },
+    "actions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/actionMapping" }
+    },
+    "inheritanceRules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/inheritanceRule" }
+    },
+    "denyRules": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/denyRule" }
+    },
+    "contextConstraints": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/contextConstraint" }
+    },
+    "classificationConstraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/classificationConstraint" }
+    },
+    "tenantBoundary": { "$ref": "#/$defs/tenantBoundary" },
+    "migrations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/migration" }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "subjectType": {
+      "type": "string",
+      "enum": [
+        "user",
+        "group",
+        "service_account",
+        "service_principal",
+        "managed_identity",
+        "device",
+        "workload"
+      ]
+    },
+    "resourceTypeName": {
+      "type": "string",
+      "enum": [
+        "organization",
+        "workspace",
+        "application",
+        "sharepoint_site",
+        "team",
+        "folder",
+        "document",
+        "power_app",
+        "flow",
+        "dataverse_environment",
+        "aws_account",
+        "aws_role",
+        "dataset",
+        "api"
+      ]
+    },
+    "nodeType": {
+      "anyOf": [
+        { "$ref": "#/$defs/subjectType" },
+        { "$ref": "#/$defs/resourceTypeName" }
+      ]
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_:\\-]*$"
+    },
+    "resourceType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "classifications"],
+      "properties": {
+        "type": { "$ref": "#/$defs/resourceTypeName" },
+        "allowedParentTypes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/resourceTypeName" }
+        },
+        "classifications": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "subjectTypes", "objectTypes"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "kind": { "type": "string", "enum": ["membership", "grant", "containment", "deny"] },
+        "subjectTypes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nodeType" }
+        },
+        "objectTypes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nodeType" }
+        }
+      }
+    },
+    "actionMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "grants"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "grants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/name" }
+        }
+      }
+    },
+    "denyRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "relation", "precedence"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "relation": { "$ref": "#/$defs/name" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/name" }
+        },
+        "precedence": { "type": "string", "const": "override" }
+      }
+    },
+    "inheritanceRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "relation", "through", "actions"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "relation": { "$ref": "#/$defs/name" },
+        "through": { "$ref": "#/$defs/name" },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/name" }
+        }
+      }
+    },
+    "contextConstraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["string", "number", "boolean"] },
+        "required": { "type": "boolean" }
+      }
+    },
+    "classificationConstraint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification", "allowedActions"],
+      "properties": {
+        "classification": { "type": "string", "minLength": 1 },
+        "allowedActions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/name" }
+        }
+      }
+    },
+    "tenantBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "source", "crossTenantTraversal"],
+      "properties": {
+        "key": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "enum": ["subject", "resource", "context"] },
+        "crossTenantTraversal": { "type": "boolean", "const": false }
+      }
+    },
+    "migration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fromVersion", "toVersion", "operations"],
+      "properties": {
+        "fromVersion": { "type": "string", "minLength": 1 },
+        "toVersion": { "type": "string", "minLength": 1 },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

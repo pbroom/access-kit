@@ -45,8 +45,9 @@ pnpm ci:check
 | Domain contracts | `schemas/*.schema.json` | Portable JSON object contracts. |
 | Runtime types | `packages/core/src/domain.ts` | TypeScript implementation types mirroring schema concepts. |
 | CLI contract | `packages/cli/src/commands.ts` | CLI command tree and API surface mapping. |
+| Policy model | `schemas/policy-model.schema.json`, `packages/core/src/policy-model.ts` | Versioned model shape and deterministic validation rules. |
 | Policy proof points | `tests/fixtures/policy/proof-points.json` | Deterministic authorization behaviors under test. |
-| Schema examples | `tests/fixtures/schema-examples/*.json` | Validated synthetic examples for core objects. |
+| Schema examples | `tests/fixtures/schema-examples/*.json` | Validated synthetic examples for core objects, including the policy model example. |
 | Architecture decisions | `adrs/0001-*.md` through `adrs/0010-*.md` | Canonical ADR naming and design decisions. |
 | Evidence report | `reports/proof-point-validation.md` | Generated validation proof point. |
 
