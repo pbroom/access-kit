@@ -1,4 +1,4 @@
-import { createHmac } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { auditEventHash, stableStringify, verifyAuditChain } from "./audit.js";
 import type {
   AuditEvent,
@@ -138,7 +138,7 @@ export interface ProductionAuditEvidenceAdapterOptions {
   retentionDays?: number;
   retentionPolicyId?: CanonicalId;
   signingKeyId?: CanonicalId;
-  signingKeyMaterial?: string;
+  signingKeyMaterial: string;
   now?: () => string;
 }
 
@@ -163,6 +163,9 @@ export interface ProductionSiemReplayRequest {
   deliveryId: CanonicalId;
   attemptedAt?: string;
   destination?: string;
+  status?: ProductionSiemDeliveryStatus;
+  deliveredAt?: string;
+  error?: string;
 }
 
 interface ProductionAuditWindowSigner {
@@ -280,7 +283,8 @@ export class ProductionAuditEvidenceAdapter implements DescribedAuditEventReposi
       version: "production-audit-retention-policy:v1"
     };
     const signingKeyId = options.signingKeyId ?? "signing-key:audit-window:default";
-    this.#windowSigner = createHmacAuditWindowSigner(signingKeyId, options.signingKeyMaterial ?? `${signingKeyId}:local-proof-point`);
+    assertSigningKeyMaterial(options.signingKeyMaterial);
+    this.#windowSigner = createHmacAuditWindowSigner(signingKeyId, options.signingKeyMaterial);
     this.#now = options.now ?? (() => new Date().toISOString());
     validateAuditStoreState(this.#store, this.#tenantBoundary, this.#windowSigner);
   }
@@ -495,18 +499,24 @@ export class ProductionAuditEvidenceAdapter implements DescribedAuditEventReposi
     }
 
     const attemptedAt = request.attemptedAt ?? this.#now();
+    const status = request.status ?? "delivered";
+    if (status === "failed" && !request.error) {
+      throw new Error("Failed SIEM replay deliveries require an error message.");
+    }
+    assertNoSecretMaterial(request, `SIEM delivery replay ${request.deliveryId}`);
     const delivery = withRecordHash<ProductionSiemDeliveryRecord>({
       version: "production-siem-delivery:v1",
       tenantBoundary: this.#tenantBoundary,
       deliveryId: `siem-delivery:${stableHash({ replayOfDeliveryId: request.deliveryId, attemptedAt }).slice(0, 24)}`,
       windowId: failedDelivery.windowId,
       destination: request.destination ?? failedDelivery.destination,
-      status: "delivered",
+      status,
       attemptedAt,
       sourceEventIds: clone(failedDelivery.sourceEventIds),
       eventCount: failedDelivery.eventCount,
       lastEventHash: failedDelivery.lastEventHash,
-      deliveredAt: attemptedAt,
+      deliveredAt: status === "delivered" ? request.deliveredAt ?? attemptedAt : request.deliveredAt,
+      error: request.error,
       replayOfDeliveryId: failedDelivery.deliveryId,
       recordHash: ""
     });
@@ -829,9 +839,23 @@ function createHmacAuditWindowSigner(keyId: CanonicalId, keyMaterial: string): P
     keyId,
     algorithm: "hmac-sha256",
     sign: (payload) => `hmac-sha256:${createHmac("sha256", keyMaterial).update(stableStringify(payload)).digest("hex")}`,
-    verify: (payload, signature) =>
-      signature === `hmac-sha256:${createHmac("sha256", keyMaterial).update(stableStringify(payload)).digest("hex")}`
+    verify: (payload, signature) => {
+      const expected = `hmac-sha256:${createHmac("sha256", keyMaterial).update(stableStringify(payload)).digest("hex")}`;
+      const expectedBytes = Buffer.from(expected);
+      const actualBytes = Buffer.from(signature);
+
+      return expectedBytes.length === actualBytes.length && timingSafeEqual(expectedBytes, actualBytes);
+    }
   };
+}
+
+function assertSigningKeyMaterial(keyMaterial: string): void {
+  if (keyMaterial.trim().length === 0) {
+    throw new Error("Production audit signing key material is required.");
+  }
+  if (keyMaterial.length < 16) {
+    throw new Error("Production audit signing key material must be at least 16 characters.");
+  }
 }
 
 function withRecordHash<T extends { recordHash: string }>(record: T): T {

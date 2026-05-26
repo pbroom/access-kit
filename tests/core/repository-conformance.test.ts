@@ -26,6 +26,7 @@ import {
   describeConnectorStateRepositoryConformance,
   describeGraphRepositoryConformance
 } from "./repository-conformance.js";
+import { stableHash } from "../../packages/core/src/repository-envelopes.js";
 
 describeGraphRepositoryConformance([
   {
@@ -221,6 +222,67 @@ describe("production graph and connector-state adapters", () => {
         })
       )
     ).toThrow("contains secret material");
+
+    expect(() =>
+      repository.recordDiscoveryRun(
+        createDiscoveryRun({
+          evidence: {
+            readOnly: true,
+            tenantBoundary: conformanceTenant,
+            signingKey: "local-test-signing-key",
+            hmac_key: "local-test-hmac-key",
+            encryptionKey: "local-test-encryption-key"
+          } as unknown as ReturnType<typeof createDiscoveryRun>["evidence"]
+        })
+      )
+    ).toThrow("contains secret material");
+  });
+
+  it("rejects cross-tenant discovery evidence when loading stored connector state", () => {
+    const store = new InMemoryExternalSnapshotStore<ProductionConnectorStateStoreRecord>();
+    const repository = createProductionConnectorStateRepository(store);
+
+    repository.recordDiscoveryRun(
+      createDiscoveryRun({
+        evidence: {
+          readOnly: true,
+          tenantBoundary: conformanceTenant
+        } as unknown as ReturnType<typeof createDiscoveryRun>["evidence"]
+      })
+    );
+    const stored = store.readCurrent();
+    if (!stored) {
+      throw new Error("Expected connector-state store to contain a snapshot.");
+    }
+    const jobs = {
+      ...stored.jobs,
+      discoveryRuns: stored.jobs.discoveryRuns.map((run) => ({
+        ...run,
+        evidence: {
+          ...run.evidence,
+          tenantBoundary: "tenant:beta"
+        }
+      }))
+    };
+    store.writeCurrent({
+      ...stored,
+      jobs,
+      jobsHash: `sha256:${stableHash(jobs)}`
+    });
+
+    expect(() => createProductionConnectorStateRepository(store)).toThrow(
+      "must include matching evidence.tenantBoundary"
+    );
+  });
+
+  it("keeps connector-state persistence separate from production queue readiness descriptors", () => {
+    const repository = createProductionConnectorStateRepository();
+
+    expect(repository.describeConnectorStatePersistence()).toMatchObject({
+      component: "connector_state",
+      backend: "external_connector_state"
+    });
+    expect(repository).not.toHaveProperty("describePersistence");
   });
 
   it("rejects tampered external graph snapshots before serving data", () => {

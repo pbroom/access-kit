@@ -16,6 +16,7 @@ describe("production audit adapter runtime integration", () => {
       store: new InMemoryExternalAppendOnlyAuditStore(),
       tenantBoundary: "tenant:access-kit-test",
       location: "worm://audit/runtime-test",
+      signingKeyMaterial: "runtime-test-signing-key-material",
       now: sequenceNow(
         "2026-05-26T06:20:00.000Z",
         "2026-05-26T06:21:00.000Z",
@@ -72,6 +73,7 @@ describe("production audit adapter runtime integration", () => {
       store: new InMemoryExternalAppendOnlyAuditStore(),
       tenantBoundary: "tenant:access-kit-test",
       location: "worm://audit/runtime-test",
+      signingKeyMaterial: "runtime-test-signing-key-material",
       now: () => "2026-05-26T06:30:00.000Z"
     });
     const app = createRebacLocalApp({
