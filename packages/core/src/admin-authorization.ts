@@ -384,7 +384,31 @@ function looksLikeSecretValue(value: string): boolean {
 }
 
 function isSecretKeyName(key: string): boolean {
-  return /(^|_)(api[-_]?key|api[-_]?secret|api[-_]?token|access[-_]?key|access[-_]?token|bearer[-_]?token|client[-_]?key|client[-_]?secret|cookie|password|private[-_]?key|refresh[-_]?token|secret|session[-_]?token|token|authorization)$/i.test(key);
+  const normalized = key.replaceAll(/[^a-z0-9]/gi, "").toLowerCase();
+  return [
+    "accesskey",
+    "accesstoken",
+    "apikey",
+    "apisecret",
+    "apitoken",
+    "authorization",
+    "authtoken",
+    "bearertoken",
+    "clientkey",
+    "clientsecret",
+    "cookie",
+    "encryptionkey",
+    "hmackey",
+    "idtoken",
+    "password",
+    "privatekey",
+    "refreshtoken",
+    "secret",
+    "sessiontoken",
+    "signingkey",
+    "token",
+    "xapikey"
+  ].includes(normalized);
 }
 
 function isAllowedReference(value: string): boolean {

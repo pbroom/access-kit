@@ -127,6 +127,30 @@ describe("admin authorization readiness", () => {
       "contains secret material and must reference redacted external secret handles"
     );
   });
+
+  it("allows non-secret operational token and secret suffixes", () => {
+    const descriptor = createProductionDescriptor({
+      secrets: {
+        secretRefs: ["ref:access-kit/admin-gateway/client-secret"]
+      }
+    });
+    const descriptorWithExtension = descriptor as AdminAuthorizationDescriptor & {
+      extensions: {
+        csrf_token: string;
+        next_token: string;
+        pagination_token: string;
+        scope_secret: string;
+      };
+    };
+    descriptorWithExtension.extensions = {
+      csrf_token: "csrf-state",
+      next_token: "next-page",
+      pagination_token: "page-cursor",
+      scope_secret: "read:users"
+    };
+
+    expect(() => assertAdminAuthorizationDescriptorSafe(descriptorWithExtension)).not.toThrow();
+  });
 });
 
 function createProductionDescriptor(

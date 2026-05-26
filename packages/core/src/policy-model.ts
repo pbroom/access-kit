@@ -234,24 +234,36 @@ function checkUnique(name: string, values: string[]): PolicyModelValidationCheck
 }
 
 function checkKnownResourceTypes(model: PolicyModel, resourceTypeNames: Set<ResourceType>): PolicyModelValidationCheck[] {
+  const checks: PolicyModelValidationCheck[] = [];
   for (const resourceType of model.resourceTypes) {
     if (!knownResourceTypes.has(resourceType.type)) {
       return [fail("resource_types_known", `Unsupported resource type: ${resourceType.type}`)];
     }
+  }
+  checks.push(pass("resource_types_known", "Resource types are supported."));
+
+  for (const resourceType of model.resourceTypes) {
     for (const parentType of resourceType.allowedParentTypes ?? []) {
       if (!resourceTypeNames.has(parentType)) {
-        return [fail("resource_parent_types_known", `Resource type ${resourceType.type} references unknown parent type ${parentType}.`)];
+        return [
+          ...checks,
+          fail("resource_parent_types_known", `Resource type ${resourceType.type} references unknown parent type ${parentType}.`)
+        ];
       }
     }
+  }
+  checks.push(pass("resource_parent_types_known", "Resource parent references are known."));
+
+  for (const resourceType of model.resourceTypes) {
     if (resourceType.classifications.length === 0) {
-      return [fail("resource_classifications_declared", `Resource type ${resourceType.type} must declare at least one classification.`)];
+      return [
+        ...checks,
+        fail("resource_classifications_declared", `Resource type ${resourceType.type} must declare at least one classification.`)
+      ];
     }
   }
-  return [
-    pass("resource_types_known", "Resource types are supported."),
-    pass("resource_parent_types_known", "Resource parent references are known."),
-    pass("resource_classifications_declared", "Resource classifications are declared.")
-  ];
+  checks.push(pass("resource_classifications_declared", "Resource classifications are declared."));
+  return checks;
 }
 
 function checkRelations(model: PolicyModel, relationNames: Set<string>): PolicyModelValidationCheck {

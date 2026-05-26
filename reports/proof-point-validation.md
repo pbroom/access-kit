@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T10:20:38.284Z
+Generated at: 2026-05-26T10:37:47.198Z
 
 Branch: codex/greptile-contract-client-admin-cleanups
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  06:20:31
-   Duration  416ms (transform 172ms, setup 0ms, import 287ms, tests 32ms, environment 0ms)
+   Start at  06:37:39
+   Duration  476ms (transform 201ms, setup 0ms, import 340ms, tests 36ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -186,9 +186,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  8 passed (8)
-      Tests  116 passed (116)
-   Start at  06:20:34
-   Duration  354ms (transform 1.01s, setup 0ms, import 1.29s, tests 103ms, environment 0ms)
+      Tests  118 passed (118)
+   Start at  06:37:42
+   Duration  549ms (transform 1.30s, setup 0ms, import 1.80s, tests 151ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -203,8 +203,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  4 passed (4)
       Tests  96 passed (96)
-   Start at  06:20:35
-   Duration  703ms (transform 627ms, setup 0ms, import 996ms, tests 333ms, environment 0ms)
+   Start at  06:37:43
+   Duration  894ms (transform 817ms, setup 0ms, import 1.32s, tests 422ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -215,8 +215,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-1
 
  Test Files  1 passed (1)
       Tests  7 passed (7)
-   Start at  06:20:36
-   Duration  291ms (transform 140ms, setup 0ms, import 170ms, tests 22ms, environment 0ms)
+   Start at  06:37:45
+   Duration  325ms (transform 161ms, setup 0ms, import 200ms, tests 24ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-1
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  06:20:37
-   Duration  473ms (transform 496ms, setup 0ms, import 853ms, tests 158ms, environment 0ms)
+   Start at  06:37:46
+   Duration  540ms (transform 589ms, setup 0ms, import 998ms, tests 188ms, environment 0ms)
 ```
 
 

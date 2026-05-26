@@ -38,7 +38,27 @@ describe("policy model validation", () => {
     expect(result.valid).toBe(false);
     expect(result.checks).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ name: "resource_types_known", status: "pass" }),
         expect.objectContaining({ name: "resource_parent_types_known", status: "fail" })
+      ])
+    );
+  });
+
+  it("reports preceding resource checks as passed when classification validation fails", () => {
+    const model = cloneDefaultModel();
+    model.resourceTypes[0] = {
+      ...model.resourceTypes[0]!,
+      classifications: []
+    };
+
+    const result = validatePolicyModel(model);
+
+    expect(result.valid).toBe(false);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "resource_types_known", status: "pass" }),
+        expect.objectContaining({ name: "resource_parent_types_known", status: "pass" }),
+        expect.objectContaining({ name: "resource_classifications_declared", status: "fail" })
       ])
     );
   });
