@@ -1,5 +1,5 @@
 import { sha256 } from "./audit.js";
-import type { DecisionRequest, JsonRecord, RelationshipTuple, Resource, Subject } from "./domain.js";
+import type { DecisionRequest, DecisionValue, JsonRecord, RelationshipTuple, Resource, Subject } from "./domain.js";
 import type { RebacSeedData } from "./store.js";
 
 export interface DecisionRuntimeVersionPins {
@@ -55,6 +55,32 @@ export interface DecisionRuntimePerformanceReport {
   withinRegressionGate: boolean;
 }
 
+export interface DecisionCacheMetadataInput {
+  request: DecisionRequest;
+  decision: DecisionValue;
+  reasonCode: string;
+  versionPins: DecisionRuntimeVersionPins;
+  evaluatedAt: string;
+  tenantId?: string;
+  resourceClassification?: string;
+}
+
+export interface DecisionCacheMetadata {
+  key: string;
+  tenantId: string;
+  resourceClassification: string;
+  maxTtlSeconds: number;
+  expiresAt: string;
+  invalidationSignals: string[];
+  failClosed: true;
+  localFallbackAllowed: false;
+  staleDecisionBehavior: "deny";
+  audit: {
+    eventType: "decision.cache_policy_evaluated";
+    requiredFields: string[];
+  };
+}
+
 export interface DecisionRuntimeGraphFixture {
   name: "small" | "medium" | "large";
   minSubjects: number;
@@ -67,6 +93,15 @@ export const DEFAULT_DECISION_TRAVERSAL_BOUNDS: DecisionTraversalBounds = {
   maxDepth: 16,
   maxRelationshipScans: 10_000,
   maxVisitedNodes: 2_000
+};
+
+export const DECISION_CACHE_TTL_BY_CLASSIFICATION: Record<string, number> = {
+  public: 300,
+  internal: 120,
+  confidential: 60,
+  controlled: 30,
+  restricted: 30,
+  secret: 15
 };
 
 export const DECISION_RUNTIME_GRAPH_FIXTURES: Record<DecisionRuntimeGraphFixture["name"], DecisionRuntimeGraphFixture> = {
@@ -216,6 +251,61 @@ export function createDecisionRuntimePerformanceReport(
   };
 }
 
+export function createDecisionCacheMetadata(input: DecisionCacheMetadataInput): DecisionCacheMetadata {
+  const tenantId = input.tenantId ?? "tenant:unknown";
+  const resourceClassification = normalizeClassification(input.resourceClassification);
+  const maxTtlSeconds = DECISION_CACHE_TTL_BY_CLASSIFICATION[resourceClassification] ?? 30;
+  const invalidationSignals = [
+    `tenant:${tenantId}`,
+    `subject:${input.request.subjectId}`,
+    `resource:${input.request.resourceId}`,
+    `action:${input.request.action}`,
+    `policy:${input.versionPins.policyVersion}`,
+    `model:${input.versionPins.modelVersion}`,
+    `relationship-set:${input.versionPins.relationshipVersion}`,
+    `tuple:${input.versionPins.tupleVersion}`,
+    `context:${input.versionPins.contextVersion}`,
+    `classification:${resourceClassification}`
+  ];
+  const key = `decision-cache:${sha256({
+    tenantId,
+    subjectId: input.request.subjectId,
+    action: input.request.action,
+    resourceId: input.request.resourceId,
+    policyVersion: input.versionPins.policyVersion,
+    modelVersion: input.versionPins.modelVersion,
+    relationshipVersion: input.versionPins.relationshipVersion,
+    tupleVersion: input.versionPins.tupleVersion,
+    contextVersion: input.versionPins.contextVersion,
+    asOf: input.versionPins.asOf
+  }).slice(0, 32)}`;
+
+  return {
+    key,
+    tenantId,
+    resourceClassification,
+    maxTtlSeconds,
+    expiresAt: addSeconds(input.evaluatedAt, maxTtlSeconds),
+    invalidationSignals,
+    failClosed: true,
+    localFallbackAllowed: false,
+    staleDecisionBehavior: "deny",
+    audit: {
+      eventType: "decision.cache_policy_evaluated",
+      requiredFields: [
+        "key",
+        "tenantId",
+        "resourceClassification",
+        "maxTtlSeconds",
+        "expiresAt",
+        "invalidationSignals",
+        "failClosed",
+        "localFallbackAllowed"
+      ]
+    }
+  };
+}
+
 export function createDecisionRuntimeGraphFixtureSeed(
   name: DecisionRuntimeGraphFixture["name"],
   createdAt = "2026-05-21T17:00:00.000Z"
@@ -307,6 +397,20 @@ export function createDecisionRuntimeGraphFixtureSeed(
 
 function positiveIntegerOrDefault(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
+}
+
+function normalizeClassification(classification: string | undefined): string {
+  return classification?.trim().toLowerCase() || "unknown";
+}
+
+function addSeconds(isoDateTime: string, seconds: number): string {
+  const milliseconds = Date.parse(isoDateTime);
+
+  if (!Number.isFinite(milliseconds)) {
+    return isoDateTime;
+  }
+
+  return new Date(milliseconds + seconds * 1000).toISOString();
 }
 
 function createFixtureRelationship(

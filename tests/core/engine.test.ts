@@ -7,6 +7,7 @@ import {
   InMemoryRebacStore,
   RebacDecisionEngine,
   verifyAuditChain,
+  type DecisionCacheMetadata,
   type DecisionRuntimePerformanceReport,
   type DecisionTraversalReport,
   type RelationshipTuple
@@ -72,7 +73,13 @@ describe("RebacDecisionEngine", () => {
       modelVersion: "model:pinned-v1",
       tupleVersion: "tuple:v1",
       contextVersion: "context:pinned-v1",
-      asOf: now
+      asOf: now,
+      cache: {
+        failClosed: true,
+        localFallbackAllowed: false,
+        maxTtlSeconds: 120,
+        staleDecisionBehavior: "deny"
+      }
     });
   });
 
@@ -92,6 +99,74 @@ describe("RebacDecisionEngine", () => {
       evaluatedAt: now,
       historical: false
     });
+  });
+
+  it("defines tenant-bound decision cache keys with invalidation signals and classification TTLs", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.map((subject) => subject.id === "user:alice"
+        ? { ...subject, attributes: { tenantId: "tenant:alpha" } }
+        : subject),
+      resources: seed.resources?.map((resource) => resource.id === "document:case-plan"
+        ? { ...resource, attributes: { tenantId: "tenant:alpha" }, classification: "confidential" }
+        : { ...resource, attributes: { tenantId: "tenant:alpha" } }),
+      relationships: seed.relationships?.map((relationship) => ({
+        ...relationship,
+        attributes: { tenantId: "tenant:alpha" }
+      }))
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const first = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      context: { purpose: "case-review" },
+      policyVersion: "policy:cache-v1",
+      modelVersion: "model:cache-v1",
+      relationshipVersion: "tuple-set:cache-v1",
+      tupleVersion: "tuple:v1"
+    });
+    const second = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      context: { purpose: "break-glass-review" },
+      policyVersion: "policy:cache-v1",
+      modelVersion: "model:cache-v1",
+      relationshipVersion: "tuple-set:cache-v1",
+      tupleVersion: "tuple:v1"
+    });
+    const firstCache = decisionCacheConstraints(first);
+    const secondCache = decisionCacheConstraints(second);
+
+    expect(firstCache).toMatchObject({
+      key: expect.stringMatching(/^decision-cache:[a-f0-9]{32}$/),
+      tenantId: "tenant:alpha",
+      resourceClassification: "confidential",
+      maxTtlSeconds: 60,
+      expiresAt: "2026-05-21T17:01:00.000Z",
+      failClosed: true,
+      localFallbackAllowed: false,
+      staleDecisionBehavior: "deny",
+      audit: {
+        eventType: "decision.cache_policy_evaluated"
+      }
+    });
+    expect(firstCache.invalidationSignals).toEqual(expect.arrayContaining([
+      "tenant:tenant:alpha",
+      "subject:user:alice",
+      "resource:document:case-plan",
+      "policy:policy:cache-v1",
+      "model:model:cache-v1",
+      "relationship-set:tuple-set:cache-v1",
+      "tuple:tuple:v1",
+      `context:${first.contextVersion}`,
+      "classification:confidential"
+    ]));
+    expect(secondCache.key).not.toBe(firstCache.key);
+    expect(secondCache.invalidationSignals).toContain(`context:${second.contextVersion}`);
   });
 
   it("evaluates relationship expiration at a historical asOf timestamp", () => {
@@ -991,4 +1066,8 @@ function decisionRuntimeConstraints(result: { constraints: Record<string, unknow
     traversal: DecisionTraversalReport;
     performance: DecisionRuntimePerformanceReport;
   };
+}
+
+function decisionCacheConstraints(result: { constraints: Record<string, unknown> }): DecisionCacheMetadata {
+  return result.constraints.cache as DecisionCacheMetadata;
 }

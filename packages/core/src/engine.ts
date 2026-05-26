@@ -11,6 +11,7 @@ import type {
   Subject
 } from "./domain.js";
 import {
+  createDecisionCacheMetadata,
   createDecisionRuntimePerformanceReport,
   DEFAULT_DECISION_TRAVERSAL_BOUNDS,
   DecisionTraversalGuard,
@@ -42,6 +43,8 @@ interface DecisionContext {
   request: DecisionRequest;
   evaluatedAt: string;
   versionPins: DecisionRuntimeVersionPins;
+  tenantId?: string;
+  resourceClassification?: string;
   reasonCode: string;
   decision: DecisionValue;
   relationshipPath: RelationshipPathStep[];
@@ -138,6 +141,7 @@ export class RebacDecisionEngine {
           tupleVersion: result.tupleVersion,
           contextVersion: result.contextVersion,
           asOf: result.asOf,
+          cache: result.constraints.cache,
           traversal: context.traversal,
           performance
         }
@@ -165,6 +169,7 @@ export class RebacDecisionEngine {
     };
     const traversalGuard = new DecisionTraversalGuard(this.#options.traversalBounds, graphSize, request.subjectId);
     const asOfMs = Date.parse(versionPins.asOf);
+    const cacheScope: { tenantId?: string; resourceClassification?: string } = {};
 
     if (!Number.isFinite(asOfMs)) {
       return denied("DENY_INVALID_AS_OF", [], { ...versionPins, asOf: evaluatedAt });
@@ -179,6 +184,7 @@ export class RebacDecisionEngine {
     if (!subject) {
       return denied("DENY_SUBJECT_NOT_FOUND");
     }
+    cacheScope.tenantId = tenantIdFor(subject);
 
     const subjectLifecycleState = effectiveLifecycleStateAt(subject, versionPins.asOf);
     if (subjectLifecycleState === "unknown") {
@@ -194,6 +200,8 @@ export class RebacDecisionEngine {
     if (!resource) {
       return denied("DENY_RESOURCE_NOT_FOUND");
     }
+    cacheScope.tenantId ??= tenantIdFor(resource);
+    cacheScope.resourceClassification = resource.classification;
 
     const resourceLifecycleState = effectiveLifecycleStateAt(resource, versionPins.asOf);
     if (resourceLifecycleState === "unknown") {
@@ -261,6 +269,8 @@ export class RebacDecisionEngine {
       request,
       evaluatedAt,
       versionPins,
+      tenantId: cacheScope.tenantId,
+      resourceClassification: cacheScope.resourceClassification,
       decision: "allow",
       reasonCode: "ALLOW_VIA_RELATIONSHIP_PATH",
       relationshipPath,
@@ -276,6 +286,8 @@ export class RebacDecisionEngine {
         request,
         evaluatedAt,
         versionPins: deniedVersionPins,
+        tenantId: cacheScope.tenantId,
+        resourceClassification: cacheScope.resourceClassification,
         decision: "deny",
         reasonCode,
         relationshipPath,
@@ -291,6 +303,15 @@ function toDecisionResult(
   performance: DecisionRuntimePerformanceReport
 ): DecisionResult {
   const relationshipPath = explain ? context.relationshipPath : [];
+  const cache = createDecisionCacheMetadata({
+    request: context.request,
+    decision: context.decision,
+    reasonCode: context.reasonCode,
+    versionPins: context.versionPins,
+    tenantId: context.tenantId,
+    resourceClassification: context.resourceClassification,
+    evaluatedAt: context.evaluatedAt
+  });
   const decisionHash = sha256({
     request: context.request,
     asOf: context.versionPins.asOf,
@@ -325,7 +346,8 @@ function toDecisionResult(
         historical: Date.parse(context.versionPins.asOf) !== Date.parse(context.evaluatedAt)
       },
       traversal: context.traversal,
-      performance
+      performance,
+      cache
     },
     evaluatedAt: context.evaluatedAt
   };
