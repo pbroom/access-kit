@@ -62,3 +62,5 @@ Use `REBAC_API_URL` to target a different local API and `REBAC_API_KEY` to overr
 ## Safety Boundary
 
 The evaluation path does not enable live connectors, perform provider writes, include production identifiers, or claim production ATO approval. The exported audit and evidence artifacts are local proof-point outputs for developer and assessor evaluation only.
+
+For adoption fit, non-goals, production-readiness boundaries, integration patterns, and buyer, developer, and assessor checklists, read the [Product Positioning And Adoption Guide](product-positioning-adoption-guide.md) before treating this local run as evidence for a deployment plan.
