@@ -141,11 +141,11 @@ export interface DecisionResult {
   resourceId: CanonicalId;
   reasonCode: string;
   policyVersion: string;
-  modelVersion?: string;
+  modelVersion: string;
   relationshipVersion: string;
-  tupleVersion?: string;
-  contextVersion?: string;
-  asOf?: IsoDateTime;
+  tupleVersion: string;
+  contextVersion: string;
+  asOf: IsoDateTime;
   relationshipPath: RelationshipPathStep[];
   constraints: JsonRecord;
   evaluatedAt: IsoDateTime;

@@ -3770,7 +3770,11 @@ function createSeedDecision(): DecisionResult {
     resourceId: "document:case-plan",
     reasonCode: "ALLOW_RELATIONSHIP_PATH",
     policyVersion: "policy:seed",
+    modelVersion: "model:seed",
     relationshipVersion: "relationship:seed",
+    tupleVersion: "tuple:seed",
+    contextVersion: "context:seed",
+    asOf: TEST_NOW,
     relationshipPath: [],
     constraints: {},
     evaluatedAt: TEST_NOW

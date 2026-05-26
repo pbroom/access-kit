@@ -338,6 +338,10 @@ function isActiveRelationshipAt(
     return Boolean(relationship.updatedAt && Date.parse(relationship.updatedAt) > Date.parse(asOf));
   }
 
+  if (relationship.status === "expired") {
+    return Boolean(relationship.expiresAt && Date.parse(relationship.expiresAt) > Date.parse(asOf));
+  }
+
   return !relationship.expiresAt || Date.parse(relationship.expiresAt) > Date.parse(asOf);
 }
 

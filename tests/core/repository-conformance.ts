@@ -459,7 +459,11 @@ export function createDecision(overrides: Partial<DecisionResult> = {}): Decisio
     resourceId: "document:graph-plan",
     reasonCode: "ALLOW_RELATIONSHIP_PATH",
     policyVersion: "policy:v1",
+    modelVersion: "model:v1",
     relationshipVersion: "relationship:v1",
+    tupleVersion: "tuple:v1",
+    contextVersion: "context:none",
+    asOf: conformanceNow,
     relationshipPath: [
       {
         subjectId: "user:bob",

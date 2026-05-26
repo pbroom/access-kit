@@ -1105,7 +1105,11 @@ function createDecision(): DecisionResult {
     resourceId: "document:case-plan",
     reasonCode: "ALLOW_RELATIONSHIP_PATH",
     policyVersion: "policy:v1",
+    modelVersion: "model:v1",
     relationshipVersion: "relationship:v1",
+    tupleVersion: "tuple:v1",
+    contextVersion: "context:none",
+    asOf: now,
     relationshipPath: [
       {
         subjectId: "user:alice",

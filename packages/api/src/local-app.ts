@@ -2542,7 +2542,11 @@ function createCompensationProbeDecision(evaluatedAt: string): DecisionResult {
     resourceId: "document:readiness-probe",
     reasonCode: "ALLOW_READINESS_COMPENSATION_PROBE",
     policyVersion: "readiness-probe",
+    modelVersion: "readiness-probe",
     relationshipVersion: "readiness-probe",
+    tupleVersion: "readiness-probe",
+    contextVersion: "context:none",
+    asOf: evaluatedAt,
     relationshipPath: [],
     constraints: {},
     evaluatedAt

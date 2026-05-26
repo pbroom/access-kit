@@ -117,6 +117,40 @@ describe("RebacDecisionEngine", () => {
     expect(decisionRuntimeConstraints(historical).timeTravel.historical).toBe(true);
   });
 
+  it("denies expired relationships that do not carry an expiration timestamp", () => {
+    const seed = createLocalEngineSeed();
+    const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.map((subject) => ({ ...subject, createdAt: historicalCreatedAt })),
+      resources: seed.resources?.map((resource) => ({ ...resource, createdAt: historicalCreatedAt })),
+      relationships: [
+        tuple(
+          "relationship:alice-reader-document-expired-without-date",
+          "user:alice",
+          "reader_of",
+          "document:case-plan",
+          undefined,
+          {
+            assertedAt: historicalCreatedAt,
+            createdAt: historicalCreatedAt,
+            status: "expired"
+          }
+        )
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "2026-05-21T11:59:00.000Z"
+    });
+
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
   it("uses tuple-version pins to choose deterministic historical tuples", () => {
     const seed = createLocalEngineSeed();
     const store = new InMemoryRebacStore({
