@@ -55,6 +55,7 @@ const DEFAULT_MAX_RETRIES = 2;
 const DEFAULT_MAX_DRIVE_ITEM_DEPTH = 8;
 const REDACTION_HASH_LENGTH = 16;
 const DRIVE_ITEM_SELECT = "id,name,webUrl,parentReference,folder,file,package,deleted,size,createdDateTime,lastModifiedDateTime";
+const PERMISSION_SELECT = "id,roles,grantedTo,grantedToV2,grantedToIdentities,grantedToIdentitiesV2,link,invitation,inheritedFrom,shareId,hasPassword,expirationDateTime";
 
 export interface MicrosoftGraphCollectionPage<T> {
   value: T[];
@@ -320,6 +321,48 @@ interface GraphDriveItem {
   } | null;
 }
 
+interface GraphPermissionIdentity {
+  id?: string;
+  displayName?: string | null;
+  userPrincipalName?: string | null;
+  appId?: string | null;
+  loginName?: string | null;
+}
+
+interface GraphPermissionIdentitySet {
+  user?: GraphPermissionIdentity | null;
+  group?: GraphPermissionIdentity | null;
+  application?: GraphPermissionIdentity | null;
+  siteUser?: GraphPermissionIdentity | null;
+}
+
+interface GraphPermission {
+  id?: string;
+  roles?: string[] | null;
+  grantedTo?: GraphPermissionIdentitySet | null;
+  grantedToV2?: GraphPermissionIdentitySet | null;
+  grantedToIdentities?: GraphPermissionIdentitySet[] | null;
+  grantedToIdentitiesV2?: GraphPermissionIdentitySet[] | null;
+  link?: {
+    type?: string | null;
+    scope?: string | null;
+    preventsDownload?: boolean | null;
+  } | null;
+  invitation?: {
+    email?: string | null;
+    signInRequired?: boolean | null;
+  } | null;
+  inheritedFrom?: {
+    driveId?: string | null;
+    id?: string | null;
+    siteId?: string | null;
+    path?: string | null;
+  } | null;
+  shareId?: string | null;
+  hasPassword?: boolean | null;
+  expirationDateTime?: string | null;
+}
+
 interface EntraSnapshot {
   subjects: Subject[];
   resources: Resource[];
@@ -345,6 +388,19 @@ interface RelationshipCoverage {
 type DriveInventorySource =
   | { kind: "sharepoint"; siteResource: Resource }
   | { kind: "onedrive"; user: GraphUser; ownerSubject?: Subject };
+
+interface SharePointOneDriveInventoryCoverage {
+  resources: Resource[];
+  grantTargets: MicrosoftPermissionGrantTarget[];
+}
+
+interface MicrosoftPermissionGrantTarget {
+  resource: Resource;
+  kind: "sharepoint_site" | "drive" | "drive_item";
+  siteId?: string;
+  driveId?: string;
+  itemId?: string;
+}
 
 export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   mode: ConnectorAdapter["mode"] = "read_only";
@@ -567,8 +623,15 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     const maps = this.#buildEntityMaps(users, groups, servicePrincipals);
     const relationshipCoverage = await this.#buildRelationships(groups, maps);
     const grantsByResource = await this.#buildNativeGrants(servicePrincipals, maps);
-    const sharePointAndOneDriveResources = await this.#buildSharePointAndOneDriveInventory(users, maps);
+    const sharePointAndOneDriveCoverage = await this.#buildSharePointAndOneDriveInventory(users, maps);
+    const sharePointAndOneDriveGrants = await this.#buildSharePointAndOneDriveNativeGrants(
+      sharePointAndOneDriveCoverage.grantTargets,
+      maps
+    );
     for (const [resourceId, grants] of relationshipCoverage.grantsByResource.entries()) {
+      grantsByResource.set(resourceId, [...(grantsByResource.get(resourceId) ?? []), ...grants]);
+    }
+    for (const [resourceId, grants] of sharePointAndOneDriveGrants.entries()) {
       grantsByResource.set(resourceId, [...(grantsByResource.get(resourceId) ?? []), ...grants]);
     }
     const cursor = this.#buildCursor();
@@ -579,7 +642,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         ...maps.applicationResourcesByGraphId.values(),
         ...maps.m365GroupResourcesByGraphId.values(),
         ...maps.teamResourcesByGroupId.values(),
-        ...sharePointAndOneDriveResources
+        ...sharePointAndOneDriveCoverage.resources
       ]),
       relationships: relationshipCoverage.relationships,
       grantsByResource,
@@ -1101,8 +1164,12 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     );
   }
 
-  async #buildSharePointAndOneDriveInventory(users: GraphUser[], maps: EntraEntityMaps): Promise<Resource[]> {
+  async #buildSharePointAndOneDriveInventory(
+    users: GraphUser[],
+    maps: EntraEntityMaps
+  ): Promise<SharePointOneDriveInventoryCoverage> {
     const resources = new Map<string, Resource>();
+    const grantTargets: MicrosoftPermissionGrantTarget[] = [];
     const sites = await this.#readCollection<GraphSite>(
       "/sites?$select=id,name,displayName,webUrl,isPersonalSite,root,siteCollection",
       "resources"
@@ -1133,7 +1200,8 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
 
       const siteResource = this.#sharePointSiteResource(site);
       resources.set(siteResource.id, siteResource);
-      await this.#addSiteDrives(site, siteResource, resources);
+      grantTargets.push({ resource: siteResource, kind: "sharepoint_site", siteId: site.id });
+      await this.#addSiteDrives(site, siteResource, resources, grantTargets);
     }
 
     if (users.some((user) => user.id)) {
@@ -1151,13 +1219,18 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         continue;
       }
 
-      await this.#addUserDrives(user, maps.subjectsByGraphId.get(user.id), resources);
+      await this.#addUserDrives(user, maps.subjectsByGraphId.get(user.id), resources, grantTargets);
     }
 
-    return [...resources.values()];
+    return { resources: [...resources.values()], grantTargets };
   }
 
-  async #addSiteDrives(site: GraphSite, siteResource: Resource, resources: Map<string, Resource>): Promise<void> {
+  async #addSiteDrives(
+    site: GraphSite,
+    siteResource: Resource,
+    resources: Map<string, Resource>,
+    grantTargets: MicrosoftPermissionGrantTarget[]
+  ): Promise<void> {
     const drives = await this.#readCollection<GraphDrive>(
       `/sites/${encodeURIComponent(site.id!)}/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds`,
       "resources"
@@ -1175,11 +1248,16 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     }
 
     for (const drive of drives) {
-      await this.#addDriveInventory(drive, { kind: "sharepoint", siteResource }, resources);
+      await this.#addDriveInventory(drive, { kind: "sharepoint", siteResource }, resources, grantTargets);
     }
   }
 
-  async #addUserDrives(user: GraphUser, ownerSubject: Subject | undefined, resources: Map<string, Resource>): Promise<void> {
+  async #addUserDrives(
+    user: GraphUser,
+    ownerSubject: Subject | undefined,
+    resources: Map<string, Resource>,
+    grantTargets: MicrosoftPermissionGrantTarget[]
+  ): Promise<void> {
     const drives = await this.#readCollection<GraphDrive>(
       `/users/${encodeURIComponent(user.id!)}/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds`,
       "resources"
@@ -1197,11 +1275,16 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     }
 
     for (const drive of drives) {
-      await this.#addDriveInventory(drive, { kind: "onedrive", user, ownerSubject }, resources);
+      await this.#addDriveInventory(drive, { kind: "onedrive", user, ownerSubject }, resources, grantTargets);
     }
   }
 
-  async #addDriveInventory(drive: GraphDrive, source: DriveInventorySource, resources: Map<string, Resource>): Promise<void> {
+  async #addDriveInventory(
+    drive: GraphDrive,
+    source: DriveInventorySource,
+    resources: Map<string, Resource>,
+    grantTargets: MicrosoftPermissionGrantTarget[]
+  ): Promise<void> {
     if (!drive.id) {
       this.#warnMissingId("resources");
       return;
@@ -1221,8 +1304,9 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     }
 
     resources.set(driveResource.id, driveResource);
+    grantTargets.push({ resource: driveResource, kind: "drive", driveId: drive.id });
     this.#recordInventoryInheritanceWarning(driveResource);
-    await this.#addDriveItems(drive, driveRootChildrenPath(drive.id), driveResource, resources, 0);
+    await this.#addDriveItems(drive, driveRootChildrenPath(drive.id), driveResource, resources, grantTargets, 0);
   }
 
   async #addDriveItems(
@@ -1230,6 +1314,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     childrenPath: string,
     parentResource: Resource,
     resources: Map<string, Resource>,
+    grantTargets: MicrosoftPermissionGrantTarget[],
     depth: number
   ): Promise<void> {
     if (!drive.id) {
@@ -1274,10 +1359,11 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       }
 
       resources.set(resource.id, resource);
+      grantTargets.push({ resource, kind: "drive_item", driveId: drive.id, itemId: item.id });
       this.#recordInventoryInheritanceWarning(resource);
 
       if (isDriveItemContainer(item)) {
-        await this.#addDriveItems(drive, driveItemChildrenPath(drive.id, item.id), resource, resources, depth + 1);
+        await this.#addDriveItems(drive, driveItemChildrenPath(drive.id, item.id), resource, resources, grantTargets, depth + 1);
       }
     }
   }
@@ -1356,6 +1442,155 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     }
 
     return grantsByResource;
+  }
+
+  async #buildSharePointAndOneDriveNativeGrants(
+    targets: MicrosoftPermissionGrantTarget[],
+    maps: EntraEntityMaps
+  ): Promise<Map<string, NativeGrant[]>> {
+    const grantsByResource = new Map<string, NativeGrant[]>();
+
+    for (const target of targets) {
+      const permissionsPath = permissionPathForTarget(target);
+      if (!permissionsPath) {
+        this.#pushWarning({
+          code: "GRAPH_NATIVE_GRANT_TARGET_UNSUPPORTED",
+          message: "Microsoft Graph native grant readback skipped a SharePoint or OneDrive resource whose provider permission path could not be determined.",
+          severity: "warning",
+          scope: "native_grants",
+          retryable: false,
+          objectId: target.resource.id
+        });
+        continue;
+      }
+
+      const permissions = await this.#readCollection<GraphPermission>(permissionsPath, "native_grants");
+      if (permissions.length === 0) {
+        this.#pushWarning({
+          code: "GRAPH_NATIVE_GRANT_COVERAGE_EMPTY",
+          message: "Microsoft Graph returned no native permissions for a SharePoint or OneDrive resource; coverage is recorded without inventing canonical access.",
+          severity: "info",
+          scope: "native_grants",
+          retryable: false,
+          objectId: target.resource.id
+        });
+      }
+
+      for (const permission of permissions) {
+        this.#addPermissionNativeGrants(grantsByResource, permission, target, maps);
+      }
+    }
+
+    return grantsByResource;
+  }
+
+  #addPermissionNativeGrants(
+    grantsByResource: Map<string, NativeGrant[]>,
+    permission: GraphPermission,
+    target: MicrosoftPermissionGrantTarget,
+    maps: EntraEntityMaps
+  ): void {
+    if (!permission.id) {
+      this.#warnMissingId("native_grants");
+      return;
+    }
+
+    const roles = (permission.roles ?? []).filter((role) => role.length > 0);
+    if (roles.length === 0) {
+      this.#pushWarning({
+        code: "GRAPH_NATIVE_GRANT_ROLE_UNSUPPORTED",
+        message: "Microsoft Graph returned a SharePoint or OneDrive permission without readable roles; the permission was retained as unsupported coverage.",
+        severity: "warning",
+        scope: "native_grants",
+        retryable: false,
+        objectId: target.resource.id
+      });
+      return;
+    }
+
+    if (permission.link || permission.invitation || permission.shareId || permission.hasPassword) {
+      this.#pushWarning({
+        code: "GRAPH_NATIVE_GRANT_LINK_SEMANTICS_UNSUPPORTED",
+        message: "Microsoft Graph returned sharing-link or invitation permission semantics; Access Kit records unsupported grant coverage without converting them into relationship facts.",
+        severity: "warning",
+        scope: "native_grants",
+        retryable: false,
+        objectId: target.resource.id
+      });
+    }
+
+    const identities = permissionIdentities(permission);
+    if (identities.length === 0) {
+      this.#pushWarning({
+        code: "GRAPH_NATIVE_GRANT_PRINCIPAL_UNSUPPORTED",
+        message: "Microsoft Graph returned a SharePoint or OneDrive permission without a supported principal identity; unsupported grant coverage is visible in evidence.",
+        severity: "warning",
+        scope: "native_grants",
+        retryable: false,
+        objectId: target.resource.id
+      });
+      return;
+    }
+
+    for (const identity of identities) {
+      if (identity.kind === "siteUser") {
+        this.#pushWarning({
+          code: "GRAPH_NATIVE_GRANT_SITE_USER_UNSUPPORTED",
+          message: "Microsoft Graph returned a SharePoint siteUser principal that cannot be safely linked to an imported Entra subject; the grant was skipped with coverage evidence.",
+          severity: "warning",
+          scope: "native_grants",
+          retryable: false,
+          objectId: target.resource.id
+        });
+        continue;
+      }
+
+      if (!identity.id) {
+        this.#warnMissingId("native_grants");
+        continue;
+      }
+
+      const subject = maps.subjectsByGraphId.get(identity.id);
+      if (!subject) {
+        this.#pushWarning({
+          code: "GRAPH_NATIVE_GRANT_PRINCIPAL_SKIPPED",
+          message: "Microsoft Graph returned a SharePoint or OneDrive permission for a principal outside the imported subject boundary; the grant was skipped with coverage evidence.",
+          severity: "warning",
+          scope: "native_grants",
+          retryable: false,
+          objectId: target.resource.id
+        });
+        continue;
+      }
+
+      const principalType = maps.subjectPrincipalTypes.get(identity.id) ?? permissionPrincipalType(identity.kind);
+      for (const role of roles) {
+        this.#addNativeGrant(grantsByResource, this.#nativeGrant(
+          `${target.kind}:${target.resource.id}:permission:${permission.id}:principal:${identity.kind}:${identity.id}:role:${role}`,
+          target.resource,
+          subject,
+          principalType,
+          `${nativePermissionPrefix(target)}:${safePermissionLabel(role)}`,
+          permission.inheritedFrom ? "inherited" : nativeGrantTypeForPrincipal(principalType),
+          "microsoft_graph_sharepoint_onedrive_permission",
+          {
+            permissionHash: redactValue(permission.id),
+            principalHash: redactValue(identity.id),
+            principalKind: identity.kind,
+            resourceKind: target.kind,
+            roles: roles.map((candidate) => safePermissionLabel(candidate)),
+            inherited: Boolean(permission.inheritedFrom),
+            inheritedFromDriveHash: permission.inheritedFrom?.driveId ? redactValue(permission.inheritedFrom.driveId) : undefined,
+            inheritedFromItemHash: permission.inheritedFrom?.id ? redactValue(permission.inheritedFrom.id) : undefined,
+            linkSemanticsUnsupported: Boolean(permission.link),
+            invitationSemanticsUnsupported: Boolean(permission.invitation),
+            passwordProtectedShareUnsupported: Boolean(permission.hasPassword),
+            redacted: true
+          },
+          permission.inheritedFrom ? target.resource.parentId : undefined
+        ));
+      }
+    }
   }
 
   #addNativeGrant(grantsByResource: Map<string, NativeGrant[]>, grant: NativeGrant): void {
@@ -1767,6 +2002,22 @@ function driveItemChildrenPath(driveId: string, itemId: string): string {
   return `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}/children?$select=${DRIVE_ITEM_SELECT}`;
 }
 
+function permissionPathForTarget(target: MicrosoftPermissionGrantTarget): string | undefined {
+  if (target.kind === "sharepoint_site" && target.siteId) {
+    return `/sites/${encodeURIComponent(target.siteId)}/permissions?$select=${PERMISSION_SELECT}`;
+  }
+
+  if (target.kind === "drive" && target.driveId) {
+    return `/drives/${encodeURIComponent(target.driveId)}/root/permissions?$select=${PERMISSION_SELECT}`;
+  }
+
+  if (target.kind === "drive_item" && target.driveId && target.itemId) {
+    return `/drives/${encodeURIComponent(target.driveId)}/items/${encodeURIComponent(target.itemId)}/permissions?$select=${PERMISSION_SELECT}`;
+  }
+
+  return undefined;
+}
+
 function driveItemResourceType(item: GraphDriveItem): Extract<Resource["type"], "folder" | "document"> | undefined {
   if (item.folder || item.package) {
     return "folder";
@@ -1785,6 +2036,53 @@ function uniqueResources(resources: Resource[]): Resource[] {
 
 function nativeGrantTypeForPrincipal(principalType: NativePrincipalType): NativeGrant["grantType"] {
   return principalType === "group" ? "group" : "direct";
+}
+
+function nativePermissionPrefix(target: MicrosoftPermissionGrantTarget): string {
+  if (target.kind === "sharepoint_site") {
+    return "sharePointSite";
+  }
+
+  return target.kind === "drive" ? "drive" : "driveItem";
+}
+
+function permissionPrincipalType(kind: PermissionIdentityKind): NativePrincipalType {
+  if (kind === "group") {
+    return "group";
+  }
+
+  return kind === "application" ? "service_principal" : "user";
+}
+
+type PermissionIdentityKind = "user" | "group" | "application" | "siteUser";
+
+interface PermissionIdentity {
+  kind: PermissionIdentityKind;
+  id?: string;
+}
+
+function permissionIdentities(permission: GraphPermission): PermissionIdentity[] {
+  const identities: PermissionIdentity[] = [];
+
+  for (const identitySet of [
+    permission.grantedToV2,
+    permission.grantedTo,
+    ...(permission.grantedToIdentitiesV2 ?? []),
+    ...(permission.grantedToIdentities ?? [])
+  ]) {
+    if (!identitySet) {
+      continue;
+    }
+
+    for (const kind of ["user", "group", "application", "siteUser"] as const) {
+      const identity = identitySet[kind];
+      if (identity) {
+        identities.push({ kind, id: identity.id });
+      }
+    }
+  }
+
+  return [...new Map(identities.map((identity) => [`${identity.kind}:${identity.id ?? "missing"}`, identity])).values()];
 }
 
 function mapAppRoles(appRoles: GraphAppRole[]): Map<string, GraphAppRole> {

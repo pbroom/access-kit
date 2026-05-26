@@ -22,6 +22,7 @@ import { validateConnectorSecurityGate } from "../../scripts/validate-connector-
 const now = "2026-05-26T12:00:00.000Z";
 const noSleep = async (): Promise<void> => {};
 const driveItemSelect = "id,name,webUrl,parentReference,folder,file,package,deleted,size,createdDateTime,lastModifiedDateTime";
+const permissionSelect = "id,roles,grantedTo,grantedToV2,grantedToIdentities,grantedToIdentitiesV2,link,invitation,inheritedFrom,shareId,hasPassword,expirationDateTime";
 
 class FixtureGraphClient implements MicrosoftGraphReadClient {
   readonly calls: string[] = [];
@@ -255,7 +256,7 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       .not.toContain("GRAPH_M365_GROUP_WITHOUT_TEAM");
   });
 
-  it("imports redacted SharePoint and OneDrive inventory without granting canonical access", async () => {
+  it("imports redacted SharePoint and OneDrive native grants without granting canonical access", async () => {
     const client = createSharePointOneDriveFixtureClient();
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
       client,
@@ -272,7 +273,21 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     const drives = resources.filter((resource) => resource.type === "workspace" && resource.attributes?.graphType === "drive");
     const folder = resources.find((resource) => resource.type === "folder");
     const documents = resources.filter((resource) => resource.type === "document");
-    const serialized = JSON.stringify({ resources, relationships, metadata });
+    const siteGrants = await connector.readCurrentAccess(site!.id);
+    const driveGrants = await connector.readCurrentAccess(drives[0]!.id);
+    const folderGrants = await connector.readCurrentAccess(folder!.id);
+    const fileGrants = await connector.readCurrentAccess(documents[1]!.id);
+    const oneDriveFileGrants = await connector.readCurrentAccess(documents[2]!.id);
+    const serialized = JSON.stringify({
+      resources,
+      relationships,
+      siteGrants,
+      driveGrants,
+      folderGrants,
+      fileGrants,
+      oneDriveFileGrants,
+      metadata
+    });
 
     expect(site).toEqual(expect.objectContaining({
       type: "sharepoint_site",
@@ -313,7 +328,8 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     }));
     expect(documents).toHaveLength(3);
     expect(metadata.warnings.map((warning) => warning.code)).toEqual(expect.arrayContaining([
-      "GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS"
+      "GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS",
+      "GRAPH_NATIVE_GRANT_LINK_SEMANTICS_UNSUPPORTED"
     ]));
     expect(metadata.warnings
       .filter((warning) => warning.code === "GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS")
@@ -330,24 +346,63 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       "onedrive_reader",
       "file_reader"
     ]));
-    for (const resource of resources.filter((candidate) => [
-      "sharepoint_site",
-      "workspace",
-      "folder",
-      "document"
-    ].includes(candidate.type))) {
-      await expect(connector.readCurrentAccess(resource.id)).resolves.toEqual([]);
-    }
+    expect(siteGrants).toEqual([
+      expect.objectContaining({
+        targetObjectId: site!.id,
+        nativePermission: "sharePointSite:read",
+        principalType: "user",
+        grantType: "direct",
+        sourceConnectorId: MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID
+      })
+    ]);
+    expect(driveGrants).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        targetObjectId: drives[0]!.id,
+        nativePermission: "drive:write",
+        principalType: "group",
+        grantType: "group"
+      })
+    ]));
+    expect(folderGrants).toEqual([
+      expect.objectContaining({
+        targetObjectId: folder!.id,
+        inheritedFromObjectId: drives[0]!.id,
+        nativePermission: "driveItem:read",
+        grantType: "inherited"
+      })
+    ]);
+    expect(fileGrants).toEqual([
+      expect.objectContaining({
+        targetObjectId: documents[1]!.id,
+        nativePermission: "driveItem:write",
+        principalType: "user"
+      })
+    ]);
+    expect(oneDriveFileGrants).toEqual([
+      expect.objectContaining({
+        nativePermission: "driveItem:read",
+        attributes: expect.objectContaining({
+          resourceKind: "drive_item",
+          redacted: true
+        })
+      })
+    ]);
     expect(client.calls).toEqual(expect.arrayContaining([
       "/sites?$select=id,name,displayName,webUrl,isPersonalSite,root,siteCollection",
       "/sites/raw-site-1/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds",
       `/drives/raw-drive-site/root/children?$select=${driveItemSelect}`,
       `/drives/raw-drive-site/items/raw-folder-1/children?$select=${driveItemSelect}`,
       "/users/raw-user-owner/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds",
-      `/drives/raw-onedrive-1/root/children?$select=${driveItemSelect}`
+      `/drives/raw-onedrive-1/root/children?$select=${driveItemSelect}`,
+      `/sites/raw-site-1/permissions?$select=${permissionSelect}`,
+      `/drives/raw-drive-site/root/permissions?$select=${permissionSelect}`,
+      `/drives/raw-drive-site/items/raw-folder-1/permissions?$select=${permissionSelect}`,
+      `/drives/raw-drive-site/items/raw-file-1/permissions?$select=${permissionSelect}`,
+      `/drives/raw-onedrive-1/items/raw-onedrive-file-1/permissions?$select=${permissionSelect}`
     ]));
     expect(serialized).not.toContain("tenant-live-123");
     expect(serialized).not.toContain("raw-site-1");
+    expect(serialized).not.toContain("raw-site-perm-1");
     expect(serialized).not.toContain("raw-drive-site");
     expect(serialized).not.toContain("raw-onedrive-1");
     expect(serialized).not.toContain("Case Documents");
@@ -841,9 +896,24 @@ function createSharePointOneDriveFixtureClient(): FixtureGraphClient {
       }
     ],
     "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
-      { value: [], status: 200 }
+      {
+        value: [
+          {
+            id: "raw-group-sharepoint",
+            displayName: "SharePoint Reviewers",
+            securityEnabled: true,
+            mailEnabled: true,
+            visibility: "Private",
+            groupTypes: []
+          }
+        ],
+        status: 200
+      }
     ],
     "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
+      { value: [], status: 200 }
+    ],
+    "/groups/raw-group-sharepoint/members?$select=id,displayName,userPrincipalName,appId,servicePrincipalType": [
       { value: [], status: 200 }
     ],
     "/sites?$select=id,name,displayName,webUrl,isPersonalSite,root,siteCollection": [
@@ -944,6 +1014,89 @@ function createSharePointOneDriveFixtureClient(): FixtureGraphClient {
             file: { mimeType: "text/plain" },
             size: 5,
             parentReference: { driveId: "raw-onedrive-1", id: "root", path: "/drive/root:" }
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/sites/raw-site-1/permissions?$select=${permissionSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-site-perm-1",
+            roles: ["read"],
+            grantedToV2: { user: { id: "raw-user-owner", displayName: "Owner Example" } }
+          },
+          {
+            id: "raw-site-link-1",
+            roles: ["read"],
+            link: { type: "view", scope: "anonymous" }
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/drives/raw-drive-site/root/permissions?$select=${permissionSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-drive-perm-1",
+            roles: ["write"],
+            grantedToIdentitiesV2: [
+              { group: { id: "raw-group-sharepoint", displayName: "SharePoint Reviewers" } }
+            ]
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/drives/raw-drive-site/items/raw-folder-1/permissions?$select=${permissionSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-folder-perm-1",
+            roles: ["read"],
+            inheritedFrom: { driveId: "raw-drive-site", id: "root" },
+            grantedToV2: { user: { id: "raw-user-owner", displayName: "Owner Example" } }
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/drives/raw-drive-site/items/raw-file-1/permissions?$select=${permissionSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-file-perm-1",
+            roles: ["write"],
+            grantedToV2: { user: { id: "raw-user-owner", displayName: "Owner Example" } }
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/drives/raw-drive-site/items/raw-file-2/permissions?$select=${permissionSelect}`]: [
+      { value: [], status: 200 }
+    ],
+    [`/drives/raw-onedrive-1/root/permissions?$select=${permissionSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-onedrive-root-perm-1",
+            roles: ["owner"],
+            grantedToV2: { user: { id: "raw-user-owner", displayName: "Owner Example" } }
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/drives/raw-onedrive-1/items/raw-onedrive-file-1/permissions?$select=${permissionSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-onedrive-file-perm-1",
+            roles: ["read"],
+            grantedToV2: { user: { id: "raw-user-owner", displayName: "Owner Example" } }
           }
         ],
         status: 200
