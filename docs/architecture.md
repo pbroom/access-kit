@@ -50,7 +50,7 @@ flowchart LR
 - The deployable API container builds the API workspace dependency closure, runs as a non-root Node 22 runtime, exposes port `3000`, and stores local proof-point state under `/var/lib/access-kit`.
 - The release packaging workflow publishes only on `rebac-api-v*` tags or explicit manual dispatch, records SBOM/provenance metadata, pushes GitHub artifact attestations, and signs published digests with keyless cosign.
 - The reference Kubernetes manifests wire startup, liveness, and readiness probes to the public health endpoints, keep bearer-token material in a secret reference, mount local state under `/var/lib/access-kit`, restrict pod runtime privileges, and provide a signed-image admission policy example for release digests.
-- Persistent storage contracts split graph facts, append-only audit evidence, and durable job records so future database, ledger, and queue adapters can be assessed independently before live connector writes.
+- Persistent storage contracts split graph facts, append-only audit evidence, connector-state history, and durable queue/job records so database, ledger, and queue adapters can be assessed independently before live connector writes.
 - The CLI wraps the API and does not contain authorization logic.
 - Read-only connector sync records a `DiscoveryRun` and observed `NativeGrant` objects.
 - Discovery runs capture warnings, cursors, read-only evidence, and connector capability metadata.
@@ -79,6 +79,6 @@ flowchart LR
 
 1. Durable graph/event stores and deployment packaging.
 2. Live read-only Entra ID, SharePoint, and AWS discovery using the existing discovery-run and native-grant contracts.
-3. Durable queue-backed dry-run reconciliation and provisioning execution.
+3. Environment-specific queue driver and managed worker deployment behind the durable queue adapter.
 4. Controlled enforcement with one Microsoft and one AWS write path after connector security review.
 5. Production hardening: deployable services, durable stores, approved SIEM forwarding, live connector security review, and production ATO evidence retention.

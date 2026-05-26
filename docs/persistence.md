@@ -1,6 +1,6 @@
 # Persistent Storage Foundation
 
-The local runtime still uses in-memory state, local JSON snapshots, and local proof-point evidence files by default. This storage foundation defines the production adapter boundary that later database, audit-ledger, and queue implementations must satisfy before live connectors or enforcement can rely on them.
+The local runtime still uses in-memory state, local JSON snapshots, and local proof-point evidence files by default. This storage foundation defines the production adapter boundary that database, audit-ledger, and queue implementations must satisfy before live connectors or enforcement can rely on them.
 
 ## Repository Groups
 
@@ -46,9 +46,13 @@ When the API runtime receives `REBAC_STATE_PATH`, `createLocalRuntimePersistence
 
 `ProductionGraphStoreAdapter` is the production graph contract adapter. It is backed by an injected external snapshot store so a selected graph database or relational graph projection can supply the storage driver later without changing authorization semantics. The adapter stores only subjects, resources, relationship tuples, native grants, backup metadata, and a hash envelope. It advertises `external_graph`, rejects malformed or tampered stored payloads before serving data, rejects secret-bearing records, requires tenant-boundary attributes on persisted subjects and resources, and keeps backend-specific behavior out of authorization decisions.
 
-`ProductionConnectorStateStoreAdapter` is the production connector-state contract adapter. It persists discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation evidence, decisions, backup metadata, and a hash envelope through an injected external snapshot store. It intentionally describes itself as `external_connector_state`, not `external_queue`; durable queue execution remains the AK-036 boundary. The adapter exists so connector state can be stored behind the current runtime repository methods while the later job-runtime slice selects queue semantics.
+`ProductionConnectorStateStoreAdapter` is the production connector-state contract adapter. It persists discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation evidence, decisions, backup metadata, and a hash envelope through an injected external snapshot store. It intentionally describes itself as `external_connector_state`, not `external_queue`; durable queue execution stays in the AK-036 boundary. The adapter exists so connector state can be stored behind the current runtime repository methods without claiming queue readiness.
 
-`tests/core/repository-conformance.test.ts` runs the shared graph and connector-state repository conformance suite against the in-memory proof-point adapter, the local JSON adapters, and the production external adapters. Adapter-specific tamper, malformed payload, tenant-boundary, secret-material, descriptor, and backup/restore checks remain explicit production tests.
+`ProductionJobQueueAdapter` is the production queue/job adapter boundary. It is backed by an injected external snapshot store so an environment-specific queue implementation can supply durable storage later without changing runtime execution semantics. The adapter advertises `external_queue`, keeps durable idempotency records with payload hashes, prioritizes emergency revocations, tracks connector health, supports retry/backoff, dead-letter, replay, backup/restore metadata, and rejects secret-bearing or tampered queue snapshots before serving data. It does not select or approve a vendor queue by itself.
+
+`drainNextQueuedJob` is the optional runtime worker path for queued discovery, reconciliation, provisioning, evidence export, and revocation jobs. It reserves a queue record, executes through the same runtime functions used by the synchronous API, and only completes the queue record after those flows finish. Controlled enforcement still revalidates approval, readiness, and controls at execution time.
+
+`tests/core/repository-conformance.test.ts` runs the shared graph and connector-state repository conformance suite against the in-memory proof-point adapter, the local JSON adapters, and the production external adapters, including the production queue adapter for job-history conformance. Adapter-specific tamper, malformed payload, tenant-boundary, secret-material, descriptor, queue idempotency, priority, retry, dead-letter, replay, connector-health, and backup/restore checks remain explicit production tests. `tests/api/job-queue-runner.test.ts` covers the optional worker drain path across discovery, reconciliation, provisioning, evidence, revocation, and execution-time enforcement approval expiry.
 
 ## Future Adapters
 
@@ -57,7 +61,8 @@ Production adapters should be added behind the same contracts:
 - selected graph database or relational graph projection driver for subjects, resources, relationship tuples, and native grants
 - WORM or immutable ledger-backed audit storage with production durability, retention, and backup/restore evidence
 - selected connector-state storage driver for discovery, reconciliation, provisioning, decision recording, and evidence history
-- durable queue/job storage for execution, retries, dead letters, and replay
+- environment-specific durable queue driver behind `ProductionJobQueueAdapter`
+- managed worker deployment, monitoring, and queue operations evidence for execution, retries, dead letters, and replay
 - environment-specific backup, restore, retention, and migration evidence
 
 No live provider write path should depend on local JSON snapshots, local JSONL audit files, or in-memory repositories. Local graph, audit, and job persistence are development and validation adapters, not production approval paths. The manifest evidence under `deploy/persistence/` is synthetic and must be replaced by deployment-specific IaC outputs and retained approval evidence before production use.
