@@ -136,6 +136,48 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     expect(serialized).not.toContain("/users?page=2");
   });
 
+  it("consolidates Microsoft provider semantic gaps as warnings instead of canonical access", async () => {
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client: createFixtureClient(),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-provider-semantics-sandbox-fixture.json"
+    });
+
+    const subjects = await connector.discoverSubjects();
+    const relationships = await connector.discoverRelationships();
+    const metadata = connector.getDiscoveryMetadata();
+    const findings = await connector.detectDrift();
+
+    expect(subjects).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: "user",
+        attributes: expect.objectContaining({ external: true })
+      })
+    ]));
+    expect(relationships.map((relationship) => relationship.relation)).not.toEqual(expect.arrayContaining([
+      "power_platform_role",
+      "dataverse_role"
+    ]));
+    expect(metadata.warnings.map((warning) => warning.code)).toEqual(expect.arrayContaining([
+      "GRAPH_CHANGE_NOTIFICATION_DELIVERY_UNSUPPORTED",
+      "GRAPH_POWER_PLATFORM_DATAVERSE_ROLE_MAPPING_UNSUPPORTED"
+    ]));
+    expect(findings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        nativeAccess: "GRAPH_CHANGE_NOTIFICATION_DELIVERY_UNSUPPORTED",
+        intendedAccess: "complete_provider_coverage",
+        sourceConnectorId: MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID
+      }),
+      expect.objectContaining({
+        nativeAccess: "GRAPH_POWER_PLATFORM_DATAVERSE_ROLE_MAPPING_UNSUPPORTED",
+        intendedAccess: "complete_provider_coverage",
+        sourceConnectorId: MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID
+      })
+    ]));
+  });
+
   it("imports redacted Microsoft 365 group and Teams coupling semantics without collapsing provider coverage", async () => {
     const client = createM365TeamsFixtureClient();
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
