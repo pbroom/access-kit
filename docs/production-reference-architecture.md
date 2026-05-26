@@ -40,6 +40,7 @@ The local Kubernetes manifests in `deploy/kubernetes/` remain the base proof poi
 | SIEM forwarder | Deliver bounded audit windows, alert on failed delivery, and retain replay proof. | `docs/audit-event-model.md` |
 | Secrets manager | Store API keys, IdP or mTLS references, connector credentials, signing configuration, and rotation evidence outside manifests and logs. | `adrs/0009-secret-management.md` |
 | Observability | Capture health, readiness, queue depth, failed auth, audit delivery, connector coverage, and emergency revocation metrics. | `docs/concept-of-operations.md` |
+| Degraded-mode operations | Define fail-closed degraded modes, queue backpressure, audit-forwarder outage behavior, read-only fallback, health signals, and recovery criteria. | `docs/ha-degraded-mode-operations.md` |
 | Backup and restore | Test graph, connector-state, queue, audit, evidence, and configuration recovery against defined RTO/RPO. | `runbooks/audit-evidence-export.md`, `deploy/persistence/evidence/backup-restore.example.json` |
 
 ## Kubernetes Overlay Shape
@@ -74,8 +75,9 @@ Target environments may set stricter values. Looser values require explicit risk
 3. Select environment-specific graph, connector-state, queue, audit/evidence, SIEM, observability, and secrets-manager services.
 4. Fill the production-reference overlay with references to approved evidence artifacts, not secret material.
 5. Run `pnpm validate:deployment-manifests`, `pnpm validate:persistence-deployment`, and the environment-specific IaC validation.
-6. Apply the overlay to a non-production environment and confirm `/v1/health`, `/v1/ready`, API authentication, audit emission, queue worker health, and backup/restore evidence.
-7. Promote only after the release approval, admin authorization descriptor, signed-image admission posture, SIEM replay path, and rollback record are retained.
+6. Apply the overlay to a non-production environment and confirm `/v1/health`, `/v1/ready`, API authentication, audit emission, queue worker health, degraded-mode signals, and backup/restore evidence.
+7. Exercise queue backpressure, audit-forwarder outage, read-only fallback, emergency revocation priority, and recovery criteria before promotion.
+8. Promote only after the release approval, admin authorization descriptor, signed-image admission posture, SIEM replay path, degraded-mode evidence, and rollback record are retained.
 
 ## Evidence To Retain
 
@@ -87,6 +89,7 @@ Target environments may set stricter values. Looser values require explicit risk
 - backup and restore test records with RTO/RPO observations
 - queue dead-letter replay, connector-health, and emergency revocation priority observations
 - audit signed-window verification, SIEM delivery, failed-delivery alert, and replay proof
+- degraded-mode exercise covering queue backpressure, audit-forwarder outage, read-only fallback, health signals, and recovery criteria
 - post-deployment review and rollback rehearsal notes
 
 ## Security Guardrails
@@ -101,6 +104,7 @@ Target environments may set stricter values. Looser values require explicit risk
 
 - [Deployable API Packaging](deployment.md)
 - [Deployment Runbook](deployment-runbook.md)
+- [HA And Degraded-Mode Operations](ha-degraded-mode-operations.md)
 - [Persistence](persistence.md)
 - [Security Model](security-model.md)
 - [System Context and Boundary](system-context-and-boundary.md)

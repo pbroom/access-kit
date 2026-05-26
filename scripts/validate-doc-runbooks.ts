@@ -9,7 +9,8 @@ const requiredRunbooks = [
   "runbooks/access-review-exceptions.md",
   "runbooks/audit-evidence-export.md",
   "runbooks/compromised-connector-credential.md",
-  "runbooks/decision-api-outage.md"
+  "runbooks/decision-api-outage.md",
+  "runbooks/degraded-mode-operations.md"
 ];
 
 const requiredHeadings = [

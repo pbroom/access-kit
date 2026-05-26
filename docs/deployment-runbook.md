@@ -59,6 +59,7 @@ Before traffic is shifted, verify:
 - Audit/evidence write verification.
 - Queue worker health, retry/backoff, dead-letter replay, and emergency revocation priority observations when a queue worker is enabled.
 - Audit adapter signed-window, retention-policy, immutable receipt, SIEM delivery, failed-delivery alert, and replay observations when the production audit adapter or forwarder is enabled.
+- Degraded-mode exercise evidence for queue backpressure, audit-forwarder outage, read-only fallback, emergency revocation priority, health signals, and recovery criteria.
 - Rollback or exception record when applicable.
 
 ## Deferred Production Controls
@@ -72,4 +73,5 @@ Before traffic is shifted, verify:
 - Environment-specific graph, connector-state, queue, and WORM or immutable-ledger audit storage drivers behind the validated adapter contracts.
 - Managed queue worker deployment, monitoring, and on-call procedures for retries, dead letters, replay, and emergency revocation handling.
 - Approved SIEM forwarder deployment, alert routing, replay procedure, and retained delivery monitoring evidence.
+- Environment-specific degraded-mode thresholds, alert routing, tabletop evidence, and recovery sign-off.
 - Agency-specific change-management and release approvals.
