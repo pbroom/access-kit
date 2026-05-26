@@ -13,6 +13,7 @@ import type {
 import type { DescribedAuditEventRepository, PersistenceBackendDescriptor } from "./persistence.js";
 import type { AuditEventRepository, EvidencePackageRepository } from "./repositories.js";
 import type { ProductionRepositoryBackupMetadata } from "./production-repositories.js";
+import { isProductionSensitiveKey } from "./production-secret-material.js";
 import { stableHash } from "./repository-envelopes.js";
 
 export interface ProductionAuditRetentionPolicy {
@@ -974,7 +975,7 @@ function secretMaterialFindings(value: unknown, path: string): AuditIntegrityFin
     const nextPath = `${path}.${key}`;
     const findings: AuditIntegrityFinding[] = [];
 
-    if (isSensitiveKey(key)) {
+    if (isProductionSensitiveKey(key)) {
       findings.push({
         code: "SECRET_MATERIAL_NOT_REDACTED",
         message: `${nextPath} contains secret material and must be redacted before production audit persistence.`,
@@ -985,29 +986,6 @@ function secretMaterialFindings(value: unknown, path: string): AuditIntegrityFin
 
     return [...findings, ...secretMaterialFindings(entry, nextPath)];
   });
-}
-
-function isSensitiveKey(key: string): boolean {
-  const normalized = key.replaceAll(/[-_\s]/g, "").toLowerCase();
-
-  return /(secret|password|credential|privatekey)/i.test(normalized)
-    || [
-      "accesskey",
-      "apikey",
-      "apitoken",
-      "authtoken",
-      "authorization",
-      "bearertoken",
-      "cookie",
-      "idtoken",
-      "refreshtoken",
-      "setcookie",
-      "token",
-      "tokenmaterial",
-      "tokenvalue",
-      "xapikey",
-      "accesstoken"
-    ].includes(normalized);
 }
 
 function isSensitiveString(value: string): boolean {

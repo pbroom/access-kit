@@ -29,6 +29,7 @@ import {
 } from "./repository-envelopes.js";
 import type { RebacJobStorageReceipt } from "./repositories.js";
 import type { ExternalSnapshotStore, ProductionRepositoryBackupMetadata } from "./production-repositories.js";
+import { isProductionSensitiveKey } from "./production-secret-material.js";
 
 export type ProductionQueuedJobKind = "discovery" | "reconciliation" | "provisioning" | "evidence" | "revocation";
 export type ProductionQueuedJobPriority = "emergency" | "high" | "normal" | "low";
@@ -1042,7 +1043,7 @@ function assertNoSecretMaterial(value: unknown, path: string): void {
   }
 
   for (const [key, entry] of Object.entries(value)) {
-    if (/(secret|token|password|credential|privateKey|accessKey)/i.test(key)) {
+    if (isProductionSensitiveKey(key)) {
       throw new Error(`${path}.${key} contains secret material and cannot be persisted by a production adapter.`);
     }
     assertNoSecretMaterial(entry, `${path}.${key}`);

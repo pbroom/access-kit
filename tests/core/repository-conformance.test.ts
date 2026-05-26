@@ -585,6 +585,28 @@ describe("production job queue adapter", () => {
       })
     ).toThrow("contains secret material");
 
+    for (const key of [
+      "apiKey",
+      "api_key",
+      "clientKey",
+      "hmacKey",
+      "signingKey",
+      "encryptionKey",
+      "oauthToken",
+      "jwtToken",
+      "accessKeyId"
+    ]) {
+      expect(() =>
+        queue.enqueueJob({
+          kind: "evidence",
+          connectorId: "mock",
+          idempotencyKey: `idem:queue:evidence:${key}`,
+          requestedAt: conformanceNow,
+          payload: { [key]: "tenant-secret" }
+        })
+      ).toThrow("contains secret material");
+    }
+
     const queued = queue.enqueueJob({
       kind: "evidence",
       connectorId: "mock",

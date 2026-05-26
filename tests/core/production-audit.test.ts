@@ -165,6 +165,16 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
     expect(() => repository.appendAuditEvent(authorizationEvent, "2026-05-26T06:12:00.000Z")).toThrow(
       "contains secret material and must be redacted"
     );
+
+    for (const key of ["clientKey", "hmacKey", "signingKey", "encryptionKey", "sessionToken"]) {
+      const event = createNextEvent([firstEvent], `audit.secret_key_rejected.${key}`, "2026-05-26T06:13:00.000Z", {
+        [key]: "tenant-secret"
+      });
+
+      expect(() => repository.appendAuditEvent(event, "2026-05-26T06:13:00.000Z")).toThrow(
+        "contains secret material and must be redacted"
+      );
+    }
   });
 
   it("reports failed SIEM delivery as security-relevant until a replay delivery succeeds", () => {
