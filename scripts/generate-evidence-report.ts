@@ -152,7 +152,8 @@ function normalizeReport(report: string): string {
     .replace(/\/[^\s`]*access-kit[^\s`]*/g, "<repo>")
     .replace(/^[ ]*RUN[ ]{2}v.+$/gm, " RUN  v<vitest> <repo>")
     .replace(/^[ ]{3}Start at .+$/gm, "   Start at  <time>")
-    .replace(/^[ ]{3}Duration .+$/gm, "   Duration  <duration>");
+    .replace(/^[ ]{3}Duration .+$/gm, "   Duration  <duration>")
+    .replace(/\n{3,}/g, "\n\n");
 }
 
 function stripAnsi(value: string): string {
