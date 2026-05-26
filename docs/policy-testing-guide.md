@@ -31,7 +31,7 @@ Current proof points cover:
 - idempotent relationship write behavior
 - drift finding behavior
 
-Current model validation covers resource types, relations, action mappings, inheritance rules, deny rules, context and classification constraints, tenant boundaries, migration ordering and cycles, and generated-policy metadata warnings.
+Current model validation covers resource types, relations, action mappings, inheritance rules, deny rules, context and classification constraints, tenant boundaries, fail-closed caveats and conditional relationships, deterministic explanation policy, migration ordering and cycles, and generated-policy metadata warnings.
 
 Current harness coverage adds:
 
@@ -40,8 +40,9 @@ Current harness coverage adds:
 - cross-tenant resource lookup and relationship traversal denial
 - connector-state and evidence leakage checks on denied tenant-boundary decisions
 - replay, idempotency collision, and time-travel decision fixtures
+- typed caveat enforcement for ABAC, device posture, risk, and access-time context
 
-The reusable sample policy repository in [examples/sample-policy-repository](../examples/sample-policy-repository/README.md) shows the policy-as-code layout expected from adopters: model versions, migration files, tuple fixtures, regression snapshots, generated request/response examples, generated starter policy-test artifacts, and copyable CI policy-test wiring.
+The reusable sample policy repository in [examples/sample-policy-repository](../examples/sample-policy-repository/README.md) shows the policy-as-code layout expected from adopters: model versions, migration files, tuple fixtures, regression snapshots, conditional relationship caveats, generated request/response examples, generated starter policy-test artifacts, and copyable CI policy-test wiring.
 
 Generated starter policy tests come from model definitions via `pnpm generate:policy-tests`. The generator writes tuple fixtures, starter authorization cases, example requests, expected results, and migration regression review snapshots under `examples/sample-policy-repository/generated/policy-tests`. `pnpm validate:generated-policy-tests` fails when those artifacts drift.
 
@@ -84,10 +85,11 @@ Before a policy is published:
 2. Run deterministic model validation with `validatePolicyModel`.
 3. Update or add proof points for the intended behavior.
 4. Update tuple fixtures, migration files, regression snapshots, and generated examples together.
-5. Regenerate starter policy-test artifacts when model definitions change, then review the generated diff.
-6. Confirm deny paths, revocation paths, expiration, suspension, explicit deny behavior, and tenant-boundary denial with hand-authored tests.
-7. Run schema, OpenAPI, policy, sample-policy, generated-policy-test, and CLI contract validation.
-8. Ensure the change ticket and audit evidence reference the policy version.
+5. Make conditional inputs typed, bounded, auditable, and fail closed when missing or invalid.
+6. Regenerate starter policy-test artifacts when model definitions change, then review the generated diff.
+7. Confirm deny paths, revocation paths, expiration, suspension, explicit deny behavior, caveat denial, and tenant-boundary denial with hand-authored tests.
+8. Run schema, OpenAPI, policy, sample-policy, generated-policy-test, and CLI contract validation.
+9. Ensure the change ticket and audit evidence reference the policy version.
 
 ## Security Considerations
 
@@ -95,6 +97,7 @@ Before a policy is published:
 - Do not publish unvalidated models; the API returns `POLICY_NOT_VALIDATED` before publication.
 - Do not make allow rules broader than the relationship facts justify.
 - Do not treat generated starter tests as sufficient coverage for boundary or abuse behavior.
+- Do not treat missing ABAC, device, risk, or time context as an implicit allow.
 - Do not use unreviewed generated text as policy logic.
 - Treat policy rollback as an operational runbook event with audit evidence.
 

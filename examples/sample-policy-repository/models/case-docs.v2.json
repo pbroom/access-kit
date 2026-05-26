@@ -196,11 +196,20 @@
     "source": "resource",
     "crossTenantTraversal": false
   },
-  "migrations": [],
+  "migrations": [
+    {
+      "fromVersion": "policy:case-docs-v2",
+      "toVersion": "policy:case-docs-v3",
+      "operations": [
+        "add bounded and auditable deviceTrustLevel and accessTime context inputs",
+        "add fail-closed managed_low_risk_read caveat for reader relationships",
+        "add deterministic caveat explanation policy and regression examples"
+      ]
+    }
+  ],
   "metadata": {
     "sample": true,
     "domain": "case-docs",
     "owner": "platform-access-team"
   }
 }
-

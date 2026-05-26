@@ -258,6 +258,67 @@ describe("policy model test harness", () => {
     });
   });
 
+  it("fails closed on policy caveats while keeping deterministic explanations typed", () => {
+    const model = createAdvancedPolicyModel();
+    const store = tenantStore([
+      tuple("relationship:alice-local-document", "user:alice", "reader_of", "document:case-plan", "tenant:a")
+    ]);
+    const allowed = new RebacDecisionEngine(store, {
+      now: () => now,
+      policyModel: model
+    }).explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      context: {
+        riskScore: 22,
+        deviceTrustLevel: "managed",
+        accessTime: now
+      }
+    });
+
+    expect(allowed.decision).toBe("allow");
+    expect(allowed.constraints).toMatchObject({
+      policyCaveats: {
+        deterministic: true,
+        policyModelVersion: "policy:local-v1",
+        results: [
+          {
+            caveat: "low-risk-managed-device",
+            relation: "reader_of",
+            status: "pass"
+          }
+        ]
+      }
+    });
+
+    const missingDevice = new RebacDecisionEngine(store, {
+      now: () => now,
+      policyModel: model
+    }).explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      context: {
+        riskScore: 22,
+        accessTime: now
+      }
+    });
+
+    expect(missingDevice).toMatchObject({
+      decision: "deny",
+      reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+      relationshipPath: [
+        {
+          subjectId: "user:alice",
+          relation: "reader_of",
+          objectId: "document:case-plan"
+        }
+      ]
+    });
+    expect(JSON.stringify(missingDevice.constraints)).not.toContain('"value"');
+  });
+
   it("replays concurrent decision fixtures without losing audit events", async () => {
     const store = tenantStore([
       tuple("relationship:alice-local-document", "user:alice", "reader_of", "document:case-plan", "tenant:a")
@@ -325,6 +386,36 @@ function subject(id: string, tenantId: string): Subject {
     version: "subject:model-harness",
     createdAt: now
   };
+}
+
+function createAdvancedPolicyModel(): PolicyModel {
+  const model = createDefaultPolicyModel();
+  model.contextConstraints = [
+    { key: "riskScore", type: "number", required: true, auditable: true, min: 0, max: 100 },
+    { key: "deviceTrustLevel", type: "string", required: true, auditable: true, maxLength: 32, allowedValues: ["managed", "trusted"] },
+    { key: "accessTime", type: "datetime", required: true, auditable: true }
+  ];
+  model.caveats = [
+    {
+      name: "low-risk-managed-device",
+      failClosed: true,
+      reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+      conditions: [
+        { source: "context", key: "riskScore", type: "number", operator: "less_than_or_equal", value: 35 },
+        { source: "context", key: "deviceTrustLevel", type: "string", operator: "one_of", value: ["managed", "trusted"] },
+        { source: "context", key: "accessTime", type: "datetime", operator: "before", value: "2026-05-27T00:00:00.000Z" }
+      ]
+    }
+  ];
+  model.conditionalRelationships = [
+    { relation: "reader_of", actions: ["read"], caveats: ["low-risk-managed-device"] }
+  ];
+  model.explanation = {
+    deterministic: true,
+    includeContextKeys: ["riskScore", "deviceTrustLevel", "accessTime"],
+    includeCaveatNames: ["low-risk-managed-device"]
+  };
+  return model;
 }
 
 function resource(id: string, type: Resource["type"], tenantId: string): Resource {

@@ -1,0 +1,170 @@
+{
+  "policyVersion": "policy:case-docs-v3",
+  "relationshipVersion": "tuple-set:case-docs-v3",
+  "evaluatedAt": "2026-05-26T12:00:00.000Z",
+  "cases": [
+    {
+      "name": "managed low risk read satisfies caveats",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 22,
+          "businessJustification": "case review",
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "relationshipPath": [
+          {
+            "subjectId": "user:alice",
+            "relation": "member_of",
+            "objectId": "group:case-team"
+          },
+          {
+            "subjectId": "group:case-team",
+            "relation": "reader_of",
+            "objectId": "workspace:case"
+          },
+          {
+            "subjectId": "workspace:case",
+            "relation": "contains",
+            "objectId": "document:case-plan"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missing device context fails closed",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 22,
+          "businessJustification": "case review",
+          "supportEscalationApproved": true,
+          "accessTime": "2026-05-26T12:00:00.000Z"
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_POLICY_CAVEAT_UNSATISFIED",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "relationshipPath": [
+          {
+            "subjectId": "user:alice",
+            "relation": "member_of",
+            "objectId": "group:case-team"
+          },
+          {
+            "subjectId": "group:case-team",
+            "relation": "reader_of",
+            "objectId": "workspace:case"
+          },
+          {
+            "subjectId": "workspace:case",
+            "relation": "contains",
+            "objectId": "document:case-plan"
+          }
+        ]
+      }
+    },
+    {
+      "name": "high risk context fails closed",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 55,
+          "businessJustification": "case review",
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_POLICY_CAVEAT_UNSATISFIED",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "relationshipPath": [
+          {
+            "subjectId": "user:alice",
+            "relation": "member_of",
+            "objectId": "group:case-team"
+          },
+          {
+            "subjectId": "group:case-team",
+            "relation": "reader_of",
+            "objectId": "workspace:case"
+          },
+          {
+            "subjectId": "workspace:case",
+            "relation": "contains",
+            "objectId": "document:case-plan"
+          }
+        ]
+      }
+    },
+    {
+      "name": "access time outside window fails closed",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 22,
+          "businessJustification": "case review",
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-27T12:00:00.000Z"
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_POLICY_CAVEAT_UNSATISFIED",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "relationshipPath": [
+          {
+            "subjectId": "user:alice",
+            "relation": "member_of",
+            "objectId": "group:case-team"
+          },
+          {
+            "subjectId": "group:case-team",
+            "relation": "reader_of",
+            "objectId": "workspace:case"
+          },
+          {
+            "subjectId": "workspace:case",
+            "relation": "contains",
+            "objectId": "document:case-plan"
+          }
+        ]
+      }
+    }
+  ]
+}

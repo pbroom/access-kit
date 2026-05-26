@@ -23,6 +23,11 @@ import {
   type DecisionTraversalBounds,
   type DecisionTraversalReport
 } from "./decision-runtime.js";
+import type {
+  PolicyModel,
+  PolicyModelCaveatCondition,
+  PolicyModelContextType
+} from "./policy-model.js";
 import { InMemoryRebacStore } from "./store.js";
 
 export interface DecisionEngineOptions {
@@ -35,6 +40,7 @@ export interface DecisionEngineOptions {
   actor?: string;
   now?: () => string;
   monotonicNow?: () => number;
+  policyModel?: PolicyModel;
   auditRecorder?: AuditRecorder;
   onAuditEvent?: (event: AuditEvent) => void;
 }
@@ -49,6 +55,7 @@ interface DecisionContext {
   decision: DecisionValue;
   relationshipPath: RelationshipPathStep[];
   traversal: DecisionTraversalReport;
+  constraints?: JsonRecord;
 }
 
 interface NormalizedDecisionEngineOptions {
@@ -81,6 +88,7 @@ const actionAllowRelations = new Map<string, Set<string>>([
 export class RebacDecisionEngine {
   readonly #auditRecorder: AuditRecorder;
   readonly #onAuditEvent?: (event: AuditEvent) => void;
+  readonly #policyModel?: PolicyModel;
   readonly #store: InMemoryRebacStore;
   readonly #options: NormalizedDecisionEngineOptions;
 
@@ -88,6 +96,7 @@ export class RebacDecisionEngine {
     this.#store = store;
     this.#auditRecorder = options.auditRecorder ?? new AuditRecorder(store.listAuditEvents());
     this.#onAuditEvent = options.onAuditEvent;
+    this.#policyModel = options.policyModel;
     this.#options = {
       policyVersion: options.policyVersion ?? "policy:local-v1",
       modelVersion: options.modelVersion ?? "model:local-v1",
@@ -265,6 +274,21 @@ export class RebacDecisionEngine {
       return denied("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
     }
 
+    const caveatResult = this.#policyModel
+      ? evaluateConditionalRelationshipCaveats({
+          store: this.#store,
+          policyModel: this.#policyModel,
+          request,
+          evaluatedAt,
+          relationships: activeRelationships,
+          relationshipPath
+        })
+      : undefined;
+
+    if (caveatResult && !caveatResult.allow) {
+      return denied(caveatResult.reasonCode, relationshipPath, versionPins, caveatResult.constraints);
+    }
+
     return {
       request,
       evaluatedAt,
@@ -274,13 +298,15 @@ export class RebacDecisionEngine {
       decision: "allow",
       reasonCode: "ALLOW_VIA_RELATIONSHIP_PATH",
       relationshipPath,
-      traversal: traversalGuard.report()
+      traversal: traversalGuard.report(),
+      constraints: caveatResult?.constraints
     };
 
     function denied(
       reasonCode: string,
       relationshipPath: RelationshipPathStep[] = [],
-      deniedVersionPins: DecisionRuntimeVersionPins = versionPins
+      deniedVersionPins: DecisionRuntimeVersionPins = versionPins,
+      constraints?: JsonRecord
     ): DecisionContext {
       return {
         request,
@@ -291,7 +317,8 @@ export class RebacDecisionEngine {
         decision: "deny",
         reasonCode,
         relationshipPath,
-        traversal: traversalGuard.report()
+        traversal: traversalGuard.report(),
+        constraints
       };
     }
   }
@@ -345,9 +372,209 @@ function toDecisionResult(
       },
       traversal: context.traversal,
       performance,
-      cache
+      cache,
+      ...context.constraints
     },
     evaluatedAt: context.evaluatedAt
+  };
+}
+
+function evaluateConditionalRelationshipCaveats(input: {
+  store: InMemoryRebacStore;
+  policyModel: PolicyModel;
+  request: DecisionRequest;
+  evaluatedAt: string;
+  relationships: RelationshipTuple[];
+  relationshipPath: RelationshipPathStep[];
+}): { allow: true; constraints: JsonRecord } | { allow: false; reasonCode: string; constraints: JsonRecord } {
+  const caveatsByName = new Map((input.policyModel.caveats ?? []).map((caveat) => [caveat.name, caveat]));
+  const conditionalRelationships = (input.policyModel.conditionalRelationships ?? []).filter((conditional) =>
+    !conditional.actions || conditional.actions.includes(input.request.action)
+  );
+  const explanations: JsonRecord[] = [];
+
+  for (const step of input.relationshipPath) {
+    const conditional = conditionalRelationships.find((entry) => entry.relation === step.relation);
+    if (!conditional) {
+      continue;
+    }
+
+    const relationship = input.relationships.find((entry) =>
+      entry.subjectId === step.subjectId && entry.relation === step.relation && entry.objectId === step.objectId
+    );
+
+    for (const caveatName of conditional.caveats) {
+      const caveat = caveatsByName.get(caveatName);
+
+      if (!caveat || !relationship) {
+        const reasonCode = caveat?.reasonCode ?? "DENY_POLICY_CAVEAT_INVALID";
+        explanations.push(caveatExplanation(caveatName, step.relation, "invalid", reasonCode, []));
+        return {
+          allow: false,
+          reasonCode,
+          constraints: caveatConstraints(input.policyModel, explanations)
+        };
+      }
+
+      const conditionResults = caveat.conditions.map((condition) =>
+        evaluateCaveatCondition({
+          store: input.store,
+          request: input.request,
+          relationship,
+          evaluatedAt: input.evaluatedAt,
+          condition
+        })
+      );
+      const failed = conditionResults.find((result) => result.status !== "pass");
+      const status = failed ? "fail" : "pass";
+      explanations.push(caveatExplanation(caveat.name, step.relation, status, failed ? caveat.reasonCode : undefined, conditionResults));
+
+      if (failed) {
+        return {
+          allow: false,
+          reasonCode: caveat.reasonCode,
+          constraints: caveatConstraints(input.policyModel, explanations)
+        };
+      }
+    }
+  }
+
+  return {
+    allow: true,
+    constraints: caveatConstraints(input.policyModel, explanations)
+  };
+}
+
+function evaluateCaveatCondition(input: {
+  store: InMemoryRebacStore;
+  request: DecisionRequest;
+  relationship: RelationshipTuple;
+  evaluatedAt: string;
+  condition: PolicyModelCaveatCondition;
+}): JsonRecord {
+  const actual = resolveConditionValue(input);
+
+  if (!actual.present) {
+    return conditionExplanation(input.condition, "missing");
+  }
+  if (!valueMatchesContextType(actual.value, input.condition.type)) {
+    return conditionExplanation(input.condition, "invalid");
+  }
+
+  return conditionExplanation(input.condition, compareCondition(actual.value, input.condition) ? "pass" : "fail");
+}
+
+function resolveConditionValue(input: {
+  store: InMemoryRebacStore;
+  request: DecisionRequest;
+  relationship: RelationshipTuple;
+  evaluatedAt: string;
+  condition: PolicyModelCaveatCondition;
+}): { present: true; value: unknown } | { present: false } {
+  const { condition } = input;
+
+  if (condition.source === "context") {
+    return valueAt(input.request.context, condition.key);
+  }
+  if (condition.source === "environment") {
+    return condition.key === "evaluatedAt" ? { present: true, value: input.evaluatedAt } : { present: false };
+  }
+  if (condition.source === "relationship") {
+    return valueAt(directAndAttributeRecord(input.relationship), condition.key);
+  }
+  if (condition.source === "subject") {
+    return valueAt(directAndAttributeRecord(input.store.getSubject(input.request.subjectId)), condition.key);
+  }
+  return valueAt(directAndAttributeRecord(input.store.getResource(input.request.resourceId)), condition.key);
+}
+
+function directAndAttributeRecord(value: Subject | Resource | RelationshipTuple | undefined): JsonRecord | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  return {
+    ...value.attributes,
+    status: "status" in value ? value.status : undefined,
+    lifecycleState: "lifecycleState" in value ? value.lifecycleState : undefined,
+    classification: "classification" in value ? value.classification : undefined,
+    assertedAt: "assertedAt" in value ? value.assertedAt : undefined,
+    expiresAt: "expiresAt" in value ? value.expiresAt : undefined
+  };
+}
+
+function valueAt(record: JsonRecord | undefined, key: string): { present: true; value: unknown } | { present: false } {
+  if (!record || record[key] === undefined || record[key] === null) {
+    return { present: false };
+  }
+  return { present: true, value: record[key] };
+}
+
+function compareCondition(actual: unknown, condition: PolicyModelCaveatCondition): boolean {
+  if (condition.operator === "equals") {
+    return actual === condition.value;
+  }
+  if (condition.operator === "one_of") {
+    return Array.isArray(condition.value) && condition.value.some((candidate) => candidate === actual);
+  }
+  if (condition.operator === "less_than_or_equal") {
+    return typeof actual === "number" && typeof condition.value === "number" && actual <= condition.value;
+  }
+  if (condition.operator === "greater_than_or_equal") {
+    return typeof actual === "number" && typeof condition.value === "number" && actual >= condition.value;
+  }
+  if (condition.operator === "before") {
+    return typeof actual === "string" && typeof condition.value === "string" && Date.parse(actual) < Date.parse(condition.value);
+  }
+  if (condition.operator === "after") {
+    return typeof actual === "string" && typeof condition.value === "string" && Date.parse(actual) > Date.parse(condition.value);
+  }
+  return false;
+}
+
+function valueMatchesContextType(value: unknown, type: PolicyModelContextType): boolean {
+  if (type === "datetime") {
+    return typeof value === "string" && !Number.isNaN(Date.parse(value));
+  }
+  return typeof value === type;
+}
+
+function caveatConstraints(policyModel: PolicyModel, explanations: JsonRecord[]): JsonRecord {
+  if (explanations.length === 0) {
+    return {};
+  }
+
+  return {
+    policyCaveats: {
+      deterministic: true,
+      policyModelVersion: policyModel.version,
+      results: explanations
+    }
+  };
+}
+
+function caveatExplanation(
+  caveat: string,
+  relation: string,
+  status: string,
+  reasonCode: string | undefined,
+  conditions: JsonRecord[]
+): JsonRecord {
+  return {
+    caveat,
+    relation,
+    status,
+    reasonCode,
+    conditions
+  };
+}
+
+function conditionExplanation(condition: PolicyModelCaveatCondition, status: string): JsonRecord {
+  return {
+    source: condition.source,
+    key: condition.key,
+    operator: condition.operator,
+    status
   };
 }
 

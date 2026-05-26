@@ -15,7 +15,7 @@ describe("sample policy repository automation wiring", () => {
   it("keeps the manifest and root CI contract pointed at the sample policy validator", () => {
     const ciWorkflow = automationContract.ci.workflows.find((workflow) => workflow.path === ".github/workflows/ci.yml");
 
-    expect(manifest.currentPolicyVersion).toBe("policy:case-docs-v2");
+    expect(manifest.currentPolicyVersion).toBe("policy:case-docs-v3");
     expect(manifest.ci.command).toBe("pnpm validate:sample-policy");
     expect(ciWorkflow?.jobs).toEqual(
       expect.arrayContaining([

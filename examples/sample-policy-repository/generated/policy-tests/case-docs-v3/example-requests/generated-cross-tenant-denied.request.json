@@ -1,0 +1,15 @@
+{
+  "subjectId": "user:generated-outsider",
+  "action": "read",
+  "resourceId": "document:generated-case-plan",
+  "policyVersion": "policy:case-docs-v3",
+  "relationshipVersion": "generated:tuple-set:case-docs-v3",
+  "context": {
+    "purpose": "generated-policy-test",
+    "riskScore": 10,
+    "businessJustification": "generated review fixture",
+    "supportEscalationApproved": true,
+    "deviceTrustLevel": "managed",
+    "accessTime": "2026-05-26T12:00:00.000Z"
+  }
+}

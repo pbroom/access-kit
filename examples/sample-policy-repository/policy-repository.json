@@ -1,6 +1,6 @@
 {
   "repositoryId": "sample-policy-repository:case-docs",
-  "currentPolicyVersion": "policy:case-docs-v2",
+  "currentPolicyVersion": "policy:case-docs-v3",
   "ci": {
     "workflow": ".github/workflows/policy-tests.yml",
     "command": "pnpm validate:sample-policy"
@@ -13,6 +13,10 @@
     {
       "version": "policy:case-docs-v2",
       "path": "models/case-docs.v2.json"
+    },
+    {
+      "version": "policy:case-docs-v3",
+      "path": "models/case-docs.v3.json"
     }
   ],
   "migrations": [
@@ -20,6 +24,11 @@
       "fromVersion": "policy:case-docs-v1",
       "toVersion": "policy:case-docs-v2",
       "path": "migrations/001-case-docs-v1-to-v2.json"
+    },
+    {
+      "fromVersion": "policy:case-docs-v2",
+      "toVersion": "policy:case-docs-v3",
+      "path": "migrations/002-case-docs-v2-to-v3.json"
     }
   ],
   "tupleFixtures": [
@@ -32,6 +41,11 @@
       "policyVersion": "policy:case-docs-v2",
       "relationshipVersion": "tuple-set:case-docs-v2",
       "path": "fixtures/tuple-sets/case-docs.v2.json"
+    },
+    {
+      "policyVersion": "policy:case-docs-v3",
+      "relationshipVersion": "tuple-set:case-docs-v3",
+      "path": "fixtures/tuple-sets/case-docs.v3.json"
     }
   ],
   "regressionSnapshots": [
@@ -44,6 +58,11 @@
       "policyVersion": "policy:case-docs-v2",
       "relationshipVersion": "tuple-set:case-docs-v2",
       "path": "snapshots/regression/case-docs.v2.json"
+    },
+    {
+      "policyVersion": "policy:case-docs-v3",
+      "relationshipVersion": "tuple-set:case-docs-v3",
+      "path": "snapshots/regression/case-docs.v3.json"
     }
   ],
   "generatedExamples": [
@@ -86,6 +105,26 @@
       "caseName": "cross-tenant escalation remains denied",
       "requestPath": "generated/api/case-docs-v2/cross-tenant-escalation-denied.request.json",
       "responsePath": "generated/api/case-docs-v2/cross-tenant-escalation-denied.response.json"
+    },
+    {
+      "caseName": "managed low risk read satisfies caveats",
+      "requestPath": "generated/api/case-docs-v3/managed-low-risk-read.request.json",
+      "responsePath": "generated/api/case-docs-v3/managed-low-risk-read.response.json"
+    },
+    {
+      "caseName": "missing device context fails closed",
+      "requestPath": "generated/api/case-docs-v3/missing-device-context-denied.request.json",
+      "responsePath": "generated/api/case-docs-v3/missing-device-context-denied.response.json"
+    },
+    {
+      "caseName": "high risk context fails closed",
+      "requestPath": "generated/api/case-docs-v3/high-risk-context-denied.request.json",
+      "responsePath": "generated/api/case-docs-v3/high-risk-context-denied.response.json"
+    },
+    {
+      "caseName": "access time outside window fails closed",
+      "requestPath": "generated/api/case-docs-v3/access-time-outside-window-denied.request.json",
+      "responsePath": "generated/api/case-docs-v3/access-time-outside-window-denied.response.json"
     }
   ],
   "generatedPolicyTests": {

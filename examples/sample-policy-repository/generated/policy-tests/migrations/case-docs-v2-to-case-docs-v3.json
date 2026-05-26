@@ -4,59 +4,16 @@
   "reviewNotice": "Generated starter policy tests are review aids only and cannot replace explicit deny, boundary, and abuse-case coverage.",
   "reviewOnly": true,
   "migration": {
-    "fromVersion": "policy:case-docs-v1",
-    "toVersion": "policy:case-docs-v2",
-    "migrationPath": "migrations/001-case-docs-v1-to-v2.json",
+    "fromVersion": "policy:case-docs-v2",
+    "toVersion": "policy:case-docs-v3",
+    "migrationPath": "migrations/002-case-docs-v2-to-v3.json",
     "operations": [
-      "add restricted classification to document and dataset resources",
-      "add support escalation businessJustification context requirement",
-      "add support escalation tuple fixture and regression cases"
+      "add bounded and auditable deviceTrustLevel and accessTime context inputs",
+      "add fail-closed managed_low_risk_read caveat for reader relationships",
+      "add deterministic caveat explanation policy and regression examples"
     ]
   },
   "sourceModel": {
-    "version": "policy:case-docs-v1",
-    "modelPath": "models/case-docs.v1.json",
-    "resourceTypes": [
-      "api",
-      "dataset",
-      "document",
-      "folder",
-      "organization",
-      "workspace"
-    ],
-    "relations": [
-      "admin_of",
-      "contains",
-      "contributor_to",
-      "denied",
-      "denied_read",
-      "member_of",
-      "owner_of",
-      "quarantined_from",
-      "reader_of",
-      "viewer_of"
-    ],
-    "actions": [
-      "admin",
-      "administer",
-      "contribute",
-      "manage",
-      "read",
-      "view",
-      "write"
-    ],
-    "contextConstraints": [
-      "purpose",
-      "riskScore"
-    ],
-    "caveats": [],
-    "conditionalRelationships": [],
-    "classifications": [
-      "confidential",
-      "internal"
-    ]
-  },
-  "targetModel": {
     "version": "policy:case-docs-v2",
     "modelPath": "models/case-docs.v2.json",
     "resourceTypes": [
@@ -102,6 +59,58 @@
       "restricted"
     ]
   },
+  "targetModel": {
+    "version": "policy:case-docs-v3",
+    "modelPath": "models/case-docs.v3.json",
+    "resourceTypes": [
+      "api",
+      "dataset",
+      "document",
+      "folder",
+      "organization",
+      "workspace"
+    ],
+    "relations": [
+      "admin_of",
+      "contains",
+      "contributor_to",
+      "denied",
+      "denied_read",
+      "member_of",
+      "owner_of",
+      "quarantined_from",
+      "reader_of",
+      "viewer_of"
+    ],
+    "actions": [
+      "admin",
+      "administer",
+      "contribute",
+      "manage",
+      "read",
+      "view",
+      "write"
+    ],
+    "contextConstraints": [
+      "accessTime",
+      "businessJustification",
+      "deviceTrustLevel",
+      "purpose",
+      "riskScore",
+      "supportEscalationApproved"
+    ],
+    "caveats": [
+      "managed_low_risk_read"
+    ],
+    "conditionalRelationships": [
+      "reader_of"
+    ],
+    "classifications": [
+      "confidential",
+      "internal",
+      "restricted"
+    ]
+  },
   "reviewerChecklist": [
     "Review generated cases against the migration intent before accepting them in CI.",
     "Keep hand-authored deny-default, tenant-boundary, explicit-deny, and abuse-case coverage in the repository.",
@@ -118,20 +127,22 @@
         "subjectId": "user:generated-reviewer",
         "action": "read",
         "resourceId": "document:generated-case-plan",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "context": {
           "purpose": "generated-policy-test",
           "riskScore": 10,
           "businessJustification": "generated review fixture",
-          "supportEscalationApproved": true
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
         }
       },
       "expected": {
         "decision": "allow",
         "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "relationshipPath": [
           {
             "subjectId": "user:generated-reviewer",
@@ -159,20 +170,22 @@
         "subjectId": "user:generated-unassigned",
         "action": "read",
         "resourceId": "document:generated-case-plan",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "context": {
           "purpose": "generated-policy-test",
           "riskScore": 10,
           "businessJustification": "generated review fixture",
-          "supportEscalationApproved": true
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
         }
       },
       "expected": {
         "decision": "deny",
         "reasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "relationshipPath": []
       }
     },
@@ -184,20 +197,22 @@
         "subjectId": "user:generated-outsider",
         "action": "read",
         "resourceId": "document:generated-case-plan",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "context": {
           "purpose": "generated-policy-test",
           "riskScore": 10,
           "businessJustification": "generated review fixture",
-          "supportEscalationApproved": true
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
         }
       },
       "expected": {
         "decision": "deny",
         "reasonCode": "DENY_TENANT_BOUNDARY",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "relationshipPath": []
       }
     },
@@ -209,20 +224,22 @@
         "subjectId": "user:generated-reviewer",
         "action": "read",
         "resourceId": "document:generated-denied-report",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "context": {
           "purpose": "generated-policy-test",
           "riskScore": 10,
           "businessJustification": "generated review fixture",
-          "supportEscalationApproved": true
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
         }
       },
       "expected": {
         "decision": "deny",
         "reasonCode": "DENY_EXPLICIT_OVERRIDE",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "relationshipPath": [
           {
             "subjectId": "user:generated-reviewer",
@@ -245,53 +262,23 @@
         "subjectId": "user:generated-reviewer",
         "action": "write",
         "resourceId": "document:generated-restricted-summary",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
         "context": {
           "purpose": "generated-policy-test",
           "riskScore": 10,
           "businessJustification": "generated review fixture",
-          "supportEscalationApproved": true
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
         }
       },
       "expected": {
         "decision": "deny",
-        "reasonCode": "DENY_CLASSIFICATION_BOUNDARY",
-        "policyVersion": "policy:case-docs-v2",
-        "relationshipVersion": "generated:tuple-set:case-docs-v2",
-        "relationshipPath": [
-          {
-            "subjectId": "user:generated-reviewer",
-            "relation": "member_of",
-            "objectId": "group:generated-review-team"
-          },
-          {
-            "subjectId": "group:generated-review-team",
-            "relation": "contributor_to",
-            "objectId": "workspace:generated-workspace"
-          },
-          {
-            "subjectId": "workspace:generated-workspace",
-            "relation": "contains",
-            "objectId": "document:generated-restricted-summary"
-          }
-        ],
-        "expectedControl": {
-          "kind": "classification.allowedActions",
-          "classification": "restricted",
-          "deniedAction": "write",
-          "allowedActions": [
-            "read",
-            "view"
-          ],
-          "resourceType": "document",
-          "resourceId": "document:generated-restricted-summary",
-          "wrongControlNegatives": [
-            "relationship.noGrant",
-            "tenantBoundary",
-            "explicitDeny"
-          ]
-        }
+        "reasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "generated:tuple-set:case-docs-v3",
+        "relationshipPath": []
       }
     }
   ]

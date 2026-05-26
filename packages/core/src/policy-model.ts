@@ -3,8 +3,17 @@ import type { JsonRecord, ResourceType, SubjectType, ValidationCheckStatus } fro
 export const POLICY_MODEL_SCHEMA_VERSION = "access-kit.policy-model.v1";
 
 export type PolicyModelRelationKind = "membership" | "grant" | "containment" | "deny";
-export type PolicyModelContextType = "string" | "number" | "boolean";
+export type PolicyModelContextType = "string" | "number" | "boolean" | "datetime";
 export type PolicyModelTenantBoundarySource = "subject" | "resource" | "context";
+export type PolicyModelCaveatConditionSource = "subject" | "resource" | "relationship" | "context" | "environment";
+export type PolicyModelCaveatOperator =
+  | "equals"
+  | "one_of"
+  | "less_than_or_equal"
+  | "greater_than_or_equal"
+  | "before"
+  | "after";
+export type PolicyModelCaveatValue = string | number | boolean | string[] | number[] | boolean[];
 
 export type PolicyModelNodeType = SubjectType | ResourceType;
 
@@ -44,6 +53,11 @@ export interface PolicyModelContextConstraint {
   key: string;
   type: PolicyModelContextType;
   required?: boolean;
+  auditable?: boolean;
+  min?: number;
+  max?: number;
+  maxLength?: number;
+  allowedValues?: Array<string | number | boolean>;
 }
 
 export interface PolicyModelClassificationConstraint {
@@ -63,6 +77,33 @@ export interface PolicyModelMigration {
   operations: string[];
 }
 
+export interface PolicyModelCaveatCondition {
+  source: PolicyModelCaveatConditionSource;
+  key: string;
+  type: PolicyModelContextType;
+  operator: PolicyModelCaveatOperator;
+  value: PolicyModelCaveatValue;
+}
+
+export interface PolicyModelCaveat {
+  name: string;
+  failClosed: true;
+  reasonCode: string;
+  conditions: PolicyModelCaveatCondition[];
+}
+
+export interface PolicyModelConditionalRelationship {
+  relation: string;
+  caveats: string[];
+  actions?: string[];
+}
+
+export interface PolicyModelExplanationPolicy {
+  deterministic: true;
+  includeContextKeys: string[];
+  includeCaveatNames: string[];
+}
+
 export interface PolicyModel {
   schemaVersion: typeof POLICY_MODEL_SCHEMA_VERSION;
   id: string;
@@ -76,6 +117,9 @@ export interface PolicyModel {
   classificationConstraints: PolicyModelClassificationConstraint[];
   tenantBoundary: PolicyModelTenantBoundary;
   migrations: PolicyModelMigration[];
+  caveats?: PolicyModelCaveat[];
+  conditionalRelationships?: PolicyModelConditionalRelationship[];
+  explanation?: PolicyModelExplanationPolicy;
   metadata?: JsonRecord;
 }
 
@@ -104,7 +148,15 @@ const supportedActions = new Map<string, string[]>([
 const requiredDenyRelations = new Set(["denied", "denied_read", "quarantined_from"]);
 const requiredMembershipRelations = new Set(["member_of"]);
 const requiredContainmentRelations = new Set(["contains"]);
-const supportedContextTypes = new Set<PolicyModelContextType>(["string", "number", "boolean"]);
+const supportedContextTypes = new Set<PolicyModelContextType>(["string", "number", "boolean", "datetime"]);
+const supportedCaveatOperators = new Set<PolicyModelCaveatOperator>([
+  "equals",
+  "one_of",
+  "less_than_or_equal",
+  "greater_than_or_equal",
+  "before",
+  "after"
+]);
 const knownResourceTypes = new Set<ResourceType>([
   "organization",
   "workspace",
@@ -181,6 +233,13 @@ export function createDefaultPolicyModel(): PolicyModel {
       source: "resource",
       crossTenantTraversal: false
     },
+    caveats: [],
+    conditionalRelationships: [],
+    explanation: {
+      deterministic: true,
+      includeContextKeys: [],
+      includeCaveatNames: []
+    },
     migrations: []
   };
 }
@@ -204,7 +263,12 @@ export function validatePolicyModel(model: PolicyModel): PolicyModelValidationRe
   addCheck(checkDenyRules(model, relationNames, actionNames));
   addCheck(checkTenantBoundary(model));
   addCheck(checkClassificationConstraints(model, actionNames));
-  addCheck(checkContextConstraints(model));
+  for (const check of checkContextConstraints(model)) {
+    addCheck(check);
+  }
+  addCheck(checkCaveats(model));
+  addCheck(checkConditionalRelationships(model, relationNames, actionNames));
+  addCheck(checkExplanationPolicy(model));
   addCheck(checkMigrations(model));
   addCheck(checkGeneratedMetadata(model));
 
@@ -372,20 +436,201 @@ function checkClassificationConstraints(model: PolicyModel, actionNames: Set<str
   return pass("classification_constraints_declared", "Classification constraints are declared and reference known actions.");
 }
 
-function checkContextConstraints(model: PolicyModel): PolicyModelValidationCheck {
+function checkContextConstraints(model: PolicyModel): PolicyModelValidationCheck[] {
   const unique = checkUnique("context_constraints_unique", model.contextConstraints.map((constraint) => constraint.key));
+
+  if (unique.status === "fail") {
+    return [unique];
+  }
+
+  for (const constraint of model.contextConstraints) {
+    if (!supportedContextTypes.has(constraint.type)) {
+      return [fail("context_constraint_types_known", `Context constraint ${constraint.key} has unsupported type ${String(constraint.type)}.`)];
+    }
+    if (constraint.min !== undefined && constraint.max !== undefined && constraint.min > constraint.max) {
+      return [fail("context_constraint_bounds_valid", `Context constraint ${constraint.key} declares min greater than max.`)];
+    }
+    if (constraint.maxLength !== undefined && (constraint.type !== "string" || constraint.maxLength < 1)) {
+      return [fail("context_constraint_bounds_valid", `Context constraint ${constraint.key} has an invalid maxLength bound.`)];
+    }
+    if (constraint.allowedValues) {
+      for (const value of constraint.allowedValues) {
+        if (!valueMatchesType(value, constraint.type)) {
+          return [fail("context_constraint_bounds_valid", `Context constraint ${constraint.key} has an allowed value with the wrong type.`)];
+        }
+      }
+    }
+  }
+
+  return [
+    pass("context_constraint_types_known", "Context constraint types are supported."),
+    pass("context_constraint_bounds_valid", "Context constraint bounds are valid.")
+  ];
+}
+
+function checkCaveats(model: PolicyModel): PolicyModelValidationCheck {
+  const caveats = model.caveats ?? [];
+  const contextConstraints = new Map(model.contextConstraints.map((constraint) => [constraint.key, constraint]));
+  const unique = checkUnique("policy_caveats_unique", caveats.map((caveat) => caveat.name));
 
   if (unique.status === "fail") {
     return unique;
   }
 
-  for (const constraint of model.contextConstraints) {
-    if (!supportedContextTypes.has(constraint.type)) {
-      return fail("context_constraint_types_known", `Context constraint ${constraint.key} has unsupported type ${String(constraint.type)}.`);
+  for (const caveat of caveats) {
+    if (caveat.failClosed !== true || !caveat.reasonCode) {
+      return fail("policy_caveats_fail_closed", `Policy caveat ${caveat.name} must declare a fail-closed reason code.`);
+    }
+    if (caveat.conditions.length === 0) {
+      return fail("policy_caveat_conditions_declared", `Policy caveat ${caveat.name} must declare at least one condition.`);
+    }
+    for (const condition of caveat.conditions) {
+      const conditionValidation = validateCaveatCondition(caveat, condition, contextConstraints);
+      if (conditionValidation) {
+        return conditionValidation;
+      }
     }
   }
 
-  return pass("context_constraint_types_known", "Context constraint types are supported.");
+  return pass("policy_caveats_fail_closed", "Policy caveats are typed and fail closed.");
+}
+
+function validateCaveatCondition(
+  caveat: PolicyModelCaveat,
+  condition: PolicyModelCaveatCondition,
+  contextConstraints: Map<string, PolicyModelContextConstraint>
+): PolicyModelValidationCheck | undefined {
+  if (!supportedContextTypes.has(condition.type) || !supportedCaveatOperators.has(condition.operator)) {
+    return fail("policy_caveat_conditions_typed", `Policy caveat ${caveat.name} uses an unsupported condition type or operator.`);
+  }
+  if (!operatorMatchesType(condition.operator, condition.type)) {
+    return fail("policy_caveat_conditions_typed", `Policy caveat ${caveat.name} uses operator ${condition.operator} with ${condition.type}.`);
+  }
+  if (!conditionValueMatchesType(condition.value, condition.type, condition.operator)) {
+    return fail("policy_caveat_conditions_typed", `Policy caveat ${caveat.name} compares ${condition.key} to a value with the wrong type.`);
+  }
+  if (condition.source === "context") {
+    const contextConstraint = contextConstraints.get(condition.key);
+    if (!contextConstraint) {
+      return fail("policy_caveat_context_known", `Policy caveat ${caveat.name} references unknown context key ${condition.key}.`);
+    }
+    if (contextConstraint.type !== condition.type) {
+      return fail("policy_caveat_conditions_typed", `Policy caveat ${caveat.name} type does not match context key ${condition.key}.`);
+    }
+    if (contextConstraint.required !== true || contextConstraint.auditable !== true) {
+      return fail("policy_caveat_context_auditable", `Policy caveat ${caveat.name} requires ${condition.key} to be required and auditable.`);
+    }
+    if (!contextConstraintIsBounded(contextConstraint, condition)) {
+      return fail("policy_caveat_context_bounded", `Policy caveat ${caveat.name} requires bounded context key ${condition.key}.`);
+    }
+  }
+  if (condition.source === "environment" && (condition.key !== "evaluatedAt" || condition.type !== "datetime")) {
+    return fail("policy_caveat_conditions_typed", `Policy caveat ${caveat.name} can only use environment.evaluatedAt datetime conditions.`);
+  }
+  return undefined;
+}
+
+function checkConditionalRelationships(
+  model: PolicyModel,
+  relationNames: Set<string>,
+  actionNames: Set<string>
+): PolicyModelValidationCheck {
+  const caveatNames = new Set((model.caveats ?? []).map((caveat) => caveat.name));
+
+  for (const conditional of model.conditionalRelationships ?? []) {
+    if (!relationNames.has(conditional.relation)) {
+      return fail("conditional_relationships_known", `Conditional relationship references unknown relation ${conditional.relation}.`);
+    }
+    if (conditional.caveats.length === 0) {
+      return fail("conditional_relationships_caveats_known", `Conditional relationship ${conditional.relation} must name at least one caveat.`);
+    }
+    for (const caveat of conditional.caveats) {
+      if (!caveatNames.has(caveat)) {
+        return fail("conditional_relationships_caveats_known", `Conditional relationship ${conditional.relation} references unknown caveat ${caveat}.`);
+      }
+    }
+    for (const action of conditional.actions ?? []) {
+      if (!actionNames.has(action)) {
+        return fail("conditional_relationships_actions_known", `Conditional relationship ${conditional.relation} references unknown action ${action}.`);
+      }
+    }
+  }
+
+  return pass("conditional_relationships_known", "Conditional relationships reference known relations, actions, and caveats.");
+}
+
+function checkExplanationPolicy(model: PolicyModel): PolicyModelValidationCheck {
+  const explanation = model.explanation;
+
+  if (!explanation) {
+    return pass("deterministic_explanation_policy", "No advanced explanation policy is declared.");
+  }
+  if (explanation.deterministic !== true) {
+    return fail("deterministic_explanation_policy", "Explanation policy must be deterministic.");
+  }
+
+  const contextKeys = new Set(model.contextConstraints.map((constraint) => constraint.key));
+  const caveatNames = new Set((model.caveats ?? []).map((caveat) => caveat.name));
+
+  for (const key of explanation.includeContextKeys) {
+    if (!contextKeys.has(key)) {
+      return fail("deterministic_explanation_policy", `Explanation policy references unknown context key ${key}.`);
+    }
+  }
+  for (const caveat of explanation.includeCaveatNames) {
+    if (!caveatNames.has(caveat)) {
+      return fail("deterministic_explanation_policy", `Explanation policy references unknown caveat ${caveat}.`);
+    }
+  }
+
+  return pass("deterministic_explanation_policy", "Explanation policy references known context keys and caveats.");
+}
+
+function operatorMatchesType(operator: PolicyModelCaveatOperator, type: PolicyModelContextType): boolean {
+  if (operator === "less_than_or_equal" || operator === "greater_than_or_equal") {
+    return type === "number";
+  }
+  if (operator === "before" || operator === "after") {
+    return type === "datetime";
+  }
+  return true;
+}
+
+function conditionValueMatchesType(
+  value: PolicyModelCaveatValue,
+  type: PolicyModelContextType,
+  operator: PolicyModelCaveatOperator
+): boolean {
+  if (operator === "one_of") {
+    return Array.isArray(value) && value.length > 0 && value.every((entry) => valueMatchesType(entry, type));
+  }
+  return !Array.isArray(value) && valueMatchesType(value, type);
+}
+
+function valueMatchesType(value: unknown, type: PolicyModelContextType): boolean {
+  if (type === "datetime") {
+    return typeof value === "string" && !Number.isNaN(Date.parse(value));
+  }
+  return typeof value === type;
+}
+
+function contextConstraintIsBounded(
+  constraint: PolicyModelContextConstraint,
+  condition: PolicyModelCaveatCondition
+): boolean {
+  if (constraint.type === "boolean") {
+    return true;
+  }
+  if (constraint.allowedValues && constraint.allowedValues.length > 0) {
+    return true;
+  }
+  if (constraint.type === "number") {
+    return constraint.min !== undefined && constraint.max !== undefined;
+  }
+  if (constraint.type === "string") {
+    return constraint.maxLength !== undefined && constraint.maxLength > 0;
+  }
+  return condition.operator === "before" || condition.operator === "after";
 }
 
 function checkMigrations(model: PolicyModel): PolicyModelValidationCheck {

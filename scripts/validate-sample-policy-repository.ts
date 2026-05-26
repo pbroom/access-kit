@@ -161,6 +161,7 @@ for (const artifact of manifest.models) {
 if (!models.has(manifest.currentPolicyVersion)) {
   throw new Error(`Current policy version ${manifest.currentPolicyVersion} is not listed in model artifacts.`);
 }
+requireAdvancedPolicyBoundary(models.get(manifest.currentPolicyVersion)!, manifest.currentPolicyVersion);
 
 for (const artifact of manifest.migrations) {
   const migration = await readSampleJson<MigrationFile>(artifact.path);
@@ -231,7 +232,8 @@ for (const artifact of manifest.regressionSnapshots) {
     const engine = new RebacDecisionEngine(new InMemoryRebacStore(storeSeed), {
       now: () => evaluatedAt,
       policyVersion: snapshot.policyVersion,
-      relationshipVersion: snapshot.relationshipVersion
+      relationshipVersion: snapshot.relationshipVersion,
+      policyModel: models.get(snapshot.policyVersion)
     });
     const actual = toExpectedDecision(engine.explain(testCase.request));
     assertJsonEqual(`${artifact.path} case ${testCase.name}`, actual, testCase.expected);
@@ -328,6 +330,24 @@ function requireTenantAndClassificationBoundaries(model: PolicyModel, path: stri
     if (!classifications.has(required)) {
       throw new Error(`${path} must include a ${required} classification constraint.`);
     }
+  }
+}
+
+function requireAdvancedPolicyBoundary(model: PolicyModel, policyVersion: string): void {
+  const caveatNames = new Set((model.caveats ?? []).map((caveat) => caveat.name));
+  const conditionalRelations = new Set((model.conditionalRelationships ?? []).map((entry) => entry.relation));
+  const contextKeys = new Set(model.contextConstraints.map((constraint) => constraint.key));
+
+  for (const required of ["riskScore", "deviceTrustLevel", "accessTime"]) {
+    if (!contextKeys.has(required)) {
+      throw new Error(`${policyVersion} must include ${required} as an advanced policy context input.`);
+    }
+  }
+  if (!conditionalRelations.has("reader_of") || caveatNames.size === 0) {
+    throw new Error(`${policyVersion} must demonstrate conditional reader relationships with fail-closed caveats.`);
+  }
+  if (model.explanation?.deterministic !== true || model.explanation.includeCaveatNames.length === 0) {
+    throw new Error(`${policyVersion} must declare deterministic advanced policy explanation output.`);
   }
 }
 

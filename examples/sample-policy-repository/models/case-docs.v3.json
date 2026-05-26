@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "access-kit.policy-model.v1",
+  "id": "policy-model:case-docs",
+  "version": "policy:case-docs-v3",
+  "resourceTypes": [
+    { "type": "organization", "classifications": ["internal"] },
+    { "type": "workspace", "allowedParentTypes": ["organization"], "classifications": ["internal"] },
+    { "type": "folder", "allowedParentTypes": ["workspace", "folder"], "classifications": ["internal", "confidential", "restricted"] },
+    { "type": "document", "allowedParentTypes": ["workspace", "folder"], "classifications": ["internal", "confidential", "restricted"] },
+    { "type": "dataset", "allowedParentTypes": ["workspace"], "classifications": ["internal", "confidential", "restricted"] },
+    { "type": "api", "allowedParentTypes": ["organization"], "classifications": ["internal"] }
+  ],
+  "relations": [
+    { "name": "member_of", "kind": "membership", "subjectTypes": ["user", "group"], "objectTypes": ["group"] },
+    { "name": "contains", "kind": "containment", "subjectTypes": ["organization", "workspace", "folder"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] },
+    { "name": "viewer_of", "kind": "grant", "subjectTypes": ["user", "group", "service_account"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] },
+    { "name": "reader_of", "kind": "grant", "subjectTypes": ["user", "group", "service_account"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] },
+    { "name": "contributor_to", "kind": "grant", "subjectTypes": ["user", "group", "service_account"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] },
+    { "name": "owner_of", "kind": "grant", "subjectTypes": ["user", "group", "service_account"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] },
+    { "name": "admin_of", "kind": "grant", "subjectTypes": ["user", "group", "service_account"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] },
+    { "name": "denied", "kind": "deny", "subjectTypes": ["user", "group", "service_account"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] },
+    { "name": "denied_read", "kind": "deny", "subjectTypes": ["user", "group", "service_account"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] },
+    { "name": "quarantined_from", "kind": "deny", "subjectTypes": ["user", "group", "service_account"], "objectTypes": ["workspace", "folder", "document", "dataset", "api"] }
+  ],
+  "actions": [
+    { "name": "read", "grants": ["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"] },
+    { "name": "view", "grants": ["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"] },
+    { "name": "write", "grants": ["contributor_to", "owner_of", "admin_of"] },
+    { "name": "contribute", "grants": ["contributor_to", "owner_of", "admin_of"] },
+    { "name": "admin", "grants": ["owner_of", "admin_of"] },
+    { "name": "administer", "grants": ["owner_of", "admin_of"] },
+    { "name": "manage", "grants": ["owner_of", "admin_of"] }
+  ],
+  "inheritanceRules": [
+    {
+      "name": "group-membership-grants",
+      "relation": "member_of",
+      "through": "member_of",
+      "actions": ["read", "view", "write", "contribute", "admin", "administer", "manage"]
+    },
+    {
+      "name": "container-resource-grants",
+      "relation": "contains",
+      "through": "contains",
+      "actions": ["read", "view", "write", "contribute", "admin", "administer", "manage"]
+    }
+  ],
+  "denyRules": [
+    { "name": "explicit-deny", "relation": "denied", "precedence": "override" },
+    { "name": "read-deny", "relation": "denied_read", "actions": ["read", "view"], "precedence": "override" },
+    { "name": "quarantine-deny", "relation": "quarantined_from", "precedence": "override" }
+  ],
+  "contextConstraints": [
+    { "key": "purpose", "type": "string", "required": true, "auditable": true, "maxLength": 64 },
+    { "key": "riskScore", "type": "number", "required": true, "auditable": true, "min": 0, "max": 100 },
+    { "key": "businessJustification", "type": "string", "required": true, "auditable": true, "maxLength": 128 },
+    { "key": "supportEscalationApproved", "type": "boolean", "required": true, "auditable": true },
+    { "key": "deviceTrustLevel", "type": "string", "required": true, "auditable": true, "maxLength": 32, "allowedValues": ["managed", "trusted"] },
+    { "key": "accessTime", "type": "datetime", "required": true, "auditable": true }
+  ],
+  "classificationConstraints": [
+    { "classification": "internal", "allowedActions": ["read", "view", "write", "contribute", "admin", "administer", "manage"] },
+    { "classification": "confidential", "allowedActions": ["read", "view", "write", "contribute", "admin", "administer", "manage"] },
+    { "classification": "restricted", "allowedActions": ["read", "view"] }
+  ],
+  "tenantBoundary": {
+    "key": "tenantId",
+    "source": "resource",
+    "crossTenantTraversal": false
+  },
+  "caveats": [
+    {
+      "name": "managed_low_risk_read",
+      "failClosed": true,
+      "reasonCode": "DENY_POLICY_CAVEAT_UNSATISFIED",
+      "conditions": [
+        { "source": "context", "key": "riskScore", "type": "number", "operator": "less_than_or_equal", "value": 35 },
+        { "source": "context", "key": "deviceTrustLevel", "type": "string", "operator": "one_of", "value": ["managed", "trusted"] },
+        { "source": "context", "key": "accessTime", "type": "datetime", "operator": "after", "value": "2026-05-26T00:00:00.000Z" },
+        { "source": "context", "key": "accessTime", "type": "datetime", "operator": "before", "value": "2026-05-27T00:00:00.000Z" },
+        { "source": "subject", "key": "lifecycleState", "type": "string", "operator": "equals", "value": "active" },
+        { "source": "resource", "key": "classification", "type": "string", "operator": "one_of", "value": ["internal", "confidential", "restricted"] }
+      ]
+    }
+  ],
+  "conditionalRelationships": [
+    {
+      "relation": "reader_of",
+      "actions": ["read", "view"],
+      "caveats": ["managed_low_risk_read"]
+    }
+  ],
+  "explanation": {
+    "deterministic": true,
+    "includeContextKeys": ["riskScore", "deviceTrustLevel", "accessTime"],
+    "includeCaveatNames": ["managed_low_risk_read"]
+  },
+  "migrations": [],
+  "metadata": {
+    "sample": true,
+    "domain": "case-docs",
+    "owner": "platform-access-team"
+  }
+}

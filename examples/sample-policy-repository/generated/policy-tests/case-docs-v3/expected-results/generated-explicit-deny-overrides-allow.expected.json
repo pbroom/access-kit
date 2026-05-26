@@ -1,0 +1,18 @@
+{
+  "decision": "deny",
+  "reasonCode": "DENY_EXPLICIT_OVERRIDE",
+  "policyVersion": "policy:case-docs-v3",
+  "relationshipVersion": "generated:tuple-set:case-docs-v3",
+  "relationshipPath": [
+    {
+      "subjectId": "user:generated-reviewer",
+      "relation": "member_of",
+      "objectId": "group:generated-review-team"
+    },
+    {
+      "subjectId": "group:generated-review-team",
+      "relation": "denied",
+      "objectId": "document:generated-denied-report"
+    }
+  ]
+}

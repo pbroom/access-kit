@@ -1,0 +1,163 @@
+{
+  "policyVersion": "policy:case-docs-v3",
+  "relationshipVersion": "tuple-set:case-docs-v3",
+  "subjects": [
+    {
+      "id": "user:alice",
+      "type": "user",
+      "displayName": "Alice Example",
+      "sourceSystem": "sample-policy-repo",
+      "lifecycleState": "active",
+      "identifiers": {
+        "sampleEmployeeId": "E-1001"
+      },
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "subject:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "user:eve",
+      "type": "user",
+      "displayName": "Eve Example",
+      "sourceSystem": "sample-policy-repo",
+      "lifecycleState": "active",
+      "identifiers": {
+        "sampleEmployeeId": "E-2001"
+      },
+      "attributes": {
+        "tenantId": "tenant:b"
+      },
+      "version": "subject:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "group:case-team",
+      "type": "group",
+      "displayName": "Case Team",
+      "sourceSystem": "sample-policy-repo",
+      "lifecycleState": "active",
+      "identifiers": {
+        "sampleGroupId": "case-team"
+      },
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "subject:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    }
+  ],
+  "resources": [
+    {
+      "id": "organization:sample",
+      "type": "organization",
+      "displayName": "Sample Organization",
+      "sourceSystem": "sample-policy-repo",
+      "ownerId": "user:alice",
+      "dataStewardId": "user:alice",
+      "technicalOwnerId": "user:alice",
+      "classification": "internal",
+      "lifecycleState": "active",
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "resource:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "workspace:case",
+      "type": "workspace",
+      "displayName": "Case Workspace",
+      "sourceSystem": "sample-policy-repo",
+      "ownerId": "user:alice",
+      "dataStewardId": "user:alice",
+      "technicalOwnerId": "user:alice",
+      "classification": "internal",
+      "lifecycleState": "active",
+      "parentId": "organization:sample",
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "resource:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "document:case-plan",
+      "type": "document",
+      "displayName": "Case Plan",
+      "sourceSystem": "sample-policy-repo",
+      "ownerId": "user:alice",
+      "dataStewardId": "user:alice",
+      "technicalOwnerId": "user:alice",
+      "classification": "confidential",
+      "lifecycleState": "active",
+      "parentId": "workspace:case",
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "resource:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "document:foreign-plan",
+      "type": "document",
+      "displayName": "Foreign Plan",
+      "sourceSystem": "sample-policy-repo",
+      "ownerId": "user:eve",
+      "dataStewardId": "user:eve",
+      "technicalOwnerId": "user:eve",
+      "classification": "confidential",
+      "lifecycleState": "active",
+      "attributes": {
+        "tenantId": "tenant:b"
+      },
+      "version": "resource:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "relationship:alice-case-team",
+      "subjectId": "user:alice",
+      "relation": "member_of",
+      "objectId": "group:case-team",
+      "sourceSystem": "sample-policy-repo",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "tuple:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "relationship:case-team-workspace-reader",
+      "subjectId": "group:case-team",
+      "relation": "reader_of",
+      "objectId": "workspace:case",
+      "sourceSystem": "sample-policy-repo",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "tuple:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "relationship:workspace-case-plan",
+      "subjectId": "workspace:case",
+      "relation": "contains",
+      "objectId": "document:case-plan",
+      "sourceSystem": "sample-policy-repo",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "tuple:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    }
+  ]
+}

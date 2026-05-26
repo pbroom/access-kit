@@ -61,6 +61,15 @@
       "type": "array",
       "items": { "$ref": "#/$defs/migration" }
     },
+    "caveats": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/caveat" }
+    },
+    "conditionalRelationships": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/conditionalRelationship" }
+    },
+    "explanation": { "$ref": "#/$defs/explanationPolicy" },
     "metadata": {
       "type": "object",
       "additionalProperties": true
@@ -194,8 +203,23 @@
       "required": ["key", "type"],
       "properties": {
         "key": { "type": "string", "minLength": 1 },
-        "type": { "type": "string", "enum": ["string", "number", "boolean"] },
-        "required": { "type": "boolean" }
+        "type": { "type": "string", "enum": ["string", "number", "boolean", "datetime"] },
+        "required": { "type": "boolean" },
+        "auditable": { "type": "boolean" },
+        "min": { "type": "number" },
+        "max": { "type": "number" },
+        "maxLength": { "type": "integer", "minimum": 1 },
+        "allowedValues": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" }
+            ]
+          }
+        }
       }
     },
     "classificationConstraint": {
@@ -232,6 +256,95 @@
           "type": "array",
           "minItems": 1,
           "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "caveatValue": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "number" }
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "boolean" }
+        }
+      ]
+    },
+    "caveatCondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key", "type", "operator", "value"],
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["subject", "resource", "relationship", "context", "environment"]
+        },
+        "key": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["string", "number", "boolean", "datetime"] },
+        "operator": {
+          "type": "string",
+          "enum": ["equals", "one_of", "less_than_or_equal", "greater_than_or_equal", "before", "after"]
+        },
+        "value": { "$ref": "#/$defs/caveatValue" }
+      }
+    },
+    "caveat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "failClosed", "reasonCode", "conditions"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "failClosed": { "type": "boolean", "const": true },
+        "reasonCode": { "type": "string", "minLength": 1 },
+        "conditions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/caveatCondition" }
+        }
+      }
+    },
+    "conditionalRelationship": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation", "caveats"],
+      "properties": {
+        "relation": { "$ref": "#/$defs/name" },
+        "caveats": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/name" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/name" }
+        }
+      }
+    },
+    "explanationPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deterministic", "includeContextKeys", "includeCaveatNames"],
+      "properties": {
+        "deterministic": { "type": "boolean", "const": true },
+        "includeContextKeys": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "includeCaveatNames": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/name" }
         }
       }
     }
