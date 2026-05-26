@@ -43,6 +43,8 @@ Every decision, denial, grant, revoke, policy change, connector action, admin ac
 
 Phase 5 evidence exports include local system-boundary, data-flow, access-review, exception, incident, break-glass, backup/restore, dependency, vulnerability, and configuration-baseline proof points. These are synthetic evidence contracts for assessor review; production workflows still require deployment-specific approvals, retention, recovery testing, and security tooling.
 
+Production graph and connector-state adapters reject malformed hash envelopes, secret-bearing records, and cross-tenant persisted entities before serving data. The connector-state adapter remains separate from the future durable queue boundary, so storing discovery and reconciliation history does not authorize live writes or imply job-execution readiness.
+
 ## Privacy
 
 Store only the minimum operational identity and resource metadata needed for authorization, evidence, and reconciliation. Redact tokens, claims, emails, object names, and sensitive classifications from logs unless they are required evidence fields.

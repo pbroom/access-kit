@@ -62,5 +62,5 @@ Before traffic is shifted, verify:
 - Registry retention and promotion controls.
 - Identity-provider-backed API authentication and operator authorization.
 - Approved secrets delivery.
-- Durable graph storage and append-only audit storage.
+- Environment-specific graph, connector-state, queue, and append-only audit storage drivers behind the validated adapter contracts.
 - Agency-specific change-management and release approvals.

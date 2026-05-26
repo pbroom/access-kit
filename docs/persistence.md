@@ -44,13 +44,20 @@ When the API runtime receives `REBAC_STATE_PATH`, `createLocalRuntimePersistence
 
 `LocalJsonFileJobRepository` is the first concrete job adapter behind `RebacJobRepository`. It persists discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation runs, and decision records to a hash-checked JSON snapshot. It supports idempotency-key lookups for plans and jobs, stable overwrite by record identifier, and atomic local snapshot replacement. It advertises queue/idempotency/transaction/backup proof-point capabilities, but it does not claim production durability.
 
+`ProductionGraphStoreAdapter` is the production graph contract adapter. It is backed by an injected external snapshot store so a selected graph database or relational graph projection can supply the storage driver later without changing authorization semantics. The adapter stores only subjects, resources, relationship tuples, native grants, backup metadata, and a hash envelope. It advertises `external_graph`, rejects malformed or tampered stored payloads before serving data, rejects secret-bearing records, requires tenant-boundary attributes on persisted subjects and resources, and keeps backend-specific behavior out of authorization decisions.
+
+`ProductionConnectorStateStoreAdapter` is the production connector-state contract adapter. It persists discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation evidence, decisions, backup metadata, and a hash envelope through an injected external snapshot store. It intentionally describes itself as `external_connector_state`, not `external_queue`; durable queue execution remains the AK-036 boundary. The adapter exists so connector state can be stored behind the current runtime repository methods while the later job-runtime slice selects queue semantics.
+
+`tests/core/repository-conformance.test.ts` runs the shared graph and connector-state repository conformance suite against the in-memory proof-point adapter, the local JSON adapters, and the production external adapters. Adapter-specific tamper, malformed payload, tenant-boundary, secret-material, descriptor, and backup/restore checks remain explicit production tests.
+
 ## Future Adapters
 
 Production adapters should be added behind the same contracts:
 
-- graph database or relational graph projection for subjects, resources, relationship tuples, and native grants
+- selected graph database or relational graph projection driver for subjects, resources, relationship tuples, and native grants
 - WORM or immutable ledger-backed audit storage with production durability, retention, and backup/restore evidence
-- durable queue/job storage for discovery, reconciliation, provisioning, decision recording, and evidence work
+- selected connector-state storage driver for discovery, reconciliation, provisioning, decision recording, and evidence history
+- durable queue/job storage for execution, retries, dead letters, and replay
 - environment-specific backup, restore, retention, and migration evidence
 
 No live provider write path should depend on local JSON snapshots, local JSONL audit files, or in-memory repositories. Local graph, audit, and job persistence are development and validation adapters, not production approval paths. The manifest evidence under `deploy/persistence/` is synthetic and must be replaced by deployment-specific IaC outputs and retained approval evidence before production use.
