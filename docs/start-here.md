@@ -52,6 +52,7 @@ pnpm ci:check
 | Sample connector template | `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` | Copyable read-only connector implementation with synthetic fixtures and tests. |
 | Production reference architecture | `docs/production-reference-architecture.md`, `deploy/overlays/production-reference/` | Local-to-production deployment map, Kubernetes overlay shape, RTO/RPO evidence, and external-control boundaries. |
 | HA and degraded-mode operations | `docs/ha-degraded-mode-operations.md`, `runbooks/degraded-mode-operations.md` | Fail-closed resilience, queue backpressure, audit-forwarder outage, read-only fallback, health signals, and recovery criteria. |
+| Demo seed harness | `packages/core/src/demo-seed.ts`, `examples/demo-seed-harness.json`, [Demo Seed Harness](demo-seed-harness.md) | Synthetic local subjects, resources, relationships, policy fixture, decision presets, and evidence labels for quickstart and evaluation paths. |
 | Policy model | `schemas/policy-model.schema.json`, `packages/core/src/policy-model.ts` | Versioned model shape and deterministic validation rules. |
 | Policy proof points | `tests/fixtures/policy/proof-points.json` | Deterministic authorization behaviors under test. |
 | Decision cache semantics | `docs/decision-cache-semantics.md`, `packages/core/src/decision-runtime.ts` | PEP cache key, TTL, invalidation, fail-closed, and auditability contract. |
