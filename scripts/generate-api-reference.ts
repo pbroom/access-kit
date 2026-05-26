@@ -63,7 +63,7 @@ function renderApiReference(
     "",
     "## Versioning And Deprecation",
     "",
-    String(asRecord(document.info["x-access-kit-versioning"], "OpenAPI versioning extension").deprecationPolicy).trim(),
+    readDeprecationPolicy(document),
     "",
     "## Example Artifacts",
     "",
@@ -232,6 +232,17 @@ function asRecord(value: unknown, label: string): Record<string, unknown> {
   }
 
   return value as Record<string, unknown>;
+}
+
+function readDeprecationPolicy(document: OpenApiDocument): string {
+  const versioning = asRecord(document.info["x-access-kit-versioning"], "OpenAPI versioning extension");
+  const deprecationPolicy = versioning.deprecationPolicy;
+
+  if (typeof deprecationPolicy !== "string") {
+    throw new Error("OpenAPI x-access-kit-versioning.deprecationPolicy must be a string.");
+  }
+
+  return deprecationPolicy.trim();
 }
 
 function asOptionalRecord(value: unknown): Record<string, unknown> | undefined {
