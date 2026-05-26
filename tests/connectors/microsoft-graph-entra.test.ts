@@ -287,6 +287,35 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     ]);
   });
 
+  it("caps Microsoft Graph retryAfterSeconds before sleeping", async () => {
+    const client = new FixtureGraphClient({
+      "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
+        { value: [], status: 429, retryAfterSeconds: 3600 },
+        { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 }
+      ],
+      "/groups?$select=id,displayName,securityEnabled,groupTypes,deletedDateTime": [
+        { value: [], status: 200 }
+      ],
+      "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
+        { value: [], status: 200 }
+      ]
+    });
+    const sleeps: number[] = [];
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client,
+      tenantId: "tenant-live-123",
+      now: () => now,
+      maxRetries: 1,
+      sleep: async (milliseconds) => {
+        sleeps.push(milliseconds);
+      }
+    });
+
+    await connector.discoverSubjects();
+
+    expect(sleeps).toEqual([60_000]);
+  });
+
   it("derives connector evidence periods from source audit events and falls back to now", async () => {
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
       client: createFixtureClient(),

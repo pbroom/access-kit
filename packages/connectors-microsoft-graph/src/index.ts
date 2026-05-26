@@ -907,9 +907,11 @@ function readRetryAfter(response: Response): number | undefined {
   return Number.isFinite(retryAfter) ? retryAfter : undefined;
 }
 
+const MAX_RETRY_AFTER_MILLISECONDS = 60_000;
+
 function retryAfterSecondsToMilliseconds(value: number | undefined): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
-    ? Math.ceil(value * 1000)
+    ? Math.min(Math.ceil(value * 1000), MAX_RETRY_AFTER_MILLISECONDS)
     : 0;
 }
 
