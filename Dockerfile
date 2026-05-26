@@ -10,6 +10,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 COPY packages/api/package.json packages/api/package.json
 COPY packages/api-contracts/package.json packages/api-contracts/package.json
 COPY packages/cli/package.json packages/cli/package.json
+COPY packages/connectors-aws/package.json packages/connectors-aws/package.json
 COPY packages/connectors-mock/package.json packages/connectors-mock/package.json
 COPY packages/connectors-microsoft-graph/package.json packages/connectors-microsoft-graph/package.json
 COPY packages/core/package.json packages/core/package.json
@@ -18,6 +19,7 @@ RUN pnpm install --frozen-lockfile
 FROM deps AS build
 COPY tsconfig.json ./
 COPY packages/api packages/api
+COPY packages/connectors-aws packages/connectors-aws
 COPY packages/connectors-mock packages/connectors-mock
 COPY packages/connectors-microsoft-graph packages/connectors-microsoft-graph
 COPY packages/core packages/core

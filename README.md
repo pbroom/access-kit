@@ -10,7 +10,7 @@ The current repository is a local proof point. It is built for contract validati
 - Exposes an OpenAPI-shaped local API runtime plus a `rebac-api` service entrypoint.
 - Provides a `rebac` CLI command tree that calls the API instead of evaluating authorization locally.
 - Models subjects, resources, relationships, policies, provisioning plans, reconciliation findings, audit records, evidence exports, and connector state.
-- Includes mock and synthetic read-only connector fixtures for Entra ID, SharePoint, and AWS-style access discovery without live tenant access.
+- Includes mock and synthetic read-only connector fixtures plus optional Microsoft Graph and AWS read-only connector foundations for sandbox evidence without provider writes.
 - Supports dry-run provisioning and synthetic-only controlled enforcement through explicit readiness, approval, incident-mode, rollback, and break-glass guardrails.
 - Produces validation evidence, audit-integrity checks, SIEM-ready audit export shapes, and local ATO evidence package flows.
 - Tracks implementation slices in a durable backlog and includes steward scripts for PR status, stack readiness, labels, and next-slice selection.
@@ -127,6 +127,8 @@ pnpm pr:stack
 | `packages/api/` | HTTP API runtime, persistence wiring, readiness checks, and `rebac-api` service entrypoint. |
 | `packages/api-contracts/` | Contract and schema manifest exports. |
 | `packages/cli/` | CLI command contract and operator CLI implementation. |
+| `packages/connectors-aws/` | Optional AWS read-only access-analysis connector for IAM Identity Center assignments, AWS accounts/roles, CloudTrail activity, and Access Analyzer findings. |
+| `packages/connectors-microsoft-graph/` | Optional Microsoft Graph Entra read-only connector for sandbox user, group, service-principal, and app-role readback. |
 | `packages/connectors-mock/` | Mock and synthetic provider connectors implementing the adapter boundary. |
 | `packages/connectors-sample-readonly/` | Copyable sample read-only connector template with redacted fixtures and contract tests. |
 | `scripts/` | Validation, evidence-generation, steward, and stack-readiness commands. |

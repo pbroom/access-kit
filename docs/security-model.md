@@ -20,7 +20,7 @@ Break-glass access is an emergency workflow, not a standing role. Production dep
 
 ## Secrets
 
-Live connector credentials are not part of the default local proof point. The optional Microsoft Graph Entra read-only connector may be enabled for a sandbox tenant with a short-lived token or token file, but production connector credentials must use managed identities where possible, vault-backed secrets where needed, documented rotation, and no secret material in logs, fixtures, reports, or CI variables.
+Live connector credentials are not part of the default local proof point. The optional Microsoft Graph Entra read-only connector may be enabled for a sandbox tenant with a short-lived token or token file, and the optional AWS read-only access-analysis connector may be enabled with a redacted sandbox fixture or reviewed read-client boundary. Production connector credentials must use managed identities or provider roles where possible, vault-backed secrets where needed, documented rotation, and no secret material in logs, fixtures, reports, or CI variables.
 
 ## Read-Only Discovery
 
@@ -29,6 +29,8 @@ Phase 2 connector sync is restricted to `read_only`. It may discover inventory a
 The synthetic Entra ID, SharePoint, and AWS-style connectors use synthetic IDs, read scopes, tenant boundaries, subjects, resources, grants, warnings, and cursors. They exist to prove contract shape and security boundaries without secrets, production users, tenant IDs, account IDs, or provider API calls.
 
 The Microsoft Graph Entra foundation is different: it can call Microsoft Graph when explicitly configured for a sandbox tenant. It maps users, groups, service principals, and app-role assignments into redacted subjects, resources, relationships, and observed native grants. Missing sandbox evidence, pagination, throttling, limited objects, and unsupported readback behavior are recorded as warnings instead of becoming unqualified canonical facts.
+
+The AWS read-only access-analysis foundation follows the same read-only evidence model for IAM Identity Center assignments, AWS Organizations account boundaries, IAM roles, CloudTrail activity, and Access Analyzer findings. Runtime registration requires explicit AWS sandbox fixture configuration in this repository slice, tombstones are marked instead of dropped, and Access Analyzer findings remain drift evidence for review rather than intended authorization state.
 
 Connector registrations must pass `pnpm validate:connector-security`. The gate requires explicit identity, consent, tenant-boundary, least-privilege read-scope, pagination, throttling, deletion, coverage-warning, secret-handling, and no-write evidence before future live connector slices can build on the adapter.
 

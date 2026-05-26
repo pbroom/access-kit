@@ -4,6 +4,7 @@ import {
   SyntheticEntraConnector,
   SyntheticSharePointConnector
 } from "@access-kit/connectors-mock";
+import { createAwsReadOnlyAccessAnalysisConnectorFromEnv } from "@access-kit/connectors-aws";
 import { createMicrosoftGraphEntraReadOnlyConnectorFromEnv } from "@access-kit/connectors-microsoft-graph";
 import type { ConnectorAdapter } from "@access-kit/core";
 
@@ -18,7 +19,12 @@ export function createRuntimeConnectors(options: RuntimeConnectorOptions = {}): 
     new SyntheticSharePointConnector(),
     new SyntheticAwsConnector()
   ];
+  const awsConnector = createAwsReadOnlyAccessAnalysisConnectorFromEnv(options.env ?? process.env);
   const microsoftGraphConnector = createMicrosoftGraphEntraReadOnlyConnectorFromEnv(options.env ?? process.env);
+
+  if (awsConnector) {
+    connectors.push(awsConnector);
+  }
 
   if (microsoftGraphConnector) {
     connectors.push(microsoftGraphConnector);
