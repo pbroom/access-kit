@@ -94,6 +94,7 @@ export const automationContract = {
         "validate:release-packaging",
         "validate:deployment-manifests",
         "validate:persistence-deployment",
+        "validate:secure-sdlc",
         "test"
       ]
     },
@@ -110,6 +111,7 @@ export const automationContract = {
         "validate:release-packaging",
         "validate:deployment-manifests",
         "validate:persistence-deployment",
+        "validate:secure-sdlc",
         "typecheck",
         "lint",
         "test",
@@ -138,6 +140,10 @@ export const automationContract = {
     {
       name: "validate:connector-security",
       command: "node --conditions=types --import tsx scripts/validate-connector-security-gate.ts"
+    },
+    {
+      name: "validate:secure-sdlc",
+      command: "tsx scripts/validate-secure-sdlc-evidence.ts"
     }
   ],
   nodeImportTsxScripts: [
@@ -225,7 +231,8 @@ export const automationContract = {
               "pnpm validate:packaging",
               "pnpm validate:release-packaging",
               "pnpm validate:deployment-manifests",
-              "pnpm validate:persistence-deployment"
+              "pnpm validate:persistence-deployment",
+              "pnpm validate:secure-sdlc"
             ]
           },
           {
@@ -293,6 +300,7 @@ export const automationContract = {
       { name: "deployment manifest validation", args: ["validate:deployment-manifests"] },
       { name: "persistence deployment evidence validation", args: ["validate:persistence-deployment"] },
       { name: "runbook exercise evidence validation", args: ["validate:runbook-exercises"] },
+      { name: "secure SDLC release evidence validation", args: ["validate:secure-sdlc"] },
       { name: "core engine tests", args: ["test:core"] },
       { name: "API runtime tests", args: ["test:api"] },
       { name: "connector package tests", args: ["exec", "vitest", "run", "tests/connectors"] },
@@ -310,6 +318,7 @@ export const automationContract = {
       "Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.",
       "Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.",
       "Runbook exercise evidence validation for rehearsed incident response, break-glass, backup/restore, contingency, emergency revocation, SIEM replay, and post-action review evidence records with redaction and non-production classification checks.",
+      "Secure SDLC release evidence validation for SAST, DAST, dependency scanning, SBOM/provenance, fuzzing, tenant-isolation abuse tests, threat-model refresh, vulnerability triage, and NIST SSDF evidence.",
       "Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.",
       "API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.",
       "Connector package tests for Microsoft Graph Entra and AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.",

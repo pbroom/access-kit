@@ -40,7 +40,7 @@ For pre-submit confidence, run the full CI-equivalent gate:
 pnpm ci:check
 ```
 
-`pnpm validate` runs type checking, contract validation, automation validation, CI workflow validation, packaging/release packaging validation, deployment manifest validation, persistence deployment evidence validation, and the core/API/CLI test suite.
+`pnpm validate` runs type checking, contract validation, automation validation, CI workflow validation, packaging/release packaging validation, deployment manifest validation, persistence deployment evidence validation, secure SDLC release evidence validation, and the core/API/CLI test suite.
 
 `pnpm ci:check` adds docs validation, lint, build, and evidence freshness checks.
 

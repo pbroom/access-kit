@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T02:44:43.454Z
+Generated at: 2026-05-28T02:51:36.922Z
 
-Branch: codex/rebac-oscal-signed-evidence
+Branch: 
 
 Node: v24.4.1
 
@@ -10,21 +10,22 @@ pnpm: 10.30.3
 
 ## Summary
 
-All proof-point validation commands passed.
+2 proof-point validation command(s) failed.
 
 | Proof point | Command | Result |
 | --- | --- | --- |
-| typecheck | `corepack pnpm typecheck` | PASS |
+| typecheck | `corepack pnpm typecheck` | FAIL |
 | schema validation | `corepack pnpm validate:schemas` | PASS |
 | OpenAPI validation | `corepack pnpm validate:openapi` | PASS |
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
-| connector security gate validation | `corepack pnpm validate:connector-security` | PASS |
+| connector security gate validation | `corepack pnpm validate:connector-security` | FAIL |
 | CLI command contract | `corepack pnpm validate:cli-contract` | PASS |
 | container packaging validation | `corepack pnpm validate:packaging` | PASS |
 | release packaging validation | `corepack pnpm validate:release-packaging` | PASS |
 | deployment manifest validation | `corepack pnpm validate:deployment-manifests` | PASS |
 | persistence deployment evidence validation | `corepack pnpm validate:persistence-deployment` | PASS |
 | runbook exercise evidence validation | `corepack pnpm validate:runbook-exercises` | PASS |
+| secure SDLC release evidence validation | `corepack pnpm validate:secure-sdlc` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
 | connector package tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
@@ -35,14 +36,29 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsc --noEmit
+
+packages/api/src/runtime-connectors.ts(7,65): error TS2307: Cannot find module '@access-kit/connectors-aws' or its corresponding type declarations.
+packages/connectors-aws/src/index.ts(24,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
+packages/connectors-aws/src/index.ts(488,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
+packages/connectors-sample-readonly/src/index.ts(21,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
+packages/connectors-sample-readonly/src/index.ts(335,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(158,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(203,62): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(241,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(278,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(413,73): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(68,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(161,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(208,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+ ELIFECYCLE  Command failed with exit code 2.
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsx scripts/validate-schemas.ts
 
 Validated 18 schemas and 18 example fixtures.
@@ -69,10 +85,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-oscal-signed-evidence/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-secure-sdlc-evidence/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -84,7 +100,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -107,36 +123,51 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
-Validated connector security gates for 4 connector(s).
-PASS mock: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS entra-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS sharepoint-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+ ELIFECYCLE  Command failed with exit code 1.
+
+node:internal/modules/run_main:105
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@access-kit/connectors-aws' imported from /Users/peterbroomfield/access-kit-secure-sdlc-evidence/packages/api/src/runtime-connectors.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
+    at packageResolve (node:internal/modules/esm/resolve:767:81)
+    at moduleResolve (node:internal/modules/esm/resolve:853:18)
+    at defaultResolve (node:internal/modules/esm/resolve:983:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///Users/peterbroomfield/access-kit-secure-sdlc-evidence/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:8037)
+    at resolveDirectory (file:///Users/peterbroomfield/access-kit-secure-sdlc-evidence/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:9124)
+    at resolveTsPaths (file:///Users/peterbroomfield/access-kit-secure-sdlc-evidence/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:10581)
+    at resolve2 (file:///Users/peterbroomfield/access-kit-secure-sdlc-evidence/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:11864)
+    at nextResolve (node:internal/modules/esm/hooks:748:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.4.1
 ```
 
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-oscal-signed-evidence
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  22:44:37
-   Duration  321ms (transform 148ms, setup 0ms, import 236ms, tests 23ms, environment 0ms)
+   Start at  22:51:31
+   Duration  296ms (transform 130ms, setup 0ms, import 209ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -147,7 +178,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -158,7 +189,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -169,7 +200,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -180,7 +211,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -188,64 +219,75 @@ PASS Runbook rehearsal evidence covers incident response, break-glass, backup/re
 PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor-approved production evidence.
 ```
 
+### secure SDLC release evidence validation
+
+```text
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-secure-sdlc-evidence
+> tsx scripts/validate-secure-sdlc-evidence.ts
+
+Validated secure SDLC release evidence.
+PASS SAST, DAST, dependency, SBOM, fuzzing, tenant-isolation abuse, threat-model, vulnerability triage, and NIST SSDF evidence are retained or release-gated.
+PASS Secure SDLC evidence maps mitigations across authorization, connector, persistence, cross-tenant isolation, and evidence-abuse paths.
+```
+
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-oscal-signed-evidence
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 
 
  Test Files  10 passed (10)
       Tests  148 passed (148)
-   Start at  22:44:40
-   Duration  324ms (transform 1.07s, setup 0ms, import 1.53s, tests 148ms, environment 1ms)
+   Start at  22:51:34
+   Duration  234ms (transform 817ms, setup 0ms, import 1.11s, tests 112ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-oscal-signed-evidence
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 
 
  Test Files  4 passed (4)
       Tests  107 passed (107)
-   Start at  22:44:41
-   Duration  675ms (transform 585ms, setup 0ms, import 939ms, tests 375ms, environment 0ms)
+   Start at  22:51:35
+   Duration  491ms (transform 472ms, setup 0ms, import 708ms, tests 257ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-oscal-signed-evidence
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  22:44:42
-   Duration  273ms (transform 371ms, setup 0ms, import 523ms, tests 54ms, environment 0ms)
+   Start at  22:51:35
+   Duration  218ms (transform 305ms, setup 0ms, import 414ms, tests 44ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-oscal-signed-evidence
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-oscal-signed-evidence
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-secure-sdlc-evidence
 
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  22:44:42
-   Duration  407ms (transform 426ms, setup 0ms, import 788ms, tests 150ms, environment 0ms)
+   Start at  22:51:36
+   Duration  317ms (transform 360ms, setup 0ms, import 624ms, tests 107ms, environment 0ms)
 ```
 
 
@@ -262,6 +304,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-oscal-signed-evidence
 - Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - Runbook exercise evidence validation for rehearsed incident response, break-glass, backup/restore, contingency, emergency revocation, SIEM replay, and post-action review evidence records with redaction and non-production classification checks.
+- Secure SDLC release evidence validation for SAST, DAST, dependency scanning, SBOM/provenance, fuzzing, tenant-isolation abuse tests, threat-model refresh, vulnerability triage, and NIST SSDF evidence.
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
 - Connector package tests for Microsoft Graph Entra and AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.

@@ -58,6 +58,7 @@ pnpm ci:check
 | Schema examples | `tests/fixtures/schema-examples/*.json` | Validated synthetic examples for core objects, including the policy model example. |
 | Architecture decisions | `adrs/0001-*.md` through `adrs/0010-*.md` | Canonical ADR naming and design decisions. |
 | Evidence report | `reports/proof-point-validation.md` | Generated validation proof point. |
+| Secure SDLC evidence | `release/security-evidence/ak-044-secure-sdlc.example.json`, `docs/secure-sdlc-evidence.md` | Release-retained security evidence and validation gate. |
 
 ## Assumptions
 
