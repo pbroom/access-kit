@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T05:24:52.058Z
+Generated at: 2026-05-28T05:33:14.876Z
 
-Branch: codex/rebac-go-envoy-ext-authz
+Branch: 
 
 Node: v24.4.1
 
@@ -10,16 +10,16 @@ pnpm: 10.30.3
 
 ## Summary
 
-All proof-point validation commands passed.
+3 proof-point validation command(s) failed.
 
 | Proof point | Command | Result |
 | --- | --- | --- |
-| typecheck | `corepack pnpm typecheck` | PASS |
+| typecheck | `corepack pnpm typecheck` | FAIL |
 | schema validation | `corepack pnpm validate:schemas` | PASS |
 | OpenAPI validation | `corepack pnpm validate:openapi` | PASS |
 | API collection validation | `corepack pnpm validate:api-collections` | PASS |
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
-| connector security gate validation | `corepack pnpm validate:connector-security` | PASS |
+| connector security gate validation | `corepack pnpm validate:connector-security` | FAIL |
 | CLI command contract | `corepack pnpm validate:cli-contract` | PASS |
 | container packaging validation | `corepack pnpm validate:packaging` | PASS |
 | release packaging validation | `corepack pnpm validate:release-packaging` | PASS |
@@ -31,6 +31,7 @@ All proof-point validation commands passed.
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
 | SDK PEP conformance tests | `corepack pnpm test:sdk-pep` | PASS |
+| sample internal admin app tests | `corepack pnpm validate:sample-admin-app` | FAIL |
 | connector package tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
 
@@ -39,14 +40,29 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-sample-admin-app
 > tsc --noEmit
+
+packages/api/src/runtime-connectors.ts(7,65): error TS2307: Cannot find module '@access-kit/connectors-aws' or its corresponding type declarations.
+packages/connectors-aws/src/index.ts(24,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
+packages/connectors-aws/src/index.ts(488,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
+packages/connectors-sample-readonly/src/index.ts(21,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
+packages/connectors-sample-readonly/src/index.ts(335,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(158,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(203,62): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(241,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(278,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(413,73): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(68,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(161,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(208,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+ ELIFECYCLE  Command failed with exit code 2.
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-schemas.ts
 
 Validated 21 schemas and 21 example fixtures.
@@ -76,10 +92,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-go-envoy-ext-authz/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-sample-admin-app/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -91,7 +107,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### API collection validation
 
 ```text
-> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/generate-api-collections.ts --check
 
 API collection artifacts are current.
@@ -100,7 +116,7 @@ API collection artifacts are current.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -123,36 +139,51 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-sample-admin-app
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
-Validated connector security gates for 4 connector(s).
-PASS mock: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS entra-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS sharepoint-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+ ELIFECYCLE  Command failed with exit code 1.
+
+node:internal/modules/run_main:105
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@access-kit/connectors-aws' imported from /Users/peterbroomfield/access-kit-sample-admin-app/packages/api/src/runtime-connectors.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
+    at packageResolve (node:internal/modules/esm/resolve:767:81)
+    at moduleResolve (node:internal/modules/esm/resolve:853:18)
+    at defaultResolve (node:internal/modules/esm/resolve:983:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///Users/peterbroomfield/access-kit-sample-admin-app/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:8037)
+    at resolveDirectory (file:///Users/peterbroomfield/access-kit-sample-admin-app/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:9124)
+    at resolveTsPaths (file:///Users/peterbroomfield/access-kit-sample-admin-app/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:10581)
+    at resolve2 (file:///Users/peterbroomfield/access-kit-sample-admin-app/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:11864)
+    at nextResolve (node:internal/modules/esm/hooks:748:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.4.1
 ```
 
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-sample-admin-app
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
 
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  01:24:45
-   Duration  281ms (transform 135ms, setup 0ms, import 210ms, tests 20ms, environment 0ms)
+   Start at  01:33:07
+   Duration  293ms (transform 136ms, setup 0ms, import 212ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -163,7 +194,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -176,7 +207,7 @@ PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclos
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -187,7 +218,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -198,7 +229,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -209,7 +240,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -220,7 +251,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-sample-admin-app
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -230,77 +261,134 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-sample-admin-app
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
 
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  01:24:48
-   Duration  241ms (transform 1.01s, setup 0ms, import 1.46s, tests 125ms, environment 1ms)
+   Start at  01:33:10
+   Duration  246ms (transform 1.06s, setup 0ms, import 1.50s, tests 127ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-sample-admin-app
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
 
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  01:24:49
-   Duration  534ms (transform 949ms, setup 0ms, import 1.49s, tests 452ms, environment 0ms)
+   Start at  01:33:11
+   Duration  532ms (transform 924ms, setup 0ms, import 1.50s, tests 446ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
 
 ```text
-> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-sample-admin-app
 > vitest run tests/sdk-pep
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
 
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  01:24:50
-   Duration  428ms (transform 295ms, setup 0ms, import 464ms, tests 206ms, environment 0ms)
+   Start at  01:33:12
+   Duration  426ms (transform 261ms, setup 0ms, import 443ms, tests 208ms, environment 0ms)
+```
+
+### sample internal admin app tests
+
+```text
+> access-kit@0.1.0 validate:sample-admin-app /Users/peterbroomfield/access-kit-sample-admin-app
+> vitest run tests/examples/internal-admin-app.test.ts
+
+
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
+
+ ❯ tests/examples/internal-admin-app.test.ts (6 tests | 1 failed) 8ms
+     × requires approval evidence before safe explain and redacts relationship paths 3ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  01:33:13
+   Duration  156ms (transform 77ms, setup 0ms, import 95ms, tests 8ms, environment 0ms)
+
+ ELIFECYCLE  Command failed with exit code 1.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/examples/internal-admin-app.test.ts > sample internal admin application > requires approval evidence before safe explain and redacts relationship paths
+AssertionError: expected { status: 'allowed', …(7) } to match object { status: 'allowed', …(1) }
+(30 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -1,12 +1,16 @@
+  {
+    "safeExplain": {
+      "constraintKeys": [
++       "cache",
+        "denyByDefault",
+        "deterministic",
+        "explain",
+        "llmDecisioning",
++       "performance",
++       "timeTravel",
++       "traversal",
+      ],
+      "decision": "allow",
+      "pathLength": 3,
+      "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+    },
+
+ ❯ tests/examples/internal-admin-app.test.ts:112:20
+    110|     });
+    111|
+    112|     expect(result).toMatchObject({
+       |                    ^
+    113|       status: "allowed",
+    114|       safeExplain: {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
 
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  01:24:50
-   Duration  230ms (transform 339ms, setup 0ms, import 450ms, tests 49ms, environment 0ms)
+   Start at  01:33:13
+   Duration  229ms (transform 336ms, setup 0ms, import 450ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-sample-admin-app
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
 
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  01:24:51
-   Duration  328ms (transform 392ms, setup 0ms, import 635ms, tests 117ms, environment 0ms)
+   Start at  01:33:14
+   Duration  328ms (transform 374ms, setup 0ms, import 636ms, tests 117ms, environment 0ms)
 ```
 
 
@@ -323,6 +411,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
 - SDK PEP conformance tests for deny-on-API-failure behavior, correlation ID propagation, decision ID logging, local fallback avoidance, reason-code handling, explain/debug safety, sensitive-path redaction, and the Go Envoy ext-authz example contract.
+- Sample internal admin app tests for least-privilege admin/operator authorization, approval evidence, access-review context, break-glass boundaries, audit traceability, and safe explain summaries.
 - Connector package tests for Microsoft Graph Entra, Microsoft 365 group and Teams coupling, SharePoint and OneDrive inventory, inheritance markers, coverage warnings, ownership, AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.

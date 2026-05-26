@@ -25,9 +25,10 @@ Access Kit is not an identity provider, authentication system, SIEM, ticketing s
 7. Read [Decision Lifecycle](decision-lifecycle.md), [Explain API](explain-api.md), and [PEP Conformance](pep-conformance.md) for authorization behavior and application enforcement expectations.
 8. Read [Decision Cache Semantics](decision-cache-semantics.md) before allowing PEPs to reuse decisions.
 9. Read [Provisioning Lifecycle](provisioning-lifecycle.md), [Connector Contract](connector-contract.md), [Connector Authoring Tutorial](connector-authoring-tutorial.md), and [Drift Detection Model](drift-detection-model.md) for operational change control.
-10. Read [Audit Event Model](audit-event-model.md), [Evidence Catalog](evidence-catalog.md), [Control Traceability Matrix](control-traceability-matrix.md), and [Assessor Inspection Guide](assessor-inspection-guide.md) for inspection and evidence.
-11. Read [Product Release Packaging](release-packaging.md), [Support Policy](support-policy.md), and [Security Policy](../SECURITY.md) before adopting a versioned release channel.
-12. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [Emergency Revocation Runbook](../runbooks/emergency-revocation.md), along with the other runbooks in `runbooks/`, before operating enforcement paths.
+10. Read [Sample Internal Admin App](sample-internal-admin-app.md) for the synthetic admin/operator example once production admin controls are in scope.
+11. Read [Audit Event Model](audit-event-model.md), [Evidence Catalog](evidence-catalog.md), [Control Traceability Matrix](control-traceability-matrix.md), and [Assessor Inspection Guide](assessor-inspection-guide.md) for inspection and evidence.
+12. Read [Product Release Packaging](release-packaging.md), [Support Policy](support-policy.md), and [Security Policy](../SECURITY.md) before adopting a versioned release channel.
+13. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [Emergency Revocation Runbook](../runbooks/emergency-revocation.md), along with the other runbooks in `runbooks/`, before operating enforcement paths.
 
 ## Build And Validate
 
@@ -63,6 +64,7 @@ pnpm ci:check
 | API collections | `examples/api-collections/` | Generated Postman and Bruno workflows for the demo seed decision, policy, provisioning, reconciliation, audit, evidence, and auth-failure examples. |
 | PEP conformance | [PEP Conformance](pep-conformance.md), `tests/sdk-pep/pep-conformance.test.ts` | Shared policy enforcement point behavior for fail-closed protected routes, correlation propagation, decision logging, local fallback avoidance, and safe denials. |
 | Sample SaaS application | [Sample SaaS Application](sample-saas-app.md), `examples/sample-saas-app/`, `tests/examples/sample-saas-app.test.ts` | End-to-end protected route, tenant-boundary, safe explain, decision traceability, and policy-test workflow example. |
+| Internal admin app sample | `examples/internal-admin-app/`, [Sample Internal Admin App](sample-internal-admin-app.md) | Synthetic least-privilege admin/operator app with approval evidence, access-review context, break-glass boundaries, audit traceability, and safe explain summaries. |
 | Policy model | `schemas/policy-model.schema.json`, `packages/core/src/policy-model.ts` | Versioned model shape and deterministic validation rules. |
 | Policy proof points | `tests/fixtures/policy/proof-points.json` | Deterministic authorization behaviors under test. |
 | Decision cache semantics | `docs/decision-cache-semantics.md`, `packages/core/src/decision-runtime.ts` | PEP cache key, TTL, invalidation, fail-closed, and auditability contract. |

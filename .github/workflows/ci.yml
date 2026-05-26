@@ -71,6 +71,9 @@ jobs:
       - name: Validate live enforcement pilot gates
         run: pnpm validate:live-enforcement-pilot
 
+      - name: Validate sample internal admin app
+        run: pnpm validate:sample-admin-app
+
   quality:
     name: Quality (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
