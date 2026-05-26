@@ -1036,7 +1036,7 @@ export function exportAuditEvents(app: RebacLocalApp, options: AuditEventExportO
     .at(0) ?? generatedAt;
   const periodEnd = options.periodEnd ?? generatedAt;
   const events = allEvents.filter((event) => event.occurredAt >= periodStart && event.occurredAt <= periodEnd);
-  const auditIntegrity = verifyAuditChain(allEvents, generatedAt);
+  const auditIntegrity = verifyRuntimeAuditIntegrity(app, generatedAt);
   const exportMetadata: AuditEventExport = {
     exportId: `audit-export:${compactTimestamp(generatedAt)}`,
     generatedAt,
@@ -1087,7 +1087,7 @@ export function exportEvidencePackage(
     .at(0) ?? generatedAt;
   const periodEnd = options.periodEnd ?? generatedAt;
   const events = allEvents.filter((event) => event.occurredAt >= periodStart && event.occurredAt <= periodEnd);
-  const auditIntegrity = verifyAuditChain(allEvents, generatedAt);
+  const auditIntegrity = verifyRuntimeAuditIntegrity(app, generatedAt);
   const controlMappings = buildControlMappings(controls, events);
   const conmonMetrics = buildConMonMetrics(app, events, auditIntegrity);
   const poamItems = buildPoamItems(controlMappings, auditIntegrity, generatedAt);
@@ -1162,7 +1162,8 @@ export function exportEvidencePackage(
 }
 
 export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
-  const report = verifyAuditChain(authoritativeAuditEvents(app), app.now());
+  const verifiedAt = app.now();
+  const report = verifyRuntimeAuditIntegrity(app, verifiedAt);
   const auditEvent = recordAudit(app, {
     eventType: "audit.integrity_verified",
     actor: app.actor,
@@ -1174,6 +1175,10 @@ export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {
     ...report,
     auditEventId: auditEvent.eventId
   };
+}
+
+function verifyRuntimeAuditIntegrity(app: RebacLocalApp, verifiedAt: string): AuditIntegrityReport {
+  return app.auditRepository?.verifyIntegrity(verifiedAt) ?? verifyAuditChain(authoritativeAuditEvents(app), verifiedAt);
 }
 
 export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options: RecordAuditOptions = {}): AuditEvent {

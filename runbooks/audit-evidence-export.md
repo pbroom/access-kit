@@ -41,6 +41,7 @@ pnpm evidence:check
 - Audit integrity report returns `verified` or findings.
 - Audit export returns JSONL-ready event records and source event IDs.
 - Evidence export returns control mappings, source events, integrity manifest, artifacts, boundary, data flows, ConMon, POA&M, operational evidence, and SIEM metadata.
+- When the production audit adapter is configured, retained evidence also includes immutable audit/evidence receipts, signed audit windows, SIEM delivery status, and replay records for failed deliveries.
 
 ## Verification Steps
 
@@ -49,7 +50,8 @@ pnpm evidence:check
 3. Confirm exported event count is expected.
 4. Confirm evidence source event IDs link to audit events.
 5. Recompute evidence package and section hashes with [Evidence Integrity Verifier](../docs/evidence-integrity-verifier.md).
-6. Record validation not performed, if any.
+6. For production adapter runs, confirm signed audit window metadata, retention policy, immutable storage receipts, and SIEM delivery records.
+7. Record validation not performed, if any.
 
 ## Audit Events Emitted
 
@@ -64,11 +66,12 @@ pnpm evidence:check
 - Evidence export package.
 - Integrity manifest verification result.
 - Storage receipt, if configured.
+- Signed audit window, SIEM delivery, and replay receipt when the production audit adapter or forwarder is configured.
 - Requester, purpose, and delivery record.
 
 ## Escalation Path
 
-Escalate failed audit integrity, missing source events, or export access concerns to security engineering and ISSO.
+Escalate failed audit integrity, missing source events, export access concerns, or unreplayed SIEM delivery failures to security engineering and ISSO.
 
 ## Rollback Or Compensating Action
 

@@ -27,12 +27,12 @@ This is not a complete system security plan, production evidence vault, WORM arc
 | Policy proof points | `tests/fixtures/policy/proof-points.json` | Deterministic behavior coverage. |
 | ADRs | `adrs/0001-*.md` through `adrs/0010-*.md` | Architecture decisions. |
 | Audit events | `schemas/audit-event.schema.json` | Decision and operational traceability. |
-| Audit integrity | `schemas/audit-integrity.schema.json` | Hash-chain verification. |
+| Audit integrity | `schemas/audit-integrity.schema.json` | Hash-chain verification, including production audit adapter delivery findings. |
 | Audit export | `schemas/audit-export.schema.json` | SIEM-ready JSONL package shape. |
 | Persistence deployment manifest | `schemas/persistence-deployment-manifest.schema.json` | Production persistence backend and deployment-control gate. |
 | Persistence deployment readiness | `schemas/persistence-deployment-readiness.schema.json` | Deterministic deployment-readiness report contract. |
 | Persistence deployment evidence | `deploy/persistence/production-manifest.example.json` | Synthetic IaC, release, backup/restore, and operator-control references. |
-| Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest with reproducible integrity hashes. |
+| Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest with reproducible integrity hashes and optional immutable external storage receipts. |
 | Evidence integrity verifier | [Evidence Integrity Verifier](evidence-integrity-verifier.md) | Steps for recomputing package and section hashes from stable JSON. |
 | Validation report | `reports/proof-point-validation.md` | Generated proof-point evidence. |
 | Runbooks | `runbooks/*.md` | Operational procedures and expected evidence. |
@@ -51,7 +51,7 @@ An assessor samples AC-3 for May 2026. The operator exports evidence for `AC-3`,
 
 - Evidence packages and integrity manifests must not include secrets, tokens, live tenant IDs, production emails, or sensitive provider payloads.
 - Local file-backed receipts are proof points, not production immutability.
-- Production evidence requires retention, access control, tamper evidence, and reviewer approval.
+- Production evidence requires immutable adapter receipts, retention, access control, tamper evidence, delivery/replay monitoring, and reviewer approval.
 - Mark assumptions, gaps, and planned controls clearly.
 
 ## Audit And Evidence Implications

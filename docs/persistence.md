@@ -42,6 +42,8 @@ When the API runtime receives `REBAC_STATE_PATH`, `createLocalRuntimePersistence
 
 `LocalAppendOnlyAuditRepository` is the first concrete audit adapter behind `AuditEventRepository`. It appends audit events to JSONL records with stored event hashes, rejects duplicate event IDs, refuses out-of-order appends when `previousEventHash` does not match the current tail, and reports local record tampering through audit integrity findings. It advertises local retention and hash-chain capabilities, but it does not claim production durability, backup/restore, or WORM immutability.
 
+`ProductionAuditEvidenceAdapter` is the production audit/evidence adapter boundary. It is backed by an injected append-only external store so an environment-specific WORM bucket, immutable ledger, or audit database driver can supply storage later without changing runtime audit semantics. The adapter advertises `external_append_only_audit`, immutable retention, hash-chain verification, and backup/restore; retains signed audit windows; records SIEM delivery failures and replay receipts; stores evidence packages with immutable external receipts; rejects unredacted secret-bearing payloads; detects tampered event, window, delivery, and evidence envelopes; and blocks failed SIEM delivery from a clean integrity report until replay succeeds. It does not select, approve, or deploy a SIEM or WORM vendor by itself.
+
 `LocalJsonFileJobRepository` is the first concrete job adapter behind `RebacJobRepository`. It persists discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation runs, and decision records to a hash-checked JSON snapshot. It supports idempotency-key lookups for plans and jobs, stable overwrite by record identifier, and atomic local snapshot replacement. It advertises queue/idempotency/transaction/backup proof-point capabilities, but it does not claim production durability.
 
 `ProductionGraphStoreAdapter` is the production graph contract adapter. It is backed by an injected external snapshot store so a selected graph database or relational graph projection can supply the storage driver later without changing authorization semantics. The adapter stores only subjects, resources, relationship tuples, native grants, backup metadata, and a hash envelope. It advertises `external_graph`, rejects malformed or tampered stored payloads before serving data, rejects secret-bearing records, requires tenant-boundary attributes on persisted subjects and resources, and keeps backend-specific behavior out of authorization decisions.
@@ -59,7 +61,7 @@ When the API runtime receives `REBAC_STATE_PATH`, `createLocalRuntimePersistence
 Production adapters should be added behind the same contracts:
 
 - selected graph database or relational graph projection driver for subjects, resources, relationship tuples, and native grants
-- WORM or immutable ledger-backed audit storage with production durability, retention, and backup/restore evidence
+- environment-specific WORM or immutable-ledger driver behind `ProductionAuditEvidenceAdapter`, with production access controls, monitored SIEM forwarding, and retained backup/restore evidence
 - selected connector-state storage driver for discovery, reconciliation, provisioning, decision recording, and evidence history
 - environment-specific durable queue driver behind `ProductionJobQueueAdapter`
 - managed worker deployment, monitoring, and queue operations evidence for execution, retries, dead letters, and replay

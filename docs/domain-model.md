@@ -46,11 +46,13 @@ The domain model is not an identity directory, provider permission model, SIEM s
 
 `AuditEventExport` records a bounded SIEM-ready export of append-only audit events. It includes the export ID, period, JSONL records, source event IDs, payload-hash inclusion, target, exported event count for the requested window, full-chain audit-integrity report, and version.
 
-`AuditStorageReceipt` and `EvidenceStorageReceipt` record where local proof-point evidence was persisted, the hash of the stored event or package, backend type, storage time, and whether the backend claims immutability. Local file-backed receipts expose repository-relative locations, not host filesystem paths, and set `immutable: false`; production WORM storage remains future work.
+`AuditStorageReceipt` and `EvidenceStorageReceipt` record where evidence was persisted, the hash of the stored event or package, backend type, storage time, and whether the backend claims immutability. Local file-backed receipts expose repository-relative locations, not host filesystem paths, and set `immutable: false`; the production audit/evidence adapter returns external immutable receipts while still requiring an environment-specific WORM or immutable-ledger driver before production use.
 
 `LocalJsonFileGraphRepository` persists subjects, resources, relationship tuples, and native grants as a hash-checked local graph snapshot for development and validation. It deliberately excludes provisioning jobs, decisions, audit events, and evidence packages.
 
 `LocalAppendOnlyAuditRepository` persists audit events as append-only JSONL records with stored event hashes and previous-event hash checks. It is a local integrity proof point, not a production WORM audit store.
+
+`ProductionAuditEvidenceAdapter` defines the production audit and evidence boundary. It stores ordered immutable audit records, retention policy metadata, signed audit windows, SIEM delivery and replay records, tamper-evident evidence package receipts, backup/restore metadata, and integrity findings for delivery failures or tampered envelopes. It rejects unredacted secret-bearing payloads instead of silently storing them.
 
 `LocalJsonFileJobRepository` persists discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation runs, and decision records as a hash-checked local job snapshot. It is a local queue/job proof point, not a production worker queue.
 
@@ -78,10 +80,10 @@ The domain model is not an identity directory, provider permission model, SIEM s
 - Controlled enforcement jobs in this milestone require a matching ready enforcement-readiness report and remain synthetic proof points, not live provider writes.
 - Drift findings are security objects, not incidental errors.
 - Audit evidence is not a mutable operational table.
-- Audit exports are bounded event packages, not SIEM delivery guarantees.
+- Audit exports are bounded event packages. SIEM delivery guarantees require production adapter delivery receipts plus an approved environment-specific forwarder.
 - Evidence exports are package manifests, not authorization decisions or provider writes.
 - Operational evidence entries are local proof points, not production runbook approvals.
-- Local storage receipts are proof-point metadata, not production retention guarantees.
+- Local storage receipts are proof-point metadata, not production retention guarantees. External immutable receipts require the production audit/evidence adapter and deployment-specific storage evidence.
 
 ## Canonical IDs
 
