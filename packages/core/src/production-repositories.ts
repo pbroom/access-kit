@@ -35,6 +35,7 @@ import {
   normalizeJobSnapshot,
   stableHash
 } from "./repository-envelopes.js";
+import { isProductionSensitiveKey } from "./production-secret-material.js";
 import type { RebacGraphStorageReceipt, RebacJobStorageReceipt } from "./repositories.js";
 
 export type ProductionRepositoryStoreComponent = "graph" | "connector_state" | "job" | "audit";
@@ -764,38 +765,11 @@ function assertNoSecretMaterial(value: unknown, path: string): void {
   }
 
   for (const [key, entry] of Object.entries(value)) {
-    if (isSensitiveKey(key)) {
+    if (isProductionSensitiveKey(key)) {
       throw new Error(`${path}.${key} contains secret material and cannot be persisted by a production adapter.`);
     }
     assertNoSecretMaterial(entry, `${path}.${key}`);
   }
-}
-
-function isSensitiveKey(key: string): boolean {
-  const normalized = key.replaceAll(/[-_\s]/g, "").toLowerCase();
-
-  return /(secret|password|credential|privatekey|signingkey|hmackey|encryptionkey)/i.test(normalized)
-    || [
-      "accesskey",
-      "apikey",
-      "apisecret",
-      "apitoken",
-      "authtoken",
-      "authorization",
-      "bearertoken",
-      "clientkey",
-      "clientsecret",
-      "cookie",
-      "idtoken",
-      "refreshtoken",
-      "setcookie",
-      "sessiontoken",
-      "token",
-      "tokenmaterial",
-      "tokenvalue",
-      "xapikey",
-      "accesstoken"
-    ].includes(normalized);
 }
 
 function createBackupMetadata(
