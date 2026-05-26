@@ -7,6 +7,7 @@ import {
   testConnector,
   type RebacLocalApp
 } from "../packages/api/src/local-app.js";
+import { MICROSOFT_GRAPH_ENTRA_REQUIRED_READ_SCOPES } from "../packages/connectors-microsoft-graph/src/index.js";
 import type {
   ConnectorAdapter,
   ConnectorDiscoveryMetadata,
@@ -16,6 +17,7 @@ import type {
 
 const root = process.cwd();
 const requiredConnectorIds = ["mock", "entra-readonly", "sharepoint-readonly", "aws-readonly"] as const;
+const approvedLiveReadScopes = new Set<string>(MICROSOFT_GRAPH_ENTRA_REQUIRED_READ_SCOPES);
 const safeSyntheticControl: EnforcementControl = {
   syntheticOnly: true,
   liveProviderWrites: false,
@@ -316,10 +318,7 @@ function requireNoDuplicates(values: readonly string[], label: string, failures:
 }
 
 function isApprovedLiveReadScope(scope: string): boolean {
-  return (
-    ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"].includes(scope) &&
-    !isWriteScope(scope)
-  );
+  return approvedLiveReadScopes.has(scope) && !isWriteScope(scope);
 }
 
 function isWriteScope(scope: string): boolean {

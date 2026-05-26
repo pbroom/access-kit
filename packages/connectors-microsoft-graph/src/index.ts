@@ -132,6 +132,7 @@ export interface MicrosoftGraphEntraConnectorOptions {
   credentialHandling?: "managed_identity" | "vault_required";
   maxPages?: number;
   maxRetries?: number;
+  sleep?: (milliseconds: number) => Promise<void>;
 }
 
 interface MicrosoftGraphConnectorEnv {
@@ -235,6 +236,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   readonly #credentialHandling: "managed_identity" | "vault_required";
   readonly #maxPages: number;
   readonly #maxRetries: number;
+  readonly #sleep: (milliseconds: number) => Promise<void>;
   #snapshot?: EntraSnapshot;
   #warnings: DiscoveryRunWarning[] = [];
 
@@ -248,6 +250,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     this.#credentialHandling = options.credentialHandling ?? "vault_required";
     this.#maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
     this.#maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.#sleep = options.sleep ?? sleep;
   }
 
   async discoverSubjects(): Promise<Subject[]> {
@@ -471,6 +474,10 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         });
 
         if (retryCount <= this.#maxRetries) {
+          const retryAfterMilliseconds = retryAfterSecondsToMilliseconds(page.retryAfterSeconds);
+          if (retryAfterMilliseconds > 0) {
+            await this.#sleep(retryAfterMilliseconds);
+          }
           continue;
         }
 
@@ -900,6 +907,16 @@ function readRetryAfter(response: Response): number | undefined {
   return Number.isFinite(retryAfter) ? retryAfter : undefined;
 }
 
+function retryAfterSecondsToMilliseconds(value: number | undefined): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.ceil(value * 1000)
+    : 0;
+}
+
+async function sleep(milliseconds: number): Promise<void> {
+  await new Promise<void>((resolve) => setTimeout(resolve, milliseconds));
+}
+
 function isJsonRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -990,12 +1007,13 @@ function createRevocationPlan(connectorId: string, nativeGrantId: string, resour
 
 function createEvidence(connectorId: string, events: AuditEvent[], now: string): EvidenceExport {
   const auditIntegrity = verifyAuditChain(events, now);
+  const evidencePeriod = deriveEvidencePeriod(events, now);
   return attachEvidenceIntegrityManifest({
     exportId: `evidence:${connectorId}`,
     framework: "nist-800-53",
     controls: ["AC-2", "AC-3", "AU-2"],
-    periodStart: "2026-05-01T00:00:00.000Z",
-    periodEnd: "2026-05-31T23:59:59.000Z",
+    periodStart: evidencePeriod.periodStart,
+    periodEnd: evidencePeriod.periodEnd,
     generatedAt: now,
     evidenceTypes: ["audit_events", "discovery_runs", "native_grants", "audit_integrity", "control_mappings"],
     sourceEventIds: events.map((event) => event.eventId),
@@ -1097,4 +1115,13 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
       }
     ]
   });
+}
+
+function deriveEvidencePeriod(events: AuditEvent[], now: string): Pick<EvidenceExport, "periodStart" | "periodEnd"> {
+  const occurredAt = events.map((event) => event.occurredAt).sort();
+
+  return {
+    periodStart: occurredAt.at(0) ?? now,
+    periodEnd: occurredAt.at(-1) ?? now
+  };
 }
