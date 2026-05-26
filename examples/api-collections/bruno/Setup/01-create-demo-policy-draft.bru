@@ -1,0 +1,576 @@
+meta {
+  name: Create Demo Policy Draft
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/policies
+  body: json
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: example0
+}
+
+body:json {
+  {
+    "name": "local demo ReBAC policy",
+    "model": {
+      "schemaVersion": "access-kit.policy-model.v1",
+      "id": "policy-model:demo-local-rebac-v1",
+      "version": "policy:demo-local-v1",
+      "resourceTypes": [
+        {
+          "type": "organization",
+          "classifications": [
+            "internal"
+          ]
+        },
+        {
+          "type": "workspace",
+          "allowedParentTypes": [
+            "organization"
+          ],
+          "classifications": [
+            "internal"
+          ]
+        },
+        {
+          "type": "folder",
+          "allowedParentTypes": [
+            "workspace",
+            "folder"
+          ],
+          "classifications": [
+            "internal",
+            "confidential"
+          ]
+        },
+        {
+          "type": "document",
+          "allowedParentTypes": [
+            "workspace",
+            "folder"
+          ],
+          "classifications": [
+            "internal",
+            "confidential"
+          ]
+        },
+        {
+          "type": "application",
+          "allowedParentTypes": [
+            "organization"
+          ],
+          "classifications": [
+            "internal"
+          ]
+        },
+        {
+          "type": "dataset",
+          "allowedParentTypes": [
+            "workspace"
+          ],
+          "classifications": [
+            "internal",
+            "confidential"
+          ]
+        },
+        {
+          "type": "api",
+          "allowedParentTypes": [
+            "application"
+          ],
+          "classifications": [
+            "internal"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "name": "member_of",
+          "kind": "membership",
+          "subjectTypes": [
+            "user",
+            "group"
+          ],
+          "objectTypes": [
+            "group"
+          ]
+        },
+        {
+          "name": "contains",
+          "kind": "containment",
+          "subjectTypes": [
+            "organization",
+            "workspace",
+            "folder"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        },
+        {
+          "name": "viewer_of",
+          "kind": "grant",
+          "subjectTypes": [
+            "user",
+            "group",
+            "service_account"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        },
+        {
+          "name": "reader_of",
+          "kind": "grant",
+          "subjectTypes": [
+            "user",
+            "group",
+            "service_account"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        },
+        {
+          "name": "contributor_to",
+          "kind": "grant",
+          "subjectTypes": [
+            "user",
+            "group",
+            "service_account"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        },
+        {
+          "name": "owner_of",
+          "kind": "grant",
+          "subjectTypes": [
+            "user",
+            "group",
+            "service_account"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        },
+        {
+          "name": "admin_of",
+          "kind": "grant",
+          "subjectTypes": [
+            "user",
+            "group",
+            "service_account"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        },
+        {
+          "name": "denied",
+          "kind": "deny",
+          "subjectTypes": [
+            "user",
+            "group",
+            "service_account"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        },
+        {
+          "name": "denied_read",
+          "kind": "deny",
+          "subjectTypes": [
+            "user",
+            "group",
+            "service_account"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        },
+        {
+          "name": "quarantined_from",
+          "kind": "deny",
+          "subjectTypes": [
+            "user",
+            "group",
+            "service_account"
+          ],
+          "objectTypes": [
+            "workspace",
+            "folder",
+            "document",
+            "application",
+            "dataset",
+            "api"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "name": "read",
+          "grants": [
+            "viewer_of",
+            "reader_of",
+            "contributor_to",
+            "owner_of",
+            "admin_of"
+          ]
+        },
+        {
+          "name": "view",
+          "grants": [
+            "viewer_of",
+            "reader_of",
+            "contributor_to",
+            "owner_of",
+            "admin_of"
+          ]
+        },
+        {
+          "name": "write",
+          "grants": [
+            "contributor_to",
+            "owner_of",
+            "admin_of"
+          ]
+        },
+        {
+          "name": "contribute",
+          "grants": [
+            "contributor_to",
+            "owner_of",
+            "admin_of"
+          ]
+        },
+        {
+          "name": "admin",
+          "grants": [
+            "owner_of",
+            "admin_of"
+          ]
+        },
+        {
+          "name": "administer",
+          "grants": [
+            "owner_of",
+            "admin_of"
+          ]
+        },
+        {
+          "name": "manage",
+          "grants": [
+            "owner_of",
+            "admin_of"
+          ]
+        }
+      ],
+      "inheritanceRules": [
+        {
+          "name": "group-membership-grants",
+          "relation": "member_of",
+          "through": "member_of",
+          "actions": [
+            "read",
+            "view",
+            "write",
+            "contribute",
+            "admin",
+            "administer",
+            "manage"
+          ]
+        },
+        {
+          "name": "container-resource-grants",
+          "relation": "contains",
+          "through": "contains",
+          "actions": [
+            "read",
+            "view",
+            "write",
+            "contribute",
+            "admin",
+            "administer",
+            "manage"
+          ]
+        }
+      ],
+      "denyRules": [
+        {
+          "name": "explicit-deny",
+          "relation": "denied",
+          "precedence": "override"
+        },
+        {
+          "name": "read-deny",
+          "relation": "denied_read",
+          "actions": [
+            "read",
+            "view"
+          ],
+          "precedence": "override"
+        },
+        {
+          "name": "quarantine-deny",
+          "relation": "quarantined_from",
+          "precedence": "override"
+        }
+      ],
+      "contextConstraints": [
+        {
+          "key": "purpose",
+          "type": "string"
+        },
+        {
+          "key": "riskScore",
+          "type": "number"
+        }
+      ],
+      "classificationConstraints": [
+        {
+          "classification": "internal",
+          "allowedActions": [
+            "read",
+            "view",
+            "write",
+            "contribute",
+            "admin",
+            "administer",
+            "manage"
+          ]
+        },
+        {
+          "classification": "confidential",
+          "allowedActions": [
+            "read",
+            "view",
+            "write",
+            "contribute",
+            "admin",
+            "administer",
+            "manage"
+          ]
+        }
+      ],
+      "tenantBoundary": {
+        "key": "tenantId",
+        "source": "resource",
+        "crossTenantTraversal": false
+      },
+      "caveats": [],
+      "conditionalRelationships": [],
+      "explanation": {
+        "deterministic": true,
+        "includeContextKeys": [],
+        "includeCaveatNames": []
+      },
+      "migrations": [],
+      "metadata": {
+        "seedHarnessId": "demo-seed:local-rebac-v1",
+        "source": "access-kit-demo-seed",
+        "tenantBoundary": "tenant:local-demo",
+        "synthetic": true,
+        "localProofPoint": true,
+        "liveTenantData": false
+      }
+    },
+    "tests": [
+      {
+        "name": "quickstart-allow-case-plan",
+        "request": {
+          "subjectId": "user:alice",
+          "action": "read",
+          "resourceId": "document:case-plan",
+          "context": {
+            "purpose": "quickstart",
+            "requestSource": "access-kit-demo-seed",
+            "tenantId": "tenant:local-demo",
+            "synthetic": true,
+            "localProofPoint": true,
+            "evidenceLabels": [
+              "quickstart-local-proof-point"
+            ]
+          },
+          "policyVersion": "policy:demo-local-v1",
+          "relationshipVersion": "tuple-set:demo-v1"
+        },
+        "expectedDecision": "allow",
+        "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
+      },
+      {
+        "name": "quickstart-deny-default",
+        "request": {
+          "subjectId": "user:external-reviewer",
+          "action": "read",
+          "resourceId": "document:case-plan",
+          "context": {
+            "purpose": "quickstart",
+            "requestSource": "access-kit-demo-seed",
+            "tenantId": "tenant:local-demo",
+            "synthetic": true,
+            "localProofPoint": true,
+            "evidenceLabels": [
+              "quickstart-local-proof-point"
+            ]
+          },
+          "policyVersion": "policy:demo-local-v1",
+          "relationshipVersion": "tuple-set:demo-v1"
+        },
+        "expectedDecision": "deny",
+        "expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+      },
+      {
+        "name": "evaluation-write-case-plan",
+        "request": {
+          "subjectId": "user:alice",
+          "action": "write",
+          "resourceId": "document:case-plan",
+          "context": {
+            "purpose": "evaluation",
+            "requestSource": "access-kit-demo-seed",
+            "tenantId": "tenant:local-demo",
+            "synthetic": true,
+            "localProofPoint": true,
+            "evidenceLabels": [
+              "evaluation-policy-proof-points"
+            ]
+          },
+          "policyVersion": "policy:demo-local-v1",
+          "relationshipVersion": "tuple-set:demo-v1"
+        },
+        "expectedDecision": "allow",
+        "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
+      },
+      {
+        "name": "evaluation-explicit-deny-restricted-notes",
+        "request": {
+          "subjectId": "user:alice",
+          "action": "read",
+          "resourceId": "document:restricted-notes",
+          "context": {
+            "purpose": "evaluation",
+            "requestSource": "access-kit-demo-seed",
+            "tenantId": "tenant:local-demo",
+            "synthetic": true,
+            "localProofPoint": true,
+            "evidenceLabels": [
+              "evaluation-policy-proof-points",
+              "evaluation-ato-evidence"
+            ]
+          },
+          "policyVersion": "policy:demo-local-v1",
+          "relationshipVersion": "tuple-set:demo-v1"
+        },
+        "expectedDecision": "deny",
+        "expectedReasonCode": "DENY_EXPLICIT_OVERRIDE"
+      },
+      {
+        "name": "evaluation-suspended-subject",
+        "request": {
+          "subjectId": "user:bob",
+          "action": "read",
+          "resourceId": "document:case-plan",
+          "context": {
+            "purpose": "evaluation",
+            "requestSource": "access-kit-demo-seed",
+            "tenantId": "tenant:local-demo",
+            "synthetic": true,
+            "localProofPoint": true,
+            "evidenceLabels": [
+              "evaluation-policy-proof-points"
+            ]
+          },
+          "policyVersion": "policy:demo-local-v1",
+          "relationshipVersion": "tuple-set:demo-v1"
+        },
+        "expectedDecision": "deny",
+        "expectedReasonCode": "DENY_SUBJECT_NOT_ACTIVE"
+      },
+      {
+        "name": "evaluation-owner-admin-case-plan",
+        "request": {
+          "subjectId": "user:case-owner",
+          "action": "admin",
+          "resourceId": "document:case-plan",
+          "context": {
+            "purpose": "evaluation",
+            "requestSource": "access-kit-demo-seed",
+            "tenantId": "tenant:local-demo",
+            "synthetic": true,
+            "localProofPoint": true,
+            "evidenceLabels": [
+              "evaluation-ato-evidence"
+            ]
+          },
+          "policyVersion": "policy:demo-local-v1",
+          "relationshipVersion": "tuple-set:demo-v1"
+        },
+        "expectedDecision": "allow",
+        "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
+      }
+    ]
+  }
+}
+
+script:post-response {
+  bru.setVar("demo_policy_id", res.body["id"]);
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.eql(201);
+  });
+
+}
+
+docs {
+  Creates a policy draft from the demo seed harness policy model so the next policy-test request can run proof points.
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Export Audit Events
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{base_url}}/v1/audit/export?from=2026-05-21T00%3A00%3A00.000Z&to=2026-05-22T00%3A00%3A00.000Z&target=operator_download
+  body: none
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.eql(200);
+  });
+
+}
+
+docs {
+  Exports SIEM-ready audit records after decision, provisioning, reconciliation, and auth-failure requests.
+}

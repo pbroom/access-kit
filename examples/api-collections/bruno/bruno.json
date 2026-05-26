@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Access Kit Demo Seed Evaluation",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

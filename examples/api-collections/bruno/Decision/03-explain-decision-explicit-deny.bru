@@ -1,0 +1,46 @@
+meta {
+  name: Explain Decision - Explicit Deny
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/v1/decision/explain
+  body: json
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:restricted-notes",
+    "context": {
+      "purpose": "evaluation",
+      "requestSource": "access-kit-demo-seed",
+      "tenantId": "tenant:local-demo",
+      "synthetic": true,
+      "localProofPoint": true,
+      "evidenceLabels": [
+        "evaluation-policy-proof-points",
+        "evaluation-ato-evidence"
+      ]
+    },
+    "policyVersion": "policy:demo-local-v1",
+    "relationshipVersion": "tuple-set:demo-v1"
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.eql(200);
+  });
+
+}
+
+docs {
+  Runs the explain route for the restricted-notes preset and returns the explicit deny reason and relationship context.
+}

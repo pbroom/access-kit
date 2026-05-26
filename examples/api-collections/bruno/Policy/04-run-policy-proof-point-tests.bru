@@ -1,0 +1,31 @@
+meta {
+  name: Run Policy Proof-Point Tests
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/v1/policies/{{demo_policy_id}}/validate
+  body: json
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "mode": "test"
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.eql(200);
+  });
+
+}
+
+docs {
+  Executes the policy-test validation mode after the setup request captures the generated demo policy id.
+}

@@ -1,0 +1,51 @@
+meta {
+  name: Create Dry-Run Provisioning Plan
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/v1/provisioning/plans
+  body: json
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: example1
+}
+
+body:json {
+  {
+    "subjectId": "user:case-owner",
+    "action": "admin",
+    "resourceId": "document:case-plan",
+    "connectorId": "mock",
+    "dryRun": true,
+    "context": {
+      "purpose": "evaluation",
+      "requestSource": "access-kit-demo-seed",
+      "tenantId": "tenant:local-demo",
+      "synthetic": true,
+      "localProofPoint": true,
+      "evidenceLabels": [
+        "evaluation-ato-evidence"
+      ],
+      "workflow": "api-collection-dry-run"
+    }
+  }
+}
+
+script:post-response {
+  bru.setVar("provisioning_plan_id", res.body["id"]);
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.eql(201);
+  });
+
+}
+
+docs {
+  Creates a non-writing provisioning plan against the mock connector using the demo seed owner-admin preset.
+}

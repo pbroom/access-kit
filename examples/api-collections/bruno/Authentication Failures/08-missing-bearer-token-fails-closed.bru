@@ -1,0 +1,50 @@
+meta {
+  name: Missing Bearer Token Fails Closed
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/v1/decision/check
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "context": {
+      "purpose": "quickstart",
+      "requestSource": "access-kit-demo-seed",
+      "tenantId": "tenant:local-demo",
+      "synthetic": true,
+      "localProofPoint": true,
+      "evidenceLabels": [
+        "quickstart-local-proof-point"
+      ]
+    },
+    "policyVersion": "policy:demo-local-v1",
+    "relationshipVersion": "tuple-set:demo-v1"
+  }
+}
+
+tests {
+  test("status is 401", function() {
+    expect(res.status).to.eql(401);
+  });
+
+  test("error code is expected", function() {
+    expect(res.body.code).to.eql("UNAUTHENTICATED");
+  });
+
+}
+
+docs {
+  Demonstrates deny-on-auth-failure behavior when a protected decision route has no bearer token.
+}

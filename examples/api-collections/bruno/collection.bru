@@ -1,0 +1,28 @@
+headers {
+  Accept: application/json
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{rebac_api_token}}
+}
+
+vars {
+  base_url: http://127.0.0.1:8080
+  rebac_api_token:
+  invalid_rebac_api_token: intentionally-invalid
+  demo_policy_id:
+  provisioning_plan_id:
+}
+
+vars:secret [
+  rebac_api_token
+  invalid_rebac_api_token
+]
+
+docs {
+  Synthetic local Postman and Bruno workflows for the Access Kit demo seed harness. No live tenant data or secrets are included.
+}
