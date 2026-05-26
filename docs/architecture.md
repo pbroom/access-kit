@@ -50,6 +50,7 @@ flowchart LR
 - The deployable API container builds the API workspace dependency closure, runs as a non-root Node 22 runtime, exposes port `3000`, and stores local proof-point state under `/var/lib/access-kit`.
 - The release packaging workflow publishes only on `rebac-api-v*` tags or explicit manual dispatch, records SBOM/provenance metadata, pushes GitHub artifact attestations, and signs published digests with keyless cosign.
 - The reference Kubernetes manifests wire startup, liveness, and readiness probes to the public health endpoints, keep bearer-token material in a secret reference, mount local state under `/var/lib/access-kit`, restrict pod runtime privileges, and provide a signed-image admission policy example for release digests.
+- The production reference architecture maps the API, graph store, connector-state store, queue, audit/evidence store, SIEM, IdP or mTLS gateway, secrets manager, observability, backup, RTO/RPO, and Kubernetes overlay evidence that a target environment must fill before production traffic.
 - Persistent storage contracts split graph facts, append-only audit evidence, connector-state history, and durable queue/job records so database, ledger, and queue adapters can be assessed independently before live connector writes.
 - The CLI wraps the API and does not contain authorization logic.
 - Read-only connector sync records a `DiscoveryRun` and observed `NativeGrant` objects.

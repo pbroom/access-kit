@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rebac-api-config
+  namespace: access-kit
+  annotations:
+    access-kit.io/reference-architecture: production
+data:
+  REBAC_ADMIN_AUTH_MODE: idp_gateway
+  REBAC_PRODUCTION_GRAPH_STORE_REF: ref:replace-with-approved-graph-store
+  REBAC_PRODUCTION_CONNECTOR_STATE_REF: ref:replace-with-approved-connector-state-store
+  REBAC_PRODUCTION_QUEUE_REF: ref:replace-with-approved-queue
+  REBAC_PRODUCTION_AUDIT_EVIDENCE_REF: ref:replace-with-approved-immutable-audit-store
+  REBAC_PRODUCTION_SIEM_FORWARDER_REF: ref:replace-with-approved-siem-forwarder
+  REBAC_PRODUCTION_SECRETS_MANAGER_REF: ref:replace-with-approved-secrets-manager
+  REBAC_PRODUCTION_OBSERVABILITY_REF: ref:replace-with-approved-observability-stack
+  REBAC_PRODUCTION_BACKUP_PLAN_REF: ref:replace-with-approved-backup-plan
+  REBAC_PRODUCTION_RTO: 4h
+  REBAC_PRODUCTION_RPO: 15m

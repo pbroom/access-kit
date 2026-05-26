@@ -115,11 +115,11 @@ pnpm pr:stack
 | `docs/start-here.md` | Documentation entry point and reading path. |
 | `docs/implementation-backlog.md` | Durable slice backlog for Codex and human coordination. |
 | `docs/automation.md` | PR steward, next-slice, labels, and merge-readiness operating loop. |
-| `docs/` | Concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, provisioning, connector contract and authoring, drift, deployment, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
+| `docs/` | Concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, provisioning, connector contract and authoring, drift, deployment, production reference architecture, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
 | `runbooks/` | Emergency revocation, rollback, drift, outage, break-glass, export, credential, and decision API outage procedures. |
 | `examples/` | Synthetic API, CLI, connector template, and control/evidence mapping examples. |
 | `.github/workflows/` | CI, contract validation, and security checks. |
-| `deploy/` | Reference Kubernetes deployment manifests and admission-policy examples. |
+| `deploy/` | Reference Kubernetes deployment manifests, production-reference overlays, persistence evidence, and admission-policy examples. |
 | `adrs/` | Architecture decision records for the foundation. |
 | `openapi/` | ReBAC control-plane OpenAPI contract. |
 | `schemas/` | JSON Schemas for public domain contracts. |
@@ -147,6 +147,7 @@ pnpm pr:stack
 | Connector contract | [`docs/connector-contract.md`](docs/connector-contract.md) |
 | Connector authoring tutorial | [`docs/connector-authoring-tutorial.md`](docs/connector-authoring-tutorial.md) |
 | Sample connector template | [`examples/connectors/sample-readonly-template.md`](examples/connectors/sample-readonly-template.md) and [`packages/connectors-sample-readonly/`](packages/connectors-sample-readonly/) |
+| Production reference architecture | [`docs/production-reference-architecture.md`](docs/production-reference-architecture.md) |
 | Security model | [`docs/security-model.md`](docs/security-model.md) |
 | Threat model | [`docs/threat-model.md`](docs/threat-model.md) |
 | Evidence catalog | [`docs/evidence-catalog.md`](docs/evidence-catalog.md) |
