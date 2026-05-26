@@ -222,6 +222,7 @@ describe("policy model test harness", () => {
 
     expect(result.decision).toBe("deny");
     expect(JSON.stringify(result)).not.toContain("tenant-b-secret");
+    expect(JSON.stringify(result)).not.toContain("tenant-b/export.zip");
     expect(JSON.stringify(store.listAuditEvents())).not.toContain("tenant-b-secret");
     expect(JSON.stringify(store.listAuditEvents())).not.toContain("tenant-b/export.zip");
   });
