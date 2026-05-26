@@ -31,7 +31,6 @@ export const AWS_READONLY_ACCESS_ANALYSIS_REQUIRED_READ_SCOPES = [
   "sso:DescribePermissionSet",
   "sso:ListAccountAssignments",
   "iam:ListRoles",
-  "iam:GetRole",
   "cloudtrail:LookupEvents",
   "access-analyzer:ListFindings"
 ] as const;

@@ -22,7 +22,6 @@ const approvedLiveReadScopes = new Set<string>([
   "User.Read.All",
   "access-analyzer:ListFindings",
   "cloudtrail:LookupEvents",
-  "iam:GetRole",
   "iam:ListRoles",
   "organizations:DescribeOrganization",
   "organizations:ListAccounts",
