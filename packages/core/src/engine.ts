@@ -311,7 +311,7 @@ function toDecisionResult(
       timeTravel: {
         asOf: context.versionPins.asOf,
         evaluatedAt: context.evaluatedAt,
-        historical: context.versionPins.asOf !== context.evaluatedAt
+        historical: Date.parse(context.versionPins.asOf) !== Date.parse(context.evaluatedAt)
       },
       traversal: context.traversal,
       performance

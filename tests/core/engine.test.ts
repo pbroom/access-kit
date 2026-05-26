@@ -76,6 +76,24 @@ describe("RebacDecisionEngine", () => {
     });
   });
 
+  it("treats equivalent asOf and evaluatedAt timestamps as non-historical", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "2026-05-21T17:00:00Z"
+    });
+
+    expect(decisionRuntimeConstraints(result).timeTravel).toEqual({
+      asOf: "2026-05-21T17:00:00Z",
+      evaluatedAt: now,
+      historical: false
+    });
+  });
+
   it("evaluates relationship expiration at a historical asOf timestamp", () => {
     const seed = createLocalEngineSeed();
     const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
