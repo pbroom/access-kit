@@ -29,6 +29,8 @@ flowchart LR
   connectors --> native["Native provider readback boundary"]
   api --> audit["Append-only audit recorder"]
   audit --> evidence["Audit and evidence exports"]
+  audit --> worm["Production audit adapter boundary"]
+  worm --> siem["SIEM delivery and replay records"]
 ```
 
 ## Boundary Summary
@@ -38,7 +40,7 @@ flowchart LR
 | Authentication | IdP assumptions and actor fields in requests. | Actual user authentication, MFA, PIV/CAC, federation, session management. |
 | Authorization | ReBAC decisions, explanations, reason codes, policy and relationship versions. | Native provider enforcement internals and application-local checks. |
 | Connectors | Mock connector and synthetic read-only provider fixtures. | Live Entra ID, AD, SharePoint, Teams, Power Platform, Dataverse, AWS, and provider write APIs. |
-| Storage | Local in-memory runtime and local file-backed proof-point receipts. | Durable graph store, production WORM storage, approved SIEM delivery, backup/restore. |
+| Storage | Local in-memory runtime, local file-backed proof-point receipts, and production-shaped graph, queue, and audit adapter boundaries. | Selected environment-specific databases, WORM or immutable-ledger driver, approved SIEM deployment, backup/restore operations. |
 | Evidence | Local ATO-oriented package shape and generated proof-point report. | Assessor-approved control statements, deployment diagrams, production scan artifacts. |
 
 ## Trust Boundaries
@@ -50,6 +52,7 @@ flowchart LR
 | API to connector | Discovery, readback, dry-run verification, synthetic enforcement requests. | Connector capability checks, least privilege, idempotency, audit events. |
 | Connector to native platform | Observed native grants and inventory. | Read-only scopes until live connector review is complete. |
 | Audit to evidence | Audit events, payload hashes, integrity reports, control mappings. | Append-only storage, hash-chain verification, retention, tamper evidence. |
+| Audit adapter to SIEM | Signed audit windows, JSONL-ready source events, delivery receipts, replay records. | WORM retention, delivery monitoring, replay evidence, alert routing, and no secret-bearing payloads. |
 
 ## Data Flows
 
@@ -59,7 +62,7 @@ flowchart LR
 4. Provisioning: API creates a plan and job evidence; dry-run skips provider writes.
 5. Discovery: connector sync reads synthetic inventory and native grants into discovery and native-grant records; the optional Microsoft Graph Entra connector can read a sandbox tenant only when explicitly configured and stores redacted identifiers.
 6. Reconciliation: native grants are compared to intended access and produce drift findings.
-7. Audit and evidence: events are hash chained, exported, and mapped to controls.
+7. Audit and evidence: events are hash chained, exported, mapped to controls, retained through immutable adapter receipts when configured, and tied to SIEM delivery or replay records when a forwarder is used.
 
 ## Concrete Example
 

@@ -37,7 +37,7 @@ import {
 } from "./repository-envelopes.js";
 import type { RebacGraphStorageReceipt, RebacJobStorageReceipt } from "./repositories.js";
 
-export type ProductionRepositoryStoreComponent = "graph" | "connector_state" | "job";
+export type ProductionRepositoryStoreComponent = "graph" | "connector_state" | "job" | "audit";
 export type ProductionConnectorStateCapability =
   | "connector_state_read"
   | "connector_state_write"

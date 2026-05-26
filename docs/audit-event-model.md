@@ -10,11 +10,11 @@ Security engineers, ISSOs, assessors, platform engineers, incident responders, a
 
 ## What This Is
 
-Audit events record decisions, denials, relationship writes, policy changes, connector activity, provisioning activity, drift findings, admin actions, audit integrity checks, audit exports, and evidence exports. The current local runtime supports hash-chain verification and bounded JSONL-ready audit exports.
+Audit events record decisions, denials, relationship writes, policy changes, connector activity, provisioning activity, drift findings, admin actions, audit integrity checks, audit exports, and evidence exports. The local runtime supports hash-chain verification and bounded JSONL-ready audit exports. The production audit adapter boundary adds immutable external audit receipts, retention metadata, signed audit windows, SIEM delivery monitoring, replay records, tamper-evident evidence receipts, backup/restore metadata, and the same integrity checks behind an injected store.
 
 ## What This Is Not
 
-The current audit implementation is not production WORM storage, approved SIEM delivery, retention policy, or immutable legal record. It is a local proof point for the contract and integrity model.
+The production audit adapter is not a selected vendor ledger, approved SIEM deployment, FedRAMP boundary, or immutable legal record by itself. Deployment teams must still supply the environment-specific WORM or immutable-ledger driver, SIEM forwarder, access controls, retained approvals, and assessor-reviewed procedures.
 
 ## Core Concepts
 
@@ -59,13 +59,13 @@ The current audit implementation is not production WORM storage, approved SIEM d
 
 ## Audit Export
 
-`GET /v1/audit/export` returns a bounded `AuditEventExport` with JSONL records, source event IDs, payload-hash inclusion, target, exported event count, and full-chain integrity status. Local targets are contract proof points; production SIEM forwarding remains future deployment work.
+`GET /v1/audit/export` returns a bounded `AuditEventExport` with JSONL records, source event IDs, payload-hash inclusion, target, exported event count, and full-chain integrity status. The production adapter can retain signed audit windows and SIEM delivery or replay receipts for those windows; environment-specific forwarders still own actual SIEM transport and alert routing.
 
 ## Security Considerations
 
 - Do not log secrets, tokens, production emails, live tenant IDs, or sensitive provider payloads.
 - Audit events should be append-only and hash chained.
-- Production deployments require immutable or tamper-evident storage, retention, replay, and monitoring.
+- Production audit storage must use the immutable adapter boundary or a stricter environment-specific equivalent, reject unredacted secret-bearing payloads, preserve event order, retain signed windows, and monitor SIEM delivery failures as security-relevant findings until replay succeeds.
 - Audit export consumers must preserve event order, hashes, and correlation IDs.
 
 ## Audit And Evidence Implications

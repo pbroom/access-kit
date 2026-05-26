@@ -54,6 +54,7 @@ Before traffic is shifted, verify:
 - Authentication boundary smoke-test result.
 - Audit/evidence write verification.
 - Queue worker health, retry/backoff, dead-letter replay, and emergency revocation priority observations when a queue worker is enabled.
+- Audit adapter signed-window, retention-policy, immutable receipt, SIEM delivery, failed-delivery alert, and replay observations when the production audit adapter or forwarder is enabled.
 - Rollback or exception record when applicable.
 
 ## Deferred Production Controls
@@ -63,6 +64,7 @@ Before traffic is shifted, verify:
 - Registry retention and promotion controls.
 - Identity-provider-backed API authentication and operator authorization.
 - Approved secrets delivery.
-- Environment-specific graph, connector-state, queue, and append-only audit storage drivers behind the validated adapter contracts.
+- Environment-specific graph, connector-state, queue, and WORM or immutable-ledger audit storage drivers behind the validated adapter contracts.
 - Managed queue worker deployment, monitoring, and on-call procedures for retries, dead letters, replay, and emergency revocation handling.
+- Approved SIEM forwarder deployment, alert routing, replay procedure, and retained delivery monitoring evidence.
 - Agency-specific change-management and release approvals.

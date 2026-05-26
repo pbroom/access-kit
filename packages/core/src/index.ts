@@ -6,6 +6,7 @@ export * from "./fixtures.js";
 export * from "./persistence.js";
 export * from "./policy-model.js";
 export * from "./policy-proof-points.js";
+export * from "./production-audit.js";
 export * from "./production-job-queue.js";
 export * from "./production-repositories.js";
 export * from "./repositories.js";
