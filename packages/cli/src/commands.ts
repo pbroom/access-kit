@@ -1,16 +1,48 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { Command } from "commander";
+
+export type CliApiSurface = `${"DELETE" | "GET" | "POST" | "PUT"} /v1/${string}` | "local";
 
 export interface CliCommandSpec {
   path: string;
   description: string;
-  apiSurface: string;
+  apiSurface: CliApiSurface;
+}
+
+export interface CliProfile {
+  apiUrl?: string;
+  apiKeyEnv?: string;
+}
+
+export interface CliProfileConfig {
+  profiles?: Record<string, CliProfile>;
+}
+
+export const CLI_EXIT_CODES = {
+  success: 0,
+  apiFailure: 70,
+  configuration: 78
+} as const;
+
+export type CliExitCode = typeof CLI_EXIT_CODES[keyof typeof CLI_EXIT_CODES];
+
+export interface CliRuntimeOptions {
+  apiUrl: string;
+  apiKey?: string;
+  preview: boolean;
+  diff: boolean;
 }
 
 export interface CliOptions {
   apiUrl?: string;
+  apiKeyEnv?: string;
+  configPath?: string;
+  env?: NodeJS.ProcessEnv;
   fetch?: typeof fetch;
+  profiles?: Record<string, CliProfile>;
+  writeText?: (value: string) => void;
   writeJson?: (value: unknown) => void;
   now?: () => string;
 }
@@ -47,7 +79,8 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "connector list", description: "List connectors and capabilities.", apiSurface: "GET /v1/connectors" },
   { path: "connector test", description: "Test connector health and permissions.", apiSurface: "POST /v1/connectors/{id}/test" },
   { path: "connector readiness", description: "Check controlled-enforcement readiness for a connector.", apiSurface: "POST /v1/connectors/{id}/enforcement-readiness" },
-  { path: "connector sync", description: "Run connector discovery or reconciliation.", apiSurface: "POST /v1/connectors/{id}/sync" }
+  { path: "connector sync", description: "Run connector discovery or reconciliation.", apiSurface: "POST /v1/connectors/{id}/sync" },
+  { path: "completion", description: "Print shell completion for bash, zsh, or fish.", apiSurface: "local" }
 ];
 
 export function buildCli(options: CliOptions = {}): Command {
@@ -56,7 +89,12 @@ export function buildCli(options: CliOptions = {}): Command {
     .name("rebac")
     .description("Operator CLI for the Access Kit ReBAC control plane.")
     .version("0.1.0")
-    .option("--api-url <url>", "ReBAC API base URL", options.apiUrl ?? process.env.REBAC_API_URL ?? "http://127.0.0.1:3000");
+    .option("--api-url <url>", "ReBAC API base URL")
+    .option("--api-key-env <name>", "Environment variable containing the bearer token")
+    .option("--config <path>", "CLI profile config JSON")
+    .option("--profile <name>", "CLI profile name")
+    .option("--preview", "Print the request that would be sent without calling the API")
+    .option("--diff", "Include request diff lines in preview output");
 
   const context = createCliContext(options);
   addSubjectCommands(program, context);
@@ -70,14 +108,30 @@ export function buildCli(options: CliOptions = {}): Command {
   addAuditCommands(program, context);
   addEvidenceCommands(program, context);
   addConnectorCommands(program, context);
+  addCompletionCommand(program, context);
 
   return program;
 }
 
 interface CliContext {
   fetch: typeof fetch;
+  defaultApiUrl?: string;
+  defaultApiKeyEnv?: string;
+  configPath?: string;
+  env: NodeJS.ProcessEnv;
+  profiles: Record<string, CliProfile>;
+  writeText: (value: string) => void;
   writeJson: (value: unknown) => void;
   now: () => string;
+}
+
+interface RootCliOptions {
+  apiUrl?: string;
+  apiKeyEnv?: string;
+  config?: string;
+  profile?: string;
+  preview?: boolean;
+  diff?: boolean;
 }
 
 interface CommandWithConnector {
@@ -162,7 +216,17 @@ interface EvidenceVerifyOptions {
 
 function createCliContext(options: CliOptions): CliContext {
   return {
+    defaultApiUrl: options.apiUrl,
+    defaultApiKeyEnv: options.apiKeyEnv,
+    configPath: options.configPath,
+    env: options.env ?? process.env,
     fetch: options.fetch ?? fetch,
+    profiles: options.profiles ?? {},
+    writeText:
+      options.writeText ??
+      ((value: string) => {
+        console.log(value);
+      }),
     writeJson:
       options.writeJson ??
       ((value: unknown) => {
@@ -647,6 +711,13 @@ function addConnectorCommands(program: Command, context: CliContext): void {
   }));
 }
 
+function addCompletionCommand(program: Command, context: CliContext): void {
+  const completion = program.command("completion").argument("<shell>").description("Print shell completion for bash, zsh, or fish.");
+  completion.action((shell: string) => {
+    context.writeText(renderShellCompletion(shell, program));
+  });
+}
+
 function withApi(
   context: CliContext,
   command: Command,
@@ -654,18 +725,20 @@ function withApi(
 ): (...args: unknown[]) => Promise<void> {
   return async (...args: unknown[]) => {
     try {
-      const client = new ApiClient(getApiUrl(command), context.fetch);
+      const client = new ApiClient(resolveRuntimeOptions(command, context), context.fetch);
       context.writeJson(await handler(client, args));
     } catch (error) {
       process.stderr.write(`error: ${formatCliError(error)}\n`);
-      process.exitCode = 1;
+      process.exitCode = error instanceof CliConfigurationError
+        ? CLI_EXIT_CODES.configuration
+        : CLI_EXIT_CODES.apiFailure;
     }
   };
 }
 
 class ApiClient {
   constructor(
-    readonly apiUrl: string,
+    readonly options: CliRuntimeOptions,
     readonly fetchImpl: typeof fetch
   ) {}
 
@@ -686,12 +759,24 @@ class ApiClient {
   }
 
   async request(method: string, path: string, body?: unknown): Promise<unknown> {
-    const response = await this.fetchImpl(`${this.apiUrl.replace(/\/$/, "")}${path}`, {
+    const idempotencyKey = createIdempotencyKey(method, path, body);
+
+    if (this.options.preview) {
+      return buildRequestPreview(this.options, method, path, body, idempotencyKey);
+    }
+
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+      "idempotency-key": idempotencyKey
+    };
+
+    if (this.options.apiKey) {
+      headers.authorization = `Bearer ${this.options.apiKey}`;
+    }
+
+    const response = await this.fetchImpl(`${this.options.apiUrl.replace(/\/$/, "")}${path}`, {
       method,
-      headers: {
-        "content-type": "application/json",
-        "idempotency-key": createIdempotencyKey(method, path, body)
-      },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body)
     });
     const payload = parseResponseBody(await response.text());
@@ -702,6 +787,135 @@ class ApiClient {
 
     return payload;
   }
+}
+
+class CliConfigurationError extends Error {}
+
+function resolveRuntimeOptions(command: Command, context: CliContext): CliRuntimeOptions {
+  const root = getRootCommand(command);
+  const rootOptions = root.opts<RootCliOptions>();
+  const profileConfig = readProfileConfig(rootOptions, context);
+  const profileName = rootOptions.profile ?? context.env.REBAC_PROFILE;
+  const profile = readProfile(profileConfig, profileName);
+  const apiKeyEnv = rootOptions.apiKeyEnv
+    ?? profile?.apiKeyEnv
+    ?? context.defaultApiKeyEnv
+    ?? context.env.REBAC_API_KEY_ENV
+    ?? "REBAC_API_KEY";
+
+  return {
+    apiUrl: rootOptions.apiUrl
+      ?? profile?.apiUrl
+      ?? context.defaultApiUrl
+      ?? context.env.REBAC_API_URL
+      ?? "http://127.0.0.1:3000",
+    apiKey: context.env[apiKeyEnv],
+    preview: rootOptions.preview === true,
+    diff: rootOptions.diff === true
+  };
+}
+
+function readProfileConfig(rootOptions: RootCliOptions, context: CliContext): CliProfileConfig {
+  const configPath = rootOptions.config ?? context.configPath ?? context.env.REBAC_CLI_CONFIG;
+  const profiles = { ...context.profiles };
+
+  if (!configPath) {
+    return { profiles };
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(configPath, "utf8")) as unknown;
+    const config = parseProfileConfig(parsed, configPath);
+    return {
+      profiles: {
+        ...profiles,
+        ...config.profiles
+      }
+    };
+  } catch (error) {
+    if (error instanceof CliConfigurationError) {
+      throw error;
+    }
+
+    throw new CliConfigurationError(`Unable to read CLI config ${configPath}: ${formatCliError(error)}`);
+  }
+}
+
+function parseProfileConfig(value: unknown, path: string): CliProfileConfig {
+  if (!isRecord(value)) {
+    throw new CliConfigurationError(`CLI config ${path} must be a JSON object.`);
+  }
+
+  if (value.profiles === undefined) {
+    return { profiles: {} };
+  }
+
+  if (!isRecord(value.profiles)) {
+    throw new CliConfigurationError(`CLI config ${path} profiles must be an object.`);
+  }
+
+  const profiles: Record<string, CliProfile> = {};
+  for (const [name, profile] of Object.entries(value.profiles)) {
+    if (!isRecord(profile)) {
+      throw new CliConfigurationError(`CLI profile ${name} must be an object.`);
+    }
+
+    profiles[name] = {
+      apiUrl: readOptionalString(profile.apiUrl, `${name}.apiUrl`),
+      apiKeyEnv: readOptionalString(profile.apiKeyEnv, `${name}.apiKeyEnv`)
+    };
+  }
+
+  return { profiles };
+}
+
+function readProfile(config: CliProfileConfig, profileName: string | undefined): CliProfile | undefined {
+  if (!profileName) {
+    return undefined;
+  }
+
+  const profile = config.profiles?.[profileName];
+  if (!profile) {
+    throw new CliConfigurationError(`CLI profile ${profileName} was not found.`);
+  }
+
+  return profile;
+}
+
+function buildRequestPreview(
+  options: CliRuntimeOptions,
+  method: string,
+  path: string,
+  body: unknown,
+  idempotencyKey: string
+): Record<string, unknown> {
+  const preview: Record<string, unknown> = {
+    mode: "preview",
+    apiUrl: options.apiUrl,
+    method,
+    path,
+    idempotencyKey
+  };
+
+  if (body !== undefined) {
+    preview.body = body;
+  }
+
+  if (options.diff) {
+    preview.diff = buildRequestDiff(method, path, body);
+  }
+
+  return preview;
+}
+
+function buildRequestDiff(method: string, path: string, body: unknown): string[] {
+  const lines = [`+ ${method} ${path}`];
+
+  if (body !== undefined) {
+    lines.push(...JSON.stringify(body, null, 2).split("\n").map((line) => `+ ${line}`));
+  }
+
+  return lines;
 }
 
 function createIdempotencyKey(method: string, path: string, body: unknown): string {
@@ -736,13 +950,13 @@ function formatCliError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function getApiUrl(command: Command): string {
+function getRootCommand(command: Command): Command {
   let root = command;
   while (root.parent) {
     root = root.parent;
   }
 
-  return root.opts<{ apiUrl: string }>().apiUrl;
+  return root;
 }
 
 function relationshipId(subjectId: string, relation: string, objectId: string): string {
@@ -773,4 +987,70 @@ function required(value: string | undefined, name: string): string {
   }
 
   return value;
+}
+
+function renderShellCompletion(shell: string, program: Command): string {
+  const words = completionWords(program);
+
+  if (shell === "bash") {
+    return [
+      "_rebac_completion() {",
+      "  COMPREPLY=($(compgen -W \"" + words.join(" ") + "\" -- \"${COMP_WORDS[COMP_CWORD]}\"))",
+      "}",
+      "complete -F _rebac_completion rebac"
+    ].join("\n");
+  }
+
+  if (shell === "zsh") {
+    return `#compdef rebac\n_arguments '*: :(${words.join(" ")})'`;
+  }
+
+  if (shell === "fish") {
+    return words.map((word) => `complete -c rebac -f -a ${quoteFishWord(word)}`).join("\n");
+  }
+
+  throw new CliConfigurationError("completion shell must be bash, zsh, or fish");
+}
+
+function completionWords(command: Command): string[] {
+  const words = new Set([
+    "--api-url",
+    "--api-key-env",
+    "--config",
+    "--profile",
+    "--preview",
+    "--diff"
+  ]);
+
+  for (const spec of CLI_COMMANDS) {
+    for (const word of spec.path.split(" ")) {
+      words.add(word);
+    }
+  }
+
+  for (const child of command.commands) {
+    words.add(child.name());
+  }
+
+  return [...words].sort();
+}
+
+function quoteFishWord(word: string): string {
+  return `'${word.replace(/'/g, "\\'")}'`;
+}
+
+function readOptionalString(value: unknown, label: string): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string" || value.length === 0) {
+    throw new CliConfigurationError(`CLI profile field ${label} must be a non-empty string.`);
+  }
+
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }

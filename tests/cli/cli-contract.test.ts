@@ -12,7 +12,7 @@ describe("CLI contract", () => {
 
     for (const command of CLI_COMMANDS) {
       expect(command.path).toMatch(/^[a-z]+( [a-z-]+)*$/);
-      expect(command.apiSurface).toMatch(/^(GET|POST|PUT|DELETE) \/v1\//);
+      expect(command.apiSurface).toMatch(/^(?:(GET|POST|PUT|DELETE) \/v1\/|local$)/);
       expect(command.description.length).toBeGreaterThan(10);
     }
   });
@@ -35,6 +35,7 @@ describe("CLI contract", () => {
     expect(paths).toContain("evidence verify");
     expect(paths).toContain("connector readiness");
     expect(paths).toContain("connector sync");
+    expect(paths).toContain("completion");
   });
 
   it("exposes expected top-level command families", () => {
@@ -51,6 +52,7 @@ describe("CLI contract", () => {
     expect(help).toContain("audit");
     expect(help).toContain("evidence");
     expect(help).toContain("connector");
+    expect(help).toContain("completion");
   });
 
   it("keeps the command manifest aligned with registered Commander leaves", () => {
@@ -80,7 +82,7 @@ describe("CLI contract", () => {
       expect(runtimeSurfaces, `${surface} must be implemented by the runtime route registry`).toContain(surface);
     }
 
-    for (const command of CLI_COMMANDS) {
+    for (const command of CLI_COMMANDS.filter((item) => item.apiSurface !== "local")) {
       expect(openApiSurfaces, `${command.path} must target an OpenAPI operation`).toContain(command.apiSurface);
       expect(runtimeSurfaces, `${command.path} must target an implemented runtime route`).toContain(command.apiSurface);
     }

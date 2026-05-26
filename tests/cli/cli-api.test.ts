@@ -1,14 +1,18 @@
 import { once } from "node:events";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDefaultPolicyModel } from "../../packages/core/src/index.js";
 import { createRebacApiServer } from "../../packages/api/src/index.js";
-import { buildCli } from "../../packages/cli/src/index.js";
+import { buildCli, CLI_EXIT_CODES } from "../../packages/cli/src/index.js";
 
 let server: Server;
 let baseUrl: string;
 let output: unknown[];
+const tempDirs: string[] = [];
 
 beforeEach(async () => {
   output = [];
@@ -22,6 +26,7 @@ beforeEach(async () => {
 afterEach(async () => {
   server.close();
   await once(server, "close");
+  await Promise.all(tempDirs.splice(0).map((path) => rm(path, { recursive: true, force: true })));
 });
 
 describe("CLI API wrapper", () => {
@@ -257,7 +262,7 @@ describe("CLI API wrapper", () => {
     try {
       await runCli("connector", "sync", "mock", "--mode", "enforcement");
 
-      expect(process.exitCode).toBe(1);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.apiFailure);
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("UNSUPPORTED_CONNECTOR_MODE"));
     } finally {
       process.exitCode = previousExitCode;
@@ -529,6 +534,115 @@ describe("CLI API wrapper", () => {
     }));
   });
 
+  it("uses CLI profiles and environment-backed bearer tokens", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "rebac-cli-profile-"));
+    tempDirs.push(tempDir);
+    const configPath = join(tempDir, "profiles.json");
+    await writeFile(configPath, JSON.stringify({
+      profiles: {
+        local: {
+          apiUrl: "http://profile.example",
+          apiKeyEnv: "REBAC_PROFILE_TOKEN"
+        }
+      }
+    }));
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      {
+        env: {
+          REBAC_PROFILE_TOKEN: "profile-token"
+        }
+      },
+      "--config",
+      configPath,
+      "--profile",
+      "local",
+      "connector",
+      "list"
+    );
+
+    expect(requests.at(-1)?.url).toBe("http://profile.example/v1/connectors");
+    expect(requests.at(-1)?.headers.authorization).toBe("Bearer profile-token");
+  });
+
+  it("previews mutating commands with stable diff output without calling the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      "--preview",
+      "--diff",
+      "provision",
+      "plan",
+      "user:alice",
+      "document:case-plan",
+      "read",
+      "--connector",
+      "mock"
+    );
+
+    expect(requests).toEqual([]);
+    expect(lastOutput()).toMatchObject({
+      mode: "preview",
+      apiUrl: "http://api.example",
+      method: "POST",
+      path: "/v1/provisioning/plans",
+      idempotencyKey: expect.stringMatching(/^idem:cli:post:/),
+      body: {
+        subjectId: "user:alice",
+        resourceId: "document:case-plan",
+        action: "read",
+        connectorId: "mock",
+        mode: "dry_run",
+        dryRun: true
+      },
+      diff: expect.arrayContaining([
+        "+ POST /v1/provisioning/plans",
+        expect.stringContaining("\"subjectId\": \"user:alice\"")
+      ])
+    });
+  });
+
+  it("prints shell completion without calling the API", async () => {
+    const textOutput: string[] = [];
+    const program = buildCli({
+      apiUrl: "http://api.example",
+      writeJson: (value) => output.push(value),
+      writeText: (value) => textOutput.push(value)
+    });
+    program.exitOverride();
+
+    await program.parseAsync(["node", "rebac", "completion", "bash"]);
+
+    expect(output).toEqual([]);
+    expect(textOutput.join("\n")).toContain("complete -F _rebac_completion rebac");
+  });
+
+  it("uses explicit exit codes for API and configuration failures", async () => {
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const program = buildCli({
+      apiUrl: baseUrl,
+      writeJson: (value) => output.push(value)
+    });
+    program.exitOverride();
+
+    try {
+      await expect(program.parseAsync(["node", "rebac", "--profile", "missing", "connector", "list"])).resolves.toBe(program);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.configuration);
+
+      process.exitCode = previousExitCode;
+      errorSpy.mockClear();
+      await expect(program.parseAsync(["node", "rebac", "connector", "sync", "mock", "--mode", "enforcement"])).resolves.toBe(program);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.apiFailure);
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
+  });
+
   it("distinguishes policy validate from policy test payloads", async () => {
     const requests: CapturedRequest[] = [];
 
@@ -568,7 +682,7 @@ describe("CLI API wrapper", () => {
     try {
       await runCli("policy", "publish", String(created.id), "--change-ticket", "chg:policy");
       const stderr = errorSpy.mock.calls.map((call) => String(call[0])).join("");
-      expect(process.exitCode).toBe(1);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.apiFailure);
       expect(stderr).toContain("POLICY_NOT_VALIDATED");
       expect(output).toEqual([]);
     } finally {
@@ -593,7 +707,7 @@ describe("CLI API wrapper", () => {
 
     try {
       await expect(program.parseAsync(["node", "rebac", "check", "user:alice", "read", "document:case-plan"])).resolves.toBe(program);
-      expect(process.exitCode).toBe(1);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.apiFailure);
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("API request failed"));
       expect(output).toEqual([]);
     } finally {
@@ -619,7 +733,7 @@ describe("CLI API wrapper", () => {
     try {
       await expect(program.parseAsync(["node", "rebac", "check", "user:alice", "read", "document:case-plan"])).resolves.toBe(program);
       const stderr = errorSpy.mock.calls.map((call) => String(call[0])).join("");
-      expect(process.exitCode).toBe(1);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.apiFailure);
       expect(stderr).toContain("API request failed: 503");
       expect(stderr).toContain("temporarily unavailable");
       expect(stderr).not.toContain("Unexpected token");
@@ -649,6 +763,7 @@ async function runCli(...args: string[]): Promise<void> {
 
 interface RunCliOptions {
   now?: () => string;
+  env?: NodeJS.ProcessEnv;
 }
 
 async function runCliWithFetch(requests: CapturedRequest[], ...args: string[]): Promise<void>;
@@ -662,6 +777,7 @@ async function runCliWithFetch(
   const args = typeof optionsOrFirstArg === "string" ? [optionsOrFirstArg, ...rest] : rest;
   const program = buildCli({
     apiUrl: "http://api.example",
+    env: options.env ?? process.env,
     fetch: async (input, init) => {
       const headers = init?.headers as Record<string, string>;
       requests.push({
