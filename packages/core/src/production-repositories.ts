@@ -708,6 +708,9 @@ function assertGraphTenantBoundary(graph: RebacGraphSnapshot, tenantBoundary: st
 }
 
 function assertConnectorStateTenantBoundary(jobs: RebacJobSnapshot, tenantBoundary: string): void {
+  for (const run of jobs.discoveryRuns) {
+    assertEvidenceTenantBoundary(run.evidence as unknown as JsonRecord, tenantBoundary, `Discovery run ${run.id}`);
+  }
   for (const report of jobs.enforcementReadinessReports) {
     assertReportTenantBoundary(report, tenantBoundary);
   }
@@ -761,11 +764,38 @@ function assertNoSecretMaterial(value: unknown, path: string): void {
   }
 
   for (const [key, entry] of Object.entries(value)) {
-    if (/(secret|token|password|credential|privateKey|accessKey)/i.test(key)) {
+    if (isSensitiveKey(key)) {
       throw new Error(`${path}.${key} contains secret material and cannot be persisted by a production adapter.`);
     }
     assertNoSecretMaterial(entry, `${path}.${key}`);
   }
+}
+
+function isSensitiveKey(key: string): boolean {
+  const normalized = key.replaceAll(/[-_\s]/g, "").toLowerCase();
+
+  return /(secret|password|credential|privatekey)/i.test(normalized)
+    || [
+      "accesskey",
+      "apikey",
+      "apisecret",
+      "apitoken",
+      "authtoken",
+      "authorization",
+      "bearertoken",
+      "clientkey",
+      "clientsecret",
+      "cookie",
+      "idtoken",
+      "refreshtoken",
+      "setcookie",
+      "sessiontoken",
+      "token",
+      "tokenmaterial",
+      "tokenvalue",
+      "xapikey",
+      "accesstoken"
+    ].includes(normalized);
 }
 
 function createBackupMetadata(

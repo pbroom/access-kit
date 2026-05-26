@@ -30,6 +30,15 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
     });
   });
 
+  it("requires explicit signing key material for audit windows", () => {
+    expect(() => new ProductionAuditEvidenceAdapter({
+      store: new InMemoryExternalAppendOnlyAuditStore(),
+      tenantBoundary,
+      location: "worm://audit/access-kit-test",
+      signingKeyMaterial: ""
+    })).toThrow("Production audit signing key material is required.");
+  });
+
   it("retains ordered audit events, signed windows, SIEM delivery metadata, evidence receipts, and backups", () => {
     const store = new InMemoryExternalAppendOnlyAuditStore();
     const repository = createRepository(store);
@@ -196,6 +205,50 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
     });
   });
 
+  it("records failed SIEM replay attempts without clearing the original failure", () => {
+    const repository = createRepository();
+    const [firstEvent, secondEvent] = createAuditEvents();
+
+    repository.appendAuditEvent(firstEvent, now);
+    repository.appendAuditEvent(secondEvent, "2026-05-26T06:11:00.000Z");
+    const window = repository.signAuditWindow({
+      windowId: "audit-window:failed-replay",
+      periodStart: "2026-05-26T00:00:00.000Z",
+      periodEnd: "2026-05-27T00:00:00.000Z",
+      signedAt: "2026-05-26T06:12:00.000Z"
+    });
+    const failed = repository.recordSiemDelivery({
+      windowId: window.windowId,
+      destination: "siem://access-kit/audit",
+      status: "failed",
+      attemptedAt: "2026-05-26T06:13:00.000Z",
+      error: "forwarder unavailable"
+    });
+
+    const replay = repository.replaySiemDelivery({
+      deliveryId: failed.deliveryId,
+      attemptedAt: "2026-05-26T06:15:00.000Z",
+      status: "failed",
+      error: "secondary forwarder unavailable"
+    });
+
+    expect(replay).toMatchObject({
+      status: "failed",
+      error: "secondary forwarder unavailable",
+      replayOfDeliveryId: failed.deliveryId
+    });
+    expect(repository.verifyIntegrity("2026-05-26T06:16:00.000Z")).toMatchObject({
+      status: "failed",
+      findings: expect.arrayContaining([
+        expect.objectContaining({ code: "SIEM_DELIVERY_FAILED", eventId: failed.deliveryId }),
+        expect.objectContaining({ code: "SIEM_DELIVERY_FAILED", eventId: replay.deliveryId })
+      ])
+    });
+    expect(() => repository.replaySiemDelivery({ deliveryId: failed.deliveryId, status: "failed" })).toThrow(
+      "Failed SIEM replay deliveries require an error message."
+    );
+  });
+
   it("detects tampered WORM audit envelopes and refuses to serve them as trusted events", () => {
     const store = new InMemoryExternalAppendOnlyAuditStore();
     const repository = createRepository(store);
@@ -258,6 +311,7 @@ function createRepository(store = new InMemoryExternalAppendOnlyAuditStore()): P
     retentionDays: 2555,
     retentionPolicyId: "retention:audit:seven-years",
     signingKeyId: "signing-key:audit-window:test",
+    signingKeyMaterial: "test-signing-key-material",
     now: () => now
   });
 }
