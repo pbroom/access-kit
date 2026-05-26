@@ -67,4 +67,26 @@ describe("five-minute quickstart runner", () => {
 
     expect(second.decisions.map((decision) => decision.check.decision)).toEqual(["allow", "deny"]);
   });
+
+  it("reports non-JSON API errors without parsing the body first", async () => {
+    const fetchImpl: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith("/v1/health")) {
+        return new Response(JSON.stringify({ status: "ok" }), { status: 200 });
+      }
+
+      if (url.endsWith("/v1/ready")) {
+        return new Response("Bad Gateway", { status: 502 });
+      }
+
+      throw new Error(`Unexpected quickstart request ${url}`);
+    };
+
+    await expect(runQuickstartDemo({
+      baseUrl: "http://quickstart.test",
+      fetchImpl,
+      retries: 1,
+      retryDelayMs: 1
+    })).rejects.toThrow("GET /v1/ready returned 502: Bad Gateway");
+  });
 });

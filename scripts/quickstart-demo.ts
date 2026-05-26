@@ -159,11 +159,12 @@ async function httpJson<T>(
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
   });
   const text = await response.text();
-  const parsed = text ? JSON.parse(text) as unknown : undefined;
 
   if (!response.ok) {
     throw new Error(`${options.method ?? "GET"} ${path} returned ${response.status}: ${text}`);
   }
+
+  const parsed = text ? JSON.parse(text) as unknown : undefined;
 
   return parsed as T;
 }

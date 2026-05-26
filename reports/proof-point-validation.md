@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:40:54.208Z
+Generated at: 2026-05-28T03:42:59.867Z
 
-Branch: 
+Branch: codex/rebac-five-minute-quickstart
 
 Node: v24.4.1
 
@@ -133,8 +133,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:40:48
-   Duration  287ms (transform 132ms, setup 0ms, import 208ms, tests 19ms, environment 0ms)
+   Start at  23:42:54
+   Duration  279ms (transform 132ms, setup 0ms, import 208ms, tests 19ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -225,8 +225,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  12 passed (12)
       Tests  164 passed (164)
-   Start at  23:40:51
-   Duration  235ms (transform 912ms, setup 0ms, import 1.30s, tests 113ms, environment 0ms)
+   Start at  23:42:57
+   Duration  236ms (transform 892ms, setup 0ms, import 1.30s, tests 115ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -240,9 +240,9 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
 
  Test Files  5 passed (5)
-      Tests  109 passed (109)
-   Start at  23:40:52
-   Duration  514ms (transform 613ms, setup 0ms, import 964ms, tests 327ms, environment 0ms)
+      Tests  110 passed (110)
+   Start at  23:42:57
+   Duration  493ms (transform 589ms, setup 0ms, import 964ms, tests 308ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -253,8 +253,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-five-minute-quickstart
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  23:40:53
-   Duration  227ms (transform 331ms, setup 0ms, import 441ms, tests 49ms, environment 0ms)
+   Start at  23:42:58
+   Duration  227ms (transform 329ms, setup 0ms, import 444ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -269,8 +269,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-five-minute-quickstart
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:40:53
-   Duration  313ms (transform 367ms, setup 0ms, import 620ms, tests 104ms, environment 0ms)
+   Start at  23:42:59
+   Duration  312ms (transform 365ms, setup 0ms, import 618ms, tests 106ms, environment 0ms)
 ```
 
 
