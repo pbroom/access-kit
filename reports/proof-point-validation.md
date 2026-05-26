@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-25T23:35:57.595Z
+Generated at: 2026-05-26T03:20:38.800Z
 
-Branch: 
+Branch: codex/rebac-policy-test-harness
 
 Node: v24.4.1
 
@@ -109,8 +109,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  19:35:51
-   Duration  371ms (transform 132ms, setup 0ms, import 243ms, tests 33ms, environment 0ms)
+   Start at  23:20:32
+   Duration  364ms (transform 131ms, setup 0ms, import 239ms, tests 33ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -168,9 +168,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  5 passed (5)
-      Tests  75 passed (75)
-   Start at  19:35:54
-   Duration  267ms (transform 460ms, setup 0ms, import 572ms, tests 54ms, environment 0ms)
+      Tests  76 passed (76)
+   Start at  23:20:36
+   Duration  275ms (transform 466ms, setup 0ms, import 573ms, tests 60ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -184,9 +184,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  1 passed (1)
-      Tests  80 passed (80)
-   Start at  19:35:55
-   Duration  611ms (transform 154ms, setup 0ms, import 250ms, tests 269ms, environment 0ms)
+      Tests  81 passed (81)
+   Start at  23:20:36
+   Duration  623ms (transform 159ms, setup 0ms, import 256ms, tests 273ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -201,8 +201,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  19:35:56
-   Duration  424ms (transform 371ms, setup 0ms, import 724ms, tests 158ms, environment 0ms)
+   Start at  23:20:38
+   Duration  441ms (transform 393ms, setup 0ms, import 760ms, tests 160ms, environment 0ms)
 ```
 
 
