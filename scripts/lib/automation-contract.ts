@@ -287,6 +287,7 @@ export const automationContract = {
       { name: "persistence deployment evidence validation", args: ["validate:persistence-deployment"] },
       { name: "core engine tests", args: ["test:core"] },
       { name: "API runtime tests", args: ["test:api"] },
+      { name: "Microsoft Graph connector tests", args: ["exec", "vitest", "run", "tests/connectors"] },
       { name: "CLI API smoke tests", args: ["test:cli"] }
     ],
     coveredProofPoints: [
@@ -294,7 +295,7 @@ export const automationContract = {
       "JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, connector-security-review, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, and evidence export examples.",
       "OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, enforcement-readiness, generated client metadata, contract snapshots, versioning, deprecation, authentication, rate-limit, and API example path groups.",
       "Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.",
-      "Connector security gate validation for connector identity, consent, tenant boundary, least-privilege read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults.",
+      "Connector security gate validation for connector identity, consent, tenant boundary, least-privilege read scopes, approved Microsoft Graph live-read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults.",
       "CLI command contract mapping each operator command to an API surface.",
       "Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.",
       "Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.",
@@ -302,6 +303,7 @@ export const automationContract = {
       "Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.",
       "Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, and production external adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph and connector-state tenant/secret/backup checks, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.",
       "API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.",
+      "Microsoft Graph connector tests for Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior.",
       "CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.",
       "Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation."
     ],
@@ -312,7 +314,7 @@ export const automationContract = {
       "Replace synthetic production persistence manifest evidence with environment-specific IaC outputs, approvals, and retained evidence artifacts.",
       "Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.",
       "Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.",
-      "Replace synthetic Entra ID, SharePoint, and AWS-style readback fixtures with live read-only connector discovery after connector security review.",
+      "Retain live Microsoft Graph sandbox evidence for environment-specific verification, and replace remaining synthetic SharePoint and AWS-style readback fixtures with live read-only connector discovery after connector security review.",
       "Select and configure environment-specific production connector-state storage behind the production connector-state adapter for discovery runs, native-grant readback, drift findings, and reconciliation evidence.",
       "Replace local JSON dry-run provisioning, controlled synthetic enforcement, readiness gates, and reconciliation jobs with durable queues, retries, and dead-letter handling.",
       "Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, emergency revocation behavior, and connector least-privilege review are complete.",

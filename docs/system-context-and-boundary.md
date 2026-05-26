@@ -57,7 +57,7 @@ flowchart LR
 2. Evaluation: API loads canonical subject, resource, and active relationship facts, applies deterministic policy logic, and records the decision.
 3. Explanation: `explain` includes the relationship path and constraints used for review.
 4. Provisioning: API creates a plan and job evidence; dry-run skips provider writes.
-5. Discovery: connector sync reads synthetic inventory and native grants into discovery and native-grant records.
+5. Discovery: connector sync reads synthetic inventory and native grants into discovery and native-grant records; the optional Microsoft Graph Entra connector can read a sandbox tenant only when explicitly configured and stores redacted identifiers.
 6. Reconciliation: native grants are compared to intended access and produce drift findings.
 7. Audit and evidence: events are hash chained, exported, and mapped to controls.
 
@@ -70,6 +70,7 @@ For a dry-run revocation, an operator calls `rebac provision revoke grant:case-p
 - Boundary documents must not include real tenant IDs, account IDs, emails, tokens, secrets, production hostnames, or sensitive resource names.
 - Deployment-specific diagrams must replace this local proof-point boundary before production assessment.
 - Live connector credentials require managed identity or vault-backed secret handling and documented rotation.
+- Microsoft Graph sandbox evidence must retain redacted run artifacts and must not contain raw tenant IDs, object IDs, user principal names, bearer tokens, request IDs, or raw Graph pagination cursors.
 - Native platforms remain enforcement points where applicable.
 
 ## Audit And Evidence Implications

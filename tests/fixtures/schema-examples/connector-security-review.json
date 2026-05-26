@@ -1,22 +1,29 @@
 {
-  "connectorId": "entra-readonly",
-  "provider": "entra-id",
-  "tenantBoundary": "synthetic:entra:tenant",
-  "synthetic": true,
+  "connectorId": "microsoft-graph-entra-readonly",
+  "provider": "microsoft-graph",
+  "tenantBoundary": "microsoft-graph:tenant:8c2c7d9b6df4f26b",
+  "synthetic": false,
   "identity": {
-    "kind": "synthetic",
-    "subject": "connector:entra-readonly",
+    "kind": "service_principal",
+    "subject": "connector:microsoft-graph-entra-readonly:8c2c7d9b6df4f26b",
     "evidence": ["docs/connector-contract.md", "adrs/0006-connector-plugin-architecture.md"]
   },
   "consent": {
-    "status": "synthetic",
-    "scopesApproved": ["synthetic:directory.read", "synthetic:appRoleAssignment.read"],
-    "evidence": ["docs/connector-contract.md", "docs/system-context-and-boundary.md"]
+    "status": "approved",
+    "scopesApproved": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"],
+    "evidence": ["docs/connector-contract.md", "docs/security-model.md"]
   },
   "leastPrivilege": {
-    "requiredReadScopes": ["synthetic:directory.read", "synthetic:appRoleAssignment.read"],
-    "forbiddenWriteScopes": ["synthetic:directory.write", "synthetic:appRoleAssignment.write"],
-    "scopeJustification": "Directory and app-role assignment readback are enough to inventory synthetic Entra users, groups, service principals, and app assignments."
+    "requiredReadScopes": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"],
+    "forbiddenWriteScopes": [
+      "User.ReadWrite.All",
+      "Group.ReadWrite.All",
+      "GroupMember.ReadWrite.All",
+      "Application.ReadWrite.All",
+      "AppRoleAssignment.ReadWrite.All",
+      "Directory.ReadWrite.All"
+    ],
+    "scopeJustification": "User, group membership, and application read scopes are sufficient for redacted Entra inventory, membership, service-principal, and app-role assignment readback without provider writes."
   },
   "operations": {
     "pagination": "required",
@@ -27,9 +34,9 @@
   },
   "secrets": {
     "storesSecrets": false,
-    "handling": "none",
-    "rotation": "not_applicable",
-    "evidence": ["adrs/0009-secret-management.md", "runbooks/compromised-connector-credential.md"]
+    "handling": "vault_required",
+    "rotation": "required",
+    "evidence": ["docs/connector-contract.md", "docs/security-model.md", "adrs/0009-secret-management.md", "runbooks/compromised-connector-credential.md"]
   },
   "enforcement": {
     "liveWritesAllowed": false,

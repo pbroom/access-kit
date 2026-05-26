@@ -48,6 +48,9 @@ importers:
 
   packages/api:
     dependencies:
+      '@access-kit/connectors-microsoft-graph':
+        specifier: workspace:*
+        version: link:../connectors-microsoft-graph
       '@access-kit/connectors-mock':
         specifier: workspace:*
         version: link:../connectors-mock
@@ -65,6 +68,12 @@ importers:
       commander:
         specifier: ^14.0.2
         version: 14.0.3
+
+  packages/connectors-microsoft-graph:
+    dependencies:
+      '@access-kit/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/connectors-mock:
     dependencies:

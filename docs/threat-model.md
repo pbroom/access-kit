@@ -58,6 +58,7 @@ If an attacker adds a native provider grant outside Access Kit, discovery record
 - Decision and explanation APIs are sensitive because they reveal authorization structure.
 - Connector identities must be scoped to the smallest provider boundary that supports required readback or enforcement.
 - Connector changes must pass `pnpm validate:connector-security` so consent, scopes, tenant boundaries, secret handling, and no-write defaults are reviewed before live provider access.
+- Microsoft Graph live-read evidence must stay redacted; tenant IDs, object IDs, user principal names, tokens, request IDs, and raw cursors are not valid evidence fields.
 - Emergency revocation must stay available even when normal grant workflows are paused.
 - Evidence export access should be restricted because evidence can include sensitive system structure.
 

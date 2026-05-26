@@ -14,13 +14,15 @@ Internal administration must be governed by the same deterministic ReBAC model. 
 
 ## Secrets
 
-Live connector credentials are not part of this milestone. Future connector credentials must use managed identities where possible, vault-backed secrets where needed, documented rotation, and no secret material in logs, fixtures, reports, or CI variables.
+Live connector credentials are not part of the default local proof point. The optional Microsoft Graph Entra read-only connector may be enabled for a sandbox tenant with a short-lived token or token file, but production connector credentials must use managed identities where possible, vault-backed secrets where needed, documented rotation, and no secret material in logs, fixtures, reports, or CI variables.
 
 ## Read-Only Discovery
 
 Phase 2 connector sync is restricted to `read_only`. It may discover inventory and observed native grants through connector adapters, but it must not apply provider mutations, create native grants, revoke native grants, or treat provider readback as intended access.
 
 The synthetic Entra ID, SharePoint, and AWS-style connectors use synthetic IDs, read scopes, tenant boundaries, subjects, resources, grants, warnings, and cursors. They exist to prove contract shape and security boundaries without secrets, production users, tenant IDs, account IDs, or provider API calls.
+
+The Microsoft Graph Entra foundation is different: it can call Microsoft Graph when explicitly configured for a sandbox tenant. It maps users, groups, service principals, and app-role assignments into redacted subjects, resources, relationships, and observed native grants. Missing sandbox evidence, pagination, throttling, limited objects, and unsupported readback behavior are recorded as warnings instead of becoming unqualified canonical facts.
 
 Connector registrations must pass `pnpm validate:connector-security`. The gate requires explicit identity, consent, tenant-boundary, least-privilege read-scope, pagination, throttling, deletion, coverage-warning, secret-handling, and no-write evidence before future live connector slices can build on the adapter.
 

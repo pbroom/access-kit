@@ -1,11 +1,8 @@
 {
-  "name": "@access-kit/api",
+  "name": "@access-kit/connectors-microsoft-graph",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "rebac-api": "./dist/bin.js"
-  },
   "files": [
     "dist"
   ],
@@ -14,14 +11,12 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
+      "development": "./src/index.ts",
       "default": "./dist/index.js"
     }
   },
   "dependencies": {
-    "@access-kit/connectors-mock": "workspace:*",
-    "@access-kit/connectors-microsoft-graph": "workspace:*",
-    "@access-kit/core": "workspace:*",
-    "ajv": "^8.17.1"
+    "@access-kit/core": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json"
