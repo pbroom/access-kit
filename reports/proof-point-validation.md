@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T05:08:49.677Z
+Generated at: 2026-05-26T05:13:02.257Z
 
 Branch: codex/rebac-microsoft-graph-entra-readonly
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  01:08:42
-   Duration  416ms (transform 167ms, setup 0ms, import 283ms, tests 35ms, environment 0ms)
+   Start at  01:12:55
+   Duration  388ms (transform 145ms, setup 0ms, import 257ms, tests 33ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -187,8 +187,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  6 passed (6)
       Tests  92 passed (92)
-   Start at  01:08:46
-   Duration  285ms (transform 609ms, setup 0ms, import 755ms, tests 70ms, environment 0ms)
+   Start at  01:12:58
+   Duration  281ms (transform 584ms, setup 0ms, import 743ms, tests 70ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -203,8 +203,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  2 passed (2)
       Tests  88 passed (88)
-   Start at  01:08:46
-   Duration  635ms (transform 230ms, setup 0ms, import 342ms, tests 284ms, environment 0ms)
+   Start at  01:12:59
+   Duration  636ms (transform 237ms, setup 0ms, import 345ms, tests 280ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -215,8 +215,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
 
  Test Files  1 passed (1)
       Tests  7 passed (7)
-   Start at  01:08:48
-   Duration  258ms (transform 118ms, setup 0ms, import 146ms, tests 21ms, environment 0ms)
+   Start at  01:13:00
+   Duration  255ms (transform 114ms, setup 0ms, import 141ms, tests 21ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  01:08:48
-   Duration  436ms (transform 394ms, setup 0ms, import 757ms, tests 159ms, environment 0ms)
+   Start at  01:13:01
+   Duration  436ms (transform 416ms, setup 0ms, import 768ms, tests 157ms, environment 0ms)
 ```
 
 

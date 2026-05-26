@@ -15,6 +15,8 @@ const ci = YAML.parse(await readRequiredFile(".github/workflows/ci.yml")) as Wor
 
 requireIncludes(dockerfile, "FROM node:22-bookworm-slim AS deps", "Dockerfile Node 22 build stage");
 requireIncludes(dockerfile, "pnpm install --frozen-lockfile", "Dockerfile frozen lockfile install");
+requireIncludes(dockerfile, "COPY packages/connectors-microsoft-graph/package.json packages/connectors-microsoft-graph/package.json", "Dockerfile Microsoft Graph connector package manifest");
+requireIncludes(dockerfile, "COPY packages/connectors-microsoft-graph packages/connectors-microsoft-graph", "Dockerfile Microsoft Graph connector package source");
 requireIncludes(dockerfile, "pnpm --filter @access-kit/api... build", "Dockerfile API workspace build");
 requireIncludes(dockerfile, "pnpm deploy --filter @access-kit/api --prod --legacy /app", "Dockerfile production deploy");
 requireIncludes(dockerfile, "FROM node:22-bookworm-slim AS runtime", "Dockerfile runtime stage");
