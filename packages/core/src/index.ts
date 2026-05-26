@@ -6,5 +6,6 @@ export * from "./fixtures.js";
 export * from "./persistence.js";
 export * from "./policy-model.js";
 export * from "./policy-proof-points.js";
+export * from "./production-repositories.js";
 export * from "./repositories.js";
 export * from "./store.js";
