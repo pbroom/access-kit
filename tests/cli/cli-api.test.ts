@@ -605,6 +605,33 @@ describe("CLI API wrapper", () => {
     });
   });
 
+  it("rejects request diffs without preview before calling the API", async () => {
+    const requests: CapturedRequest[] = [];
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    try {
+      await runCliWithFetch(
+        requests,
+        "--diff",
+        "provision",
+        "plan",
+        "user:alice",
+        "document:case-plan",
+        "read",
+        "--connector",
+        "mock"
+      );
+
+      expect(requests).toEqual([]);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.configuration);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("--diff requires --preview"));
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
+  });
+
   it("prints shell completion without calling the API", async () => {
     const textOutput: string[] = [];
     const program = buildCli({
@@ -620,6 +647,26 @@ describe("CLI API wrapper", () => {
     expect(textOutput.join("\n")).toContain("complete -F _rebac_completion rebac");
   });
 
+  it("reports unsupported completion shells with the configuration exit code", async () => {
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const program = buildCli({
+      apiUrl: "http://api.example",
+      writeJson: (value) => output.push(value)
+    });
+    program.exitOverride();
+
+    try {
+      await expect(program.parseAsync(["node", "rebac", "completion", "powershell"])).resolves.toBe(program);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.configuration);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("completion shell must be bash, zsh, or fish"));
+      expect(output).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
+  });
+
   it("escapes fish completion words before shell rendering", async () => {
     const textOutput: string[] = [];
     const program = buildCli({
@@ -633,7 +680,7 @@ describe("CLI API wrapper", () => {
     await program.parseAsync(["node", "rebac", "completion", "fish"]);
 
     expect(output).toEqual([]);
-    expect(textOutput.join("\n")).toContain("complete -c rebac -f -a 'debug\\\\\\'token'");
+    expect(textOutput.join("\n")).toContain("complete -c rebac -f -a 'debug\\\\'\\''token'");
   });
 
   it("uses explicit exit codes for API and configuration failures", async () => {

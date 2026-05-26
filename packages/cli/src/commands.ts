@@ -94,7 +94,7 @@ export function buildCli(options: CliOptions = {}): Command {
     .option("--config <path>", "CLI profile config JSON")
     .option("--profile <name>", "CLI profile name")
     .option("--preview", "Print the request that would be sent without calling the API")
-    .option("--diff", "Include request diff lines in preview output");
+    .option("--diff", "Include request diff lines in preview output (requires --preview)");
 
   const context = createCliContext(options);
   addSubjectCommands(program, context);
@@ -714,7 +714,11 @@ function addConnectorCommands(program: Command, context: CliContext): void {
 function addCompletionCommand(program: Command, context: CliContext): void {
   const completion = program.command("completion").argument("<shell>").description("Print shell completion for bash, zsh, or fish.");
   completion.action((shell: string) => {
-    context.writeText(renderShellCompletion(shell, program));
+    try {
+      context.writeText(renderShellCompletion(shell, program));
+    } catch (error) {
+      writeCliError(error);
+    }
   });
 }
 
@@ -728,10 +732,7 @@ function withApi(
       const client = new ApiClient(resolveRuntimeOptions(command, context), context.fetch);
       context.writeJson(await handler(client, args));
     } catch (error) {
-      process.stderr.write(`error: ${formatCliError(error)}\n`);
-      process.exitCode = error instanceof CliConfigurationError
-        ? CLI_EXIT_CODES.configuration
-        : CLI_EXIT_CODES.apiFailure;
+      writeCliError(error);
     }
   };
 }
@@ -794,6 +795,13 @@ class CliConfigurationError extends Error {}
 function resolveRuntimeOptions(command: Command, context: CliContext): CliRuntimeOptions {
   const root = getRootCommand(command);
   const rootOptions = root.opts<RootCliOptions>();
+  const preview = rootOptions.preview === true;
+  const diff = rootOptions.diff === true;
+
+  if (diff && !preview) {
+    throw new CliConfigurationError("--diff requires --preview.");
+  }
+
   const profileConfig = readProfileConfig(rootOptions, context);
   const profileName = rootOptions.profile ?? context.env.REBAC_PROFILE;
   const profile = readProfile(profileConfig, profileName);
@@ -810,8 +818,8 @@ function resolveRuntimeOptions(command: Command, context: CliContext): CliRuntim
       ?? context.env.REBAC_API_URL
       ?? "http://127.0.0.1:3000",
     apiKey: context.env[apiKeyEnv],
-    preview: rootOptions.preview === true,
-    diff: rootOptions.diff === true
+    preview,
+    diff
   };
 }
 
@@ -1036,7 +1044,14 @@ function completionWords(command: Command): string[] {
 }
 
 function quoteFishWord(word: string): string {
-  return `'${word.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+  return `'${word.replace(/\\/g, "\\\\").replace(/'/g, "'\\''")}'`;
+}
+
+function writeCliError(error: unknown): void {
+  process.stderr.write(`error: ${formatCliError(error)}\n`);
+  process.exitCode = error instanceof CliConfigurationError
+    ? CLI_EXIT_CODES.configuration
+    : CLI_EXIT_CODES.apiFailure;
 }
 
 function readOptionalString(value: unknown, label: string): string | undefined {

@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T04:25:05.219Z
+Generated at: 2026-05-28T04:25:43.404Z
 
-Branch: 
+Branch: codex/rebac-cli-operator-distribution
 
 Node: v24.4.1
 
@@ -134,8 +134,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  00:24:59
-   Duration  283ms (transform 136ms, setup 0ms, import 212ms, tests 19ms, environment 0ms)
+   Start at  00:25:37
+   Duration  283ms (transform 136ms, setup 0ms, import 211ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -228,8 +228,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  00:25:02
-   Duration  239ms (transform 1.02s, setup 0ms, import 1.46s, tests 125ms, environment 1ms)
+   Start at  00:25:40
+   Duration  244ms (transform 999ms, setup 0ms, import 1.48s, tests 126ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -244,8 +244,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  6 passed (6)
       Tests  112 passed (112)
-   Start at  00:25:03
-   Duration  505ms (transform 743ms, setup 0ms, import 1.21s, tests 399ms, environment 0ms)
+   Start at  00:25:41
+   Duration  516ms (transform 786ms, setup 0ms, import 1.24s, tests 400ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -256,8 +256,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-cli-operator-distribution
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  00:25:04
-   Duration  229ms (transform 336ms, setup 0ms, import 446ms, tests 49ms, environment 0ms)
+   Start at  00:25:42
+   Duration  230ms (transform 337ms, setup 0ms, import 451ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -271,9 +271,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-cli-operator-distribution
 
 
  Test Files  3 passed (3)
-      Tests  40 passed (40)
-   Start at  00:25:04
-   Duration  323ms (transform 393ms, setup 0ms, import 637ms, tests 108ms, environment 0ms)
+      Tests  42 passed (42)
+   Start at  00:25:42
+   Duration  326ms (transform 385ms, setup 0ms, import 648ms, tests 109ms, environment 0ms)
 ```
 
 
