@@ -41,6 +41,9 @@ jobs:
       - name: Validate public contracts
         run: pnpm validate:contracts
 
+      - name: Validate connector security gates
+        run: pnpm validate:connector-security
+
       - name: Validate documentation foundation
         run: pnpm validate:docs
 

@@ -44,7 +44,7 @@ This is not a penetration test report, live deployment threat model, or final ri
 | --- | --- | --- |
 | Decision bypass | Deterministic engine, deny by default, explicit deny precedence, policy proof points. | Deployed API authentication, rate limits, authorization for admin APIs. |
 | Relationship poisoning | Versioned relationship tuples, audit events, idempotent writes. | Approval workflow, durable storage, source integrity checks. |
-| Overprivileged connector | Read-only synthetic connectors, readiness gates, secrets out of scope. | Managed identity/vault, rotation, least-privilege review, monitoring. |
+| Overprivileged connector | Read-only synthetic connectors, connector security review gate, readiness gates, secrets out of scope. | Managed identity/vault, rotation, live-provider consent evidence, monitoring. |
 | Silent drift | Drift findings and reconciliation endpoints. | Durable reconciliation schedule and alerting. |
 | Audit tampering | Payload hashes and hash-chain integrity report. | WORM or tamper-evident storage and retention. |
 | Evidence overclaiming | Docs mark proof-point versus production gaps. | Assessor-reviewed statements and deployment-specific evidence. |
@@ -57,6 +57,7 @@ If an attacker adds a native provider grant outside Access Kit, discovery record
 
 - Decision and explanation APIs are sensitive because they reveal authorization structure.
 - Connector identities must be scoped to the smallest provider boundary that supports required readback or enforcement.
+- Connector changes must pass `pnpm validate:connector-security` so consent, scopes, tenant boundaries, secret handling, and no-write defaults are reviewed before live provider access.
 - Emergency revocation must stay available even when normal grant workflows are paused.
 - Evidence export access should be restricted because evidence can include sensitive system structure.
 

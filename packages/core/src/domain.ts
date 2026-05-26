@@ -643,6 +643,49 @@ export interface ConnectorDiscoveryMetadata {
   cursor?: DiscoveryCursor;
 }
 
+export interface ConnectorSecurityReview {
+  connectorId: string;
+  provider: string;
+  tenantBoundary: string;
+  synthetic: boolean;
+  identity: {
+    kind: "synthetic" | "managed_identity" | "service_principal" | "access_key" | "role";
+    subject: string;
+    evidence: string[];
+  };
+  consent: {
+    status: "synthetic" | "approved" | "blocked";
+    scopesApproved: string[];
+    evidence: string[];
+  };
+  leastPrivilege: {
+    requiredReadScopes: string[];
+    forbiddenWriteScopes: string[];
+    scopeJustification: string;
+  };
+  operations: {
+    pagination: "required" | "not_applicable";
+    throttling: "required" | "not_applicable";
+    deletion: "mark_deleted" | "ignore" | "unsupported" | "not_applicable";
+    coverageWarnings: "required";
+    nativeAccessReadback: boolean;
+  };
+  secrets: {
+    storesSecrets: boolean;
+    handling: "none" | "managed_identity" | "vault_required";
+    rotation: "not_applicable" | "required";
+    evidence: string[];
+  };
+  enforcement: {
+    liveWritesAllowed: boolean;
+    controlledSyntheticOnly: boolean;
+    readinessRequired: boolean;
+    rollbackRequired: boolean;
+    emergencyRevocationRequired: boolean;
+    monitoringRequired: boolean;
+  };
+}
+
 export interface ConnectorAdapter {
   id: string;
   mode: ConnectorMode;
@@ -656,6 +699,7 @@ export interface ConnectorAdapter {
   readCurrentAccess(resourceId: CanonicalId): Promise<NativeGrant[]>;
   testReadOnlyAccess?(): Promise<ConnectorHealthCheck[]>;
   getDiscoveryMetadata?(): ConnectorDiscoveryMetadata;
+  getSecurityReview?(): ConnectorSecurityReview;
   planProvisioningChange(request: DecisionResult): Promise<ProvisioningPlan>;
   applyProvisioningChange(plan: ProvisioningPlan): Promise<ProvisioningPlan>;
   verifyProvisioningChange(plan: ProvisioningPlan): Promise<boolean>;

@@ -5,6 +5,7 @@ import {
   type ConnectorAdapter,
   type ConnectorDiscoveryMetadata,
   type ConnectorHealthCheck,
+  type ConnectorSecurityReview,
   type DecisionResult,
   type DiscoveryRunWarning,
   type DriftFinding,
@@ -23,6 +24,8 @@ interface SyntheticConnectorSeed {
   provider: string;
   tenantBoundary: string;
   requiredReadScopes: string[];
+  forbiddenWriteScopes: string[];
+  scopeJustification: string;
   supportsExternalUsers: boolean;
   supportsTimeBoundAccess: boolean;
   subjects: Subject[];
@@ -110,6 +113,20 @@ abstract class SyntheticReadOnlyConnector implements ConnectorAdapter {
       warnings: this.seed.warnings ?? [],
       cursor: this.seed.cursor
     };
+  }
+
+  getSecurityReview(): ConnectorSecurityReview {
+    return createSyntheticSecurityReview({
+      connectorId: this.id,
+      provider: this.provider,
+      tenantBoundary: this.tenantBoundary,
+      requiredReadScopes: this.requiredReadScopes,
+      forbiddenWriteScopes: this.seed.forbiddenWriteScopes,
+      scopeJustification: this.seed.scopeJustification,
+      deletion: this.seed.cursor?.deletedObjectBehavior ?? "unsupported",
+      controlledSyntheticOnly: false,
+      rollbackRequired: true
+    });
   }
 
   async planProvisioningChange(request: DecisionResult): Promise<ProvisioningPlan> {
@@ -231,6 +248,20 @@ export class MockConnector implements ConnectorAdapter {
     };
   }
 
+  getSecurityReview(): ConnectorSecurityReview {
+    return createSyntheticSecurityReview({
+      connectorId: this.id,
+      provider: this.provider,
+      tenantBoundary: this.tenantBoundary,
+      requiredReadScopes: this.requiredReadScopes,
+      forbiddenWriteScopes: ["synthetic:mock.write"],
+      scopeJustification: "The mock connector is limited to synthetic local readback and controlled synthetic enforcement proof points.",
+      deletion: "mark_deleted",
+      controlledSyntheticOnly: true,
+      rollbackRequired: true
+    });
+  }
+
   async planProvisioningChange(request: DecisionResult): Promise<ProvisioningPlan> {
     return createDryRunPlan(request, this.id, request.resourceId);
   }
@@ -312,6 +343,8 @@ export class SyntheticEntraConnector extends SyntheticReadOnlyConnector {
       provider: "entra-id",
       tenantBoundary: "synthetic:entra:tenant",
       requiredReadScopes: ["synthetic:directory.read", "synthetic:appRoleAssignment.read"],
+      forbiddenWriteScopes: ["synthetic:directory.write", "synthetic:appRoleAssignment.write"],
+      scopeJustification: "Directory and app-role assignment readback are enough to inventory synthetic Entra users, groups, service principals, and app assignments.",
       supportsExternalUsers: true,
       supportsTimeBoundAccess: true,
       subjects: [
@@ -349,6 +382,8 @@ export class SyntheticSharePointConnector extends SyntheticReadOnlyConnector {
       provider: "sharepoint",
       tenantBoundary: "synthetic:sharepoint:tenant",
       requiredReadScopes: ["synthetic:sites.read", "synthetic:permissions.read"],
+      forbiddenWriteScopes: ["synthetic:sites.write", "synthetic:permissions.write"],
+      scopeJustification: "Sites and permissions readback are enough to inventory synthetic SharePoint resources and observed grants.",
       supportsExternalUsers: true,
       supportsTimeBoundAccess: true,
       subjects: [
@@ -409,6 +444,8 @@ export class SyntheticAwsConnector extends SyntheticReadOnlyConnector {
       provider: "aws",
       tenantBoundary: "synthetic:aws:organization",
       requiredReadScopes: ["synthetic:iam.read", "synthetic:organizations.read"],
+      forbiddenWriteScopes: ["synthetic:iam.write", "synthetic:organizations.write"],
+      scopeJustification: "IAM and Organizations readback are enough to inventory synthetic AWS accounts, roles, and assignment evidence.",
       supportsExternalUsers: false,
       supportsTimeBoundAccess: true,
       subjects: [
@@ -449,6 +486,63 @@ export class SyntheticAwsConnector extends SyntheticReadOnlyConnector {
       }
     });
   }
+}
+
+interface SyntheticSecurityReviewInput {
+  connectorId: string;
+  provider: string;
+  tenantBoundary: string;
+  requiredReadScopes: string[];
+  forbiddenWriteScopes: string[];
+  scopeJustification: string;
+  deletion: ConnectorSecurityReview["operations"]["deletion"];
+  controlledSyntheticOnly: boolean;
+  rollbackRequired: boolean;
+}
+
+function createSyntheticSecurityReview(input: SyntheticSecurityReviewInput): ConnectorSecurityReview {
+  return {
+    connectorId: input.connectorId,
+    provider: input.provider,
+    tenantBoundary: input.tenantBoundary,
+    synthetic: true,
+    identity: {
+      kind: "synthetic",
+      subject: `connector:${input.connectorId}`,
+      evidence: ["docs/connector-contract.md", "adrs/0006-connector-plugin-architecture.md"]
+    },
+    consent: {
+      status: "synthetic",
+      scopesApproved: input.requiredReadScopes,
+      evidence: ["docs/connector-contract.md", "docs/system-context-and-boundary.md"]
+    },
+    leastPrivilege: {
+      requiredReadScopes: input.requiredReadScopes,
+      forbiddenWriteScopes: input.forbiddenWriteScopes,
+      scopeJustification: input.scopeJustification
+    },
+    operations: {
+      pagination: "required",
+      throttling: "required",
+      deletion: input.deletion,
+      coverageWarnings: "required",
+      nativeAccessReadback: true
+    },
+    secrets: {
+      storesSecrets: false,
+      handling: "none",
+      rotation: "not_applicable",
+      evidence: ["adrs/0009-secret-management.md", "runbooks/compromised-connector-credential.md"]
+    },
+    enforcement: {
+      liveWritesAllowed: false,
+      controlledSyntheticOnly: input.controlledSyntheticOnly,
+      readinessRequired: true,
+      rollbackRequired: input.rollbackRequired,
+      emergencyRevocationRequired: true,
+      monitoringRequired: true
+    }
+  };
 }
 
 function subject(

@@ -41,9 +41,25 @@ The current implementation blocks controlled enforcement for synthetic read-only
 | Capability flags | Prevent unsupported operations. |
 | Discovery run | Prove read-only inventory and native grant readback. |
 | Native grants | Preserve observed provider state without converting it to intended access. |
+| Connector security review | Gate connector identity, consent, tenant boundary, least-privilege scopes, deletion behavior, coverage warnings, secret handling, and no-write defaults. |
 | Enforcement readiness report | Gate controlled enforcement. |
 | Verification result | Prove readback after planned action. |
 | Drift findings | Record mismatch between intended and observed state. |
+
+## Connector Security Review Gate
+
+Every registered connector must expose a `ConnectorSecurityReview` and pass `pnpm validate:connector-security` before live connector work can proceed. The gate compares runtime registration, discovery metadata, read-only health checks, and enforcement-readiness behavior against the review evidence.
+
+The gate requires:
+
+- stable connector ID, provider, and tenant boundary with no fallback boundary
+- explicit synthetic consent evidence or approved live consent evidence
+- required read scopes that are non-empty, unique, and separate from forbidden write scopes
+- pagination, throttling, deletion semantics, coverage-warning, and native-readback expectations
+- secret handling evidence with no synthetic connector secrets
+- live provider writes blocked unless a future reviewed live connector slice adds approved readiness, rollback, monitoring, and emergency revocation evidence
+
+The current synthetic provider connectors remain read-only and blocked for enforcement. The `mock` connector may pass controlled synthetic enforcement readiness only with `liveProviderWrites: false`.
 
 ## Concrete Example
 
@@ -52,6 +68,7 @@ The current implementation blocks controlled enforcement for synthetic read-only
 ## Security Considerations
 
 - Use read-only scopes until live connector review is complete.
+- Treat `pnpm validate:connector-security` as the release gate for connector identity, consent, least privilege, tenant boundary, and no-write defaults.
 - Managed identity is preferred for future live connectors; vault-backed secrets require rotation and logging controls.
 - Connector warnings must not be suppressed when they affect coverage or deletion semantics.
 - Provider readback must not become intended access without policy and approval.

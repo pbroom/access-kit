@@ -15,6 +15,7 @@ const schemaByExample = new Map<string, string>([
   ["decision.json", "schemas/decision.schema.json"],
   ["native-grant.json", "schemas/native-grant.schema.json"],
   ["discovery-run.json", "schemas/discovery-run.schema.json"],
+  ["connector-security-review.json", "schemas/connector-security-review.schema.json"],
   ["enforcement-readiness.json", "schemas/enforcement-readiness.schema.json"],
   ["policy-model.json", "schemas/policy-model.schema.json"],
   ["provisioning-plan.json", "schemas/provisioning-plan.schema.json"],
