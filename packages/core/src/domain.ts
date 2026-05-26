@@ -478,6 +478,7 @@ export type EvidenceArtifactType =
   | "control_mapping"
   | "siem_export"
   | "poam"
+  | "poam_export"
   | "conmon"
   | "system_boundary"
   | "data_flow"
@@ -485,6 +486,11 @@ export type EvidenceArtifactType =
   | "access_review"
   | "exception_register"
   | "security_evidence"
+  | "oscal_component_definition"
+  | "oscal_ssp"
+  | "oscal_assessment_results"
+  | "signed_evidence_package"
+  | "control_trace"
   | "incident_response"
   | "contingency_plan"
   | "configuration_baseline";
@@ -534,6 +540,139 @@ export interface PoamItem {
   ownerRole: string;
   plannedCompletion: IsoDateTime;
   source: string;
+}
+
+export interface EvidenceDeploymentScope {
+  boundaryId: CanonicalId;
+  environment: SystemBoundaryEvidence["environment"];
+  liveTenantData: boolean;
+  controls: string[];
+  periodStart: IsoDateTime;
+  periodEnd: IsoDateTime;
+  componentIds: CanonicalId[];
+  version: "evidence-deployment-scope:v1";
+}
+
+export interface OscalControlImplementation {
+  controlId: string;
+  status: ControlImplementationStatus;
+  statement: string;
+  responsibleRole: string;
+  reviewerRole: string;
+  reviewedAt: IsoDateTime;
+  sourceEventIds: CanonicalId[];
+  sourceArtifactNames: string[];
+  gaps: string[];
+}
+
+export interface OscalComponentDefinitionFragment {
+  uuid: CanonicalId;
+  title: string;
+  framework: EvidenceFramework;
+  generatedAt: IsoDateTime;
+  components: BoundaryComponent[];
+  implementedRequirements: OscalControlImplementation[];
+  version: "oscal-component-definition-fragment:v1";
+}
+
+export interface OscalSspFragment {
+  uuid: CanonicalId;
+  title: string;
+  systemName: string;
+  boundaryId: CanonicalId;
+  deploymentScope: EvidenceDeploymentScope;
+  dataFlows: DataFlowEvidence[];
+  controlImplementationStatements: OscalControlImplementation[];
+  version: "oscal-ssp-fragment:v1";
+}
+
+export interface OscalAssessmentResultsFragment {
+  uuid: CanonicalId;
+  title: string;
+  generatedAt: IsoDateTime;
+  reviewedControls: OscalControlImplementation[];
+  observations: Array<{
+    controlId: string;
+    status: ControlImplementationStatus;
+    sourceEventIds: CanonicalId[];
+    gaps: string[];
+  }>;
+  version: "oscal-assessment-results-fragment:v1";
+}
+
+export interface OscalPoamExport {
+  uuid: CanonicalId;
+  title: string;
+  generatedAt: IsoDateTime;
+  items: PoamItem[];
+  sourceControlIds: string[];
+  version: "oscal-poam-export:v1";
+}
+
+export interface OscalEvidenceArtifacts {
+  componentDefinition: OscalComponentDefinitionFragment;
+  systemSecurityPlan: OscalSspFragment;
+  assessmentResults: OscalAssessmentResultsFragment;
+  planOfActionAndMilestones: OscalPoamExport;
+  version: "oscal-evidence-artifacts:v1";
+}
+
+export interface SignedEvidencePackage {
+  packageId: CanonicalId;
+  packageHash: string;
+  hashAlgorithm: "sha256";
+  canonicalization: "stable-json";
+  signatureAlgorithm: "sha256-local-proof-signature";
+  keyId: CanonicalId;
+  signedAt: IsoDateTime;
+  signerRole: string;
+  signature: string;
+  deploymentScope: EvidenceDeploymentScope;
+  sourceEventIds: CanonicalId[];
+  reviewedStatementRefs: CanonicalId[];
+  controlTraceIds: CanonicalId[];
+  version: "signed-evidence-package:v1";
+}
+
+export interface EvidenceVerifierCheck {
+  name: string;
+  status: "pass" | "fail";
+  message: string;
+  expected?: string;
+  actual?: string;
+}
+
+export interface EvidenceVerificationReport {
+  status: "verified" | "failed";
+  verifiedAt: IsoDateTime;
+  packageHash?: string;
+  checks: EvidenceVerifierCheck[];
+  version: "evidence-verification-report:v1";
+}
+
+export interface EvidenceControlTraceView {
+  traceId: CanonicalId;
+  controlId: string;
+  status: ControlImplementationStatus;
+  sourceEventIds: CanonicalId[];
+  reviewedStatement: {
+    reviewerRole: string;
+    reviewedAt: IsoDateTime;
+    sourceArtifactNames: string[];
+  };
+  signatureRef: {
+    packageId: CanonicalId;
+    keyId: CanonicalId;
+  };
+  deploymentScope: EvidenceDeploymentScope;
+  oscalRefs: {
+    componentDefinitionUuid: CanonicalId;
+    sspUuid: CanonicalId;
+    assessmentResultsUuid: CanonicalId;
+    poamUuid: CanonicalId;
+  };
+  gaps: string[];
+  version: "evidence-control-trace-view:v1";
 }
 
 export interface BoundaryComponent {
@@ -798,6 +937,7 @@ export interface EvidenceExport {
   artifacts: EvidenceArtifact[];
   conmonMetrics: ConMonMetric[];
   poamItems: PoamItem[];
+  poamExport: OscalPoamExport;
   siemExport: SiemExportMetadata;
   systemBoundary: SystemBoundaryEvidence;
   dataFlows: DataFlowEvidence[];
@@ -805,6 +945,10 @@ export interface EvidenceExport {
   accessReviews: AccessReviewEvidence[];
   exceptionRegister: ExceptionRecord[];
   operationalEvidence: OperationalEvidence[];
+  oscal: OscalEvidenceArtifacts;
+  signedPackage: SignedEvidencePackage;
+  verifierChecks: EvidenceVerifierCheck[];
+  controlTraceViews: EvidenceControlTraceView[];
   storageReceipt?: EvidenceStorageReceipt;
 }
 

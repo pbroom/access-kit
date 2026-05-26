@@ -45,27 +45,28 @@ import {
   type RebacLocalAppOptions
 } from "./local-app.js";
 import { validateRuntimeRequestSchema, type RuntimeRequestSchemaName } from "./request-schemas.js";
-import type {
-  DecisionRequest,
-  DiscoveryRunStatus,
-  DriftAutoRepairPolicy,
-  DriftFindingStatus,
-  DriftHookEvidence,
-  DriftLifecycleState,
-  DriftSeverity,
-  EnforcementControl,
-  EnforcementReadinessReport,
-  AuditEventExportTarget,
-  EvidenceFramework,
-  NativeGrantType,
-  NativePrincipalType,
-  ProvisioningApproval,
-  ProvisioningMode,
-  ReconciliationScheduleEvidence,
-  ReconciliationTrigger,
-  RelationshipTuple,
-  Resource,
-  Subject
+import {
+  verifyEvidenceExport,
+  type DecisionRequest,
+  type DiscoveryRunStatus,
+  type DriftAutoRepairPolicy,
+  type DriftFindingStatus,
+  type DriftHookEvidence,
+  type DriftLifecycleState,
+  type DriftSeverity,
+  type EnforcementControl,
+  type EnforcementReadinessReport,
+  type AuditEventExportTarget,
+  type EvidenceFramework,
+  type NativeGrantType,
+  type NativePrincipalType,
+  type ProvisioningApproval,
+  type ProvisioningMode,
+  type ReconciliationScheduleEvidence,
+  type ReconciliationTrigger,
+  type RelationshipTuple,
+  type Resource,
+  type Subject
 } from "@access-kit/core";
 
 export { API_ROUTE_SURFACES, type ApiRouteSurface } from "./api-routes.js";
@@ -290,6 +291,11 @@ async function routeRequest(
     }
 
     sendJson(response, 200, exportEvidencePackage(app, controls, format, { framework, periodStart, periodEnd }));
+    return;
+  }
+
+  if (segments[1] === "evidence" && segments[2] === "verify" && method === "POST") {
+    sendJson(response, 200, verifyEvidenceExport(await readJson<unknown>(request)));
     return;
   }
 

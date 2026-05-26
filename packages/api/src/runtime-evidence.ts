@@ -164,11 +164,47 @@ export function buildEvidenceArtifacts(format: EvidenceExportFormat, eventCount:
       format
     },
     {
+      name: "poam-export",
+      type: "poam_export",
+      description: "OSCAL-oriented POA&M export derived from the same POA&M evidence items.",
+      format
+    },
+    {
       name: "siem-events",
       type: "siem_export",
       description: "JSONL-ready SIEM export metadata for the same audit-event scope.",
       eventCount,
       format: "jsonl"
+    },
+    {
+      name: "oscal-component-definition",
+      type: "oscal_component_definition",
+      description: "OSCAL component-definition fragment generated from boundary components and reviewed control statements.",
+      format
+    },
+    {
+      name: "oscal-ssp-fragment",
+      type: "oscal_ssp",
+      description: "OSCAL SSP fragment generated from deployment scope, data flows, and control statements.",
+      format
+    },
+    {
+      name: "oscal-assessment-results",
+      type: "oscal_assessment_results",
+      description: "OSCAL assessment-results fragment linking reviewed controls to observed audit evidence.",
+      format
+    },
+    {
+      name: "signed-evidence-package",
+      type: "signed_evidence_package",
+      description: "Signed package metadata that binds the evidence hash to source events, reviewed statements, and deployment scope.",
+      format
+    },
+    {
+      name: "control-trace-views",
+      type: "control_trace",
+      description: "Control-to-event trace views linking source events, reviewed statements, signatures, and deployment scope.",
+      format
     },
     {
       name: "system-boundary",

@@ -2,6 +2,8 @@ import {
   AuditRecorder,
   assertAdminAuthorizationDescriptorSafe,
   attachEvidenceIntegrityManifest,
+  attachEvidenceVerifierChecks,
+  attachSignedEvidencePackage,
   buildAccessReviewGovernance,
   buildReconciliationSchedule,
   createLocalEngineSeed,
@@ -39,6 +41,8 @@ import {
   type EnforcementReadinessCheck,
   type EnforcementReadinessReport,
   type EvidenceArtifact,
+  type EvidenceControlTraceView,
+  type EvidenceDeploymentScope,
   type EvidenceExportFormat,
   type EvidenceControlMapping,
   type EvidenceExport,
@@ -49,6 +53,9 @@ import {
   type ExceptionRecord,
   type GovernanceFinding,
   type JsonRecord,
+  type OscalControlImplementation,
+  type OscalEvidenceArtifacts,
+  type OscalPoamExport,
   type PoamItem,
   type PolicyModel,
   type PolicyModelValidationResult,
@@ -1248,8 +1255,31 @@ export function exportEvidencePackage(
   const exceptionRegister = buildExceptionRegister(governanceRecords.exceptionRequests);
   const operationalEvidence = buildOperationalEvidence(generatedAt);
   const artifacts = buildEvidenceArtifacts(format, events.length);
-  const exportMetadata = attachEvidenceIntegrityManifest({
-    exportId: `evidence:${generatedAt.replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`,
+  const exportId = `evidence:${generatedAt.replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`;
+  const controlStatements = buildControlStatements(controlMappings, artifacts, generatedAt);
+  const deploymentScope = buildEvidenceDeploymentScope(systemBoundary, controls, periodStart, periodEnd);
+  const poamExport = buildOscalPoamExport(exportId, poamItems, controls, generatedAt);
+  const oscal = buildOscalEvidenceArtifacts(
+    exportId,
+    options.framework ?? "nist-800-53",
+    generatedAt,
+    systemBoundary,
+    dataFlows,
+    controlMappings,
+    controlStatements,
+    deploymentScope,
+    poamExport
+  );
+  const controlTraceViews = buildControlTraceViews(
+    exportId,
+    controlMappings,
+    controlStatements,
+    deploymentScope,
+    oscal,
+    signedPackageId(exportId)
+  );
+  const exportMetadata = attachEvidenceVerifierChecks(attachSignedEvidencePackage(attachEvidenceIntegrityManifest({
+    exportId,
     framework: options.framework ?? "nist-800-53",
     controls,
     periodStart,
@@ -1270,7 +1300,14 @@ export function exportEvidencePackage(
       "control_statements",
       "access_reviews",
       "exception_register",
-      "operational_evidence"
+      "operational_evidence",
+      "oscal_component_definition",
+      "oscal_ssp",
+      "oscal_assessment_results",
+      "poam_export",
+      "signed_evidence_package",
+      "control_trace_views",
+      "verifier_checks"
     ],
     sourceEventIds: events.map((event) => event.eventId),
     responsibleRole: "ISSO",
@@ -1280,6 +1317,7 @@ export function exportEvidencePackage(
     artifacts,
     conmonMetrics,
     poamItems,
+    poamExport,
     siemExport: {
       format: "jsonl",
       eventCount: events.length,
@@ -1289,11 +1327,13 @@ export function exportEvidencePackage(
     },
     systemBoundary,
     dataFlows,
-    controlStatements: buildControlStatements(controlMappings, artifacts, generatedAt),
+    controlStatements,
     accessReviews,
     exceptionRegister,
-    operationalEvidence
-  });
+    operationalEvidence,
+    oscal,
+    controlTraceViews
+  })));
 
   const evidenceEvent = recordAudit(app, {
     eventType: "evidence.generated",
@@ -2160,6 +2200,149 @@ function buildAccessReviews(campaigns: AccessReviewCampaign[], reviewedAt: strin
     sourceEventIds: campaign.sourceEventIds,
     version: "access-review:v2"
   }));
+}
+
+function buildEvidenceDeploymentScope(
+  systemBoundary: SystemBoundaryEvidence,
+  controls: string[],
+  periodStart: string,
+  periodEnd: string
+): EvidenceDeploymentScope {
+  return {
+    boundaryId: systemBoundary.boundaryId,
+    environment: systemBoundary.environment,
+    liveTenantData: systemBoundary.liveTenantData,
+    controls,
+    periodStart,
+    periodEnd,
+    componentIds: systemBoundary.components.map((component) => component.id),
+    version: "evidence-deployment-scope:v1"
+  };
+}
+
+function buildOscalPoamExport(
+  exportId: string,
+  poamItems: PoamItem[],
+  controls: string[],
+  generatedAt: string
+): OscalPoamExport {
+  return {
+    uuid: `oscal-poam:${sanitizeCanonicalId(exportId)}`,
+    title: "Access Kit proof-point POA&M export",
+    generatedAt,
+    items: poamItems,
+    sourceControlIds: controls,
+    version: "oscal-poam-export:v1"
+  };
+}
+
+function buildOscalEvidenceArtifacts(
+  exportId: string,
+  framework: EvidenceFramework,
+  generatedAt: string,
+  systemBoundary: SystemBoundaryEvidence,
+  dataFlows: DataFlowEvidence[],
+  mappings: EvidenceControlMapping[],
+  controlStatements: ControlImplementationStatement[],
+  deploymentScope: EvidenceDeploymentScope,
+  poamExport: OscalPoamExport
+): OscalEvidenceArtifacts {
+  const implementations = controlStatements.map((statement): OscalControlImplementation => {
+    const mapping = mappings.find((candidate) => candidate.controlId === statement.controlId);
+    return {
+      controlId: statement.controlId,
+      status: statement.status,
+      statement: statement.statement,
+      responsibleRole: statement.responsibleRole,
+      reviewerRole: statement.reviewerRole,
+      reviewedAt: statement.reviewedAt,
+      sourceEventIds: mapping?.sourceEventIds ?? [],
+      sourceArtifactNames: statement.sourceArtifactNames,
+      gaps: statement.gaps
+    };
+  });
+
+  const componentDefinitionUuid = `oscal-component-definition:${sanitizeCanonicalId(exportId)}`;
+  const sspUuid = `oscal-ssp:${sanitizeCanonicalId(exportId)}`;
+  const assessmentResultsUuid = `oscal-assessment-results:${sanitizeCanonicalId(exportId)}`;
+
+  return {
+    componentDefinition: {
+      uuid: componentDefinitionUuid,
+      title: "Access Kit local proof-point component definition",
+      framework,
+      generatedAt,
+      components: systemBoundary.components,
+      implementedRequirements: implementations,
+      version: "oscal-component-definition-fragment:v1"
+    },
+    systemSecurityPlan: {
+      uuid: sspUuid,
+      title: "Access Kit local proof-point SSP fragment",
+      systemName: systemBoundary.name,
+      boundaryId: systemBoundary.boundaryId,
+      deploymentScope,
+      dataFlows,
+      controlImplementationStatements: implementations,
+      version: "oscal-ssp-fragment:v1"
+    },
+    assessmentResults: {
+      uuid: assessmentResultsUuid,
+      title: "Access Kit local proof-point assessment-results fragment",
+      generatedAt,
+      reviewedControls: implementations,
+      observations: implementations.map((implementation) => ({
+        controlId: implementation.controlId,
+        status: implementation.status,
+        sourceEventIds: implementation.sourceEventIds,
+        gaps: implementation.gaps
+      })),
+      version: "oscal-assessment-results-fragment:v1"
+    },
+    planOfActionAndMilestones: poamExport,
+    version: "oscal-evidence-artifacts:v1"
+  };
+}
+
+function buildControlTraceViews(
+  exportId: string,
+  mappings: EvidenceControlMapping[],
+  controlStatements: ControlImplementationStatement[],
+  deploymentScope: EvidenceDeploymentScope,
+  oscal: OscalEvidenceArtifacts,
+  packageId: string
+): EvidenceControlTraceView[] {
+  return mappings.map((mapping) => {
+    const statement = controlStatements.find((candidate) => candidate.controlId === mapping.controlId);
+    return {
+      traceId: `control-trace:${sanitizeCanonicalId(exportId)}:${sanitizeCanonicalId(mapping.controlId)}`,
+      controlId: mapping.controlId,
+      status: mapping.status,
+      sourceEventIds: mapping.sourceEventIds,
+      reviewedStatement: {
+        reviewerRole: statement?.reviewerRole ?? "Security Control Assessor",
+        reviewedAt: statement?.reviewedAt ?? deploymentScope.periodEnd,
+        sourceArtifactNames: statement?.sourceArtifactNames ?? []
+      },
+      signatureRef: {
+        packageId,
+        keyId: "key:local-proof-point-evidence"
+      },
+      deploymentScope,
+      oscalRefs: {
+        componentDefinitionUuid: oscal.componentDefinition.uuid,
+        sspUuid: oscal.systemSecurityPlan.uuid,
+        assessmentResultsUuid: oscal.assessmentResults.uuid,
+        poamUuid: oscal.planOfActionAndMilestones.uuid
+      },
+      gaps: mapping.gaps,
+      version: "evidence-control-trace-view:v1"
+    };
+  });
+}
+
+function signedPackageId(exportId: string): string {
+  return `signed-package:${exportId.replaceAll(/[^a-z0-9_:-]/gi, "_").toLowerCase()}`;
 }
 
 function buildExceptionRegister(exceptionRequests: ExceptionRequest[]): ExceptionRecord[] {

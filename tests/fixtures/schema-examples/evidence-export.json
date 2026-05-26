@@ -20,7 +20,14 @@
     "control_statements",
     "access_reviews",
     "exception_register",
-    "operational_evidence"
+    "operational_evidence",
+    "oscal_component_definition",
+    "oscal_ssp",
+    "oscal_assessment_results",
+    "poam_export",
+    "signed_evidence_package",
+    "control_trace_views",
+    "verifier_checks"
   ],
   "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
   "responsibleRole": "ISSO",
@@ -112,6 +119,14 @@
     }
   ],
   "poamItems": [],
+  "poamExport": {
+    "uuid": "oscal-poam:evidence:may-2026-ac-au",
+    "title": "Access Kit proof-point POA&M export",
+    "generatedAt": "2026-05-21T17:00:00.000Z",
+    "items": [],
+    "sourceControlIds": ["AC-2", "AC-3", "AC-6", "AU-2", "AU-6", "CM-3", "CA-7"],
+    "version": "oscal-poam-export:v1"
+  },
   "siemExport": {
     "format": "jsonl",
     "eventCount": 1,
@@ -204,6 +219,182 @@
       "summary": "CI dependency audit evidence is available for pull requests.",
       "evidenceRefs": [".github/workflows/security.yml"],
       "gaps": []
+    }
+  ],
+  "oscal": {
+    "componentDefinition": {
+      "uuid": "oscal-component-definition:evidence:may-2026-ac-au",
+      "title": "Access Kit local proof-point component definition",
+      "framework": "nist-800-53",
+      "generatedAt": "2026-05-21T17:00:00.000Z",
+      "components": [
+        {
+          "id": "component:api-runtime",
+          "name": "Local API runtime",
+          "type": "control_plane",
+          "trustZone": "local_runtime",
+          "dataClassification": "synthetic",
+          "description": "HTTP API runtime for local proof-point evidence."
+        }
+      ],
+      "implementedRequirements": [
+        {
+          "controlId": "AC-3",
+          "status": "implemented",
+          "statement": "Access enforcement evidence is produced through deterministic decision events.",
+          "responsibleRole": "ISSO",
+          "reviewerRole": "Security Control Assessor",
+          "reviewedAt": "2026-05-21T17:00:00.000Z",
+          "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+          "sourceArtifactNames": ["audit-events", "control-mapping"],
+          "gaps": []
+        }
+      ],
+      "version": "oscal-component-definition-fragment:v1"
+    },
+    "systemSecurityPlan": {
+      "uuid": "oscal-ssp:evidence:may-2026-ac-au",
+      "title": "Access Kit local proof-point SSP fragment",
+      "systemName": "Local ReBAC control plane proof-point boundary",
+      "boundaryId": "boundary:local-rebac-control-plane",
+      "deploymentScope": {
+        "boundaryId": "boundary:local-rebac-control-plane",
+        "environment": "local_proof_point",
+        "liveTenantData": false,
+        "controls": ["AC-2", "AC-3", "AC-6", "AU-2", "AU-6", "CM-3", "CA-7"],
+        "periodStart": "2026-05-01T00:00:00.000Z",
+        "periodEnd": "2026-05-31T23:59:59.000Z",
+        "componentIds": ["component:api-runtime"],
+        "version": "evidence-deployment-scope:v1"
+      },
+      "dataFlows": [
+        {
+          "id": "data-flow:cli-api",
+          "name": "Operator CLI to API",
+          "source": "component:operator-cli",
+          "destination": "component:api-runtime",
+          "dataTypes": ["operator_requests"],
+          "protections": ["api_contract_validation", "audit_event_emission"],
+          "liveTenantData": false
+        }
+      ],
+      "controlImplementationStatements": [
+        {
+          "controlId": "AC-3",
+          "status": "implemented",
+          "statement": "Access enforcement evidence is produced through deterministic decision events.",
+          "responsibleRole": "ISSO",
+          "reviewerRole": "Security Control Assessor",
+          "reviewedAt": "2026-05-21T17:00:00.000Z",
+          "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+          "sourceArtifactNames": ["audit-events", "control-mapping"],
+          "gaps": []
+        }
+      ],
+      "version": "oscal-ssp-fragment:v1"
+    },
+    "assessmentResults": {
+      "uuid": "oscal-assessment-results:evidence:may-2026-ac-au",
+      "title": "Access Kit local proof-point assessment-results fragment",
+      "generatedAt": "2026-05-21T17:00:00.000Z",
+      "reviewedControls": [
+        {
+          "controlId": "AC-3",
+          "status": "implemented",
+          "statement": "Access enforcement evidence is produced through deterministic decision events.",
+          "responsibleRole": "ISSO",
+          "reviewerRole": "Security Control Assessor",
+          "reviewedAt": "2026-05-21T17:00:00.000Z",
+          "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+          "sourceArtifactNames": ["audit-events", "control-mapping"],
+          "gaps": []
+        }
+      ],
+      "observations": [
+        {
+          "controlId": "AC-3",
+          "status": "implemented",
+          "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+          "gaps": []
+        }
+      ],
+      "version": "oscal-assessment-results-fragment:v1"
+    },
+    "planOfActionAndMilestones": {
+      "uuid": "oscal-poam:evidence:may-2026-ac-au",
+      "title": "Access Kit proof-point POA&M export",
+      "generatedAt": "2026-05-21T17:00:00.000Z",
+      "items": [],
+      "sourceControlIds": ["AC-2", "AC-3", "AC-6", "AU-2", "AU-6", "CM-3", "CA-7"],
+      "version": "oscal-poam-export:v1"
+    },
+    "version": "oscal-evidence-artifacts:v1"
+  },
+  "signedPackage": {
+    "packageId": "signed-package:evidence:may-2026-ac-au",
+    "packageHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "hashAlgorithm": "sha256",
+    "canonicalization": "stable-json",
+    "signatureAlgorithm": "sha256-local-proof-signature",
+    "keyId": "key:local-proof-point-evidence",
+    "signedAt": "2026-05-21T17:00:00.000Z",
+    "signerRole": "ISSO",
+    "signature": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "deploymentScope": {
+      "boundaryId": "boundary:local-rebac-control-plane",
+      "environment": "local_proof_point",
+      "liveTenantData": false,
+      "controls": ["AC-2", "AC-3", "AC-6", "AU-2", "AU-6", "CM-3", "CA-7"],
+      "periodStart": "2026-05-01T00:00:00.000Z",
+      "periodEnd": "2026-05-31T23:59:59.000Z",
+      "componentIds": ["component:api-runtime"],
+      "version": "evidence-deployment-scope:v1"
+    },
+    "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+    "reviewedStatementRefs": ["control-statement:ac-3"],
+    "controlTraceIds": ["control-trace:evidence:may-2026-ac-au:ac-3"],
+    "version": "signed-evidence-package:v1"
+  },
+  "verifierChecks": [
+    {
+      "name": "package_hash",
+      "status": "pass",
+      "message": "Integrity manifest package hash matches canonical content."
+    }
+  ],
+  "controlTraceViews": [
+    {
+      "traceId": "control-trace:evidence:may-2026-ac-au:ac-3",
+      "controlId": "AC-3",
+      "status": "implemented",
+      "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+      "reviewedStatement": {
+        "reviewerRole": "Security Control Assessor",
+        "reviewedAt": "2026-05-21T17:00:00.000Z",
+        "sourceArtifactNames": ["audit-events", "control-mapping"]
+      },
+      "signatureRef": {
+        "packageId": "signed-package:evidence:may-2026-ac-au",
+        "keyId": "key:local-proof-point-evidence"
+      },
+      "deploymentScope": {
+        "boundaryId": "boundary:local-rebac-control-plane",
+        "environment": "local_proof_point",
+        "liveTenantData": false,
+        "controls": ["AC-2", "AC-3", "AC-6", "AU-2", "AU-6", "CM-3", "CA-7"],
+        "periodStart": "2026-05-01T00:00:00.000Z",
+        "periodEnd": "2026-05-31T23:59:59.000Z",
+        "componentIds": ["component:api-runtime"],
+        "version": "evidence-deployment-scope:v1"
+      },
+      "oscalRefs": {
+        "componentDefinitionUuid": "oscal-component-definition:evidence:may-2026-ac-au",
+        "sspUuid": "oscal-ssp:evidence:may-2026-ac-au",
+        "assessmentResultsUuid": "oscal-assessment-results:evidence:may-2026-ac-au",
+        "poamUuid": "oscal-poam:evidence:may-2026-ac-au"
+      },
+      "gaps": [],
+      "version": "evidence-control-trace-view:v1"
     }
   ],
   "storageReceipt": {

@@ -716,6 +716,28 @@ Responses:
 
 - `200`: Evidence export metadata. Schema: `../schemas/evidence-export.schema.json`
 
+#### `POST /v1/evidence/verify`
+
+Operation ID: `verifyEvidencePackage`
+
+Summary: Verify a signed evidence package.
+
+Authentication: bearer token required
+
+Idempotency-Key: required
+
+Deprecated: no
+
+Parameters:
+
+- `Idempotency-Key` (header, required): `string`
+
+Request body: `../schemas/evidence-export.schema.json`
+
+Responses:
+
+- `200`: Evidence verification report. Schema: `object`
+
 ### Connectors
 
 #### `GET /v1/connectors`

@@ -1,5 +1,5 @@
 import {
-  attachEvidenceIntegrityManifest,
+  finalizeEvidenceExport,
   verifyAuditChain,
   type AuditEvent,
   type ConnectorAdapter,
@@ -731,7 +731,7 @@ function createRevocationPlan(connectorId: string, nativeGrantId: string, resour
 
 function createEvidence(connectorId: string, events: AuditEvent[]): EvidenceExport {
   const auditIntegrity = verifyAuditChain(events, now);
-  return attachEvidenceIntegrityManifest({
+  return finalizeEvidenceExport({
     exportId: `evidence:${connectorId}`,
     framework: "nist-800-53",
     controls: ["AC-2", "AC-3", "AU-2"],

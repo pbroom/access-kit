@@ -36,20 +36,20 @@ This is not a complete system security plan, production evidence vault, WORM arc
 | Governance workflow evidence | `packages/core/src/governance.ts` and [Access Review And Exception Governance](../runbooks/access-review-exceptions.md) | Durable campaigns, findings, exception requests, owner approvals, risk acceptance, expiry, remediation, ConMon, and POA&M-ready records. |
 | HA and degraded-mode evidence | `docs/ha-degraded-mode-operations.md` and [Degraded Mode Operations Runbook](../runbooks/degraded-mode-operations.md) | Queue backpressure, audit-forwarder outage, read-only fallback, emergency revocation priority, health signals, and recovery criteria. |
 | Runbook exercise evidence | `schemas/runbook-exercise.schema.json` and [Runbook Exercise Evidence](runbook-exercise-evidence.md) | Rehearsed, redacted, deployment-scoped records for incident response, break-glass, backup/restore, contingency, emergency revocation, SIEM replay, and post-action review exercises. |
-| Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest with reproducible integrity hashes and optional immutable external storage receipts. |
-| Evidence integrity verifier | [Evidence Integrity Verifier](evidence-integrity-verifier.md) | Steps for recomputing package and section hashes from stable JSON. |
+| Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest with OSCAL fragments, signed package metadata, control-to-event traces, reproducible integrity hashes, and optional immutable external storage receipts. |
+| Evidence integrity verifier | [Evidence Integrity Verifier](evidence-integrity-verifier.md) | Steps and CLI command for recomputing package hashes, section hashes, signed package metadata, and trace links from stable JSON. |
 | Validation report | `reports/proof-point-validation.md` | Generated proof-point evidence. |
 | Runbooks | `runbooks/*.md` | Operational procedures and expected evidence. |
 
 ## Evidence Export Package
 
-The `EvidenceExport` contract can include framework, controls, time period, source event IDs, audit integrity, an integrity manifest, control mappings, control statements, artifacts, system boundary, data flows, access review campaigns, exception requests, risk acceptance, ConMon metrics, POA&M inputs, operational evidence, SIEM metadata, and storage receipt.
+The `EvidenceExport` contract can include framework, controls, time period, source event IDs, audit integrity, an integrity manifest, control mappings, control statements, artifacts, system boundary, data flows, access review campaigns, exception requests, risk acceptance, ConMon metrics, POA&M inputs and export, operational evidence, OSCAL component-definition, SSP, assessment-results and POA&M fragments, signed package metadata, verifier checks, control-to-event traces, SIEM metadata, and storage receipt.
 
 If the goal is an evidence package, use `schemas/evidence-export.schema.json`. Add a separate `evidence-object` schema only if atomic evidence objects become a distinct contract.
 
 ## Concrete Example
 
-An assessor samples AC-3 for May 2026. The operator exports evidence for `AC-3`, includes source decision events, audit integrity status, control mapping, system boundary, and access-review evidence, then uses the decision and explain docs to trace a sample event back to policy and relationship versions.
+An assessor samples AC-3 for May 2026. The operator exports evidence for `AC-3`, includes source decision events, audit integrity status, control mapping, system boundary, OSCAL fragments, and access-review evidence, then runs `rebac evidence verify --package evidence-export.json` and uses the control trace view to trace a sample event back to the reviewed statement, signed package metadata, deployment scope, policy, and relationship versions.
 
 A governance lead samples `CA-7` for the same period. The operator exports evidence after reconciliation and verifies that the package includes a stable access-review campaign, exception request status, owner approval state, risk acceptance or expiry, remediation POA&M item, and ConMon counters for pending or overdue governance work.
 

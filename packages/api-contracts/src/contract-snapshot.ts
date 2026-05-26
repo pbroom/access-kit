@@ -70,6 +70,7 @@ export const apiContractSnapshot = {
     { operationId: "verifyAuditIntegrity", method: "GET", path: "/v1/audit/integrity", auth: "bearer", idempotencyKey: false, deprecated: false },
     { operationId: "exportAuditEvents", method: "GET", path: "/v1/audit/export", auth: "bearer", idempotencyKey: false, deprecated: false },
     { operationId: "exportEvidence", method: "GET", path: "/v1/evidence/export", auth: "bearer", idempotencyKey: false, deprecated: false },
+    { operationId: "verifyEvidencePackage", method: "POST", path: "/v1/evidence/verify", auth: "bearer", idempotencyKey: true, deprecated: false },
     { operationId: "listConnectors", method: "GET", path: "/v1/connectors", auth: "bearer", idempotencyKey: false, deprecated: false },
     { operationId: "testConnector", method: "POST", path: "/v1/connectors/{id}/test", auth: "bearer", idempotencyKey: false, deprecated: false },
     { operationId: "listConnectorEnforcementReadiness", method: "GET", path: "/v1/connectors/{id}/enforcement-readiness", auth: "bearer", idempotencyKey: false, deprecated: false },

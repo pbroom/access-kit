@@ -32,6 +32,7 @@ describe("CLI contract", () => {
     expect(paths).toContain("audit integrity");
     expect(paths).toContain("audit export");
     expect(paths).toContain("evidence export");
+    expect(paths).toContain("evidence verify");
     expect(paths).toContain("connector readiness");
     expect(paths).toContain("connector sync");
   });

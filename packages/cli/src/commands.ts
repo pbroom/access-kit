@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { Command } from "commander";
 
 export interface CliCommandSpec {
@@ -42,6 +43,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "audit integrity", description: "Verify append-only audit hash-chain integrity.", apiSurface: "GET /v1/audit/integrity" },
   { path: "audit export", description: "Export SIEM-ready audit events.", apiSurface: "GET /v1/audit/export" },
   { path: "evidence export", description: "Export ATO evidence.", apiSurface: "GET /v1/evidence/export" },
+  { path: "evidence verify", description: "Verify an exported signed evidence package.", apiSurface: "POST /v1/evidence/verify" },
   { path: "connector list", description: "List connectors and capabilities.", apiSurface: "GET /v1/connectors" },
   { path: "connector test", description: "Test connector health and permissions.", apiSurface: "POST /v1/connectors/{id}/test" },
   { path: "connector readiness", description: "Check controlled-enforcement readiness for a connector.", apiSurface: "POST /v1/connectors/{id}/enforcement-readiness" },
@@ -152,6 +154,10 @@ interface EvidenceExportOptions {
   format?: string;
   from?: string;
   to?: string;
+}
+
+interface EvidenceVerifyOptions {
+  package?: string;
 }
 
 function createCliContext(options: CliOptions): CliContext {
@@ -580,6 +586,14 @@ function addEvidenceCommands(program: Command, context: CliContext): void {
     if (options.to) params.set("to", options.to);
     return client.get(`/v1/evidence/export?${params.toString()}`);
   }));
+
+  const verify = evidence
+    .command("verify")
+    .requiredOption("--package <path>");
+  verify.action(withApi(context, verify, async (client) => {
+    const options = verify.opts<EvidenceVerifyOptions>();
+    return client.post("/v1/evidence/verify", await readEvidencePackageFile(required(options.package, "package")));
+  }));
 }
 
 function addConnectorCommands(program: Command, context: CliContext): void {
@@ -707,6 +721,14 @@ function parseResponseBody(body: string): unknown {
     return JSON.parse(body);
   } catch {
     return body;
+  }
+}
+
+async function readEvidencePackageFile(path: string): Promise<unknown> {
+  try {
+    return JSON.parse(await readFile(path, "utf8"));
+  } catch (error) {
+    throw new Error(`Unable to read evidence package ${path}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
