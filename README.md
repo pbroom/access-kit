@@ -53,6 +53,14 @@ pnpm quickstart:demo
 
 The flow uses the synthetic demo seed harness, calls `check` and `explain`, and shows both allow and deny-by-default results. See [`docs/five-minute-quickstart.md`](docs/five-minute-quickstart.md).
 
+For the full local evaluation path, keep the same API running and execute:
+
+```sh
+pnpm evaluation:demo
+```
+
+The evaluation runner adds policy validation and tests, all evaluation check and explain presets, dry-run provisioning, reconciliation, audit export, and evidence export. See [`docs/developer-evaluation-path.md`](docs/developer-evaluation-path.md).
+
 ## Run The Local API
 
 For local development, run the API directly from TypeScript:
@@ -123,6 +131,7 @@ pnpm pr:stack
 | --- | --- |
 | `docs/start-here.md` | Documentation entry point and reading path. |
 | `docs/five-minute-quickstart.md` | Docker Compose quickstart for the local API and seeded demo decisions. |
+| `docs/developer-evaluation-path.md` | Full local 30-minute evaluation path over policy tests, dry-run provisioning, reconciliation, audit export, and evidence export. |
 | `docs/implementation-backlog.md` | Durable slice backlog for Codex and human coordination. |
 | `docs/automation.md` | PR steward, next-slice, labels, and merge-readiness operating loop. |
 | `docs/` | Concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, provisioning, connector contract and authoring, drift, deployment, production reference architecture, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
@@ -151,6 +160,7 @@ pnpm pr:stack
 | --- | --- |
 | Documentation entry point | [`docs/start-here.md`](docs/start-here.md) |
 | Five-minute quickstart | [`docs/five-minute-quickstart.md`](docs/five-minute-quickstart.md) |
+| Developer evaluation path | [`docs/developer-evaluation-path.md`](docs/developer-evaluation-path.md) |
 | Public API | [`openapi/rebac-control-plane.yaml`](openapi/rebac-control-plane.yaml) |
 | API notes | [`docs/api.md`](docs/api.md) |
 | CLI contract | [`docs/cli.md`](docs/cli.md) |

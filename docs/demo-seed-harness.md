@@ -49,4 +49,4 @@ All harness data is:
 | `evaluation-ato-evidence` | Thirty-minute evaluation | `AC-2`, `AC-3`, `AC-6`, `AU-2`, `AU-6` |
 | `evaluation-drift-and-reconciliation` | Thirty-minute evaluation | `AC-6`, `CA-7` |
 
-Keep new quickstart, API collection, SDK, and evaluation examples on these IDs unless a future backlog slice intentionally revs `DEMO_SEED_VERSION`.
+Use the evaluation presets through [Developer Evaluation Path](developer-evaluation-path.md). Keep new quickstart, API collection, SDK, and evaluation examples on these IDs unless a future backlog slice intentionally revs `DEMO_SEED_VERSION`.

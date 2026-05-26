@@ -11,6 +11,7 @@ These examples are synthetic and safe to use in documentation, demos, tests, and
 | Sample policy repository | `examples/sample-policy-repository/` |
 | Demo seed harness manifest | `examples/demo-seed-harness.json` |
 | Five-minute quickstart runner | `scripts/quickstart-demo.ts` |
+| Developer evaluation runner | `scripts/evaluation-demo.ts` |
 | API request/response examples | `examples/api/*.json` |
 | CLI command examples | `examples/cli/operator-and-assessor.sh` |
 | Connector template example | `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` |

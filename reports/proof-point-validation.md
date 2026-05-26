@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:42:59.867Z
+Generated at: 2026-05-28T03:45:21.112Z
 
-Branch: codex/rebac-five-minute-quickstart
+Branch: 
 
 Node: v24.4.1
 
@@ -37,14 +37,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-schemas.ts
 
 Validated 20 schemas and 20 example fixtures.
@@ -73,10 +73,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-five-minute-quickstart/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-developer-evaluation-path/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -88,7 +88,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -111,7 +111,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-developer-evaluation-path
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -124,23 +124,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-developer-evaluation-path
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-five-minute-quickstart
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-developer-evaluation-path
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:42:54
-   Duration  279ms (transform 132ms, setup 0ms, import 208ms, tests 19ms, environment 0ms)
+   Start at  23:45:15
+   Duration  294ms (transform 139ms, setup 0ms, import 218ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -151,7 +151,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -162,7 +162,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -173,7 +173,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -184,7 +184,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -195,7 +195,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -206,7 +206,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-developer-evaluation-path
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -216,61 +216,61 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-developer-evaluation-path
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-five-minute-quickstart
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-developer-evaluation-path
 
 
  Test Files  12 passed (12)
       Tests  164 passed (164)
-   Start at  23:42:57
-   Duration  236ms (transform 892ms, setup 0ms, import 1.30s, tests 115ms, environment 0ms)
+   Start at  23:45:18
+   Duration  248ms (transform 977ms, setup 0ms, import 1.40s, tests 119ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-developer-evaluation-path
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-five-minute-quickstart
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-developer-evaluation-path
 
 
- Test Files  5 passed (5)
-      Tests  110 passed (110)
-   Start at  23:42:57
-   Duration  493ms (transform 589ms, setup 0ms, import 964ms, tests 308ms, environment 0ms)
+ Test Files  6 passed (6)
+      Tests  112 passed (112)
+   Start at  23:45:19
+   Duration  523ms (transform 742ms, setup 0ms, import 1.25s, tests 408ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-five-minute-quickstart
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-developer-evaluation-path
 
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  23:42:58
-   Duration  227ms (transform 329ms, setup 0ms, import 444ms, tests 49ms, environment 0ms)
+   Start at  23:45:19
+   Duration  236ms (transform 346ms, setup 0ms, import 461ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-five-minute-quickstart
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-developer-evaluation-path
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-five-minute-quickstart
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-developer-evaluation-path
 
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:42:59
-   Duration  312ms (transform 365ms, setup 0ms, import 618ms, tests 106ms, environment 0ms)
+   Start at  23:45:20
+   Duration  336ms (transform 392ms, setup 0ms, import 671ms, tests 110ms, environment 0ms)
 ```
 
 
