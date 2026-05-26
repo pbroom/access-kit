@@ -44,6 +44,15 @@ pnpm ci:check
 
 `pnpm ci:check` adds docs validation, lint, build, and evidence freshness checks.
 
+For the shortest runnable API path, start the compose quickstart and run the seeded demo:
+
+```sh
+docker compose -f docker-compose.quickstart.yml up --build -d
+pnpm quickstart:demo
+```
+
+The flow uses the synthetic demo seed harness, calls `check` and `explain`, and shows both allow and deny-by-default results. See [`docs/five-minute-quickstart.md`](docs/five-minute-quickstart.md).
+
 ## Run The Local API
 
 For local development, run the API directly from TypeScript:
@@ -113,6 +122,7 @@ pnpm pr:stack
 | Path | Purpose |
 | --- | --- |
 | `docs/start-here.md` | Documentation entry point and reading path. |
+| `docs/five-minute-quickstart.md` | Docker Compose quickstart for the local API and seeded demo decisions. |
 | `docs/implementation-backlog.md` | Durable slice backlog for Codex and human coordination. |
 | `docs/automation.md` | PR steward, next-slice, labels, and merge-readiness operating loop. |
 | `docs/` | Concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, provisioning, connector contract and authoring, drift, deployment, production reference architecture, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
@@ -140,6 +150,7 @@ pnpm pr:stack
 | Source | Canonical path |
 | --- | --- |
 | Documentation entry point | [`docs/start-here.md`](docs/start-here.md) |
+| Five-minute quickstart | [`docs/five-minute-quickstart.md`](docs/five-minute-quickstart.md) |
 | Public API | [`openapi/rebac-control-plane.yaml`](openapi/rebac-control-plane.yaml) |
 | API notes | [`docs/api.md`](docs/api.md) |
 | CLI contract | [`docs/cli.md`](docs/cli.md) |

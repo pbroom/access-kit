@@ -15,6 +15,7 @@ The documentation goal is complete for the repository foundation after this foll
 | Coverage area | Canonical path |
 | --- | --- |
 | Start-here overview | `docs/start-here.md`, with root `README.md` as repository overview |
+| Five-minute quickstart | `docs/five-minute-quickstart.md`, `docker-compose.quickstart.yml`, `scripts/quickstart-demo.ts` |
 | Concept of operations | `docs/concept-of-operations.md` |
 | Glossary | `docs/glossary.md` |
 | Non-goals | `docs/non-goals.md`, with summary in `README.md` |
@@ -40,6 +41,7 @@ The documentation goal is complete for the repository foundation after this foll
 | Flagship page | Canonical path | Status |
 | --- | --- | --- |
 | Concept of Operations | `docs/concept-of-operations.md` | Added |
+| Five-Minute Quickstart | `docs/five-minute-quickstart.md` | Added |
 | System Context and Boundary | `docs/system-context-and-boundary.md` | Added |
 | Domain Model | `docs/domain-model.md` | Enriched |
 | Decision Lifecycle | `docs/decision-lifecycle.md` | Added |
@@ -105,6 +107,7 @@ The documentation goal is complete for the repository foundation after this foll
 ## New Artifacts Added
 
 - `docs/start-here.md`
+- `docs/five-minute-quickstart.md`
 - `docs/non-goals.md`
 - `docs/glossary.md`
 - `docs/concept-of-operations.md`
@@ -137,6 +140,8 @@ The documentation goal is complete for the repository foundation after this foll
 - `examples/api/explain.response.json`
 - `examples/control-evidence-mapping.json`
 - `examples/cli/operator-and-assessor.sh`
+- `docker-compose.quickstart.yml`
+- `scripts/quickstart-demo.ts`
 
 ## Artifacts Migrated Or Renamed
 
