@@ -103,7 +103,7 @@ const forbiddenIdentifierPattern = /(?:@|secret|token|password|prod(?:uction)?|t
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 
 const manifest = await readSampleJson<SamplePolicyManifest>("policy-repository.json");
-const modelSchema = await readRootJson<JsonRecord>("schemas/policy-model.schema.json");
+const modelSchema = await readSchemaJson<JsonRecord>("schemas/policy-model.schema.json");
 const validateModelSchema = ajv.compile(modelSchema);
 
 if (manifest.ci.command !== "pnpm validate:sample-policy") {
@@ -244,8 +244,8 @@ async function readSampleJson<T>(path: string): Promise<T> {
   return readJson<T>(join(sampleRoot, path));
 }
 
-async function readRootJson<T>(path: string): Promise<T> {
-  return readJson<T>(join(root, path));
+async function readSchemaJson<T>(path: string): Promise<T> {
+  return JSON.parse(await readFile(join(root, path), "utf8")) as T;
 }
 
 async function readJson<T>(path: string): Promise<T> {
