@@ -65,6 +65,8 @@ Drift is not just a connector warning, SIEM alert, or helpdesk ticket. It is an 
 - Auto-repair policy cannot permit live provider writes in the local proof point. Dry-run repair evidence may be generated only after approval and connector-readiness controls are recorded.
 - Ticket and SIEM hook evidence should use synthetic or redacted identifiers in local proof-point artifacts.
 
+AWS access-analysis drift also carries provider-latency confidence. The AWS read-only connector treats CloudTrail activity, EventBridge delivery metadata, and Access Analyzer findings as partially ordered evidence instead of a single authoritative timeline. EventBridge delivery lag, retry attempts, stale CloudTrail activity, stale Access Analyzer findings, and partial ordering produce operator warnings. Drift findings keep revoke/review recommendations conservative and include the reconciliation confidence plus stale windows in their evidence text; low-confidence external-access findings are escalated rather than quietly downgraded.
+
 ## Audit And Evidence Implications
 
 Drift findings support AC, AU, CM, CA, RA, SI, and IR controls. Evidence should include source discovery run, native grant IDs, intended state reference, severity, lifecycle state, owner, assignee, ticket/SIEM hook evidence, action, approval, dry-run repair plan, exception expiry, verification, and closure status.
