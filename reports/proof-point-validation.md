@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T07:12:28.747Z
+Generated at: 2026-05-26T10:20:38.284Z
 
-Branch: codex/rebac-ak039-merged-status
+Branch: codex/greptile-contract-client-admin-cleanups
 
 Node: v24.4.1
 
@@ -34,14 +34,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-greptile-1
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-greptile-1
 > tsx scripts/validate-schemas.ts
 
 Validated 17 schemas and 17 example fixtures.
@@ -67,10 +67,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-greptile-1
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-ak039-merged-status/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-greptile-1/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -82,11 +82,11 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-greptile-1
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
-PASS default policy model -> 14 checks
+PASS default policy model -> 16 checks
 PASS deny by default without relationship path
 PASS deny unsupported action despite read relationship
 PASS allow through relationship path
@@ -105,7 +105,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-greptile-1
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -118,23 +118,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-greptile-1
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-1
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  03:12:21
-   Duration  412ms (transform 168ms, setup 0ms, import 283ms, tests 34ms, environment 0ms)
+   Start at  06:20:31
+   Duration  416ms (transform 172ms, setup 0ms, import 287ms, tests 32ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-greptile-1
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -145,7 +145,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-greptile-1
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -156,7 +156,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-greptile-1
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -167,7 +167,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-greptile-1
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -178,61 +178,61 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-greptile-1
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-1
 
 
  Test Files  8 passed (8)
-      Tests  113 passed (113)
-   Start at  03:12:24
-   Duration  360ms (transform 1.04s, setup 0ms, import 1.32s, tests 103ms, environment 0ms)
+      Tests  116 passed (116)
+   Start at  06:20:34
+   Duration  354ms (transform 1.01s, setup 0ms, import 1.29s, tests 103ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-greptile-1
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-1
 
 
  Test Files  4 passed (4)
-      Tests  95 passed (95)
-   Start at  03:12:25
-   Duration  745ms (transform 818ms, setup 0ms, import 1.16s, tests 337ms, environment 0ms)
+      Tests  96 passed (96)
+   Start at  06:20:35
+   Duration  703ms (transform 627ms, setup 0ms, import 996ms, tests 333ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-1
 
 
  Test Files  1 passed (1)
       Tests  7 passed (7)
-   Start at  03:12:27
-   Duration  287ms (transform 138ms, setup 0ms, import 170ms, tests 23ms, environment 0ms)
+   Start at  06:20:36
+   Duration  291ms (transform 140ms, setup 0ms, import 170ms, tests 22ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-ak039-merged-status
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-greptile-1
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-1
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  03:12:27
-   Duration  466ms (transform 482ms, setup 0ms, import 843ms, tests 163ms, environment 0ms)
+   Start at  06:20:37
+   Duration  473ms (transform 496ms, setup 0ms, import 853ms, tests 158ms, environment 0ms)
 ```
 
 

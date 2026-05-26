@@ -105,16 +105,16 @@ function readAdminAuthorizationDescriptor(env: NodeJS.ProcessEnv): AdminAuthoriz
       subjectClaim: readOptionalText(env.REBAC_ADMIN_AUTH_SUBJECT_CLAIM, "sub"),
       groupsClaim: readOptionalPath(env.REBAC_ADMIN_AUTH_GROUPS_CLAIM),
       mfaRequired: readBoolean(env.REBAC_ADMIN_MFA_REQUIRED, "REBAC_ADMIN_MFA_REQUIRED", false),
-      sessionTtlMinutes: readPositiveNumber(env.REBAC_ADMIN_SESSION_TTL_MINUTES, "REBAC_ADMIN_SESSION_TTL_MINUTES", 0),
-      revocationSlaMinutes: readPositiveNumber(env.REBAC_ADMIN_REVOCATION_SLA_MINUTES, "REBAC_ADMIN_REVOCATION_SLA_MINUTES", 0),
-      evidenceRefs
+      sessionTtlMinutes: readNonNegativeNumber(env.REBAC_ADMIN_SESSION_TTL_MINUTES, "REBAC_ADMIN_SESSION_TTL_MINUTES", 0),
+      revocationSlaMinutes: readNonNegativeNumber(env.REBAC_ADMIN_REVOCATION_SLA_MINUTES, "REBAC_ADMIN_REVOCATION_SLA_MINUTES", 0),
+      evidenceRefs: [...evidenceRefs]
     },
     ingress: {
       mode: ingressMode,
       mtlsRequired: readBoolean(env.REBAC_ADMIN_MTLS_REQUIRED, "REBAC_ADMIN_MTLS_REQUIRED", mode === "mtls_gateway"),
       trustedIdentityHeaders: readList(env.REBAC_ADMIN_TRUSTED_IDENTITY_HEADERS),
       certificateAuthorityRef: readOptionalPath(env.REBAC_ADMIN_CERTIFICATE_AUTHORITY_REF),
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     },
     adminRebac: {
       policyId: readOptionalPath(env.REBAC_ADMIN_REBAC_POLICY_ID),
@@ -125,19 +125,19 @@ function readAdminAuthorizationDescriptor(env: NodeJS.ProcessEnv): AdminAuthoriz
       ),
       leastPrivilegeRoles: readList(env.REBAC_ADMIN_REBAC_ROLES),
       roleBindings: readList(env.REBAC_ADMIN_REBAC_BINDINGS),
-      revocationSlaMinutes: readPositiveNumber(env.REBAC_ADMIN_REBAC_REVOCATION_SLA_MINUTES, "REBAC_ADMIN_REBAC_REVOCATION_SLA_MINUTES", 0),
-      evidenceRefs
+      revocationSlaMinutes: readNonNegativeNumber(env.REBAC_ADMIN_REBAC_REVOCATION_SLA_MINUTES, "REBAC_ADMIN_REBAC_REVOCATION_SLA_MINUTES", 0),
+      evidenceRefs: [...evidenceRefs]
     },
     secrets: {
       manager: secretManager,
       secretRefs: readList(env.REBAC_ADMIN_SECRET_REFS),
-      rotationDays: readPositiveNumber(env.REBAC_ADMIN_SECRET_ROTATION_DAYS, "REBAC_ADMIN_SECRET_ROTATION_DAYS", 0),
+      rotationDays: readNonNegativeNumber(env.REBAC_ADMIN_SECRET_ROTATION_DAYS, "REBAC_ADMIN_SECRET_ROTATION_DAYS", 0),
       noPlaintextEnvironmentSecrets: readBoolean(
         env.REBAC_ADMIN_NO_PLAINTEXT_ENV_SECRETS,
         "REBAC_ADMIN_NO_PLAINTEXT_ENV_SECRETS",
         false
       ),
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     },
     emergency: {
       breakGlassApprovalRequired: readBoolean(
@@ -146,7 +146,7 @@ function readAdminAuthorizationDescriptor(env: NodeJS.ProcessEnv): AdminAuthoriz
         false
       ),
       breakGlassApproverRoles: readList(env.REBAC_ADMIN_BREAK_GLASS_APPROVER_ROLES),
-      temporaryElevationMaxMinutes: readPositiveNumber(
+      temporaryElevationMaxMinutes: readNonNegativeNumber(
         env.REBAC_ADMIN_TEMPORARY_ELEVATION_MAX_MINUTES,
         "REBAC_ADMIN_TEMPORARY_ELEVATION_MAX_MINUTES",
         0
@@ -157,12 +157,12 @@ function readAdminAuthorizationDescriptor(env: NodeJS.ProcessEnv): AdminAuthoriz
         "REBAC_ADMIN_POST_ACTION_REVIEW_REQUIRED",
         false
       ),
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     },
     audit: {
       auditEventTypes: readList(env.REBAC_ADMIN_AUDIT_EVENT_TYPES),
       evidenceExportRequired: readBoolean(env.REBAC_ADMIN_EVIDENCE_EXPORT_REQUIRED, "REBAC_ADMIN_EVIDENCE_EXPORT_REQUIRED", false),
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     }
   };
 }
@@ -208,7 +208,7 @@ function readBoolean(value: string | undefined, name: string, fallback: boolean)
   throw new Error(`${name} must be true or false.`);
 }
 
-function readPositiveNumber(value: string | undefined, name: string, fallback: number): number {
+function readNonNegativeNumber(value: string | undefined, name: string, fallback: number): number {
   const trimmed = value?.trim();
 
   if (!trimmed) {

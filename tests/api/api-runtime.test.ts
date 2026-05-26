@@ -1758,6 +1758,13 @@ describe("ReBAC API runtime", () => {
         evidenceExportRequired: true
       }
     });
+
+    config.adminAuthorization.authentication.evidenceRefs.push("evidence/admin-auth/mutated.json");
+    expect(config.adminAuthorization.ingress.evidenceRefs).toEqual([
+      "evidence/admin-auth/idp.json",
+      "evidence/admin-auth/admin-rebac.json"
+    ]);
+    expect(config.adminAuthorization.secrets.rotationDays).toBe(30);
   });
 
   it("builds service runtime persistence with append-only audit and file-backed evidence repositories", async () => {

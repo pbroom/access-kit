@@ -62,6 +62,24 @@ describe("generated API client", () => {
     });
   });
 
+  it("rejects bodies on GET requests before calling fetch", async () => {
+    const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const client = createRebacClient({
+      apiKey: localCredential,
+      baseUrl: "http://127.0.0.1:3000",
+      fetch: async (input, init) => {
+        calls.push({ input, init });
+        return jsonResponse({ items: [] });
+      }
+    });
+
+    await expect(client.request("listSubjects", { body: { unexpected: true } })).rejects.toMatchObject({
+      code: "CLIENT_INVALID_BODY",
+      status: 400
+    });
+    expect(calls).toHaveLength(0);
+  });
+
   it("names the missing path parameter when a routed call is incomplete", async () => {
     const client = createRebacClient({
       apiKey: localCredential,
