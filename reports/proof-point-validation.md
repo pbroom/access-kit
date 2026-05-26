@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T06:58:57.414Z
+Generated at: 2026-05-26T07:12:28.747Z
 
-Branch: codex/rebac-idp-admin-authorization
+Branch: codex/rebac-ak039-merged-status
 
 Node: v24.4.1
 
@@ -34,14 +34,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-ak039-merged-status
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-ak039-merged-status
 > tsx scripts/validate-schemas.ts
 
 Validated 17 schemas and 17 example fixtures.
@@ -67,10 +67,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-ak039-merged-status
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-idp-admin-authorization/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-ak039-merged-status/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -82,7 +82,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-ak039-merged-status
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -105,7 +105,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-ak039-merged-status
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -118,23 +118,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-ak039-merged-status
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  02:58:50
-   Duration  410ms (transform 170ms, setup 0ms, import 286ms, tests 32ms, environment 0ms)
+   Start at  03:12:21
+   Duration  412ms (transform 168ms, setup 0ms, import 283ms, tests 34ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-ak039-merged-status
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -145,7 +145,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-ak039-merged-status
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -156,7 +156,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-ak039-merged-status
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -167,7 +167,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-ak039-merged-status
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -178,61 +178,61 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-ak039-merged-status
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
 
 
  Test Files  8 passed (8)
       Tests  113 passed (113)
-   Start at  02:58:53
-   Duration  353ms (transform 998ms, setup 0ms, import 1.27s, tests 104ms, environment 0ms)
+   Start at  03:12:24
+   Duration  360ms (transform 1.04s, setup 0ms, import 1.32s, tests 103ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-ak039-merged-status
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
 
 
  Test Files  4 passed (4)
       Tests  95 passed (95)
-   Start at  02:58:54
-   Duration  694ms (transform 675ms, setup 0ms, import 1.01s, tests 325ms, environment 0ms)
+   Start at  03:12:25
+   Duration  745ms (transform 818ms, setup 0ms, import 1.16s, tests 337ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
 
 
  Test Files  1 passed (1)
       Tests  7 passed (7)
-   Start at  02:58:55
-   Duration  298ms (transform 149ms, setup 0ms, import 183ms, tests 23ms, environment 0ms)
+   Start at  03:12:27
+   Duration  287ms (transform 138ms, setup 0ms, import 170ms, tests 23ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-idp-admin-authorization
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-ak039-merged-status
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-ak039-merged-status
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  02:58:56
-   Duration  461ms (transform 471ms, setup 0ms, import 836ms, tests 156ms, environment 0ms)
+   Start at  03:12:27
+   Duration  466ms (transform 482ms, setup 0ms, import 843ms, tests 163ms, environment 0ms)
 ```
 
 
