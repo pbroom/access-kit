@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   AuditRecorder,
   auditEventHash,
+  createDecisionRuntimeGraphFixtureSeed,
   createLocalEngineSeed,
   InMemoryRebacStore,
   RebacDecisionEngine,
   verifyAuditChain,
+  type DecisionRuntimePerformanceReport,
+  type DecisionTraversalReport,
   type RelationshipTuple
 } from "../../packages/core/src/index.js";
 
@@ -29,6 +32,188 @@ describe("RebacDecisionEngine", () => {
       { subjectId: "group:case-team", relation: "contributor_to", objectId: "workspace:case" },
       { subjectId: "workspace:case", relation: "contains", objectId: "document:case-plan" }
     ]);
+  });
+
+  it("records explicit version pins, historical timestamp, traversal metrics, and SLO metadata", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      context: { purpose: "case-review" },
+      policyVersion: "policy:pinned-v1",
+      modelVersion: "model:pinned-v1",
+      relationshipVersion: "tuple-set:pinned-v1",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-v1",
+      asOf: now
+    });
+    const constraints = decisionRuntimeConstraints(result);
+
+    expect(result).toMatchObject({
+      decision: "allow",
+      policyVersion: "policy:pinned-v1",
+      modelVersion: "model:pinned-v1",
+      relationshipVersion: "tuple-set:pinned-v1",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-v1",
+      asOf: now
+    });
+    expect(constraints.timeTravel).toEqual({ asOf: now, evaluatedAt: now, historical: false });
+    expect(constraints.traversal).toMatchObject({
+      graphSize: { subjects: 3, resources: 2, relationships: 3 },
+      bounds: { maxDepth: 16, maxRelationshipScans: 10000, maxVisitedNodes: 2000 },
+      maxDepthReached: 3
+    });
+    expect(constraints.performance.withinRegressionGate).toBe(true);
+    expect(store.listAuditEvents()[0]?.payload).toMatchObject({
+      modelVersion: "model:pinned-v1",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-v1",
+      asOf: now
+    });
+  });
+
+  it("evaluates relationship expiration at a historical asOf timestamp", () => {
+    const seed = createLocalEngineSeed();
+    const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.map((subject) => ({ ...subject, createdAt: historicalCreatedAt })),
+      resources: seed.resources?.map((resource) => ({ ...resource, createdAt: historicalCreatedAt })),
+      relationships: [
+        tuple(
+          "relationship:alice-reader-document-expiring",
+          "user:alice",
+          "reader_of",
+          "document:case-plan",
+          undefined,
+          {
+            assertedAt: historicalCreatedAt,
+            createdAt: historicalCreatedAt,
+            expiresAt: "2026-05-21T12:00:00.000Z"
+          }
+        )
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const current = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+    const historical = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "2026-05-21T11:59:00.000Z"
+    });
+
+    expect(current.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+    expect(historical.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
+    expect(decisionRuntimeConstraints(historical).timeTravel.historical).toBe(true);
+  });
+
+  it("uses tuple-version pins to choose deterministic historical tuples", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      relationships: [
+        tuple(
+          "relationship:alice-denied-document-v1",
+          "user:alice",
+          "denied_read",
+          "document:case-plan",
+          undefined,
+          { version: "tuple:legacy-v1" }
+        ),
+        tuple(
+          "relationship:alice-reader-document-v2",
+          "user:alice",
+          "reader_of",
+          "document:case-plan",
+          undefined,
+          { version: "tuple:current-v2" }
+        )
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const legacy = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      tupleVersion: "tuple:legacy-v1"
+    });
+    const current = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      tupleVersion: "tuple:current-v2"
+    });
+
+    expect(legacy.reasonCode).toBe("DENY_EXPLICIT_OVERRIDE");
+    expect(current.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
+  });
+
+  it("fails closed when traversal bounds are exceeded", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const engine = new RebacDecisionEngine(store, {
+      now: () => now,
+      traversalBounds: { maxDepth: 1 }
+    });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_TRAVERSAL_BOUND_EXCEEDED");
+    expect(decisionRuntimeConstraints(result).traversal.boundsExceeded).toBe("maxDepth");
+  });
+
+  it("keeps the large graph-size fixture within the decision runtime regression gate", () => {
+    const store = new InMemoryRebacStore(createDecisionRuntimeGraphFixtureSeed("large"));
+    const engine = new RebacDecisionEngine(store, { now: () => now, tupleVersion: "tuple:runtime-v1" });
+
+    const result = engine.explain({
+      subjectId: "user:runtime-subject",
+      action: "read",
+      resourceId: "document:runtime-target"
+    });
+    const constraints = decisionRuntimeConstraints(result);
+
+    expect(result.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
+    expect(constraints.traversal.graphSize).toMatchObject({
+      subjects: 500,
+      resources: 500,
+      relationships: 5000
+    });
+    expect(constraints.performance).toMatchObject({
+      targetMs: 150,
+      regressionGateMs: 750,
+      withinRegressionGate: true
+    });
+  });
+
+  it("denies future historical timestamps", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "2026-05-22T17:00:00.000Z"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_AS_OF_IN_FUTURE");
   });
 
   it("denies unsupported actions even when a read path exists", () => {
@@ -529,7 +714,8 @@ function tuple(
   subjectId: string,
   relation: string,
   objectId: string,
-  attributes?: Record<string, unknown>
+  attributes?: Record<string, unknown>,
+  overrides: Partial<RelationshipTuple> = {}
 ): RelationshipTuple {
   return {
     id,
@@ -541,6 +727,19 @@ function tuple(
     assertedAt: now,
     status: "active",
     version: "tuple:v1",
-    createdAt: now
+    createdAt: now,
+    ...overrides
+  };
+}
+
+function decisionRuntimeConstraints(result: { constraints: Record<string, unknown> }): {
+  timeTravel: { asOf: string; evaluatedAt: string; historical: boolean };
+  traversal: DecisionTraversalReport;
+  performance: DecisionRuntimePerformanceReport;
+} {
+  return result.constraints as {
+    timeTravel: { asOf: string; evaluatedAt: string; historical: boolean };
+    traversal: DecisionTraversalReport;
+    performance: DecisionRuntimePerformanceReport;
   };
 }

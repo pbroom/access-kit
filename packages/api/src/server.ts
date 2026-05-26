@@ -803,7 +803,13 @@ function parseDecisionRequest(value: unknown): DecisionRequest | undefined {
     subjectId: value.subjectId,
     action: value.action,
     resourceId: value.resourceId,
-    context: value.context
+    context: value.context,
+    policyVersion: typeof value.policyVersion === "string" ? value.policyVersion : undefined,
+    modelVersion: typeof value.modelVersion === "string" ? value.modelVersion : undefined,
+    relationshipVersion: typeof value.relationshipVersion === "string" ? value.relationshipVersion : undefined,
+    tupleVersion: typeof value.tupleVersion === "string" ? value.tupleVersion : undefined,
+    contextVersion: typeof value.contextVersion === "string" ? value.contextVersion : undefined,
+    asOf: typeof value.asOf === "string" ? value.asOf : undefined
   };
 }
 
@@ -983,7 +989,11 @@ function normalizeDecisionRequest(value: DecisionRequest): DecisionRequest {
     resourceId: value.resourceId,
     context: value.context,
     policyVersion: value.policyVersion,
-    relationshipVersion: value.relationshipVersion
+    modelVersion: value.modelVersion,
+    relationshipVersion: value.relationshipVersion,
+    tupleVersion: value.tupleVersion,
+    contextVersion: value.contextVersion,
+    asOf: value.asOf
   };
 }
 

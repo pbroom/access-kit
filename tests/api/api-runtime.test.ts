@@ -567,22 +567,51 @@ describe("ReBAC API runtime", () => {
   });
 
   it("honors explicit decision provenance across decision routes", async () => {
-    const check = await post<{ policyVersion: string; relationshipVersion: string }>("/v1/decision/check", {
+    const check = await post<{
+      policyVersion: string;
+      modelVersion: string;
+      relationshipVersion: string;
+      tupleVersion: string;
+      contextVersion: string;
+      asOf: string;
+    }>("/v1/decision/check", {
       subjectId: "user:alice",
       action: "read",
       resourceId: "document:case-plan",
       policyVersion: "policy:pinned-check",
-      relationshipVersion: "tuple-set:pinned-check"
+      modelVersion: "model:pinned-check",
+      relationshipVersion: "tuple-set:pinned-check",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-check",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
-    const explain = await post<{ policyVersion: string; relationshipVersion: string }>("/v1/decision/explain", {
+    const explain = await post<{
+      policyVersion: string;
+      modelVersion: string;
+      relationshipVersion: string;
+      tupleVersion: string;
+      contextVersion: string;
+      asOf: string;
+    }>("/v1/decision/explain", {
       subjectId: "user:alice",
       action: "read",
       resourceId: "document:case-plan",
       policyVersion: "policy:pinned-explain",
-      relationshipVersion: "tuple-set:pinned-explain"
+      modelVersion: "model:pinned-explain",
+      relationshipVersion: "tuple-set:pinned-explain",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-explain",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
     const batch = await post<{
-      results: Array<{ policyVersion: string; relationshipVersion: string }>;
+      results: Array<{
+        policyVersion: string;
+        modelVersion: string;
+        relationshipVersion: string;
+        tupleVersion: string;
+        contextVersion: string;
+        asOf: string;
+      }>;
     }>("/v1/decision/batch-check", {
       requests: [
         {
@@ -590,41 +619,80 @@ describe("ReBAC API runtime", () => {
           action: "read",
           resourceId: "document:case-plan",
           policyVersion: "policy:pinned-batch",
-          relationshipVersion: "tuple-set:pinned-batch"
+          modelVersion: "model:pinned-batch",
+          relationshipVersion: "tuple-set:pinned-batch",
+          tupleVersion: "tuple:v1",
+          contextVersion: "context:pinned-batch",
+          asOf: "2026-05-21T17:00:00.000Z"
         }
       ]
     });
     const audit = await get<{
-      items: Array<{ eventType: string; policyVersion?: string; relationshipVersion?: string }>;
+      items: Array<{
+        eventType: string;
+        policyVersion?: string;
+        relationshipVersion?: string;
+        payload?: Record<string, unknown>;
+      }>;
     }>("/v1/audit/events");
 
     expect(check).toMatchObject({
       policyVersion: "policy:pinned-check",
-      relationshipVersion: "tuple-set:pinned-check"
+      modelVersion: "model:pinned-check",
+      relationshipVersion: "tuple-set:pinned-check",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-check",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
     expect(explain).toMatchObject({
       policyVersion: "policy:pinned-explain",
-      relationshipVersion: "tuple-set:pinned-explain"
+      modelVersion: "model:pinned-explain",
+      relationshipVersion: "tuple-set:pinned-explain",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-explain",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
     expect(batch.results[0]).toMatchObject({
       policyVersion: "policy:pinned-batch",
-      relationshipVersion: "tuple-set:pinned-batch"
+      modelVersion: "model:pinned-batch",
+      relationshipVersion: "tuple-set:pinned-batch",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-batch",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
     expect(audit.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
         eventType: "decision.allowed",
         policyVersion: "policy:pinned-check",
-        relationshipVersion: "tuple-set:pinned-check"
+        relationshipVersion: "tuple-set:pinned-check",
+        payload: expect.objectContaining({
+          modelVersion: "model:pinned-check",
+          tupleVersion: "tuple:v1",
+          contextVersion: "context:pinned-check",
+          asOf: "2026-05-21T17:00:00.000Z"
+        })
       }),
       expect.objectContaining({
         eventType: "decision.allowed",
         policyVersion: "policy:pinned-explain",
-        relationshipVersion: "tuple-set:pinned-explain"
+        relationshipVersion: "tuple-set:pinned-explain",
+        payload: expect.objectContaining({
+          modelVersion: "model:pinned-explain",
+          tupleVersion: "tuple:v1",
+          contextVersion: "context:pinned-explain",
+          asOf: "2026-05-21T17:00:00.000Z"
+        })
       }),
       expect.objectContaining({
         eventType: "decision.allowed",
         policyVersion: "policy:pinned-batch",
-        relationshipVersion: "tuple-set:pinned-batch"
+        relationshipVersion: "tuple-set:pinned-batch",
+        payload: expect.objectContaining({
+          modelVersion: "model:pinned-batch",
+          tupleVersion: "tuple:v1",
+          contextVersion: "context:pinned-batch",
+          asOf: "2026-05-21T17:00:00.000Z"
+        })
       })
     ]));
   });

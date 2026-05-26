@@ -10,7 +10,7 @@ Application developers, security engineers, ISSOs, assessors, incident responder
 
 ## What This Is
 
-The Explain API returns an authorization decision with relationship path, reason code, policy version, relationship version, constraints, and evaluation timestamp. It is designed for audit review, incident response, access review, and assessor inspection.
+The Explain API returns an authorization decision with relationship path, reason code, policy, model, relationship, tuple, and context version pins, historical `asOf`, traversal metrics, latency SLO metadata, constraints, and evaluation timestamp. It is designed for audit review, incident response, access review, and assessor inspection.
 
 ## What This Is Not
 
@@ -34,7 +34,11 @@ The response currently uses the same `DecisionResult` contract as `check`, with 
     "requestSource": "synthetic-example"
   },
   "policyVersion": "policy:test-v1",
-  "relationshipVersion": "tuple-set:test-v1"
+  "modelVersion": "model:test-v1",
+  "relationshipVersion": "tuple-set:test-v1",
+  "tupleVersion": "tuple:test-v1",
+  "contextVersion": "context:test-v1",
+  "asOf": "2026-05-21T17:00:00.000Z"
 }
 ```
 
@@ -49,7 +53,11 @@ The response currently uses the same `DecisionResult` contract as `check`, with 
   "resourceId": "document:case-plan",
   "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
   "policyVersion": "policy:test-v1",
+  "modelVersion": "model:test-v1",
   "relationshipVersion": "tuple-set:test-v1",
+  "tupleVersion": "tuple:test-v1",
+  "contextVersion": "context:test-v1",
+  "asOf": "2026-05-21T17:00:00.000Z",
   "relationshipPath": [
     {
       "subjectId": "user:alice",
@@ -71,7 +79,22 @@ The response currently uses the same `DecisionResult` contract as `check`, with 
     "deterministic": true,
     "denyByDefault": true,
     "llmDecisioning": false,
-    "explain": true
+    "explain": true,
+    "timeTravel": {
+      "asOf": "2026-05-21T17:00:00.000Z",
+      "evaluatedAt": "2026-05-21T17:00:00.000Z",
+      "historical": false
+    },
+    "traversal": {
+      "relationshipScans": 3,
+      "visitedNodes": 3,
+      "maxDepthReached": 3
+    },
+    "performance": {
+      "targetMs": 25,
+      "regressionGateMs": 100,
+      "withinRegressionGate": true
+    }
   },
   "evaluatedAt": "2026-05-21T17:00:00.000Z"
 }

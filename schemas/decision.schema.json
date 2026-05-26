@@ -12,7 +12,11 @@
     "resourceId",
     "reasonCode",
     "policyVersion",
+    "modelVersion",
     "relationshipVersion",
+    "tupleVersion",
+    "contextVersion",
+    "asOf",
     "relationshipPath",
     "constraints",
     "evaluatedAt"
@@ -25,7 +29,11 @@
     "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "reasonCode": { "type": "string", "pattern": "^[A-Z0-9_]+$" },
     "policyVersion": { "type": "string", "minLength": 1 },
+    "modelVersion": { "type": "string", "minLength": 1 },
     "relationshipVersion": { "type": "string", "minLength": 1 },
+    "tupleVersion": { "type": "string", "minLength": 1 },
+    "contextVersion": { "type": "string", "minLength": 1 },
+    "asOf": { "type": "string", "format": "date-time" },
     "relationshipPath": {
       "type": "array",
       "items": {

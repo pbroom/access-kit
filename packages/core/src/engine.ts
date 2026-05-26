@@ -10,13 +10,30 @@ import type {
   Resource,
   Subject
 } from "./domain.js";
+import {
+  createDecisionRuntimePerformanceReport,
+  DEFAULT_DECISION_TRAVERSAL_BOUNDS,
+  DecisionTraversalGuard,
+  latencyTargetsForGraphSize,
+  mergeDecisionTraversalBounds,
+  normalizeDecisionRuntimeVersionPins,
+  type DecisionRuntimePerformanceReport,
+  type DecisionRuntimeVersionPins,
+  type DecisionTraversalBounds,
+  type DecisionTraversalReport
+} from "./decision-runtime.js";
 import { InMemoryRebacStore } from "./store.js";
 
 export interface DecisionEngineOptions {
   policyVersion?: string;
+  modelVersion?: string;
   relationshipVersion?: string;
+  tupleVersion?: string;
+  contextVersion?: string;
+  traversalBounds?: Partial<DecisionTraversalBounds>;
   actor?: string;
   now?: () => string;
+  monotonicNow?: () => number;
   auditRecorder?: AuditRecorder;
   onAuditEvent?: (event: AuditEvent) => void;
 }
@@ -24,11 +41,24 @@ export interface DecisionEngineOptions {
 interface DecisionContext {
   request: DecisionRequest;
   evaluatedAt: string;
-  policyVersion: string;
-  relationshipVersion: string;
+  versionPins: DecisionRuntimeVersionPins;
   reasonCode: string;
   decision: DecisionValue;
   relationshipPath: RelationshipPathStep[];
+  traversal: DecisionTraversalReport;
+}
+
+interface NormalizedDecisionEngineOptions {
+  policyVersion: string;
+  modelVersion: string;
+  relationshipVersion: string;
+  tupleVersion: string;
+  enforceTupleVersion: boolean;
+  contextVersion?: string;
+  traversalBounds: DecisionTraversalBounds;
+  actor: string;
+  now: () => string;
+  monotonicNow: () => number;
 }
 
 const denyRelations = new Set(["denied", "denied_read", "quarantined_from"]);
@@ -49,7 +79,7 @@ export class RebacDecisionEngine {
   readonly #auditRecorder: AuditRecorder;
   readonly #onAuditEvent?: (event: AuditEvent) => void;
   readonly #store: InMemoryRebacStore;
-  readonly #options: Required<Omit<DecisionEngineOptions, "auditRecorder" | "onAuditEvent">>;
+  readonly #options: NormalizedDecisionEngineOptions;
 
   constructor(store: InMemoryRebacStore, options: DecisionEngineOptions = {}) {
     this.#store = store;
@@ -57,9 +87,15 @@ export class RebacDecisionEngine {
     this.#onAuditEvent = options.onAuditEvent;
     this.#options = {
       policyVersion: options.policyVersion ?? "policy:local-v1",
+      modelVersion: options.modelVersion ?? "model:local-v1",
       relationshipVersion: options.relationshipVersion ?? "tuple-set:local-v1",
+      tupleVersion: options.tupleVersion ?? "tuple:v1",
+      enforceTupleVersion: Boolean(options.tupleVersion),
+      contextVersion: options.contextVersion,
+      traversalBounds: mergeDecisionTraversalBounds(DEFAULT_DECISION_TRAVERSAL_BOUNDS, options.traversalBounds),
       actor: options.actor ?? "service:decision-engine",
-      now: options.now ?? (() => new Date().toISOString())
+      now: options.now ?? (() => new Date().toISOString()),
+      monotonicNow: options.monotonicNow ?? (() => performance.now())
     };
   }
 
@@ -72,11 +108,15 @@ export class RebacDecisionEngine {
   }
 
   #evaluate(request: DecisionRequest, explain: boolean): DecisionResult {
+    const startedAt = this.#options.monotonicNow();
     const evaluatedAt = this.#options.now();
-    const policyVersion = request.policyVersion ?? this.#options.policyVersion;
-    const relationshipVersion = request.relationshipVersion ?? this.#options.relationshipVersion;
-    const context = this.#buildDecisionContext(request, evaluatedAt, policyVersion, relationshipVersion);
-    const result = toDecisionResult(context, explain);
+    const versionPins = normalizeDecisionRuntimeVersionPins(request, this.#options, evaluatedAt);
+    const context = this.#buildDecisionContext(request, evaluatedAt, versionPins);
+    const performance = createDecisionRuntimePerformanceReport(
+      Math.max(0, this.#options.monotonicNow() - startedAt),
+      latencyTargetsForGraphSize(context.traversal.graphSize)
+    );
+    const result = toDecisionResult(context, explain, performance);
     this.#store.recordDecision(result);
     const auditEvent = this.#auditRecorder.record(
       {
@@ -92,7 +132,13 @@ export class RebacDecisionEngine {
           decision: result.decision,
           reasonCode: result.reasonCode,
           explain,
-          relationshipPath: result.relationshipPath
+          relationshipPath: result.relationshipPath,
+          modelVersion: result.modelVersion,
+          tupleVersion: result.tupleVersion,
+          contextVersion: result.contextVersion,
+          asOf: result.asOf,
+          traversal: context.traversal,
+          performance
         }
       },
       evaluatedAt
@@ -109,26 +155,41 @@ export class RebacDecisionEngine {
   #buildDecisionContext(
     request: DecisionRequest,
     evaluatedAt: string,
-    policyVersion: string,
-    relationshipVersion: string
+    versionPins: DecisionRuntimeVersionPins
   ): DecisionContext {
-    const subject = this.#store.getSubject(request.subjectId);
+    const graphSize = {
+      subjects: this.#store.listSubjects().length,
+      resources: this.#store.listResources().length,
+      relationships: this.#store.listRelationships().length
+    };
+    const traversalGuard = new DecisionTraversalGuard(this.#options.traversalBounds, graphSize, request.subjectId);
+    const asOfMs = Date.parse(versionPins.asOf);
+
+    if (!Number.isFinite(asOfMs)) {
+      return denied("DENY_INVALID_AS_OF");
+    }
+
+    if (asOfMs > Date.parse(evaluatedAt)) {
+      return denied("DENY_AS_OF_IN_FUTURE");
+    }
+
+    const subject = visibleSubjectAt(this.#store, request.subjectId, versionPins.asOf);
 
     if (!subject) {
       return denied("DENY_SUBJECT_NOT_FOUND");
     }
 
-    if (subject.lifecycleState !== "active") {
+    if (effectiveLifecycleStateAt(subject, versionPins.asOf) !== "active") {
       return denied("DENY_SUBJECT_NOT_ACTIVE");
     }
 
-    const resource = this.#store.getResource(request.resourceId);
+    const resource = visibleResourceAt(this.#store, request.resourceId, versionPins.asOf);
 
     if (!resource) {
       return denied("DENY_RESOURCE_NOT_FOUND");
     }
 
-    if (resource.lifecycleState !== "active") {
+    if (effectiveLifecycleStateAt(resource, versionPins.asOf) !== "active") {
       return denied("DENY_RESOURCE_NOT_ACTIVE");
     }
 
@@ -140,21 +201,46 @@ export class RebacDecisionEngine {
 
     const activeRelationships = this.#store
       .listRelationships()
-      .filter((relationship) => isActiveRelationship(relationship, evaluatedAt));
-    const explicitDeny = findDenyPath(this.#store, activeRelationships, request.subjectId, request.resourceId, rootTenantId);
+      .filter((relationship) =>
+        isActiveRelationshipAt(
+          relationship,
+          versionPins.asOf,
+          request.tupleVersion ?? (this.#options.enforceTupleVersion ? versionPins.tupleVersion : undefined)
+        )
+      );
+    const relationshipsBySubject = indexRelationshipsBySubject(activeRelationships);
+    const explicitDeny = findDenyPath(
+      this.#store,
+      relationshipsBySubject,
+      traversalGuard,
+      request.subjectId,
+      request.resourceId,
+      rootTenantId,
+      versionPins.asOf
+    );
 
     if (explicitDeny.length > 0) {
       return denied("DENY_EXPLICIT_OVERRIDE", explicitDeny);
     }
 
+    if (traversalGuard.boundsExceeded) {
+      return denied("DENY_TRAVERSAL_BOUND_EXCEEDED");
+    }
+
     const relationshipPath = findAllowPath(
       this.#store,
-      activeRelationships,
+      relationshipsBySubject,
+      traversalGuard,
       request.subjectId,
       request.resourceId,
       request.action,
-      rootTenantId
+      rootTenantId,
+      versionPins.asOf
     );
+
+    if (traversalGuard.boundsExceeded) {
+      return denied("DENY_TRAVERSAL_BOUND_EXCEEDED", relationshipPath);
+    }
 
     if (relationshipPath.length === 0) {
       return denied("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
@@ -163,34 +249,37 @@ export class RebacDecisionEngine {
     return {
       request,
       evaluatedAt,
-      policyVersion,
-      relationshipVersion,
+      versionPins,
       decision: "allow",
       reasonCode: "ALLOW_VIA_RELATIONSHIP_PATH",
-      relationshipPath
+      relationshipPath,
+      traversal: traversalGuard.report()
     };
 
     function denied(reasonCode: string, relationshipPath: RelationshipPathStep[] = []): DecisionContext {
       return {
         request,
         evaluatedAt,
-        policyVersion,
-        relationshipVersion,
+        versionPins,
         decision: "deny",
         reasonCode,
-        relationshipPath
+        relationshipPath,
+        traversal: traversalGuard.report()
       };
     }
   }
 }
 
-function toDecisionResult(context: DecisionContext, explain: boolean): DecisionResult {
+function toDecisionResult(
+  context: DecisionContext,
+  explain: boolean,
+  performance: DecisionRuntimePerformanceReport
+): DecisionResult {
   const relationshipPath = explain ? context.relationshipPath : [];
   const decisionHash = sha256({
     request: context.request,
-    evaluatedAt: context.evaluatedAt,
-    policyVersion: context.policyVersion,
-    relationshipVersion: context.relationshipVersion,
+    asOf: context.versionPins.asOf,
+    versionPins: context.versionPins,
     decision: context.decision,
     reasonCode: context.reasonCode,
     explain
@@ -203,38 +292,68 @@ function toDecisionResult(context: DecisionContext, explain: boolean): DecisionR
     action: context.request.action,
     resourceId: context.request.resourceId,
     reasonCode: context.reasonCode,
-    policyVersion: context.policyVersion,
-    relationshipVersion: context.relationshipVersion,
+    policyVersion: context.versionPins.policyVersion,
+    modelVersion: context.versionPins.modelVersion,
+    relationshipVersion: context.versionPins.relationshipVersion,
+    tupleVersion: context.versionPins.tupleVersion,
+    contextVersion: context.versionPins.contextVersion,
+    asOf: context.versionPins.asOf,
     relationshipPath,
     constraints: {
       deterministic: true,
       denyByDefault: true,
       llmDecisioning: false,
-      explain
+      explain,
+      timeTravel: {
+        asOf: context.versionPins.asOf,
+        evaluatedAt: context.evaluatedAt,
+        historical: context.versionPins.asOf !== context.evaluatedAt
+      },
+      traversal: context.traversal,
+      performance
     },
     evaluatedAt: context.evaluatedAt
   };
 }
 
-function isActiveRelationship(relationship: RelationshipTuple, now: string): boolean {
-  if (relationship.status !== "active") {
+function isActiveRelationshipAt(
+  relationship: RelationshipTuple,
+  asOf: string,
+  pinnedTupleVersion: string | undefined
+): boolean {
+  if (pinnedTupleVersion && relationship.version !== pinnedTupleVersion) {
     return false;
   }
 
-  return !relationship.expiresAt || Date.parse(relationship.expiresAt) > Date.parse(now);
+  if (!isVisibleAt(relationship, asOf)) {
+    return false;
+  }
+
+  const assertedAtMs = Date.parse(relationship.assertedAt);
+  if (Number.isFinite(assertedAtMs) && assertedAtMs > Date.parse(asOf)) {
+    return false;
+  }
+
+  if (relationship.status === "deleted") {
+    return Boolean(relationship.updatedAt && Date.parse(relationship.updatedAt) > Date.parse(asOf));
+  }
+
+  return !relationship.expiresAt || Date.parse(relationship.expiresAt) > Date.parse(asOf);
 }
 
 function findAllowPath(
   store: InMemoryRebacStore,
-  relationships: RelationshipTuple[],
+  relationshipsBySubject: Map<string, RelationshipTuple[]>,
+  traversalGuard: DecisionTraversalGuard,
   subjectId: string,
   resourceId: string,
   action: string,
-  rootTenantId: string | undefined
+  rootTenantId: string | undefined,
+  asOf: string
 ): RelationshipPathStep[] {
   const allowedRelations = actionAllowRelations.get(action.toLowerCase()) ?? new Set<string>();
-  const queue: Array<{ currentId: string; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
-    { currentId: subjectId, hasActionGrant: false, path: [] }
+  const queue: Array<{ currentId: string; depth: number; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
+    { currentId: subjectId, depth: 0, hasActionGrant: false, path: [] }
   ];
   const bestGrantByNode = new Map<string, boolean>([[subjectId, false]]);
 
@@ -245,17 +364,22 @@ function findAllowPath(
       break;
     }
 
-    for (const relationship of relationships) {
-      if (relationship.subjectId !== next.currentId) {
-        continue;
+    for (const relationship of relationshipsBySubject.get(next.currentId) ?? []) {
+      if (!traversalGuard.recordRelationshipScan()) {
+        return [];
       }
 
-      if (!relationshipMatchesTenantBoundary(store, relationship, rootTenantId)) {
+      if (!relationshipMatchesTenantBoundary(store, relationship, rootTenantId, asOf)) {
         continue;
       }
 
       const step = toPathStep(relationship);
       const path = [...next.path, step];
+      const depth = next.depth + 1;
+      if (!traversalGuard.recordDepth(depth)) {
+        return [];
+      }
+
       const relationGrantsAction = allowedRelations.has(relationship.relation);
       const traversable = canTraverseRelationship(relationship, relationGrantsAction, next.hasActionGrant);
 
@@ -275,7 +399,7 @@ function findAllowPath(
         continue;
       }
 
-      if (!traversable || !isActiveGraphNode(store, relationship.objectId)) {
+      if (!traversable || !isActiveGraphNodeAt(store, relationship.objectId, asOf)) {
         continue;
       }
 
@@ -283,9 +407,13 @@ function findAllowPath(
       const previousBest = bestGrantByNode.get(relationship.objectId);
 
       if (previousBest !== true && previousBest !== hasActionGrant) {
+        if (!traversalGuard.recordVisitedNode(relationship.objectId)) {
+          return [];
+        }
         bestGrantByNode.set(relationship.objectId, hasActionGrant);
         queue.push({
           currentId: relationship.objectId,
+          depth,
           hasActionGrant,
           path
         });
@@ -298,12 +426,16 @@ function findAllowPath(
 
 function findDenyPath(
   store: InMemoryRebacStore,
-  relationships: RelationshipTuple[],
+  relationshipsBySubject: Map<string, RelationshipTuple[]>,
+  traversalGuard: DecisionTraversalGuard,
   subjectId: string,
   resourceId: string,
-  rootTenantId: string | undefined
+  rootTenantId: string | undefined,
+  asOf: string
 ): RelationshipPathStep[] {
-  const queue: Array<{ currentId: string; path: RelationshipPathStep[] }> = [{ currentId: subjectId, path: [] }];
+  const queue: Array<{ currentId: string; depth: number; path: RelationshipPathStep[] }> = [
+    { currentId: subjectId, depth: 0, path: [] }
+  ];
   const visited = new Set<string>([subjectId]);
 
   while (queue.length > 0) {
@@ -313,17 +445,21 @@ function findDenyPath(
       break;
     }
 
-    for (const relationship of relationships) {
-      if (relationship.subjectId !== next.currentId) {
-        continue;
+    for (const relationship of relationshipsBySubject.get(next.currentId) ?? []) {
+      if (!traversalGuard.recordRelationshipScan()) {
+        return [];
       }
 
-      if (!relationshipMatchesTenantBoundary(store, relationship, rootTenantId)) {
+      if (!relationshipMatchesTenantBoundary(store, relationship, rootTenantId, asOf)) {
         continue;
       }
 
       const step = toPathStep(relationship);
       const path = [...next.path, step];
+      const depth = next.depth + 1;
+      if (!traversalGuard.recordDepth(depth)) {
+        return [];
+      }
 
       if (relationship.objectId === resourceId && denyRelations.has(relationship.relation)) {
         return path;
@@ -332,14 +468,17 @@ function findDenyPath(
       if (
         relationship.objectId === resourceId ||
         !canTraverseDenyRelationship(relationship) ||
-        !isActiveGraphNode(store, relationship.objectId)
+        !isActiveGraphNodeAt(store, relationship.objectId, asOf)
       ) {
         continue;
       }
 
       if (!visited.has(relationship.objectId)) {
+        if (!traversalGuard.recordVisitedNode(relationship.objectId)) {
+          return [];
+        }
         visited.add(relationship.objectId);
-        queue.push({ currentId: relationship.objectId, path });
+        queue.push({ currentId: relationship.objectId, depth, path });
       }
     }
   }
@@ -367,15 +506,15 @@ function canTraverseDenyRelationship(relationship: RelationshipTuple): boolean {
   return membershipRelations.has(relationship.relation);
 }
 
-function isActiveGraphNode(store: InMemoryRebacStore, id: string): boolean {
-  const subject = store.getSubject(id);
+function isActiveGraphNodeAt(store: InMemoryRebacStore, id: string, asOf: string): boolean {
+  const subject = visibleSubjectAt(store, id, asOf);
   if (subject) {
-    return subject.lifecycleState === "active";
+    return effectiveLifecycleStateAt(subject, asOf) === "active";
   }
 
-  const resource = store.getResource(id);
+  const resource = visibleResourceAt(store, id, asOf);
   if (resource) {
-    return resource.lifecycleState === "active";
+    return effectiveLifecycleStateAt(resource, asOf) === "active";
   }
 
   return false;
@@ -395,11 +534,12 @@ function tenantBoundaryDenies(subject: Subject, resource: Resource): boolean {
 function relationshipMatchesTenantBoundary(
   store: InMemoryRebacStore,
   relationship: RelationshipTuple,
-  rootTenantId: string | undefined
+  rootTenantId: string | undefined,
+  asOf: string
 ): boolean {
   if (!rootTenantId) {
     const relationshipIsUntenanted = !stringAttribute(relationship.attributes, "tenantId");
-    const objectNodeIsUntenanted = !tenantIdFor(store.getSubject(relationship.objectId) ?? store.getResource(relationship.objectId));
+    const objectNodeIsUntenanted = !tenantIdFor(visibleSubjectAt(store, relationship.objectId, asOf) ?? visibleResourceAt(store, relationship.objectId, asOf));
     return relationshipIsUntenanted && objectNodeIsUntenanted;
   }
 
@@ -409,9 +549,57 @@ function relationshipMatchesTenantBoundary(
     return false;
   }
 
-  const objectNode = store.getSubject(relationship.objectId) ?? store.getResource(relationship.objectId);
+  const objectNode = visibleSubjectAt(store, relationship.objectId, asOf) ?? visibleResourceAt(store, relationship.objectId, asOf);
 
   return tenantIdFor(objectNode) === rootTenantId;
+}
+
+function indexRelationshipsBySubject(relationships: RelationshipTuple[]): Map<string, RelationshipTuple[]> {
+  const index = new Map<string, RelationshipTuple[]>();
+
+  for (const relationship of relationships) {
+    const values = index.get(relationship.subjectId);
+
+    if (values) {
+      values.push(relationship);
+    } else {
+      index.set(relationship.subjectId, [relationship]);
+    }
+  }
+
+  return index;
+}
+
+function visibleSubjectAt(store: InMemoryRebacStore, id: string, asOf: string): Subject | undefined {
+  const subject = store.getSubject(id);
+  return subject && isVisibleAt(subject, asOf) ? subject : undefined;
+}
+
+function visibleResourceAt(store: InMemoryRebacStore, id: string, asOf: string): Resource | undefined {
+  const resource = store.getResource(id);
+  return resource && isVisibleAt(resource, asOf) ? resource : undefined;
+}
+
+function isVisibleAt(entity: { createdAt: string; updatedAt?: string; status?: string }, asOf: string): boolean {
+  const asOfMs = Date.parse(asOf);
+  const createdAtMs = Date.parse(entity.createdAt);
+  if (Number.isFinite(createdAtMs) && createdAtMs > asOfMs) {
+    return false;
+  }
+
+  return !(entity.status === "deleted" && entity.updatedAt && Date.parse(entity.updatedAt) <= asOfMs);
+}
+
+function effectiveLifecycleStateAt(node: Subject | Resource, asOf: string): Subject["lifecycleState"] | Resource["lifecycleState"] {
+  if (node.lifecycleState === "active") {
+    return node.lifecycleState;
+  }
+
+  if (node.updatedAt && Date.parse(node.updatedAt) > Date.parse(asOf)) {
+    return "active";
+  }
+
+  return node.lifecycleState;
 }
 
 function tenantIdFor(node: Pick<Subject | Resource, "attributes"> | undefined): string | undefined {

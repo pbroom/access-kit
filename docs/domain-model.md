@@ -24,7 +24,7 @@ The domain model is not an identity directory, provider permission model, SIEM s
 
 `RelationshipTuple` is the durable business fact used by the policy engine. Examples include `member_of`, `owner_of`, `manager_of`, `steward_of`, `contributor_to`, `contains`, `approved_by`, `delegate_of`, and deny or quarantine relationships.
 
-`DecisionResult` is the computed answer to whether a subject can perform an action on a resource under a policy version, relationship tuple version, and request context.
+`DecisionResult` is the computed answer to whether a subject can perform an action on a resource under pinned policy, model, relationship, tuple, context, and `asOf` versions plus request context. The result carries traversal metrics and latency SLO metadata so historical and large-graph decisions remain auditable and regression-testable.
 
 `IntendedGrant` is the desired access state created by policy and approvals.
 

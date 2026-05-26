@@ -1100,8 +1100,17 @@ components:
           additionalProperties: true
         policyVersion:
           type: string
+        modelVersion:
+          type: string
         relationshipVersion:
           type: string
+        tupleVersion:
+          type: string
+        contextVersion:
+          type: string
+        asOf:
+          type: string
+          format: date-time
     AccessView:
       type: object
       additionalProperties: false
