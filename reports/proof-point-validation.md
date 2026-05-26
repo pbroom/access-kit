@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T10:23:10.911Z
+Generated at: 2026-05-26T10:51:58.735Z
 
 Branch: codex/greptile-connector-gate-and-docs
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  06:23:03
-   Duration  406ms (transform 171ms, setup 0ms, import 284ms, tests 32ms, environment 0ms)
+   Start at  06:51:51
+   Duration  421ms (transform 171ms, setup 0ms, import 284ms, tests 32ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -186,9 +186,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  8 passed (8)
-      Tests  116 passed (116)
-   Start at  06:23:07
-   Duration  355ms (transform 958ms, setup 0ms, import 1.29s, tests 106ms, environment 0ms)
+      Tests  118 passed (118)
+   Start at  06:51:55
+   Duration  362ms (transform 1.02s, setup 0ms, import 1.30s, tests 104ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -203,8 +203,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  4 passed (4)
       Tests  96 passed (96)
-   Start at  06:23:08
-   Duration  707ms (transform 678ms, setup 0ms, import 1.02s, tests 333ms, environment 0ms)
+   Start at  06:51:55
+   Duration  705ms (transform 677ms, setup 0ms, import 1.01s, tests 331ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -214,9 +214,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-2
 
 
  Test Files  1 passed (1)
-      Tests  7 passed (7)
-   Start at  06:23:09
-   Duration  280ms (transform 137ms, setup 0ms, import 168ms, tests 22ms, environment 0ms)
+      Tests  8 passed (8)
+   Start at  06:51:57
+   Duration  282ms (transform 139ms, setup 0ms, import 171ms, tests 22ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-greptile-2
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  06:23:10
-   Duration  468ms (transform 491ms, setup 0ms, import 853ms, tests 156ms, environment 0ms)
+   Start at  06:51:57
+   Duration  474ms (transform 490ms, setup 0ms, import 857ms, tests 161ms, environment 0ms)
 ```
 
 

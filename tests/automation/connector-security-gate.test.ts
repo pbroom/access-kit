@@ -38,7 +38,7 @@ describe("connector security gate validation", () => {
     await expect(validateConnectorSecurityGate(app)).rejects.toThrow("must not advertise provisioning");
   });
 
-  it.each(["mark_deleted", "ignore"] as const)("rejects %s deletion behavior without cursor metadata", async (deletion) => {
+  it.each(["mark_deleted", "ignore", "unsupported"] as const)("rejects %s deletion behavior without cursor metadata", async (deletion) => {
     const app = createRebacLocalApp({ now: () => "2026-05-26T00:00:00.000Z" });
     const connector = app.connectors.get("entra-readonly")!;
     const review = connector.getSecurityReview?.();

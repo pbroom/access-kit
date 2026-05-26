@@ -39,6 +39,26 @@ class FixtureGraphClient implements MicrosoftGraphReadClient {
 }
 
 describe("MicrosoftGraphEntraReadOnlyConnector", () => {
+  it("uses a stable pre-discovery cursor before any source events are processed", () => {
+    let nowCall = 0;
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client: createFixtureClient(),
+      tenantId: "tenant-live-123",
+      now: () => `2026-05-26T12:00:0${nowCall++}.000Z`
+    });
+
+    expect(connector.getDiscoveryMetadata().cursor).toEqual({
+      startedFrom: "cursor:microsoft-graph:initial",
+      highWatermark: "cursor:microsoft-graph:pre-discovery",
+      deletedObjectBehavior: "mark_deleted"
+    });
+    expect(connector.getDiscoveryMetadata().cursor).toEqual({
+      startedFrom: "cursor:microsoft-graph:initial",
+      highWatermark: "cursor:microsoft-graph:pre-discovery",
+      deletedObjectBehavior: "mark_deleted"
+    });
+  });
+
   it("imports redacted Entra subjects, groups, service principals, app roles, and provider warnings", async () => {
     const client = createFixtureClient();
     const connector = new MicrosoftGraphEntraReadOnlyConnector({

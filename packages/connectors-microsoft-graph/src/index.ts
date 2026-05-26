@@ -319,7 +319,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       requiredReadScopes: this.requiredReadScopes,
       synthetic: false,
       warnings: [...this.#baseWarnings(), ...this.#warnings],
-      cursor: this.#snapshot?.cursor ?? this.#buildCursor()
+      cursor: this.#snapshot?.cursor ?? this.#buildPreDiscoveryCursor()
     };
   }
 
@@ -711,6 +711,14 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     return {
       startedFrom: "cursor:microsoft-graph:initial",
       highWatermark: `cursor:microsoft-graph:${compactTimestamp(this.#now())}`,
+      deletedObjectBehavior: "mark_deleted"
+    };
+  }
+
+  #buildPreDiscoveryCursor(): DiscoveryCursor {
+    return {
+      startedFrom: "cursor:microsoft-graph:initial",
+      highWatermark: "cursor:microsoft-graph:pre-discovery",
       deletedObjectBehavior: "mark_deleted"
     };
   }
