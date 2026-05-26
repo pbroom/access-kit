@@ -6,6 +6,7 @@ import {
   MicrosoftGraphEntraReadOnlyConnector,
   createMicrosoftGraphEntraReadOnlyConnectorFromEnv,
   type MicrosoftGraphCollectionPage,
+  type MicrosoftGraphRecordResponse,
   type MicrosoftGraphReadClient
 } from "../../packages/connectors-microsoft-graph/src/index.js";
 import { auditPayloadHash, type AuditEvent } from "../../packages/core/src/index.js";
@@ -24,9 +25,14 @@ const noSleep = async (): Promise<void> => {};
 class FixtureGraphClient implements MicrosoftGraphReadClient {
   readonly calls: string[] = [];
   readonly #pages: Map<string, Array<MicrosoftGraphCollectionPage<unknown>>>;
+  readonly #records: Map<string, Array<MicrosoftGraphRecordResponse<unknown>>>;
 
-  constructor(pages: Record<string, Array<MicrosoftGraphCollectionPage<unknown>>>) {
+  constructor(
+    pages: Record<string, Array<MicrosoftGraphCollectionPage<unknown>>>,
+    records: Record<string, Array<MicrosoftGraphRecordResponse<unknown>>> = {}
+  ) {
     this.#pages = new Map(Object.entries(pages));
+    this.#records = new Map(Object.entries(records));
   }
 
   async list<T>(pathOrUrl: string): Promise<MicrosoftGraphCollectionPage<T>> {
@@ -37,6 +43,16 @@ class FixtureGraphClient implements MicrosoftGraphReadClient {
     }
 
     return pages.shift() as MicrosoftGraphCollectionPage<T>;
+  }
+
+  async get<T>(pathOrUrl: string): Promise<MicrosoftGraphRecordResponse<T>> {
+    this.calls.push(pathOrUrl);
+    const records = this.#records.get(pathOrUrl);
+    if (!records || records.length === 0) {
+      throw new Error(`No fixture record for ${pathOrUrl}`);
+    }
+
+    return records.shift() as MicrosoftGraphRecordResponse<T>;
   }
 }
 
@@ -113,6 +129,77 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     expect(serialized).not.toContain("tenant-live-123");
     expect(serialized).not.toContain("raw-user-1");
     expect(serialized).not.toContain("/users?page=2");
+  });
+
+  it("imports redacted Microsoft 365 group and Teams coupling semantics without collapsing provider coverage", async () => {
+    const client = createM365TeamsFixtureClient();
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client,
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-m365-teams-sandbox-fixture.json"
+    });
+
+    const subjects = await connector.discoverSubjects();
+    const resources = await connector.discoverResources();
+    const relationships = await connector.discoverRelationships();
+    const metadata = connector.getDiscoveryMetadata();
+    const workspace = resources.find((resource) => resource.type === "workspace");
+    const team = resources.find((resource) => resource.type === "team");
+    const workspaceGrants = await connector.readCurrentAccess(workspace!.id);
+    const teamGrants = await connector.readCurrentAccess(team!.id);
+    const serialized = JSON.stringify({ subjects, resources, relationships, workspaceGrants, teamGrants, metadata });
+
+    expect(workspace).toEqual(expect.objectContaining({
+      type: "workspace",
+      sourceSystem: MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID,
+      attributes: expect.objectContaining({
+        graphType: "microsoft365Group",
+        teamBacked: true,
+        redacted: true
+      })
+    }));
+    expect(team).toEqual(expect.objectContaining({
+      type: "team",
+      parentId: workspace!.id,
+      sourceSystem: MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID,
+      attributes: expect.objectContaining({
+        graphType: "team",
+        couplingSource: "microsoft_graph_team",
+        redacted: true
+      })
+    }));
+    expect(relationships).toEqual(expect.arrayContaining([
+      expect.objectContaining({ relation: "m365_group_member", objectId: workspace!.id }),
+      expect.objectContaining({ relation: "team_member", objectId: team!.id }),
+      expect.objectContaining({ relation: "m365_group_owner", objectId: workspace!.id }),
+      expect.objectContaining({ relation: "team_owner", objectId: team!.id }),
+      expect.objectContaining({ relation: "m365_group_backs_team", subjectId: workspace!.id, objectId: team!.id })
+    ]));
+    expect(workspaceGrants).toEqual(expect.arrayContaining([
+      expect.objectContaining({ nativePermission: "m365Group:member", principalType: "service_principal" }),
+      expect.objectContaining({ nativePermission: "m365Group:owner", principalType: "user" })
+    ]));
+    expect(teamGrants).toEqual(expect.arrayContaining([
+      expect.objectContaining({ nativePermission: "team:member", principalType: "service_principal", inheritedFromObjectId: workspace!.id }),
+      expect.objectContaining({ nativePermission: "team:owner", principalType: "user", inheritedFromObjectId: workspace!.id })
+    ]));
+    expect(metadata.requiredReadScopes).toEqual([...MICROSOFT_GRAPH_ENTRA_REQUIRED_READ_SCOPES]);
+    expect(metadata.warnings.map((warning) => warning.code)).toEqual(expect.arrayContaining([
+      "GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED",
+      "GRAPH_TEAM_CHANNEL_COVERAGE_UNSUPPORTED"
+    ]));
+    expect(client.calls).toEqual(expect.arrayContaining([
+      "/teams/raw-m365-group-1?$select=id,displayName,description,webUrl,isArchived,visibility",
+      "/groups/raw-m365-group-1/owners?$select=id,displayName,userPrincipalName,appId,servicePrincipalType"
+    ]));
+    expect(serialized).not.toContain("tenant-live-123");
+    expect(serialized).not.toContain("M365 Collaboration");
+    expect(serialized).not.toContain("Case Team");
+    expect(serialized).not.toContain("owner@example.test");
+    expect(serialized).not.toContain("https://teams.example.test");
+    expect(serialized).not.toContain("raw-m365-group-1");
   });
 
   it("keeps live provider writes disabled even when provisioning hooks are called", async () => {
@@ -263,7 +350,7 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
         { value: [], status: 429, retryAfterSeconds: 2.5 },
         { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 }
       ],
-      "/groups?$select=id,displayName,securityEnabled,groupTypes,deletedDateTime": [
+      "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
         { value: [], status: 200 }
       ],
       "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
@@ -297,7 +384,7 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
         { value: [], status: 429, retryAfterSeconds: 3600 },
         { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 }
       ],
-      "/groups?$select=id,displayName,securityEnabled,groupTypes,deletedDateTime": [
+      "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
         { value: [], status: 200 }
       ],
       "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
@@ -398,7 +485,7 @@ function createFixtureClient(): FixtureGraphClient {
         status: 200
       }
     ],
-    "/groups?$select=id,displayName,securityEnabled,groupTypes,deletedDateTime": [
+    "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
       {
         value: [
           {
@@ -455,6 +542,97 @@ function createFixtureClient(): FixtureGraphClient {
   });
 }
 
+function createM365TeamsFixtureClient(): FixtureGraphClient {
+  return new FixtureGraphClient({
+    "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
+      {
+        value: [
+          {
+            id: "raw-user-owner",
+            displayName: "Owner Example",
+            userPrincipalName: "owner@example.test",
+            accountEnabled: true,
+            userType: "Member"
+          },
+          {
+            id: "raw-user-member",
+            displayName: "Member Example",
+            userPrincipalName: "member@example.test",
+            accountEnabled: true,
+            userType: "Member"
+          }
+        ],
+        status: 200
+      }
+    ],
+    "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
+      {
+        value: [
+          {
+            id: "raw-m365-group-1",
+            displayName: "M365 Collaboration",
+            securityEnabled: true,
+            mailEnabled: true,
+            visibility: "Private",
+            groupTypes: ["Unified"],
+            resourceProvisioningOptions: ["Team"]
+          }
+        ],
+        status: 200
+      }
+    ],
+    "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
+      {
+        value: [
+          {
+            id: "raw-sp-bot",
+            displayName: "Automation Bot",
+            appId: "raw-sp-app",
+            servicePrincipalType: "Application",
+            appRoles: []
+          }
+        ],
+        status: 200
+      }
+    ],
+    "/groups/raw-m365-group-1/members?$select=id,displayName,userPrincipalName,appId,servicePrincipalType": [
+      {
+        value: [
+          { id: "raw-user-member", "@odata.type": "#microsoft.graph.user", displayName: "Member Example" },
+          { id: "raw-sp-bot", "@odata.type": "#microsoft.graph.servicePrincipal", displayName: "Automation Bot" }
+        ],
+        status: 200
+      }
+    ],
+    "/groups/raw-m365-group-1/owners?$select=id,displayName,userPrincipalName,appId,servicePrincipalType": [
+      {
+        value: [
+          { id: "raw-user-owner", "@odata.type": "#microsoft.graph.user", displayName: "Owner Example" },
+          { id: "raw-sp-bot", "@odata.type": "#microsoft.graph.servicePrincipal", displayName: "Automation Bot" }
+        ],
+        status: 200
+      }
+    ],
+    "/servicePrincipals/raw-sp-bot/appRoleAssignedTo?$select=id,principalId,principalType,principalDisplayName,resourceId,resourceDisplayName,appRoleId,createdDateTime": [
+      { value: [], status: 200 }
+    ]
+  }, {
+    "/teams/raw-m365-group-1?$select=id,displayName,description,webUrl,isArchived,visibility": [
+      {
+        value: {
+          id: "raw-m365-group-1",
+          displayName: "Case Team",
+          description: "Sensitive case collaboration",
+          webUrl: "https://teams.example.test/raw-m365-group-1",
+          isArchived: false,
+          visibility: "Private"
+        },
+        status: 200
+      }
+    ]
+  });
+}
+
 function createAuditEvent(eventId: string, occurredAt: string): AuditEvent {
   return {
     eventId,
@@ -473,7 +651,7 @@ function createTwoSyncFixtureClient(): FixtureGraphClient {
       { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 },
       { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 }
     ],
-    "/groups?$select=id,displayName,securityEnabled,groupTypes,deletedDateTime": [
+    "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
       { value: [{ id: "raw-group-1", displayName: "Case Reviewers", securityEnabled: true, groupTypes: [] }], status: 200 },
       { value: [{ id: "raw-group-1", displayName: "Case Reviewers", securityEnabled: true, groupTypes: [] }], status: 200 }
     ],

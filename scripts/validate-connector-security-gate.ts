@@ -19,6 +19,7 @@ const requiredConnectorIds = ["mock", "entra-readonly", "sharepoint-readonly", "
 const approvedLiveReadScopes = new Set<string>([
   "Application.Read.All",
   "GroupMember.Read.All",
+  "TeamSettings.Read.Group",
   "User.Read.All",
   "access-analyzer:ListFindings",
   "cloudtrail:LookupEvents",

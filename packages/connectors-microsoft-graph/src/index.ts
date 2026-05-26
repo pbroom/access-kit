@@ -24,10 +24,14 @@ import {
 } from "@access-kit/core";
 
 export const MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID = "microsoft-graph-entra-readonly";
+export const MICROSOFT_GRAPH_M365_TEAMS_REQUIRED_READ_SCOPES = [
+  "TeamSettings.Read.Group"
+] as const;
 export const MICROSOFT_GRAPH_ENTRA_REQUIRED_READ_SCOPES = [
   "User.Read.All",
   "GroupMember.Read.All",
-  "Application.Read.All"
+  "Application.Read.All",
+  ...MICROSOFT_GRAPH_M365_TEAMS_REQUIRED_READ_SCOPES
 ] as const;
 export const MICROSOFT_GRAPH_ENTRA_FORBIDDEN_WRITE_SCOPES = [
   "User.ReadWrite.All",
@@ -35,7 +39,8 @@ export const MICROSOFT_GRAPH_ENTRA_FORBIDDEN_WRITE_SCOPES = [
   "GroupMember.ReadWrite.All",
   "Application.ReadWrite.All",
   "AppRoleAssignment.ReadWrite.All",
-  "Directory.ReadWrite.All"
+  "Directory.ReadWrite.All",
+  "TeamSettings.ReadWrite.Group"
 ] as const;
 
 const DEFAULT_BASE_URL = "https://graph.microsoft.com/v1.0";
@@ -52,8 +57,16 @@ export interface MicrosoftGraphCollectionPage<T> {
   requestId?: string;
 }
 
+export interface MicrosoftGraphRecordResponse<T> {
+  value?: T;
+  status?: number;
+  retryAfterSeconds?: number;
+  requestId?: string;
+}
+
 export interface MicrosoftGraphReadClient {
   list<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphCollectionPage<T>>;
+  get<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphRecordResponse<T>>;
 }
 
 export interface FetchMicrosoftGraphClientOptions {
@@ -103,6 +116,33 @@ export class FetchMicrosoftGraphClient implements MicrosoftGraphReadClient {
       value,
       nextLink: readString(body["@odata.nextLink"]),
       deltaLink: readString(body["@odata.deltaLink"]),
+      status: response.status,
+      retryAfterSeconds: readRetryAfter(response),
+      requestId: response.headers.get("request-id") ?? response.headers.get("client-request-id") ?? undefined
+    };
+  }
+
+  async get<T>(pathOrUrl: string, options: { headers?: Record<string, string> } = {}): Promise<MicrosoftGraphRecordResponse<T>> {
+    const accessToken = await this.#tokenProvider();
+    if (!accessToken) {
+      return {
+        status: 401
+      };
+    }
+
+    const url = this.#toUrl(pathOrUrl);
+    const response = await this.#fetch(url, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        ...options.headers
+      }
+    });
+    const body = await readResponseJson(response);
+
+    return {
+      value: isJsonRecord(body) ? body as T : undefined,
       status: response.status,
       retryAfterSeconds: readRetryAfter(response),
       requestId: response.headers.get("request-id") ?? response.headers.get("client-request-id") ?? undefined
@@ -159,8 +199,20 @@ interface GraphGroup {
   id?: string;
   displayName?: string | null;
   securityEnabled?: boolean | null;
+  mailEnabled?: boolean | null;
+  visibility?: string | null;
   groupTypes?: string[] | null;
+  resourceProvisioningOptions?: string[] | null;
   deletedDateTime?: string | null;
+}
+
+interface GraphTeam {
+  id?: string;
+  displayName?: string | null;
+  description?: string | null;
+  webUrl?: string | null;
+  isArchived?: boolean | null;
+  visibility?: string | null;
 }
 
 interface GraphServicePrincipal {
@@ -209,8 +261,15 @@ interface EntraSnapshot {
 interface EntraEntityMaps {
   subjectsByGraphId: Map<string, Subject>;
   subjectPrincipalTypes: Map<string, NativePrincipalType>;
-  resourcesByGraphId: Map<string, Resource>;
+  applicationResourcesByGraphId: Map<string, Resource>;
+  m365GroupResourcesByGraphId: Map<string, Resource>;
+  teamResourcesByGroupId: Map<string, Resource>;
   appRolesByServicePrincipalId: Map<string, Map<string, GraphAppRole>>;
+}
+
+interface RelationshipCoverage {
+  relationships: RelationshipTuple[];
+  grantsByResource: Map<string, NativeGrant[]>;
 }
 
 export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
@@ -353,7 +412,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         requiredReadScopes: this.requiredReadScopes,
         forbiddenWriteScopes: [...MICROSOFT_GRAPH_ENTRA_FORBIDDEN_WRITE_SCOPES],
         scopeJustification:
-          "User, group membership, and application read scopes are sufficient for redacted Entra inventory, membership, service-principal, and app-role assignment readback without provider writes."
+          "User, group membership and ownership, application, and scoped Teams settings read permissions are sufficient for redacted Entra, Microsoft 365 group, Teams coupling, service-principal, and app-role assignment readback without provider writes."
       },
       operations: {
         pagination: "required",
@@ -419,7 +478,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       "subjects"
     );
     const groups = await this.#readCollection<GraphGroup>(
-      "/groups?$select=id,displayName,securityEnabled,groupTypes,deletedDateTime",
+      "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime",
       "subjects"
     );
     const servicePrincipals = await this.#readCollection<GraphServicePrincipal>(
@@ -427,14 +486,21 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       "resources"
     );
     const maps = this.#buildEntityMaps(users, groups, servicePrincipals);
-    const relationships = await this.#buildRelationships(groups, maps);
+    const relationshipCoverage = await this.#buildRelationships(groups, maps);
     const grantsByResource = await this.#buildNativeGrants(servicePrincipals, maps);
+    for (const [resourceId, grants] of relationshipCoverage.grantsByResource.entries()) {
+      grantsByResource.set(resourceId, [...(grantsByResource.get(resourceId) ?? []), ...grants]);
+    }
     const cursor = this.#buildCursor();
 
     this.#snapshot = {
       subjects: [...maps.subjectsByGraphId.values()],
-      resources: [...maps.resourcesByGraphId.values()],
-      relationships,
+      resources: [
+        ...maps.applicationResourcesByGraphId.values(),
+        ...maps.m365GroupResourcesByGraphId.values(),
+        ...maps.teamResourcesByGroupId.values()
+      ],
+      relationships: relationshipCoverage.relationships,
       grantsByResource,
       cursor
     };
@@ -515,6 +581,53 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     return values;
   }
 
+  async #readRecord<T>(
+    path: string,
+    label: DiscoveryRunWarning["scope"],
+    skipped: Pick<DiscoveryRunWarning, "code" | "message">
+  ): Promise<T | undefined> {
+    let retryCount = 0;
+
+    while (true) {
+      const record = await this.#client.get<T>(path, { headers: { ConsistencyLevel: "eventual" } });
+      const status = record.status ?? 200;
+
+      if (status === 429) {
+        retryCount += 1;
+        this.#pushWarning({
+          code: "GRAPH_THROTTLE_RETRIED",
+          message: "Microsoft Graph throttled readback; retry metadata was captured without retaining raw request identifiers.",
+          severity: retryCount > this.#maxRetries ? "warning" : "info",
+          scope: label,
+          retryable: retryCount <= this.#maxRetries
+        });
+
+        if (retryCount <= this.#maxRetries) {
+          const retryAfterMilliseconds = retryAfterSecondsToMilliseconds(record.retryAfterSeconds);
+          if (retryAfterMilliseconds > 0) {
+            await this.#sleep(retryAfterMilliseconds);
+          }
+          continue;
+        }
+
+        return undefined;
+      }
+
+      if (status >= 400) {
+        this.#pushWarning({
+          code: skipped.code,
+          message: skipped.message,
+          severity: "warning",
+          scope: label,
+          retryable: status >= 500
+        });
+        return undefined;
+      }
+
+      return record.value;
+    }
+  }
+
   #buildEntityMaps(
     users: GraphUser[],
     groups: GraphGroup[],
@@ -522,7 +635,9 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   ): EntraEntityMaps {
     const subjectsByGraphId = new Map<string, Subject>();
     const subjectPrincipalTypes = new Map<string, NativePrincipalType>();
-    const resourcesByGraphId = new Map<string, Resource>();
+    const applicationResourcesByGraphId = new Map<string, Resource>();
+    const m365GroupResourcesByGraphId = new Map<string, Resource>();
+    const teamResourcesByGroupId = new Map<string, Resource>();
     const appRolesByServicePrincipalId = new Map<string, Map<string, GraphAppRole>>();
 
     for (const user of users) {
@@ -559,6 +674,10 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         redacted: true
       }, group.deletedDateTime ? "deleted" : "active"));
       subjectPrincipalTypes.set(group.id, "group");
+
+      if (isM365Group(group)) {
+        m365GroupResourcesByGraphId.set(group.id, this.#m365GroupResource(group));
+      }
     }
 
     for (const servicePrincipal of servicePrincipals) {
@@ -585,19 +704,77 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       );
       subjectsByGraphId.set(servicePrincipal.id, subject);
       subjectPrincipalTypes.set(servicePrincipal.id, "service_principal");
-      resourcesByGraphId.set(servicePrincipal.id, this.#applicationResource(servicePrincipal));
+      applicationResourcesByGraphId.set(servicePrincipal.id, this.#applicationResource(servicePrincipal));
       appRolesByServicePrincipalId.set(servicePrincipal.id, mapAppRoles(servicePrincipal.appRoles ?? []));
     }
 
-    return { subjectsByGraphId, subjectPrincipalTypes, resourcesByGraphId, appRolesByServicePrincipalId };
+    return {
+      subjectsByGraphId,
+      subjectPrincipalTypes,
+      applicationResourcesByGraphId,
+      m365GroupResourcesByGraphId,
+      teamResourcesByGroupId,
+      appRolesByServicePrincipalId
+    };
   }
 
-  async #buildRelationships(groups: GraphGroup[], maps: EntraEntityMaps): Promise<RelationshipTuple[]> {
+  async #buildRelationships(groups: GraphGroup[], maps: EntraEntityMaps): Promise<RelationshipCoverage> {
     const relationships: RelationshipTuple[] = [];
+    const grantsByResource = new Map<string, NativeGrant[]>();
 
     for (const group of groups) {
       if (!group.id || !maps.subjectsByGraphId.has(group.id)) {
         continue;
+      }
+
+      const groupSubject = maps.subjectsByGraphId.get(group.id)!;
+      const m365GroupResource = maps.m365GroupResourcesByGraphId.get(group.id);
+      let teamResource: Resource | undefined;
+
+      if (m365GroupResource) {
+        relationships.push(this.#relationship(
+          `m365-group:${group.id}:workspace`,
+          groupSubject.id,
+          "m365_group_represents",
+          m365GroupResource.id,
+          {
+            providerSemantics: "microsoft_365_group",
+            source: "microsoft_graph_group",
+            redacted: true
+          }
+        ));
+
+        if (isTeamsBackedGroup(group)) {
+          const team = await this.#readTeamForGroup(group);
+          teamResource = this.#teamResource(group, team, m365GroupResource.id);
+          maps.teamResourcesByGroupId.set(group.id, teamResource);
+          relationships.push(this.#relationship(
+            `m365-group:${group.id}:team`,
+            m365GroupResource.id,
+            "m365_group_backs_team",
+            teamResource.id,
+            {
+              providerSemantics: "m365_group_team_coupling",
+              source: team ? "microsoft_graph_team" : "microsoft_graph_group_marker",
+              redacted: true
+            }
+          ));
+          this.#pushWarning({
+            code: "GRAPH_TEAM_CHANNEL_COVERAGE_UNSUPPORTED",
+            message: "Microsoft Graph Teams coupling imported group-backed team membership only; private, shared, and channel-specific access remain unsupported coverage.",
+            severity: "warning",
+            scope: "native_grants",
+            retryable: false
+          });
+        } else {
+          this.#pushWarning({
+            code: "GRAPH_M365_GROUP_WITHOUT_TEAM",
+            message: "Microsoft Graph returned a Microsoft 365 group without a Teams backing marker; Teams membership semantics were not inferred for that group.",
+            severity: "info",
+            scope: "resources",
+            retryable: false
+          });
+        }
       }
 
       const members = await this.#readCollection<GraphDirectoryObject>(
@@ -623,23 +800,212 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
           continue;
         }
 
+        const principalType = maps.subjectPrincipalTypes.get(member.id) ?? "unknown";
         relationships.push(this.#relationship(
           `member:${member.id}:group:${group.id}`,
           subject.id,
           "member_of",
-          maps.subjectsByGraphId.get(group.id)!.id
+          groupSubject.id,
+          {
+            membershipType: "direct",
+            source: "microsoft_graph_group_members",
+            principalType,
+            redacted: true
+          }
         ));
+
+        if (m365GroupResource) {
+          relationships.push(this.#relationship(
+            `m365-member:${member.id}:group:${group.id}`,
+            subject.id,
+            "m365_group_member",
+            m365GroupResource.id,
+            {
+              providerSemantics: "direct_m365_group_membership",
+              source: "microsoft_graph_group_members",
+              principalType,
+              redacted: true
+            }
+          ));
+          this.#addNativeGrant(grantsByResource, this.#nativeGrant(
+            `m365-member:${member.id}:group:${group.id}`,
+            m365GroupResource,
+            subject,
+            principalType,
+            "m365Group:member",
+            nativeGrantTypeForPrincipal(principalType),
+            "microsoft_graph_group_members",
+            {
+              groupHash: redactValue(group.id),
+              membershipType: "direct",
+              redacted: true
+            }
+          ));
+        }
+
+        if (teamResource) {
+          relationships.push(this.#relationship(
+            `team-member:${member.id}:group:${group.id}`,
+            subject.id,
+            "team_member",
+            teamResource.id,
+            {
+              providerSemantics: "team_membership_via_m365_group",
+              source: "microsoft_graph_group_members",
+              principalType,
+              redacted: true
+            }
+          ));
+          this.#addNativeGrant(grantsByResource, this.#nativeGrant(
+            `team-member:${member.id}:group:${group.id}`,
+            teamResource,
+            subject,
+            principalType,
+            "team:member",
+            nativeGrantTypeForPrincipal(principalType),
+            "microsoft_graph_group_members",
+            {
+              groupHash: redactValue(group.id),
+              membershipType: "team_via_m365_group",
+              redacted: true
+            },
+            m365GroupResource?.id
+          ));
+        }
+      }
+
+      if (m365GroupResource) {
+        await this.#addM365Owners(group, m365GroupResource, teamResource, maps, relationships, grantsByResource);
       }
     }
 
-    for (const [graphId, resource] of maps.resourcesByGraphId.entries()) {
+    for (const [graphId, resource] of maps.applicationResourcesByGraphId.entries()) {
       const subject = maps.subjectsByGraphId.get(graphId);
       if (subject) {
         relationships.push(this.#relationship(`sp:${graphId}:application`, subject.id, "represents", resource.id));
       }
     }
 
-    return relationships;
+    return { relationships, grantsByResource };
+  }
+
+  async #addM365Owners(
+    group: GraphGroup,
+    m365GroupResource: Resource,
+    teamResource: Resource | undefined,
+    maps: EntraEntityMaps,
+    relationships: RelationshipTuple[],
+    grantsByResource: Map<string, NativeGrant[]>
+  ): Promise<void> {
+    const owners = await this.#readCollection<GraphDirectoryObject>(
+      `/groups/${encodeURIComponent(group.id!)}/owners?$select=id,displayName,userPrincipalName,appId,servicePrincipalType`,
+      "relationships"
+    );
+    this.#pushWarning({
+      code: "GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED",
+      message: "Microsoft Graph group-owner readback can omit service-principal owners in some tenants or rollout states; ownership evidence should treat missing service principals as coverage-limited.",
+      severity: "info",
+      scope: "relationships",
+      retryable: false
+    });
+
+    if (owners.length === 0) {
+      this.#pushWarning({
+        code: "GRAPH_M365_GROUP_OWNER_COVERAGE_EMPTY",
+        message: "Microsoft Graph returned no owners for a Microsoft 365 group; ownership coverage was retained as a warning instead of inventing canonical owners.",
+        severity: "warning",
+        scope: "relationships",
+        retryable: false
+      });
+    }
+
+    for (const owner of owners) {
+      if (!owner.id) {
+        this.#warnMissingId("relationships");
+        continue;
+      }
+
+      const subject = maps.subjectsByGraphId.get(owner.id);
+      if (!subject) {
+        this.#pushWarning({
+          code: "GRAPH_LIMITED_OWNER_SKIPPED",
+          message: "Microsoft Graph returned a group owner outside the imported subject boundary; the owner was skipped instead of becoming an incomplete canonical subject.",
+          severity: "warning",
+          scope: "relationships",
+          retryable: false
+        });
+        continue;
+      }
+
+      const principalType = maps.subjectPrincipalTypes.get(owner.id) ?? "unknown";
+      relationships.push(this.#relationship(
+        `m365-owner:${owner.id}:group:${group.id}`,
+        subject.id,
+        "m365_group_owner",
+        m365GroupResource.id,
+        {
+          providerSemantics: "m365_group_owner",
+          source: "microsoft_graph_group_owners",
+          principalType,
+          redacted: true
+        }
+      ));
+      this.#addNativeGrant(grantsByResource, this.#nativeGrant(
+        `m365-owner:${owner.id}:group:${group.id}`,
+        m365GroupResource,
+        subject,
+        principalType,
+        "m365Group:owner",
+        nativeGrantTypeForPrincipal(principalType),
+        "microsoft_graph_group_owners",
+        {
+          groupHash: redactValue(group.id!),
+          ownershipType: "direct",
+          redacted: true
+        }
+      ));
+
+      if (teamResource) {
+        relationships.push(this.#relationship(
+          `team-owner:${owner.id}:group:${group.id}`,
+          subject.id,
+          "team_owner",
+          teamResource.id,
+          {
+            providerSemantics: "team_owner_via_m365_group",
+            source: "microsoft_graph_group_owners",
+            principalType,
+            redacted: true
+          }
+        ));
+        this.#addNativeGrant(grantsByResource, this.#nativeGrant(
+          `team-owner:${owner.id}:group:${group.id}`,
+          teamResource,
+          subject,
+          principalType,
+          "team:owner",
+          nativeGrantTypeForPrincipal(principalType),
+          "microsoft_graph_group_owners",
+          {
+            groupHash: redactValue(group.id!),
+            ownershipType: "team_via_m365_group",
+            redacted: true
+          },
+          m365GroupResource.id
+        ));
+      }
+    }
+  }
+
+  async #readTeamForGroup(group: GraphGroup): Promise<GraphTeam | undefined> {
+    return this.#readRecord<GraphTeam>(
+      `/teams/${encodeURIComponent(group.id!)}?$select=id,displayName,description,webUrl,isArchived,visibility`,
+      "resources",
+      {
+        code: "GRAPH_TEAM_COUPLING_SKIPPED",
+        message: "Microsoft Graph reported a Teams-backed group but the team record could not be read; the group marker was retained with coverage warning."
+      }
+    );
   }
 
   async #buildNativeGrants(
@@ -653,7 +1019,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         continue;
       }
 
-      const resource = maps.resourcesByGraphId.get(servicePrincipal.id);
+      const resource = maps.applicationResourcesByGraphId.get(servicePrincipal.id);
       if (!resource) {
         continue;
       }
@@ -712,6 +1078,10 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     }
 
     return grantsByResource;
+  }
+
+  #addNativeGrant(grantsByResource: Map<string, NativeGrant[]>, grant: NativeGrant): void {
+    grantsByResource.set(grant.targetObjectId, [...(grantsByResource.get(grant.targetObjectId) ?? []), grant]);
   }
 
   #buildCursor(): DiscoveryCursor {
@@ -777,7 +1147,103 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     };
   }
 
-  #relationship(idSeed: string, subjectId: string, relation: string, objectId: string): RelationshipTuple {
+  #m365GroupResource(group: GraphGroup): Resource {
+    const graphId = group.id ?? "unknown";
+    return {
+      id: `workspace:m365-group:${redactValue(graphId)}`,
+      type: "workspace",
+      displayName: `Microsoft 365 group ${redactValue(graphId)}`,
+      sourceSystem: this.id,
+      ownerId: "user:access-kit-owner",
+      dataStewardId: "user:access-kit-steward",
+      technicalOwnerId: "user:access-kit-operator",
+      classification: group.visibility === "Private" ? "confidential" : "internal",
+      lifecycleState: group.deletedDateTime ? "deleted" : "active",
+      attributes: {
+        tenantId: this.tenantBoundary,
+        graphObjectHash: redactValue(graphId),
+        graphType: "microsoft365Group",
+        securityEnabled: group.securityEnabled ?? undefined,
+        mailEnabled: group.mailEnabled ?? undefined,
+        visibility: group.visibility ?? undefined,
+        teamBacked: isTeamsBackedGroup(group),
+        redacted: true
+      },
+      version: "resource:v1",
+      createdAt: this.#now(),
+      lastSeenAt: this.#now()
+    };
+  }
+
+  #teamResource(group: GraphGroup, team: GraphTeam | undefined, parentId: string): Resource {
+    const graphId = team?.id ?? group.id ?? "unknown";
+    return {
+      id: `team:microsoft-graph:${redactValue(graphId)}`,
+      type: "team",
+      displayName: `Microsoft Teams team ${redactValue(graphId)}`,
+      sourceSystem: this.id,
+      ownerId: "user:access-kit-owner",
+      dataStewardId: "user:access-kit-steward",
+      technicalOwnerId: "user:access-kit-operator",
+      classification: (team?.visibility ?? group.visibility) === "Private" ? "confidential" : "internal",
+      lifecycleState: group.deletedDateTime ? "deleted" : "active",
+      parentId,
+      attributes: {
+        tenantId: this.tenantBoundary,
+        graphObjectHash: redactValue(graphId),
+        backingGroupHash: redactValue(group.id ?? "unknown"),
+        graphType: "team",
+        archived: team?.isArchived ?? undefined,
+        visibility: team?.visibility ?? group.visibility ?? undefined,
+        couplingSource: team ? "microsoft_graph_team" : "microsoft_graph_group_marker",
+        redacted: true
+      },
+      version: "resource:v1",
+      createdAt: this.#now(),
+      lastSeenAt: this.#now()
+    };
+  }
+
+  #nativeGrant(
+    idSeed: string,
+    resource: Resource,
+    subject: Subject,
+    principalType: NativePrincipalType,
+    nativePermission: string,
+    grantType: NativeGrant["grantType"],
+    source: string,
+    attributes: JsonRecord,
+    inheritedFromObjectId?: string
+  ): NativeGrant {
+    return {
+      id: `native-grant:${this.id}:${redactValue(idSeed)}`,
+      targetPlatform: this.id,
+      targetObjectId: resource.id,
+      subjectId: subject.id,
+      principalType,
+      nativePermission,
+      grantType,
+      sourceConnectorId: this.id,
+      status: "observed",
+      observedAt: this.#now(),
+      inheritedFromObjectId,
+      attributes: {
+        tenantId: this.tenantBoundary,
+        source,
+        ...attributes
+      },
+      version: "native-grant:v1",
+      createdAt: this.#now()
+    };
+  }
+
+  #relationship(
+    idSeed: string,
+    subjectId: string,
+    relation: string,
+    objectId: string,
+    attributes: JsonRecord = {}
+  ): RelationshipTuple {
     return {
       id: `relationship:${this.id}:${redactValue(idSeed)}`,
       subjectId,
@@ -788,6 +1254,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       status: "active",
       attributes: {
         tenantId: this.tenantBoundary,
+        ...attributes,
         redacted: true
       },
       version: "tuple:v1",
@@ -863,6 +1330,18 @@ function redactValue(value: string, length = REDACTION_HASH_LENGTH): string {
 
 function subjectPrefix(type: Subject["type"]): string {
   return type === "service_principal" ? "service-principal" : type;
+}
+
+function isM365Group(group: GraphGroup): boolean {
+  return (group.groupTypes ?? []).includes("Unified");
+}
+
+function isTeamsBackedGroup(group: GraphGroup): boolean {
+  return (group.resourceProvisioningOptions ?? []).some((option) => option.toLowerCase() === "team");
+}
+
+function nativeGrantTypeForPrincipal(principalType: NativePrincipalType): NativeGrant["grantType"] {
+  return principalType === "group" ? "group" : "direct";
 }
 
 function mapAppRoles(appRoles: GraphAppRole[]): Map<string, GraphAppRole> {
