@@ -45,7 +45,8 @@ Sample an allowed decision:
 - Treat all examples as synthetic.
 - Do not infer live connector behavior from synthetic provider fixtures.
 - Do not treat local file-backed evidence receipts as production immutability.
-- Ask for deployment-specific diagrams, IdP configuration, SIEM forwarding, WORM retention, and connector security review before production authorization.
+- Do not treat local bearer-token readiness as production admin authorization.
+- Ask for deployment-specific diagrams, IdP or mTLS gateway configuration, admin ReBAC policy and role-binding evidence, secrets-manager references, SIEM forwarding, WORM retention, and connector security review before production authorization.
 
 ## Audit And Evidence Implications
 

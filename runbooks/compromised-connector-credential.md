@@ -25,6 +25,7 @@ Security engineer, connector owner, provider platform administrator, and ISSO fo
 - Credential or identity reference.
 - Last known connector activity.
 - Provider-native revocation/rotation access.
+- Approved admin identity path, temporary elevation approval, and secrets-manager access record for the rotation operator.
 
 ## Commands Or Proposed Commands
 
@@ -48,12 +49,14 @@ For live providers, immediately disable or rotate the provider credential using 
 ## Verification Steps
 
 1. Disable or rotate credential.
-2. Confirm old credential no longer works.
-3. Confirm new credential has least privilege.
-4. Run `pnpm validate:connector-security` to confirm identity, consent, scopes, tenant boundary, secret handling, and no-write defaults still match the reviewed gate.
-5. Run connector test.
-6. Run discovery or reconciliation if readback integrity may be affected.
-7. Review audit events for unauthorized activity.
+2. Confirm the rotation operator used the approved IdP or mTLS gateway path and a least-privilege admin ReBAC role.
+3. Confirm old credential no longer works.
+4. Confirm new credential has least privilege and is stored through the approved secrets manager.
+5. Revoke temporary elevation and record incident notification delivery.
+6. Run `pnpm validate:connector-security` to confirm identity, consent, scopes, tenant boundary, secret handling, and no-write defaults still match the reviewed gate.
+7. Run connector test.
+8. Run discovery or reconciliation if readback integrity may be affected.
+9. Review audit events for unauthorized activity and retain post-action review evidence.
 
 ## Audit Events Emitted
 
@@ -67,6 +70,7 @@ For live providers, immediately disable or rotate the provider credential using 
 
 - Secret alert or provider alert.
 - Rotation or disablement receipt.
+- Admin session, role binding, secrets-manager reference, notification, and post-action review evidence.
 - Connector test after rotation.
 - Activity review.
 - Updated least-privilege review.

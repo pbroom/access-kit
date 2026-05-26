@@ -1,3 +1,4 @@
+import { assessAdminAuthorizationReadiness } from "@access-kit/core";
 import type { RebacLocalApp } from "./local-app.js";
 
 type RuntimeReadinessStatus = "ready" | "ready_with_warnings" | "not_ready";
@@ -19,6 +20,7 @@ export interface RuntimeReadinessResponse {
 
 export function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): RuntimeReadinessResponse {
   const connectorIds = [...app.connectors.keys()].sort();
+  const adminAuthorization = assessAdminAuthorizationReadiness(app.adminAuthorization, app.now());
   const checks: RuntimeReadinessCheck[] = [
     {
       name: "api_runtime",
@@ -33,6 +35,22 @@ export function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly stri
         : "Bearer-token guard is not configured; only local development should run without API keys.",
       evidence: {
         configured: apiKeys.length > 0
+      }
+    },
+    {
+      name: "admin_authorization",
+      status: adminAuthorization.status === "ready" ? "pass" : "warn",
+      message: adminAuthorization.status === "ready"
+        ? "Production admin authorization controls are described and evidence-backed."
+        : "Admin authorization is still using local proof-point controls; production deployments must configure IdP or mTLS gateway authentication, internal admin ReBAC, secrets-manager handling, break-glass approval, incident notifications, and post-action review evidence.",
+      evidence: {
+        configured: adminAuthorization.status === "ready",
+        authenticationMode: adminAuthorization.authenticationMode,
+        descriptorVersion: adminAuthorization.descriptorVersion,
+        checkStatuses: adminAuthorization.checks.map((check) => ({
+          name: check.name,
+          status: check.status
+        }))
       }
     },
     {

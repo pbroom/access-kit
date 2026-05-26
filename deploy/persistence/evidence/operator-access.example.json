@@ -10,9 +10,32 @@
     "monitoringConfigured": true,
     "migrationPlanReviewed": true
   },
+  "adminAuthorization": {
+    "descriptorVersion": "admin-authorization:v1",
+    "authenticationMode": "idp_gateway",
+    "identityProviderRef": "ref:enterprise-idp/access-kit-admin",
+    "gatewayRef": "ref:identity-aware-gateway/access-kit-admin",
+    "adminRebacPolicyRef": "policy:admin-control-plane",
+    "roleBindingEvidenceRefs": [
+      "docs/security-model.md"
+    ],
+    "secretsManagerRef": "ref:secrets-manager/access-kit-admin",
+    "breakGlassApprovalRef": "runbooks/break-glass-review.md",
+    "incidentNotificationTargets": [
+      "siem:admin-actions",
+      "pagerduty:security"
+    ],
+    "postActionReviewRef": "runbooks/break-glass-review.md",
+    "auditEventTypes": [
+      "admin.action",
+      "admin.post_action_review",
+      "api.authentication_failed"
+    ]
+  },
   "evidenceRefs": [
     "docs/security-model.md",
     "docs/deployment-runbook.md",
+    "runbooks/break-glass-review.md",
     "deploy/kubernetes/configmap.yaml"
   ]
 }

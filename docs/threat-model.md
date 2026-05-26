@@ -24,6 +24,7 @@ This is not a penetration test report, live deployment threat model, or final ri
 - intended grants and provisioning plans
 - native grant readback
 - connector credentials and scopes, when live connectors exist
+- admin identity claims, admin ReBAC policy, emergency approvals, and post-action reviews
 - drift findings
 - audit events, hashes, and exports
 - evidence packages and control mappings
@@ -35,6 +36,8 @@ This is not a penetration test report, live deployment threat model, or final ri
 - Abuse stale or overprivileged connector credentials.
 - Hide unauthorized native grants by disrupting readback.
 - Tamper with audit events or evidence packages.
+- Reuse a local bearer token, forged gateway header, stale group claim, or overbroad admin role to operate the control plane.
+- Abuse break-glass or incident-mode workflows without approval, notification, expiry, or post-action review.
 - Exfiltrate sensitive relationship, subject, or resource metadata through explanations.
 - Confuse proof-point evidence with production authorization status.
 
@@ -43,6 +46,7 @@ This is not a penetration test report, live deployment threat model, or final ri
 | Abuse path | Mitigation in current foundation | Remaining production work |
 | --- | --- | --- |
 | Decision bypass | Deterministic engine, deny by default, explicit deny precedence, policy proof points. | Deployed API authentication, rate limits, authorization for admin APIs. |
+| Admin control-plane takeover | Local bearer tokens are identified as proof-point authentication only, and the admin authorization descriptor checks IdP or mTLS gateway, MFA, revocation, admin ReBAC separation, secrets-manager references, break-glass approval, notification, and post-action review evidence. | Environment-specific IdP/gateway/mTLS deployment, trusted header provenance, request-scoped actor binding, and retained admin session revocation evidence. |
 | Relationship poisoning | Versioned relationship tuples, audit events, idempotent writes. | Approval workflow, durable storage, source integrity checks. |
 | Overprivileged connector | Read-only synthetic connectors, connector security review gate, readiness gates, secrets out of scope. | Managed identity/vault, rotation, live-provider consent evidence, monitoring. |
 | Silent drift | Drift findings and reconciliation endpoints. | Durable reconciliation schedule and alerting. |
@@ -60,6 +64,7 @@ If an attacker adds a native provider grant outside Access Kit, discovery record
 - Connector changes must pass `pnpm validate:connector-security` so consent, scopes, tenant boundaries, secret handling, and no-write defaults are reviewed before live provider access.
 - Microsoft Graph live-read evidence must stay redacted; tenant IDs, object IDs, user principal names, tokens, request IDs, and raw cursors are not valid evidence fields.
 - Emergency revocation must stay available even when normal grant workflows are paused.
+- Admin readiness must fail to production-ready only when IdP or mTLS identity, internal admin ReBAC, secrets-manager handling, incident notification, and post-action review evidence are all present.
 - Evidence export access should be restricted because evidence can include sensitive system structure.
 
 ## Audit And Evidence Implications

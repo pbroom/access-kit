@@ -1,4 +1,5 @@
 import type {
+  AdminAuthorizationDescriptor,
   AuditEventRepository,
   AuditRecorder,
   ConnectorAdapter,
@@ -17,6 +18,7 @@ export interface RebacLocalAppOptions {
   now?: () => string;
   actor?: string;
   seed?: RebacSeedData;
+  adminAuthorization?: AdminAuthorizationDescriptor;
   persistence?: RebacRuntimePersistence;
   graphRepository?: RebacGraphRepository;
   jobRepository?: RebacJobRepository;
@@ -59,6 +61,7 @@ export interface RebacLocalApp {
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
+  adminAuthorization: AdminAuthorizationDescriptor;
   connectors: Map<string, ConnectorAdapter>;
   now: () => string;
   actor: string;

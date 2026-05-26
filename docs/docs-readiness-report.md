@@ -200,12 +200,12 @@ The documentation connects architecture, control families, implementation behavi
 ## Validation Not Performed And Why
 
 - Provider-native emergency actions in runbooks were not executed because live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, AD, and Entra ID connector writes are outside the current repository implementation.
-- Deployment-specific runbook exercises, post-action reviews, and assessor approvals were not performed because they require a deployed target environment.
+- Deployment-specific runbook exercises, IdP or mTLS gateway smoke tests, admin session revocation, post-action reviews, and assessor approvals were not performed because they require a deployed target environment.
 
 ## Known Gaps
 
 - Live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, AD, and Entra ID connector behavior remains planned/draft unless explicitly implemented.
-- Environment-specific graph storage drivers, managed queue workers, selected WORM or immutable-ledger audit drivers, approved SIEM forwarding deployment, and production evidence retention remain future work. The production audit/evidence adapter boundary is implemented as a contract proof point, not as an approved deployment.
+- Environment-specific graph storage drivers, managed queue workers, selected WORM or immutable-ledger audit drivers, approved SIEM forwarding deployment, IdP or mTLS gateway deployment, admin ReBAC role-binding evidence, and production evidence retention remain future work. The production audit/evidence adapter and admin authorization readiness boundaries are implemented as contract proof points, not as approved deployments.
 - OSCAL output is guidance only; no OSCAL generator is implemented.
 - Production runbook exercises, post-action reviews, and assessor-approved control statements are deployment-specific and out of scope for the local documentation foundation.
 
@@ -215,7 +215,7 @@ The documentation connects architecture, control families, implementation behavi
 - Existing schema fixtures remain the canonical schema example location.
 - Existing ADR filenames remain canonical.
 - Top-level `runbooks/` is acceptable for operational artifacts and is documented in README.
-- Current local proof points are implementation evidence for repository behavior, not production authorization evidence.
+- Current local proof points are implementation evidence for repository behavior, not production authorization evidence. Local bearer-token admin readiness is explicitly non-production.
 
 ## Blockers
 

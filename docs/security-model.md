@@ -6,11 +6,17 @@ Access Kit is a high-value security system because it can approve, deny, provisi
 
 ## Authentication
 
-The local API runtime can require opaque bearer tokens through `REBAC_API_KEYS`. This is a deployment-packaging guardrail for synthetic and pre-production use: `/v1/health` and `/v1/ready` remain public for orchestrator probes, protected API calls require `Authorization: Bearer <token>`, and failed attempts emit `api.authentication_failed` audit evidence at most once per failure reason per one-minute sample window without logging token material or forcing runtime state snapshot writes from the unauthenticated path. The runtime permits no-key mode only on loopback hosts and refuses non-loopback binding without configured keys. Production authentication should still be delegated to approved identity providers such as Entra ID, AD federation, PIV/CAC-backed flows, IAM Identity Center, mTLS gateways, or agency-approved identity systems. No local password store should exist except an explicitly approved break-glass design.
+The local API runtime can require opaque bearer tokens through `REBAC_API_KEYS`. This is a deployment-packaging guardrail for synthetic and pre-production use: `/v1/health` and `/v1/ready` remain public for orchestrator probes, protected API calls require `Authorization: Bearer <token>`, and failed attempts emit `api.authentication_failed` audit evidence at most once per failure reason per one-minute sample window without logging token material or forcing runtime state snapshot writes from the unauthenticated path. The runtime permits no-key mode only on loopback hosts and refuses non-loopback binding without configured keys.
+
+Production authentication is represented by the `AdminAuthorizationDescriptor` readiness contract in `packages/core/src/admin-authorization.ts` and must be delegated to approved identity providers such as Entra ID, AD federation, PIV/CAC-backed flows, IAM Identity Center, mTLS gateways, or agency-approved identity systems. A production-ready descriptor requires MFA, bounded sessions, revocation SLA evidence, an identity-aware gateway or mTLS boundary, external secrets-manager references, and retained evidence references. The default local bearer-token descriptor is reported by `/v1/ready` as a pre-production warning, not as production admin authentication. No local password store should exist except an explicitly approved break-glass design.
 
 ## Authorization
 
-Internal administration must be governed by the same deterministic ReBAC model. Sensitive policy publication, connector configuration changes, break-glass access, enforcement enablement, and exception approvals require least privilege, approval, and audit.
+Internal administration must be governed by an admin ReBAC policy that is separate from application authorization decisions. Sensitive policy publication, connector configuration changes, break-glass access, enforcement enablement, audit/evidence export, and exception approvals require least privilege, role binding evidence, fast revocation, approval, and audit. The admin authorization readiness contract checks that the admin ReBAC policy is evidenced separately from application policy so production operator power cannot collapse into a single shared bearer token.
+
+## Emergency Administration
+
+Break-glass access is an emergency workflow, not a standing role. Production deployments must require multi-role approval, short-lived elevation, incident-mode notification, retained audit events, and post-action review evidence before claiming admin readiness. The local controlled-enforcement guardrails continue to reject break-glass and incident-mode flags for synthetic enforcement jobs; deployment teams must supply provider-native disablement and session revocation evidence when emergency admin access is used.
 
 ## Secrets
 

@@ -1,7 +1,9 @@
 import {
   AuditRecorder,
+  assertAdminAuthorizationDescriptorSafe,
   attachEvidenceIntegrityManifest,
   createLocalEngineSeed,
+  createLocalBearerTokenAdminAuthorizationDescriptor,
   InMemoryRebacStore,
   RebacDecisionEngine,
   sha256,
@@ -165,6 +167,8 @@ const policyStates = new WeakMap<RebacLocalApp, PolicyState>();
 export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLocalApp {
   const now = options.now ?? (() => new Date().toISOString());
   const actor = options.actor ?? "service:api";
+  const adminAuthorization = options.adminAuthorization ?? createLocalBearerTokenAdminAuthorizationDescriptor();
+  assertAdminAuthorizationDescriptorSafe(adminAuthorization);
   const persistence = normalizeRuntimePersistence(options);
   const persistenceDegradations: RebacPersistenceDegradation[] = [];
   const persistedGraph = persistence.graphRepository?.exportGraph();
@@ -200,6 +204,7 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     stateRepository: persistence.stateRepository,
     auditRepository: persistence.auditRepository,
     evidenceRepository: persistence.evidenceRepository,
+    adminAuthorization,
     connectors,
     now,
     actor

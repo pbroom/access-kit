@@ -22,6 +22,8 @@ Security engineer, ISSO, resource owner, and identity/platform administrator.
 
 - Break-glass event reference.
 - Subject, resource, reason, approval, and expiry.
+- IdP or mTLS gateway session identifier, admin ReBAC role, and emergency elevation ticket.
+- Evidence that normal admin role assignment was insufficient or unavailable.
 - Provider-native logs when outside Access Kit.
 
 ## Commands Or Proposed Commands
@@ -42,10 +44,12 @@ rebac evidence export --framework nist-800-53 --controls AC-2,AC-3,AU-6,IR-4 --f
 ## Verification Steps
 
 1. Confirm emergency access reason and approval.
-2. Confirm access expired or was revoked.
-3. Review actions performed under emergency access.
-4. Record post-action review and gaps.
-5. Export evidence.
+2. Confirm the emergency actor was authenticated through the approved IdP or mTLS gateway and mapped to a temporary admin ReBAC role.
+3. Confirm access expired, IdP sessions were revoked, temporary role bindings were removed, and provider-native emergency access was disabled.
+4. Confirm incident-mode notifications reached the reviewed SIEM, ticketing, paging, or incident-command channels.
+5. Review actions performed under emergency access.
+6. Record post-action review, residual gaps, and any POA&M item.
+7. Export evidence.
 
 ## Audit Events Emitted
 
@@ -58,6 +62,8 @@ rebac evidence export --framework nist-800-53 --controls AC-2,AC-3,AU-6,IR-4 --f
 ## Evidence Retained
 
 - Emergency approval and reason.
+- Admin identity, gateway or certificate evidence, temporary role-binding evidence, and expiry.
+- Incident-mode notification delivery record.
 - Audit events.
 - Provider logs, when applicable.
 - Revocation or expiry verification.

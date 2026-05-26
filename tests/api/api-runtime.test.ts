@@ -16,6 +16,7 @@ import {
   LocalJsonFileStateRepository,
   sha256,
   stableStringify,
+  type AdminAuthorizationDescriptor,
   type AuditEvent,
   type AuditEventRepository,
   type AuditIntegrityReport,
@@ -275,7 +276,8 @@ describe("ReBAC API runtime", () => {
       jobRepository,
       stateRepository,
       auditRepository: evidenceRepository,
-      evidenceRepository
+      evidenceRepository,
+      adminAuthorization: productionAdminAuthorizationDescriptor()
     });
 
     const response = await fetch(`${baseUrl}/v1/ready`);
@@ -294,6 +296,16 @@ describe("ReBAC API runtime", () => {
       evidence: { configured: true }
     });
     expect(checksByName.get("api_authentication")?.evidence).not.toHaveProperty("tokenMaterialLogged");
+    expect(checksByName.get("admin_authorization")).toMatchObject({
+      status: "pass",
+      evidence: {
+        configured: true,
+        authenticationMode: "idp_gateway",
+        descriptorVersion: "admin-authorization:v1"
+      }
+    });
+    expect(checksByName.get("admin_authorization")?.evidence).not.toHaveProperty("issuer");
+    expect(checksByName.get("admin_authorization")?.evidence).not.toHaveProperty("trustedIdentityHeaders");
     expect(checksByName.get("graph_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("job_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("state_repository")).toMatchObject({ status: "pass", evidence: { configured: true } });
@@ -305,6 +317,31 @@ describe("ReBAC API runtime", () => {
     });
     expect(checksByName.get("connectors")).toMatchObject({ status: "pass", evidence: { configured: true } });
     expect(checksByName.get("connectors")?.evidence).not.toHaveProperty("connectorIds");
+  });
+
+  it("reports local bearer-token admin authorization as a pre-production readiness warning", async () => {
+    await restartServer({
+      now: () => TEST_NOW,
+      apiKeys: ["readiness-token"]
+    });
+
+    const response = await fetch(`${baseUrl}/v1/ready`);
+    const body = (await response.json()) as {
+      status: string;
+      checks: Array<{ name: string; status: string; evidence?: JsonObject }>;
+    };
+    const adminAuthorization = body.checks.find((check) => check.name === "admin_authorization");
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("ready_with_warnings");
+    expect(adminAuthorization).toMatchObject({
+      status: "warn",
+      evidence: {
+        configured: false,
+        authenticationMode: "local_bearer_token"
+      }
+    });
+    expect(adminAuthorization?.evidence).not.toHaveProperty("tokenMaterial");
   });
 
   it("returns not ready when no connector adapters are registered", async () => {
@@ -1645,13 +1682,81 @@ describe("ReBAC API runtime", () => {
       REBAC_EVIDENCE_ROOT: "/tmp/access-kit-evidence"
     });
 
-    expect(config).toEqual({
+    expect(config).toMatchObject({
       host: "0.0.0.0",
       port: 4080,
       actor: "service:runtime",
       apiKeys: ["alpha", "beta"],
       statePath: "/tmp/access-kit-state.json",
-      evidenceRoot: "/tmp/access-kit-evidence"
+      evidenceRoot: "/tmp/access-kit-evidence",
+      adminAuthorization: {
+        authentication: { mode: "local_bearer_token" }
+      }
+    });
+  });
+
+  it("reads production admin authorization runtime configuration from environment variables", () => {
+    const config = readRebacApiRuntimeConfig({
+      REBAC_API_HOST: "0.0.0.0",
+      REBAC_API_KEYS: "alpha",
+      REBAC_ADMIN_AUTH_MODE: "idp_gateway",
+      REBAC_ADMIN_AUTH_PROVIDER: "enterprise-idp",
+      REBAC_ADMIN_AUTH_ISSUER: "https://idp.example.test/tenant",
+      REBAC_ADMIN_AUTH_SUBJECT_CLAIM: "sub",
+      REBAC_ADMIN_AUTH_GROUPS_CLAIM: "groups",
+      REBAC_ADMIN_MFA_REQUIRED: "true",
+      REBAC_ADMIN_SESSION_TTL_MINUTES: "60",
+      REBAC_ADMIN_REVOCATION_SLA_MINUTES: "15",
+      REBAC_ADMIN_INGRESS_MODE: "identity_aware_gateway",
+      REBAC_ADMIN_TRUSTED_IDENTITY_HEADERS: "x-access-kit-admin-subject,x-access-kit-admin-groups",
+      REBAC_ADMIN_REBAC_POLICY_ID: "policy:admin-control-plane",
+      REBAC_ADMIN_REBAC_SEPARATE_FROM_APP_AUTHZ: "true",
+      REBAC_ADMIN_REBAC_ROLES: "access-kit.operator,access-kit.approver",
+      REBAC_ADMIN_REBAC_BINDINGS: "group:access-kit-operators->access-kit.operator",
+      REBAC_ADMIN_REBAC_REVOCATION_SLA_MINUTES: "15",
+      REBAC_ADMIN_SECRETS_MANAGER: "external_secret_manager",
+      REBAC_ADMIN_SECRET_REFS: "ref:access-kit/admin-gateway/client-secret",
+      REBAC_ADMIN_SECRET_ROTATION_DAYS: "30",
+      REBAC_ADMIN_NO_PLAINTEXT_ENV_SECRETS: "true",
+      REBAC_ADMIN_BREAK_GLASS_APPROVAL_REQUIRED: "true",
+      REBAC_ADMIN_BREAK_GLASS_APPROVER_ROLES: "Security engineer,ISSO",
+      REBAC_ADMIN_TEMPORARY_ELEVATION_MAX_MINUTES: "60",
+      REBAC_ADMIN_INCIDENT_NOTIFICATION_TARGETS: "siem:admin-actions,pagerduty:security",
+      REBAC_ADMIN_POST_ACTION_REVIEW_REQUIRED: "true",
+      REBAC_ADMIN_AUDIT_EVENT_TYPES: "admin.action,admin.post_action_review,api.authentication_failed",
+      REBAC_ADMIN_EVIDENCE_EXPORT_REQUIRED: "true",
+      REBAC_ADMIN_EVIDENCE_REFS: "evidence/admin-auth/idp.json,evidence/admin-auth/admin-rebac.json"
+    });
+
+    expect(config.adminAuthorization).toMatchObject({
+      authentication: {
+        mode: "idp_gateway",
+        provider: "enterprise-idp",
+        issuer: "https://idp.example.test/tenant",
+        mfaRequired: true,
+        sessionTtlMinutes: 60,
+        revocationSlaMinutes: 15
+      },
+      ingress: {
+        mode: "identity_aware_gateway",
+        trustedIdentityHeaders: ["x-access-kit-admin-subject", "x-access-kit-admin-groups"]
+      },
+      adminRebac: {
+        policyId: "policy:admin-control-plane",
+        separateFromApplicationAuthorization: true
+      },
+      secrets: {
+        manager: "external_secret_manager",
+        secretRefs: ["ref:access-kit/admin-gateway/client-secret"],
+        noPlaintextEnvironmentSecrets: true
+      },
+      emergency: {
+        breakGlassApprovalRequired: true,
+        postActionReviewRequired: true
+      },
+      audit: {
+        evidenceExportRequired: true
+      }
     });
   });
 
@@ -1751,6 +1856,13 @@ describe("ReBAC API runtime", () => {
     expect(() => readRebacApiRuntimeConfig({ REBAC_API_KEYS: "x".repeat(4097) })).toThrow(
       "REBAC_API_KEYS entries must be 4096 bytes or less."
     );
+  });
+
+  it("rejects unsafe admin authorization runtime configuration material", () => {
+    expect(() => readRebacApiRuntimeConfig({
+      REBAC_ADMIN_AUTH_MODE: "idp_gateway",
+      REBAC_ADMIN_SECRET_REFS: "Bearer live-admin-token"
+    })).toThrow("contains secret material and must reference redacted external secret handles");
   });
 
   it("returns computed audit results when proof-point storage append fails", async () => {
@@ -2907,6 +3019,57 @@ function controlledEnforcement(): JsonObject {
     liveProviderWrites: false,
     incidentMode: false,
     breakGlass: false
+  };
+}
+
+function productionAdminAuthorizationDescriptor(): AdminAuthorizationDescriptor {
+  return {
+    version: "admin-authorization:v1",
+    authentication: {
+      mode: "idp_gateway",
+      provider: "enterprise-idp",
+      issuer: "https://idp.example.test/tenant",
+      subjectClaim: "sub",
+      groupsClaim: "groups",
+      mfaRequired: true,
+      sessionTtlMinutes: 60,
+      revocationSlaMinutes: 15,
+      evidenceRefs: ["evidence/admin-auth/idp-configuration.json"]
+    },
+    ingress: {
+      mode: "identity_aware_gateway",
+      mtlsRequired: false,
+      trustedIdentityHeaders: ["x-access-kit-admin-subject", "x-access-kit-admin-groups"],
+      evidenceRefs: ["evidence/admin-auth/gateway-policy.json"]
+    },
+    adminRebac: {
+      policyId: "policy:admin-control-plane",
+      separateFromApplicationAuthorization: true,
+      leastPrivilegeRoles: ["access-kit.operator", "access-kit.approver", "access-kit.auditor"],
+      roleBindings: ["group:access-kit-operators->access-kit.operator"],
+      revocationSlaMinutes: 15,
+      evidenceRefs: ["evidence/admin-auth/admin-rebac-policy.json"]
+    },
+    secrets: {
+      manager: "external_secret_manager",
+      secretRefs: ["ref:access-kit/admin-gateway/client-secret"],
+      rotationDays: 30,
+      noPlaintextEnvironmentSecrets: true,
+      evidenceRefs: ["evidence/admin-auth/secret-rotation.json"]
+    },
+    emergency: {
+      breakGlassApprovalRequired: true,
+      breakGlassApproverRoles: ["Security engineer", "ISSO"],
+      temporaryElevationMaxMinutes: 60,
+      incidentModeNotificationTargets: ["siem:admin-actions", "pagerduty:security"],
+      postActionReviewRequired: true,
+      evidenceRefs: ["runbooks/break-glass-review.md"]
+    },
+    audit: {
+      auditEventTypes: ["admin.action", "admin.post_action_review", "api.authentication_failed"],
+      evidenceExportRequired: true,
+      evidenceRefs: ["runbooks/audit-evidence-export.md"]
+    }
   };
 }
 

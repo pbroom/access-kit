@@ -50,6 +50,7 @@ Security engineer or incident responder with resource owner or ISSO awareness. P
 - Target resource or provider object identifier.
 - Connector status and latest readback, if available.
 - Change or incident reference such as `inc:2026-05-23-001`.
+- Approved admin identity path, admin ReBAC role, and break-glass approval when emergency operator elevation is required.
 - Access to provider-native emergency controls if Access Kit cannot enforce live revocation.
 
 ## Commands Or Proposed Commands
@@ -77,10 +78,12 @@ For live providers not implemented by this repository, execute approved provider
 ## Verification Steps
 
 1. Run native readback for the resource and subject.
-2. Confirm the direct grant is gone or that inherited/group access has been remediated.
-3. Run `rebac explain` and confirm deny or approved exception.
-4. Run reconciliation and confirm finding closure or documented residual risk.
-5. Export audit/evidence for the incident window.
+2. If emergency operator elevation was used, confirm the IdP or mTLS gateway session, temporary admin ReBAC role, expiry, and approval evidence.
+3. Confirm the direct grant is gone or that inherited/group access has been remediated.
+4. Run `rebac explain` and confirm deny or approved exception.
+5. Run reconciliation and confirm finding closure or documented residual risk.
+6. Confirm incident-mode notifications and post-action review ownership.
+7. Export audit/evidence for the incident window.
 
 ## Audit Events Emitted
 
@@ -99,6 +102,7 @@ For live providers not implemented by this repository, execute approved provider
 - Provisioning plan and job evidence.
 - Reconciliation result and drift finding status.
 - Change or incident reference.
+- Admin authorization readiness state, emergency approval, session revocation, temporary role-binding removal, notification delivery, and post-action review when operator elevation was used.
 - Audit integrity report and evidence export.
 - Provider-native revocation receipt, when outside Access Kit.
 
