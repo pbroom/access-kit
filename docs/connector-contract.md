@@ -93,7 +93,7 @@ The connector does not implement Graph writes. Provisioning hooks return dry-run
 - `REBAC_AWS_READONLY_FIXTURE_FILE`
 - `REBAC_AWS_SANDBOX_EVIDENCE`, recommended for retained sandbox evidence
 
-The connector declares least-privilege read scopes for Organizations, IAM Identity Center, Identity Store, IAM role readback, CloudTrail lookup, and Access Analyzer findings. It explicitly excludes broad provider mutation through write-scope families such as `iam:Write`, `sso:Write`, `organizations:Write`, `cloudtrail:Write`, and `access-analyzer:Write`.
+The connector declares least-privilege read scopes for Organizations, IAM Identity Center assignment readback, IAM role readback, CloudTrail lookup, and Access Analyzer findings. It explicitly excludes broad provider mutation through write-scope families such as `iam:Write`, `sso:Write`, `organizations:Write`, `cloudtrail:Write`, and `access-analyzer:Write`.
 
 Discovery maps AWS observations into redacted Access Kit records. Organization IDs, account IDs, account emails, ARNs, Identity Center principal IDs, CloudTrail event IDs, request IDs, tokens, and raw pagination cursors are not stored in canonical IDs, warnings, native-grant attributes, or evidence. IAM Identity Center assignments become observed native grants, CloudTrail events annotate activity recency without becoming intended access, suspended or deleted objects become tombstones, and Access Analyzer findings become reconciliation drift findings for review.
 

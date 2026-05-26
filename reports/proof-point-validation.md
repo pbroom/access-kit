@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T15:26:04.440Z
+Generated at: 2026-05-26T16:03:10.440Z
 
 Branch: codex/rebac-aws-readonly-access-analysis
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  11:25:56
-   Duration  717ms (transform 413ms, setup 0ms, import 574ms, tests 37ms, environment 0ms)
+   Start at  12:03:02
+   Duration  502ms (transform 220ms, setup 0ms, import 363ms, tests 38ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -187,8 +187,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  8 passed (8)
       Tests  123 passed (123)
-   Start at  11:26:00
-   Duration  371ms (transform 961ms, setup 0ms, import 1.34s, tests 108ms, environment 1ms)
+   Start at  12:03:05
+   Duration  494ms (transform 1.32s, setup 0ms, import 1.74s, tests 139ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -203,8 +203,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  4 passed (4)
       Tests  97 passed (97)
-   Start at  11:26:01
-   Duration  744ms (transform 730ms, setup 0ms, import 1.08s, tests 351ms, environment 0ms)
+   Start at  12:03:07
+   Duration  938ms (transform 858ms, setup 0ms, import 1.30s, tests 472ms, environment 0ms)
 ```
 
 ### provider connector tests
@@ -214,9 +214,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
 
 
  Test Files  2 passed (2)
-      Tests  18 passed (18)
-   Start at  11:26:02
-   Duration  323ms (transform 322ms, setup 0ms, import 394ms, tests 43ms, environment 0ms)
+      Tests  20 passed (20)
+   Start at  12:03:08
+   Duration  439ms (transform 368ms, setup 0ms, import 455ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  11:26:03
-   Duration  496ms (transform 531ms, setup 0ms, import 922ms, tests 160ms, environment 0ms)
+   Start at  12:03:09
+   Duration  557ms (transform 603ms, setup 0ms, import 1.03s, tests 199ms, environment 0ms)
 ```
 
 

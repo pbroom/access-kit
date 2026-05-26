@@ -30,8 +30,6 @@ export const AWS_READONLY_ACCESS_ANALYSIS_REQUIRED_READ_SCOPES = [
   "sso:ListPermissionSets",
   "sso:DescribePermissionSet",
   "sso:ListAccountAssignments",
-  "identitystore:DescribeUser",
-  "identitystore:DescribeGroup",
   "iam:ListRoles",
   "iam:GetRole",
   "cloudtrail:LookupEvents",
@@ -265,8 +263,6 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
   }
 
   async discoverSubjects(): Promise<Subject[]> {
-    this.#snapshot = undefined;
-    this.#warnings = [];
     return (await this.#loadSnapshot()).subjects;
   }
 
@@ -1273,7 +1269,7 @@ function resolveFindingResource(finding: AwsAccessAnalyzerFinding, maps: AwsEnti
     }
   }
 
-  return maps.organizationResource;
+  return undefined;
 }
 
 function accessAnalyzerNativeAccess(finding: AwsAccessAnalyzerFinding): string {

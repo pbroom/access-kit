@@ -24,8 +24,6 @@ const approvedLiveReadScopes = new Set<string>([
   "cloudtrail:LookupEvents",
   "iam:GetRole",
   "iam:ListRoles",
-  "identitystore:DescribeGroup",
-  "identitystore:DescribeUser",
   "organizations:DescribeOrganization",
   "organizations:ListAccounts",
   "sso:DescribePermissionSet",

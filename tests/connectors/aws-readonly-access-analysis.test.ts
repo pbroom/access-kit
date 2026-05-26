@@ -51,6 +51,26 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
     });
   });
 
+  it("reuses the AWS readback snapshot across discovery entrypoints", async () => {
+    const client = new JsonAwsReadClient(createFixturePages());
+    const connector = new AwsReadOnlyAccessAnalysisConnector({
+      client,
+      organizationId,
+      now: () => now,
+      maxRetries: 1,
+      sleep: noSleep
+    });
+
+    await connector.discoverSubjects();
+    const callsAfterFirstDiscovery = client.calls.length;
+
+    await connector.discoverSubjects();
+    await connector.discoverResources();
+    await connector.detectDrift();
+
+    expect(client.calls).toHaveLength(callsAfterFirstDiscovery);
+  });
+
   it("imports redacted AWS accounts, roles, Identity Center assignments, CloudTrail activity, and Access Analyzer findings", async () => {
     const sleeps: number[] = [];
     const connector = new AwsReadOnlyAccessAnalysisConnector({
@@ -134,6 +154,37 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
     expect(serialized).not.toContain("raw-account-page-2");
     expect(serialized).not.toContain("raw-event-1");
     expect(serialized).not.toContain("case-prod@example.test");
+  });
+
+  it("skips Access Analyzer findings outside imported AWS resources", async () => {
+    const pages: AwsReadClientPages = {
+      ...createFixturePages(),
+      "accessAnalyzer.listFindings": [
+        {
+          value: [{
+            id: "raw-finding-unknown-resource",
+            resource: "arn:aws:iam::999999999999:role/OutsideImportedBoundary",
+            principal: { AWS: "999999999999" },
+            action: ["sts:AssumeRole"],
+            status: "ACTIVE",
+            findingType: "ExternalAccess",
+            isPublic: true,
+            createdAt: "2026-05-26T10:00:00.000Z"
+          }],
+          status: 200
+        }
+      ]
+    };
+    const connector = new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(pages),
+      organizationId,
+      now: () => now,
+      maxRetries: 1,
+      sleep: noSleep
+    });
+
+    await expect(connector.detectDrift()).resolves.toEqual([]);
+    expect(connector.getDiscoveryMetadata().warnings.map((warning) => warning.code)).toContain("AWS_ACCESS_ANALYZER_FINDING_SKIPPED");
   });
 
   it("keeps AWS provider writes disabled even when provisioning hooks are called", async () => {
