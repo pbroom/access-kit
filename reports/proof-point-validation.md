@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T05:00:53.974Z
+Generated at: 2026-05-28T05:12:27.768Z
 
-Branch: codex/rebac-sample-saas-app
+Branch: 
 
 Node: v24.4.1
 
@@ -10,16 +10,16 @@ pnpm: 10.30.3
 
 ## Summary
 
-All proof-point validation commands passed.
+2 proof-point validation command(s) failed.
 
 | Proof point | Command | Result |
 | --- | --- | --- |
-| typecheck | `corepack pnpm typecheck` | PASS |
+| typecheck | `corepack pnpm typecheck` | FAIL |
 | schema validation | `corepack pnpm validate:schemas` | PASS |
 | OpenAPI validation | `corepack pnpm validate:openapi` | PASS |
 | API collection validation | `corepack pnpm validate:api-collections` | PASS |
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
-| connector security gate validation | `corepack pnpm validate:connector-security` | PASS |
+| connector security gate validation | `corepack pnpm validate:connector-security` | FAIL |
 | CLI command contract | `corepack pnpm validate:cli-contract` | PASS |
 | container packaging validation | `corepack pnpm validate:packaging` | PASS |
 | release packaging validation | `corepack pnpm validate:release-packaging` | PASS |
@@ -39,14 +39,29 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsc --noEmit
+
+packages/api/src/runtime-connectors.ts(7,65): error TS2307: Cannot find module '@access-kit/connectors-aws' or its corresponding type declarations.
+packages/connectors-aws/src/index.ts(24,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
+packages/connectors-aws/src/index.ts(488,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
+packages/connectors-sample-readonly/src/index.ts(21,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
+packages/connectors-sample-readonly/src/index.ts(335,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(158,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(203,62): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(241,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(278,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/aws-readonly-access-analysis.test.ts(413,73): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(68,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(161,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
+tests/connectors/sample-readonly.test.ts(208,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
+ ELIFECYCLE  Command failed with exit code 2.
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-schemas.ts
 
 Validated 21 schemas and 21 example fixtures.
@@ -76,10 +91,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-sample-saas-app/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-python-fastapi-pep/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -91,7 +106,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### API collection validation
 
 ```text
-> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/generate-api-collections.ts --check
 
 API collection artifacts are current.
@@ -100,7 +115,7 @@ API collection artifacts are current.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -123,36 +138,51 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-python-fastapi-pep
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
-Validated connector security gates for 4 connector(s).
-PASS mock: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS entra-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS sharepoint-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
-PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+ ELIFECYCLE  Command failed with exit code 1.
+
+node:internal/modules/run_main:105
+    triggerUncaughtException(
+    ^
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@access-kit/connectors-aws' imported from /Users/peterbroomfield/access-kit-python-fastapi-pep/packages/api/src/runtime-connectors.ts
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
+    at packageResolve (node:internal/modules/esm/resolve:767:81)
+    at moduleResolve (node:internal/modules/esm/resolve:853:18)
+    at defaultResolve (node:internal/modules/esm/resolve:983:11)
+    at nextResolve (node:internal/modules/esm/hooks:748:28)
+    at resolveBase (file:///Users/peterbroomfield/access-kit-python-fastapi-pep/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:8037)
+    at resolveDirectory (file:///Users/peterbroomfield/access-kit-python-fastapi-pep/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:9124)
+    at resolveTsPaths (file:///Users/peterbroomfield/access-kit-python-fastapi-pep/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:10581)
+    at resolve2 (file:///Users/peterbroomfield/access-kit-python-fastapi-pep/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:11864)
+    at nextResolve (node:internal/modules/esm/hooks:748:28) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.4.1
 ```
 
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-python-fastapi-pep
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-python-fastapi-pep
 
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  01:00:47
-   Duration  280ms (transform 135ms, setup 0ms, import 209ms, tests 20ms, environment 0ms)
+   Start at  01:12:20
+   Duration  293ms (transform 136ms, setup 0ms, import 213ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -163,7 +193,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -176,7 +206,7 @@ PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclos
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -187,7 +217,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -198,7 +228,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -209,7 +239,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -220,7 +250,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-python-fastapi-pep
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -230,77 +260,77 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-python-fastapi-pep
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-python-fastapi-pep
 
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  01:00:50
-   Duration  240ms (transform 1.04s, setup 0ms, import 1.47s, tests 125ms, environment 0ms)
+   Start at  01:12:23
+   Duration  247ms (transform 1.06s, setup 0ms, import 1.49s, tests 127ms, environment 1ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-python-fastapi-pep
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-python-fastapi-pep
 
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  01:00:51
-   Duration  523ms (transform 925ms, setup 0ms, import 1.50s, tests 441ms, environment 0ms)
+   Start at  01:12:24
+   Duration  516ms (transform 859ms, setup 0ms, import 1.47s, tests 434ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
 
 ```text
-> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-python-fastapi-pep
 > vitest run tests/sdk-pep
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-python-fastapi-pep
 
 
- Test Files  2 passed (2)
-      Tests  15 passed (15)
-   Start at  01:00:52
-   Duration  286ms (transform 151ms, setup 0ms, import 226ms, tests 29ms, environment 0ms)
+ Test Files  3 passed (3)
+      Tests  18 passed (18)
+   Start at  01:12:25
+   Duration  895ms (transform 296ms, setup 0ms, import 455ms, tests 657ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-python-fastapi-pep
 
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  01:00:52
-   Duration  228ms (transform 332ms, setup 0ms, import 444ms, tests 48ms, environment 0ms)
+   Start at  01:12:26
+   Duration  229ms (transform 344ms, setup 0ms, import 448ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-sample-saas-app
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-python-fastapi-pep
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-python-fastapi-pep
 
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  01:00:53
-   Duration  325ms (transform 384ms, setup 0ms, import 632ms, tests 115ms, environment 0ms)
+   Start at  01:12:27
+   Duration  327ms (transform 371ms, setup 0ms, import 639ms, tests 114ms, environment 0ms)
 ```
 
 
