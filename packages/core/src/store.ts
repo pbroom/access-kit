@@ -1,10 +1,13 @@
 import type {
+  AccessReviewCampaign,
   AuditEvent,
   CanonicalId,
   DecisionResult,
   DiscoveryRun,
   EnforcementReadinessReport,
+  ExceptionRequest,
   DriftFinding,
+  GovernanceFinding,
   NativeGrant,
   PersistenceDegradationReceipt,
   ProvisioningJob,
@@ -25,6 +28,9 @@ export interface RebacSeedData {
   provisioningPlans?: ProvisioningPlan[];
   provisioningJobs?: ProvisioningJob[];
   driftFindings?: DriftFinding[];
+  accessReviewCampaigns?: AccessReviewCampaign[];
+  governanceFindings?: GovernanceFinding[];
+  exceptionRequests?: ExceptionRequest[];
   reconciliationRuns?: ReconciliationRun[];
   decisions?: DecisionResult[];
   auditEvents?: AuditEvent[];
@@ -43,6 +49,9 @@ export class InMemoryRebacStore {
   readonly #provisioningPlans = new Map<CanonicalId, ProvisioningPlan>();
   readonly #provisioningJobs = new Map<CanonicalId, ProvisioningJob>();
   readonly #driftFindings = new Map<CanonicalId, DriftFinding>();
+  readonly #accessReviewCampaigns = new Map<CanonicalId, AccessReviewCampaign>();
+  readonly #governanceFindings = new Map<CanonicalId, GovernanceFinding>();
+  readonly #exceptionRequests = new Map<CanonicalId, ExceptionRequest>();
   readonly #reconciliationRuns = new Map<CanonicalId, ReconciliationRun>();
   readonly #decisions = new Map<CanonicalId, DecisionResult>();
   readonly #auditEvents: AuditEvent[] = [];
@@ -58,6 +67,9 @@ export class InMemoryRebacStore {
     seed.provisioningPlans?.forEach((plan) => this.upsertProvisioningPlan(plan));
     seed.provisioningJobs?.forEach((job) => this.upsertProvisioningJob(job));
     seed.driftFindings?.forEach((finding) => this.upsertDriftFinding(finding));
+    seed.accessReviewCampaigns?.forEach((campaign) => this.upsertAccessReviewCampaign(campaign));
+    seed.governanceFindings?.forEach((finding) => this.upsertGovernanceFinding(finding));
+    seed.exceptionRequests?.forEach((request) => this.upsertExceptionRequest(request));
     seed.reconciliationRuns?.forEach((run) => this.recordReconciliationRun(run));
     seed.decisions?.forEach((decision) => this.recordDecision(decision));
     seed.auditEvents?.forEach((event) => this.recordAuditEvent(event));
@@ -75,6 +87,9 @@ export class InMemoryRebacStore {
       provisioningPlans: this.listProvisioningPlans(),
       provisioningJobs: this.listProvisioningJobs(),
       driftFindings: this.listDriftFindings(),
+      accessReviewCampaigns: this.listAccessReviewCampaigns(),
+      governanceFindings: this.listGovernanceFindings(),
+      exceptionRequests: this.listExceptionRequests(),
       reconciliationRuns: this.listReconciliationRuns(),
       decisions: this.listDecisions(),
       auditEvents: this.listAuditEvents(),
@@ -258,6 +273,52 @@ export class InMemoryRebacStore {
   upsertDriftFinding(finding: DriftFinding): DriftFinding {
     this.#driftFindings.set(finding.id, finding);
     return finding;
+  }
+
+  listAccessReviewCampaigns(): AccessReviewCampaign[] {
+    return [...this.#accessReviewCampaigns.values()];
+  }
+
+  getAccessReviewCampaign(id: CanonicalId): AccessReviewCampaign | undefined {
+    return this.#accessReviewCampaigns.get(id);
+  }
+
+  upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign {
+    this.#accessReviewCampaigns.set(campaign.id, campaign);
+    return campaign;
+  }
+
+  listGovernanceFindings(filter: Partial<Pick<GovernanceFinding, "status" | "severity">> = {}): GovernanceFinding[] {
+    return [...this.#governanceFindings.values()].filter((finding) => {
+      return (
+        (!filter.status || finding.status === filter.status) &&
+        (!filter.severity || finding.severity === filter.severity)
+      );
+    });
+  }
+
+  getGovernanceFinding(id: CanonicalId): GovernanceFinding | undefined {
+    return this.#governanceFindings.get(id);
+  }
+
+  upsertGovernanceFinding(finding: GovernanceFinding): GovernanceFinding {
+    this.#governanceFindings.set(finding.id, finding);
+    return finding;
+  }
+
+  listExceptionRequests(filter: Partial<Pick<ExceptionRequest, "status">> = {}): ExceptionRequest[] {
+    return [...this.#exceptionRequests.values()].filter((request) => {
+      return !filter.status || request.status === filter.status;
+    });
+  }
+
+  getExceptionRequest(id: CanonicalId): ExceptionRequest | undefined {
+    return this.#exceptionRequests.get(id);
+  }
+
+  upsertExceptionRequest(request: ExceptionRequest): ExceptionRequest {
+    this.#exceptionRequests.set(request.id, request);
+    return request;
   }
 
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun {

@@ -1507,6 +1507,7 @@ describe("ReBAC API runtime", () => {
       accessReviews: Array<{ findingCount: number; exceptionCount: number }>;
       exceptionRegister: Array<{ source: string; sourceFindingId: string }>;
     }>("/v1/evidence/export?controls=CA-7");
+    const persistedGovernanceJobs = new LocalJsonFileJobRepository({ jobsPath }).exportJobs();
 
     expect(recoveredRuns.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
@@ -1528,6 +1529,15 @@ describe("ReBAC API runtime", () => {
     expect(recoveredEvidence.accessReviews).toEqual(expect.arrayContaining([
       expect.objectContaining({ findingCount: 1, exceptionCount: 1 })
     ]));
+    expect(persistedGovernanceJobs.accessReviewCampaigns.map((campaign) => campaign.id)).toContain(
+      "access-review:campaign:local-governance"
+    );
+    expect(persistedGovernanceJobs.governanceFindings.map((finding) => finding.id)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^governance-finding:/)])
+    );
+    expect(persistedGovernanceJobs.exceptionRequests.map((request) => request.id)).toEqual(
+      expect.arrayContaining([expect.stringMatching(/^exception:/)])
+    );
   });
 
   it("recovers append-only audit events when the audit file is ahead of the state snapshot", async () => {
@@ -2196,19 +2206,69 @@ describe("ReBAC API runtime", () => {
       }
     );
     const evidence = await get<{
-      exceptionRegister: Array<{ status: string; source: string; sourceFindingId: string }>;
-      accessReviews: Array<{ findingCount: number; exceptionCount: number }>;
+      conmonMetrics: Array<{ name: string; value: number; source: string }>;
+      poamItems: Array<{ id: string; controlId: string; source: string; status: string }>;
+      exceptionRegister: Array<{
+        id: string;
+        status: string;
+        requestStatus: string;
+        source: string;
+        sourceFindingId: string;
+        ownerApprovals: Array<{ decision: string }>;
+        riskAcceptance: { status: string; residualRisk: string };
+        remediation: { status: string; poamItemId: string };
+      }>;
+      accessReviews: Array<{
+        campaignId: string;
+        findingCount: number;
+        exceptionCount: number;
+        ownerApprovals: Array<{ decision: string }>;
+        findingIds: string[];
+        exceptionRequestIds: string[];
+        remediationItemIds: string[];
+      }>;
     }>("/v1/evidence/export?controls=CA-7");
+    const [exceptionRequest] = evidence.exceptionRegister;
 
     expect(reconciliation.status).toBe("completed");
     expect(reconciliation.findings).toHaveLength(1);
     expect(reconciliation.counts).toEqual({ findings: 1, highOrCritical: 1 });
     expect(reconciliation.auditEventIds).toHaveLength(2);
     expect(evidence.exceptionRegister).toEqual(expect.arrayContaining([
-      expect.objectContaining({ status: "open", source: "drift", sourceFindingId: expect.stringMatching(/^drift:/) })
+      expect.objectContaining({
+        status: "open",
+        requestStatus: "requested",
+        source: "drift",
+        sourceFindingId: expect.stringMatching(/^drift:/),
+        ownerApprovals: [expect.objectContaining({ decision: "pending" })],
+        riskAcceptance: expect.objectContaining({ status: "pending", residualRisk: "high" }),
+        remediation: expect.objectContaining({ status: "planned", poamItemId: expect.stringMatching(/^poam:governance:/) })
+      })
     ]));
     expect(evidence.accessReviews).toEqual(expect.arrayContaining([
-      expect.objectContaining({ findingCount: 1, exceptionCount: 1 })
+      expect.objectContaining({
+        campaignId: "access-review:campaign:local-governance",
+        findingCount: 1,
+        exceptionCount: 1,
+        ownerApprovals: [expect.objectContaining({ decision: "approved" })],
+        findingIds: expect.arrayContaining([expect.stringMatching(/^governance-finding:/)]),
+        exceptionRequestIds: expect.arrayContaining([exceptionRequest?.id]),
+        remediationItemIds: expect.arrayContaining([exceptionRequest?.remediation.poamItemId])
+      })
+    ]));
+    expect(evidence.conmonMetrics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "access_review_campaigns", value: 1, source: "governance_store" }),
+      expect.objectContaining({ name: "open_exception_requests", value: 1, source: "governance_store" }),
+      expect.objectContaining({ name: "pending_owner_approvals", value: 1, source: "governance_store" }),
+      expect.objectContaining({ name: "pending_risk_acceptances", value: 1, source: "governance_store" })
+    ]));
+    expect(evidence.poamItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: exceptionRequest?.remediation.poamItemId,
+        controlId: "CA-7",
+        source: "governance_findings",
+        status: "planned"
+      })
     ]));
   });
 
@@ -2247,6 +2307,51 @@ describe("ReBAC API runtime", () => {
     expect(exception?.subjectId).toMatch(evidenceIdPattern);
     expect(exception?.resourceId).toMatch(evidenceIdPattern);
     expect(exception?.sourceFindingId).toMatch(evidenceIdPattern);
+  });
+
+  it("expires stale exception requests and carries them into ConMon and POAM evidence", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    app.store.upsertDriftFinding({
+      id: "drift:stale-exception",
+      resourceId: "document:case-plan",
+      subjectId: "user:alice",
+      nativeAccess: "owner",
+      intendedAccess: "none",
+      severity: "critical",
+      detectedAt: "2026-04-01T00:00:00.000Z",
+      sourceConnectorId: "mock",
+      recommendedAction: "exception",
+      status: "accepted",
+      version: "drift:v1",
+      createdAt: "2026-04-01T00:00:00.000Z"
+    });
+    await restartServer({ app });
+
+    const evidence = await get<{
+      conmonMetrics: Array<{ name: string; value: number }>;
+      poamItems: Array<{ id: string; source: string; status: string }>;
+      exceptionRegister: Array<{
+        status: string;
+        requestStatus: string;
+        riskAcceptance: { status: string };
+        remediation: { status: string; poamItemId: string };
+      }>;
+    }>("/v1/evidence/export?controls=CA-7");
+    const [exception] = evidence.exceptionRegister;
+
+    expect(exception).toMatchObject({
+      status: "expired",
+      requestStatus: "expired",
+      riskAcceptance: { status: "expired" },
+      remediation: { status: "overdue", poamItemId: "poam:governance:drift:stale-exception" }
+    });
+    expect(evidence.conmonMetrics).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "expired_exception_requests", value: 1 }),
+      expect.objectContaining({ name: "overdue_remediation_items", value: 1 })
+    ]));
+    expect(evidence.poamItems).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "poam:governance:drift:stale-exception", source: "governance_findings", status: "open" })
+    ]));
   });
 
   it("filters reconciliation findings by severity", async () => {
@@ -3236,6 +3341,9 @@ function createRecordingStateRepository(): { repository: RebacStateRepository; s
             provisioningPlans: state.provisioningPlans?.length ?? 0,
             provisioningJobs: state.provisioningJobs?.length ?? 0,
             driftFindings: state.driftFindings?.length ?? 0,
+            accessReviewCampaigns: state.accessReviewCampaigns?.length ?? 0,
+            governanceFindings: state.governanceFindings?.length ?? 0,
+            exceptionRequests: state.exceptionRequests?.length ?? 0,
             reconciliationRuns: state.reconciliationRuns?.length ?? 0,
             decisions: state.decisions?.length ?? 0,
             auditEvents: state.auditEvents?.length ?? 0,

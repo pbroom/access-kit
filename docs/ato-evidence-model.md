@@ -36,10 +36,10 @@ Evidence exports include:
 - data-flow evidence
 - control implementation mappings
 - control implementation statements
-- access review evidence
-- exception register
-- continuous-monitoring metrics
-- POA&M inputs
+- access review evidence with campaign, owner approval, finding, exception request, and remediation IDs
+- exception register with request status, risk acceptance, expiry, owner approval, remediation, and evidence references
+- continuous-monitoring metrics, including governance counters for pending approvals, pending risk acceptance, expired exceptions, and overdue remediation
+- POA&M inputs, including governance findings with stable remediation IDs
 - artifact manifest
 - operational evidence for SBOM, dependency scanning, vulnerability scanning, configuration baseline, incident response, break-glass, backup, and contingency planning
 - admin authorization evidence for IdP or mTLS gateway configuration, separate admin ReBAC policy, role bindings, secrets-manager references, break-glass approval, incident-mode notifications, and post-action review
@@ -51,7 +51,7 @@ Evidence exports include:
 
 The first generated evidence artifact is `reports/proof-point-validation.md`. It records tool versions, commit, command results, covered proof points, and outstanding requirements.
 
-The default local Phase 5 evidence package is complete for proof-point validation: it includes boundary, data-flow, control statement, access review, exception, ConMon, POA&M, SIEM-ready, release-packaging, deployment-manifest, persistence-readiness, and operational evidence sections. The local runtime can export bounded audit windows as SIEM-ready JSONL records, persist audit events and evidence packages through a local file-backed repository, and keep restartable JSON state snapshots for validation. The production audit/evidence adapter adds implementation proof for immutable external audit receipts, signed audit windows, retention metadata, SIEM delivery monitoring, replay records, tamper-evident evidence package receipts, and backup/restore metadata. The admin authorization readiness contract adds a testable shape for IdP or mTLS gateway evidence, internal admin ReBAC, external secrets-manager references, break-glass approval, incident-mode notification, and post-action review evidence. The release workflow adds signature and provenance proof points for the deployable runtime package, deployment manifests prove probe, secret-reference, runtime hardening, and admission-policy contracts, and persistence readiness checks define graph/audit/job backend requirements plus schema-backed deployment-manifest controls, retained readiness report artifacts, IaC output references, release approvals, backup/restore records, and operator-control evidence for production storage claims. These adapter, admin-authorization, persistence, and packaging paths are not substitutes for a selected production IdP, mTLS gateway, WORM driver, approved SIEM forwarding deployment, deployment runbooks, database recovery exercises, signed-image admission enforcement, or assessor-approved control statements. They prove the contract and auditability shape without exporting production data, tenant identifiers, secrets, or live provider records.
+The default local Phase 5 evidence package is complete for proof-point validation: it includes boundary, data-flow, control statement, access review, exception, ConMon, POA&M, SIEM-ready, release-packaging, deployment-manifest, persistence-readiness, and operational evidence sections. Access review and exception evidence is backed by durable governance records for campaigns, findings, exception requests, owner approvals, risk acceptance, expiry, and remediation tracking; evidence export renders those records instead of inventing one-off local proof-point rows. The local runtime can export bounded audit windows as SIEM-ready JSONL records, persist audit events and evidence packages through a local file-backed repository, and keep restartable JSON state snapshots for validation. The production audit/evidence adapter adds implementation proof for immutable external audit receipts, signed audit windows, retention metadata, SIEM delivery monitoring, replay records, tamper-evident evidence package receipts, and backup/restore metadata. The admin authorization readiness contract adds a testable shape for IdP or mTLS gateway evidence, internal admin ReBAC, external secrets-manager references, break-glass approval, incident-mode notification, and post-action review evidence. The release workflow adds signature and provenance proof points for the deployable runtime package, deployment manifests prove probe, secret-reference, runtime hardening, and admission-policy contracts, and persistence readiness checks define graph/audit/job backend requirements plus schema-backed deployment-manifest controls, retained readiness report artifacts, IaC output references, release approvals, backup/restore records, and operator-control evidence for production storage claims. These adapter, admin-authorization, persistence, packaging, and governance paths are not substitutes for a selected production IdP, mTLS gateway, WORM driver, approved SIEM forwarding deployment, GRC system, deployment runbooks, database recovery exercises, signed-image admission enforcement, or assessor-approved control statements. They prove the contract and auditability shape without exporting production data, tenant identifiers, secrets, or live provider records.
 
 ## Local Phase 5 Evidence Package
 
@@ -65,6 +65,8 @@ The default local Phase 5 evidence package is complete for proof-point validatio
 - privileged user list
 - policy model versions
 - access review results
+- exception requests and risk acceptance
+- remediation and POA&M-ready governance findings
 - decision log samples
 - enforcement-readiness reports
 - audit integrity reports
@@ -94,3 +96,4 @@ Until then, treat `schemas/evidence-export.schema.json` as the canonical package
 - [Control Traceability Matrix](control-traceability-matrix.md)
 - [Assessor Inspection Guide](assessor-inspection-guide.md)
 - [Audit And Evidence Export Runbook](../runbooks/audit-evidence-export.md)
+- [Access Review And Exception Governance Runbook](../runbooks/access-review-exceptions.md)

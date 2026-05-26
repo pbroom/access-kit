@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-27T12:54:18.936Z
+Generated at: 2026-05-26T15:27:07.290Z
 
-Branch: codex/rebac-sample-connector-template
+Branch: codex/rebac-access-review-exceptions
 
 Node: v24.4.1
 
@@ -26,7 +26,7 @@ All proof-point validation commands passed.
 | persistence deployment evidence validation | `corepack pnpm validate:persistence-deployment` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
-| connector package tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
+| Microsoft Graph connector tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
 
 ## Command Output
@@ -34,14 +34,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-access-review-exceptions
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-access-review-exceptions
 > tsx scripts/validate-schemas.ts
 
 Validated 17 schemas and 17 example fixtures.
@@ -67,10 +67,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-access-review-exceptions
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-sample-connector-template/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-access-review-exceptions/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -82,7 +82,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-access-review-exceptions
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -105,7 +105,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-access-review-exceptions
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -118,23 +118,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-access-review-exceptions
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-connector-template
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  08:54:08
-   Duration  499ms (transform 217ms, setup 0ms, import 355ms, tests 36ms, environment 0ms)
+   Start at  11:27:00
+   Duration  440ms (transform 185ms, setup 0ms, import 308ms, tests 34ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-access-review-exceptions
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -145,7 +145,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-access-review-exceptions
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -156,7 +156,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-access-review-exceptions
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -167,7 +167,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-access-review-exceptions
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -178,61 +178,61 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-access-review-exceptions
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-connector-template
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
 
  Test Files  8 passed (8)
       Tests  123 passed (123)
-   Start at  08:54:12
-   Duration  1.53s (transform 5.39s, setup 0ms, import 7.13s, tests 180ms, environment 1ms)
+   Start at  11:27:03
+   Duration  387ms (transform 1.10s, setup 0ms, import 1.41s, tests 117ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-access-review-exceptions
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-connector-template
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
 
  Test Files  4 passed (4)
-      Tests  97 passed (97)
-   Start at  08:54:15
-   Duration  1.31s (transform 1.51s, setup 0ms, import 2.12s, tests 497ms, environment 0ms)
+      Tests  98 passed (98)
+   Start at  11:27:04
+   Duration  776ms (transform 801ms, setup 0ms, import 1.16s, tests 370ms, environment 0ms)
 ```
 
-### connector package tests
+### Microsoft Graph connector tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-connector-template
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
 
- Test Files  2 passed (2)
-      Tests  18 passed (18)
-   Start at  08:54:16
-   Duration  434ms (transform 355ms, setup 0ms, import 450ms, tests 38ms, environment 0ms)
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  11:27:05
+   Duration  310ms (transform 158ms, setup 0ms, import 192ms, tests 23ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-sample-connector-template
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-access-review-exceptions
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-connector-template
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  08:54:17
-   Duration  655ms (transform 706ms, setup 0ms, import 1.25s, tests 222ms, environment 0ms)
+   Start at  11:27:06
+   Duration  485ms (transform 500ms, setup 0ms, import 890ms, tests 161ms, environment 0ms)
 ```
 
 
@@ -250,7 +250,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-connector-template
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
-- Connector package tests for Microsoft Graph Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
+- Microsoft Graph connector tests for Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
 
