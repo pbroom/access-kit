@@ -1,0 +1,18 @@
+{
+  "version": "live-enforcement-pilot-release-approval:v1",
+  "pilotId": "live-pilot:microsoft-graph-direct-grant-revocation",
+  "environment": "pilot_candidate",
+  "status": "ready",
+  "readinessReportRef": "deploy/live-enforcement-pilot/readiness-report.example.json",
+  "changeTicket": "chg:live-pilot:direct-grant-revocation",
+  "approvedBy": ["resource-owner", "security-engineer"],
+  "releaseControls": {
+    "readOnlyConfidenceReviewed": true,
+    "leastPrivilegeReviewed": true,
+    "operationalRunbooksReviewed": true,
+    "emergencyRevocationReviewed": true,
+    "rollbackReviewed": true,
+    "releaseGateRequired": true
+  },
+  "approvedAt": "2026-05-26T00:00:00.000Z"
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/live-enforcement-pilot-readiness.schema.json",
+  "title": "LiveEnforcementPilotReadinessReport",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pilotId", "status", "checkedAt", "checks", "manifest", "version"],
+  "properties": {
+    "pilotId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "status": { "type": "string", "enum": ["ready", "blocked"] },
+    "checkedAt": { "type": "string", "format": "date-time" },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/readinessCheck" }
+    },
+    "manifest": { "$ref": "live-enforcement-pilot-manifest.schema.json" },
+    "version": { "type": "string", "const": "live-enforcement-pilot-readiness:v1" }
+  },
+  "$defs": {
+    "readinessCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "component", "status", "message"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-zA-Z0-9_:-]+$" },
+        "component": {
+          "type": "string",
+          "enum": ["connector", "read_only", "approval", "runtime", "verification", "runbook", "release_gate"]
+        },
+        "status": { "type": "string", "enum": ["pass", "warn", "fail"] },
+        "message": { "type": "string", "minLength": 1 },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

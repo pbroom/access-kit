@@ -68,6 +68,8 @@ The domain model is not an identity directory, provider permission model, SIEM s
 
 `PersistenceDeploymentManifest` records the production persistence target, backend descriptors, deployment control evidence, and evidence references. `PersistenceDeploymentReadinessReport` combines backend readiness with deployment controls so local proof-point storage cannot be represented as production-ready persistence.
 
+`LiveEnforcementPilotManifest` records the first controlled live write candidate and its release gates. It limits the candidate to one opt-in provider revocation path, captures read-only confidence, least-privilege write-scope review, two-role approval, degraded connector and audit blocking, verification, rollback hooks, emergency revocation runbooks, and retained evidence references. `LiveEnforcementPilotReadinessReport` is the deterministic readiness result for that manifest. Synthetic pilot-candidate artifacts are not provider credentials and do not enable live writes by themselves.
+
 `EvidenceExport` records metadata for ATO evidence packages by framework, controls, time period, source events, responsible role, format, audit integrity, integrity manifest hashes, control mappings, control implementation statements, generated artifacts, system boundary, data flows, durable access-review campaigns, exception requests with risk acceptance and expiry, continuous-monitoring metrics, POA&M inputs and export, OSCAL component-definition, SSP, assessment-results and POA&M fragments, signed package metadata, verifier checks, control-to-event trace views, operational evidence, and SIEM export metadata.
 
 ## Separation Rules
@@ -80,6 +82,7 @@ The domain model is not an identity directory, provider permission model, SIEM s
 - Provisioning plans are not provisioning jobs.
 - Dry-run provisioning jobs are not provider writes.
 - Controlled enforcement jobs in this milestone require a matching ready enforcement-readiness report and remain synthetic proof points, not live provider writes.
+- Live enforcement pilot readiness reports are release gates, not provider credentials or blanket write authorization.
 - Drift findings are security objects, not incidental errors.
 - Audit evidence is not a mutable operational table.
 - Audit exports are bounded event packages. SIEM delivery guarantees require production adapter delivery receipts plus an approved environment-specific forwarder.

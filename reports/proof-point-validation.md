@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:14:50.459Z
+Generated at: 2026-05-28T03:20:11.897Z
 
-Branch: codex/rebac-microsoft-provider-semantics
+Branch: 
 
 Node: v24.4.1
 
@@ -26,6 +26,7 @@ All proof-point validation commands passed.
 | persistence deployment evidence validation | `corepack pnpm validate:persistence-deployment` | PASS |
 | runbook exercise evidence validation | `corepack pnpm validate:runbook-exercises` | PASS |
 | secure SDLC release evidence validation | `corepack pnpm validate:secure-sdlc` | PASS |
+| live enforcement pilot validation | `corepack pnpm validate:live-enforcement-pilot` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
 | connector package tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
@@ -36,17 +37,17 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-schemas.ts
 
-Validated 18 schemas and 18 example fixtures.
+Validated 20 schemas and 20 example fixtures.
 PASS audit-event.json -> schemas/audit-event.schema.json
 PASS audit-export.json -> schemas/audit-export.schema.json
 PASS audit-integrity.json -> schemas/audit-integrity.schema.json
@@ -56,6 +57,8 @@ PASS discovery-run.json -> schemas/discovery-run.schema.json
 PASS drift-finding.json -> schemas/drift-finding.schema.json
 PASS enforcement-readiness.json -> schemas/enforcement-readiness.schema.json
 PASS evidence-export.json -> schemas/evidence-export.schema.json
+PASS live-enforcement-pilot-manifest.json -> schemas/live-enforcement-pilot-manifest.schema.json
+PASS live-enforcement-pilot-readiness.json -> schemas/live-enforcement-pilot-readiness.schema.json
 PASS native-grant.json -> schemas/native-grant.schema.json
 PASS persistence-deployment-manifest.json -> schemas/persistence-deployment-manifest.schema.json
 PASS persistence-deployment-readiness.json -> schemas/persistence-deployment-readiness.schema.json
@@ -70,10 +73,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-microsoft-provider-semantics/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-live-enforcement-pilot/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -85,7 +88,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -108,7 +111,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -121,23 +124,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-live-enforcement-pilot
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:14:45
-   Duration  274ms (transform 129ms, setup 0ms, import 203ms, tests 20ms, environment 0ms)
+   Start at  23:20:06
+   Duration  285ms (transform 133ms, setup 0ms, import 209ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -148,7 +151,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -159,7 +162,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -170,7 +173,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -181,7 +184,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -192,7 +195,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -200,71 +203,81 @@ PASS SAST, DAST, dependency, SBOM, fuzzing, tenant-isolation abuse, threat-model
 PASS Secure SDLC evidence maps mitigations across authorization, connector, persistence, cross-tenant isolation, and evidence-abuse paths.
 ```
 
+### live enforcement pilot validation
+
+```text
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-live-enforcement-pilot
+> tsx scripts/validate-live-enforcement-pilot.ts
+
+Validated live enforcement pilot gates.
+PASS Live enforcement pilot manifest, readiness report artifact, approval workflow, least-privilege review, verification, rollback, runbooks, and release gate are wired.
+```
+
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-live-enforcement-pilot
 
 
- Test Files  10 passed (10)
-      Tests  148 passed (148)
-   Start at  23:14:47
-   Duration  226ms (transform 774ms, setup 0ms, import 1.12s, tests 101ms, environment 0ms)
+ Test Files  11 passed (11)
+      Tests  151 passed (151)
+   Start at  23:20:09
+   Duration  228ms (transform 815ms, setup 0ms, import 1.16s, tests 104ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-live-enforcement-pilot
 
 
  Test Files  4 passed (4)
       Tests  107 passed (107)
-   Start at  23:14:48
-   Duration  483ms (transform 462ms, setup 0ms, import 730ms, tests 246ms, environment 0ms)
+   Start at  23:20:10
+   Duration  481ms (transform 480ms, setup 0ms, import 714ms, tests 247ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-live-enforcement-pilot
 
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  23:14:49
-   Duration  229ms (transform 335ms, setup 0ms, import 447ms, tests 50ms, environment 0ms)
+   Start at  23:20:10
+   Duration  226ms (transform 338ms, setup 0ms, import 440ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-live-enforcement-pilot
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-live-enforcement-pilot
 
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:14:49
-   Duration  314ms (transform 363ms, setup 0ms, import 617ms, tests 105ms, environment 0ms)
+   Start at  23:20:11
+   Duration  313ms (transform 373ms, setup 0ms, import 618ms, tests 105ms, environment 0ms)
 ```
 
 
 ## Covered Proof Points
 
 - TypeScript strict type checking.
-- JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, connector-security-review, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, runbook exercise, and evidence export examples.
+- JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, connector-security-review, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, runbook exercise, live-enforcement-pilot manifest, live-enforcement-pilot readiness, and evidence export examples.
 - OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, enforcement-readiness, generated client metadata, contract snapshots, versioning, deprecation, authentication, rate-limit, and API example path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - Connector security gate validation for connector identity, consent, tenant boundary, least-privilege read scopes, approved Microsoft Graph and AWS live-read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults.
@@ -275,6 +288,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - Runbook exercise evidence validation for rehearsed incident response, break-glass, backup/restore, contingency, emergency revocation, SIEM replay, and post-action review evidence records with redaction and non-production classification checks.
 - Secure SDLC release evidence validation for SAST, DAST, dependency scanning, SBOM/provenance, fuzzing, tenant-isolation abuse tests, threat-model refresh, vulnerability triage, and NIST SSDF evidence.
+- Live enforcement pilot validation for the schema-backed pilot manifest, retained readiness report artifact, read-only confidence, least-privilege review, approval workflow, runtime degradation blocks, verification, rollback, emergency revocation runbooks, and release gate.
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
 - Connector package tests for Microsoft Graph Entra, Microsoft 365 group and Teams coupling, SharePoint and OneDrive inventory, inheritance markers, coverage warnings, ownership, AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
@@ -294,4 +308,5 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
 - Select and configure environment-specific production connector-state storage behind the production connector-state adapter for discovery runs, native-grant readback, drift findings, and reconciliation evidence.
 - Deploy managed queue workers with production monitoring, retry, dead-letter, replay, and emergency revocation operating procedures.
 - Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, emergency revocation behavior, and connector least-privilege review are complete.
+- Execute live provider enforcement only after environment-specific approvals, provider credentials, sandbox evidence, runtime health signals, operator evidence, and release approval replace the synthetic pilot-candidate artifacts.
 - Replace local ATO package proof points with deployment-specific diagrams, assessor-reviewed control statements, retained SBOM/security artifacts, access review campaigns, exception workflow, backup/restore test evidence, runbook exercise approvals, and ConMon delivery.

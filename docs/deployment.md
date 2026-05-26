@@ -121,6 +121,14 @@ The synthetic production persistence manifest lives at `deploy/persistence/produ
 
 That gate ties the manifest to the retained readiness report at `deploy/persistence/readiness-report.example.json` plus evidence references for IaC outputs, release approval, backup/restore results, and operator controls under `deploy/persistence/evidence/`. The example proves the deployment contract shape only: production use still needs environment-specific storage selection, real IaC outputs, approved identity-provider access, monitored secret handling, retained change records, WORM audit driver evidence, SIEM forwarding delivery monitoring, and replay procedure records.
 
+## Live Enforcement Pilot Gate
+
+The controlled live enforcement pilot manifest lives at `deploy/live-enforcement-pilot/manifest.example.json` and is validated by `pnpm validate:live-enforcement-pilot`.
+
+That gate keeps the first live write candidate narrow: one opt-in Microsoft Graph direct-grant revocation, one action per change, fresh read-only confidence, least-privilege write-scope review, two-role approval, degraded connector and audit blocking, dry-run-first verification, rollback hooks, emergency revocation runbooks, and a retained release-gated readiness report at `deploy/live-enforcement-pilot/readiness-report.example.json`.
+
+The files under `deploy/live-enforcement-pilot/evidence/` are synthetic pilot-candidate artifacts. They define the evidence shape for review, but they do not authorize production provider writes by themselves. A real environment must replace them with approved tenant-specific evidence, credential handling, sandbox run records, operator authorization, connector health signals, immutable audit evidence, and release approval before any live write path is enabled.
+
 ## Rollback
 
 Rollback is a digest change, not an in-place image mutation:

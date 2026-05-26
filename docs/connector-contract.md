@@ -30,7 +30,7 @@ Connectors advertise capabilities such as:
 - rollback or compensation support
 - enforcement-readiness checks
 
-The current implementation blocks controlled enforcement for synthetic read-only provider connectors and allows it only for the synthetic `mock` connector under guardrails.
+The current runtime blocks controlled enforcement for synthetic read-only provider connectors and allows it only for the synthetic `mock` connector under guardrails. The live enforcement pilot gate is a separate schema-backed deployment artifact that describes one future Microsoft Graph revocation candidate; it does not make Graph writes available from the connector by default.
 
 ## Required Connector Evidence
 
@@ -43,6 +43,7 @@ The current implementation blocks controlled enforcement for synthetic read-only
 | Native grants | Preserve observed provider state without converting it to intended access. |
 | Connector security review | Gate connector identity, consent, tenant boundary, least-privilege scopes, deletion behavior, coverage warnings, secret handling, and no-write defaults. |
 | Enforcement readiness report | Gate controlled enforcement. |
+| Live enforcement pilot manifest | Gate the first live write candidate through read-only confidence, least-privilege write review, approval, verification, rollback, emergency revocation, and release evidence. |
 | Verification result | Prove readback after planned action. |
 | Drift findings | Record mismatch between intended and observed state. |
 
@@ -57,7 +58,7 @@ The gate requires:
 - required read scopes that are non-empty, unique, and separate from forbidden write scopes
 - pagination, throttling, deletion semantics, coverage-warning, and native-readback expectations
 - secret handling evidence with no synthetic connector secrets
-- live provider writes blocked unless a future reviewed live connector slice adds approved readiness, rollback, monitoring, and emergency revocation evidence
+- live provider writes blocked unless a reviewed live enforcement pilot supplies approved readiness, rollback, monitoring, emergency revocation, and release-gate evidence
 
 The current synthetic provider connectors remain read-only and blocked for enforcement. The `mock` connector may pass controlled synthetic enforcement readiness only with `liveProviderWrites: false`.
 
@@ -105,7 +106,7 @@ The staged Microsoft provider semantics are consolidated as provider-specific fa
 | Power Platform and Dataverse roles | Unsupported role-mapping warning until a reviewed read-only connector slice can prove least-privilege scope, tenant boundary, and native-role semantics. |
 | Partial sync recovery | Stale or ambiguous delta state is discarded before full read-only resync, and coverage gaps become reviewable drift findings. |
 
-The connector does not implement Graph writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled.
+The connector does not implement Graph writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled. `pnpm validate:live-enforcement-pilot` separately validates the retained pilot-candidate evidence for a future direct-grant revocation path, including the least-privilege write scope and the release gate that must stay closed when connector or audit readiness is degraded.
 
 ## AWS Read-Only Access-Analysis Foundation
 
