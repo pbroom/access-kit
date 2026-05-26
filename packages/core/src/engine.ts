@@ -398,7 +398,9 @@ function relationshipMatchesTenantBoundary(
   rootTenantId: string | undefined
 ): boolean {
   if (!rootTenantId) {
-    return true;
+    const relationshipIsUntenanted = !stringAttribute(relationship.attributes, "tenantId");
+    const objectNodeIsUntenanted = !tenantIdFor(store.getSubject(relationship.objectId) ?? store.getResource(relationship.objectId));
+    return relationshipIsUntenanted && objectNodeIsUntenanted;
   }
 
   const relationshipTenantId = stringAttribute(relationship.attributes, "tenantId");

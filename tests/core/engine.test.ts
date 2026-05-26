@@ -73,6 +73,66 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
   });
 
+  it("does not traverse tenant-tagged relationships when the root request is untagged", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      subjects: [
+        {
+          id: "user:global",
+          type: "user",
+          displayName: "Global User",
+          sourceSystem: "mock",
+          lifecycleState: "active",
+          identifiers: {},
+          version: "subject:v1",
+          createdAt: now
+        },
+        {
+          id: "group:tenant-a",
+          type: "group",
+          displayName: "Tenant A Group",
+          sourceSystem: "mock",
+          lifecycleState: "active",
+          identifiers: {},
+          attributes: { tenantId: "tenant:a" },
+          version: "subject:v1",
+          createdAt: now
+        }
+      ],
+      resources: [
+        {
+          id: "document:global",
+          type: "document",
+          displayName: "Global Document",
+          sourceSystem: "mock",
+          ownerId: "user:owner",
+          dataStewardId: "user:steward",
+          technicalOwnerId: "user:tech-owner",
+          classification: "internal",
+          lifecycleState: "active",
+          version: "resource:v1",
+          createdAt: now
+        }
+      ],
+      relationships: [
+        tuple("relationship:global-tenant-group", "user:global", "member_of", "group:tenant-a", { tenantId: "tenant:a" }),
+        tuple("relationship:tenant-group-global-document", "group:tenant-a", "reader_of", "document:global", { tenantId: "tenant:a" })
+      ],
+      auditEvents: seed.auditEvents
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:global",
+      action: "read",
+      resourceId: "document:global"
+    });
+
+    expect(result.decision).toBe("deny");
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+    expect(result.relationshipPath).toEqual([]);
+  });
+
   it("gives explicit deny precedence over an allow path", () => {
     const seed = createLocalEngineSeed();
     const deny: RelationshipTuple = {
@@ -468,7 +528,8 @@ function tuple(
   id: string,
   subjectId: string,
   relation: string,
-  objectId: string
+  objectId: string,
+  attributes?: Record<string, unknown>
 ): RelationshipTuple {
   return {
     id,
@@ -476,6 +537,7 @@ function tuple(
     relation,
     objectId,
     sourceSystem: "mock",
+    attributes,
     assertedAt: now,
     status: "active",
     version: "tuple:v1",

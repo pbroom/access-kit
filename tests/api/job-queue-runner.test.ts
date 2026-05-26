@@ -167,6 +167,26 @@ describe("queued API runtime worker", () => {
       })
     ]);
   });
+
+  it("uses the queued job connector id instead of a conflicting payload connector id", async () => {
+    const now = () => "2026-05-26T04:00:00.000Z";
+    const queue = createQueue(now);
+    const app = createRebacLocalApp({ now, jobQueue: queue });
+
+    queue.enqueueJob({
+      kind: "discovery",
+      connectorId: "mock",
+      idempotencyKey: "idem:queue:canonical-connector",
+      requestedAt: now(),
+      payload: { connectorId: "missing-connector", mode: "read_only" }
+    });
+
+    const result = await drainNextQueuedJob(app, { workerId: "worker:queue-test" });
+
+    expect(result.status).toBe("completed");
+    expect(result.queueJob).toMatchObject({ connectorId: "mock", status: "completed" });
+    expect(result.result as DiscoveryRun).toMatchObject({ connectorId: "mock" });
+  });
 });
 
 function createQueue(now: () => string): ProductionJobQueueAdapter {
