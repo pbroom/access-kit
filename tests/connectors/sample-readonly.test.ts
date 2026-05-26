@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createRebacLocalApp, readNativeAccess, syncConnector } from "../../packages/api/src/local-app.js";
+import { auditPayloadHash, type AuditEvent } from "../../packages/core/src/index.js";
 import {
   SAMPLE_APPLICATION_RESOURCE_ID,
   SAMPLE_DOCUMENT_RESOURCE_ID,
@@ -104,6 +105,25 @@ describe("SampleReadOnlyConnector", () => {
     expect(secondApplicationGrants.map((grant) => grant.principalType)).toEqual(["group"]);
   });
 
+  it("derives connector evidence periods from source audit events and falls back to now", async () => {
+    const connector = new SampleReadOnlyConnector({ now: () => now });
+
+    await expect(connector.emitEvidence([
+      createAuditEvent("evt:late", "2026-05-26T12:30:00.000Z"),
+      createAuditEvent("evt:early", "2026-05-26T10:15:00.000Z")
+    ])).resolves.toMatchObject({
+      periodStart: "2026-05-26T10:15:00.000Z",
+      periodEnd: "2026-05-26T12:30:00.000Z",
+      sourceEventIds: ["evt:late", "evt:early"]
+    });
+
+    await expect(connector.emitEvidence([])).resolves.toMatchObject({
+      periodStart: now,
+      periodEnd: now,
+      sourceEventIds: []
+    });
+  });
+
   it("keeps provisioning hooks dry-run and fail-closed", async () => {
     const connector = new SampleReadOnlyConnector({ now: () => now });
     const review = connector.getSecurityReview();
@@ -155,3 +175,15 @@ describe("SampleReadOnlyConnector", () => {
     ]));
   });
 });
+
+function createAuditEvent(eventId: string, occurredAt: string): AuditEvent {
+  return {
+    eventId,
+    eventType: "connector.discovery",
+    occurredAt,
+    actor: `connector:${SAMPLE_READONLY_CONNECTOR_ID}`,
+    correlationId: `corr:${eventId}`,
+    payloadHash: auditPayloadHash({}),
+    payload: {}
+  };
+}

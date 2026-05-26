@@ -125,6 +125,8 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
   }
 
   async discoverSubjects(): Promise<Subject[]> {
+    // Each subject discovery starts the next synthetic provider snapshot; the
+    // remaining discovery calls reuse that active snapshot to model one sync run.
     const scenario = this.#beginNextScenario();
     const records = this.#readPages("subjects", scenario.subjectPages);
     return records.map((record) => ({
@@ -353,14 +355,16 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
   }
 
   async emitEvidence(events: AuditEvent[]): Promise<EvidenceExport> {
-    const auditIntegrity = verifyAuditChain(events, this.#now());
+    const generatedAt = this.#now();
+    const evidencePeriod = deriveEvidencePeriod(events, generatedAt);
+    const auditIntegrity = verifyAuditChain(events, generatedAt);
     return attachEvidenceIntegrityManifest({
       exportId: `evidence:${this.id}`,
       framework: "nist-800-53",
       controls: ["AC-2", "AC-3", "AC-6", "AU-2"],
-      periodStart: "2026-05-01T00:00:00.000Z",
-      periodEnd: "2026-05-31T23:59:59.000Z",
-      generatedAt: this.#now(),
+      periodStart: evidencePeriod.periodStart,
+      periodEnd: evidencePeriod.periodEnd,
+      generatedAt,
       evidenceTypes: ["connector_template", "discovery_runs", "native_grants", "audit_events"],
       sourceEventIds: events.map((event) => event.eventId),
       responsibleRole: "Connector Owner",
@@ -785,6 +789,15 @@ function createRevocationPlan(
     ],
     version: "plan:v1",
     createdAt
+  };
+}
+
+function deriveEvidencePeriod(events: AuditEvent[], now: string): Pick<EvidenceExport, "periodStart" | "periodEnd"> {
+  const occurredAt = events.map((event) => event.occurredAt).sort();
+
+  return {
+    periodStart: occurredAt.at(0) ?? now,
+    periodEnd: occurredAt.at(-1) ?? now
   };
 }
 
