@@ -13,7 +13,7 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - `pnpm validate:release-packaging` validates the GHCR release workflow, publish gates, SBOM/provenance metadata, artifact attestation, and keyless signing wiring.
 - `pnpm validate:deployment-manifests` validates the Kubernetes manifests, probe wiring, secret references, restricted runtime security, network policy, and signed-image admission policy example.
 - `pnpm validate:persistence-deployment` validates the schema-backed synthetic production persistence manifest, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
-- `pnpm test:core` includes shared repository conformance coverage for in-memory proof-point repositories, local JSON graph/job stores, and the production graph plus connector-state adapters.
+- `pnpm test:core` includes shared repository conformance coverage for in-memory proof-point repositories, local JSON graph/job stores, and the production graph, connector-state, and queue adapters.
 - `pnpm exec vitest run tests/connectors` covers the Microsoft Graph Entra read-only connector foundation with fixture-backed pagination, throttling, redaction, app-role mapping, no-write behavior, and optional runtime registration.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm build` verify TypeScript quality across supported Node versions.
 - `pnpm evidence:check` regenerates proof-point evidence in check mode and fails when the committed report no longer matches the normalized generated output.

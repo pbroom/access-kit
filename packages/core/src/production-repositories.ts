@@ -37,7 +37,7 @@ import {
 } from "./repository-envelopes.js";
 import type { RebacGraphStorageReceipt, RebacJobStorageReceipt } from "./repositories.js";
 
-export type ProductionRepositoryStoreComponent = "graph" | "connector_state";
+export type ProductionRepositoryStoreComponent = "graph" | "connector_state" | "job";
 export type ProductionConnectorStateCapability =
   | "connector_state_read"
   | "connector_state_write"
@@ -73,6 +73,7 @@ export interface ProductionRepositoryBackupMetadata {
 export interface ExternalSnapshotStore<TRecord extends object> {
   readCurrent(): TRecord | undefined;
   writeCurrent(record: TRecord): void;
+  compareExchangeCurrent(expected: TRecord | undefined, record: TRecord): boolean;
   readBackup(id: CanonicalId): TRecord | undefined;
   writeBackup(id: CanonicalId, record: TRecord): void;
 }
@@ -121,6 +122,18 @@ export class InMemoryExternalSnapshotStore<TRecord extends object> implements Ex
 
   writeCurrent(record: TRecord): void {
     this.#current = clone(record);
+  }
+
+  compareExchangeCurrent(expected: TRecord | undefined, record: TRecord): boolean {
+    const currentHash = this.#current === undefined ? undefined : stableHash(this.#current);
+    const expectedHash = expected === undefined ? undefined : stableHash(expected);
+
+    if (currentHash !== expectedHash) {
+      return false;
+    }
+
+    this.writeCurrent(record);
+    return true;
   }
 
   readBackup(id: CanonicalId): TRecord | undefined {

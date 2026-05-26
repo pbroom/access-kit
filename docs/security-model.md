@@ -36,7 +36,7 @@ Phase 4 controlled enforcement is restricted to the synthetic `mock` connector. 
 - Low-risk cached reads may use short-lived cached decisions only when policy explicitly permits it.
 - Provisioning never assumes success and must verify target state after every write.
 - Enforcement planning fails closed when the caller omits readiness evidence or presents a blocked, missing, mismatched, or live-write-enabled readiness report.
-- Connector outages queue work, mark the connector degraded, and must not silently skip revocations.
+- Connector outages queue work, mark the connector degraded, and must not silently skip revocations. The production queue adapter keeps emergency revocations reservable even when normal connector work is degraded, records dead-lettered failures for operator replay, and preserves idempotency hashes so duplicate deliveries cannot silently turn into different work.
 - Revocation and quarantine actions have priority over new grants.
 
 ## Audit
@@ -45,7 +45,7 @@ Every decision, denial, grant, revoke, policy change, connector action, admin ac
 
 Phase 5 evidence exports include local system-boundary, data-flow, access-review, exception, incident, break-glass, backup/restore, dependency, vulnerability, and configuration-baseline proof points. These are synthetic evidence contracts for assessor review; production workflows still require deployment-specific approvals, retention, recovery testing, and security tooling.
 
-Production graph and connector-state adapters reject malformed hash envelopes, secret-bearing records, and cross-tenant persisted entities before serving data. The connector-state adapter remains separate from the future durable queue boundary, so storing discovery and reconciliation history does not authorize live writes or imply job-execution readiness.
+Production graph, connector-state, and queue adapters reject malformed hash envelopes, secret-bearing records, and cross-tenant persisted entities before serving data. The connector-state adapter remains separate from the durable queue boundary, so storing discovery and reconciliation history does not authorize live writes or imply job-execution readiness. Queue workers still execute through runtime approval and readiness gates before controlled enforcement can complete.
 
 ## Privacy
 

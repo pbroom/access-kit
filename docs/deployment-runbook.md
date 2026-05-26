@@ -53,6 +53,7 @@ Before traffic is shifted, verify:
 - Readiness and health probe observations.
 - Authentication boundary smoke-test result.
 - Audit/evidence write verification.
+- Queue worker health, retry/backoff, dead-letter replay, and emergency revocation priority observations when a queue worker is enabled.
 - Rollback or exception record when applicable.
 
 ## Deferred Production Controls
@@ -63,4 +64,5 @@ Before traffic is shifted, verify:
 - Identity-provider-backed API authentication and operator authorization.
 - Approved secrets delivery.
 - Environment-specific graph, connector-state, queue, and append-only audit storage drivers behind the validated adapter contracts.
+- Managed queue worker deployment, monitoring, and on-call procedures for retries, dead letters, replay, and emergency revocation handling.
 - Agency-specific change-management and release approvals.

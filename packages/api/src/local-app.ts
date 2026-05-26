@@ -196,6 +196,7 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
     persistenceDegradations,
     graphRepository: persistence.graphRepository,
     jobRepository: persistence.jobRepository,
+    jobQueue: persistence.jobQueue,
     stateRepository: persistence.stateRepository,
     auditRepository: persistence.auditRepository,
     evidenceRepository: persistence.evidenceRepository,

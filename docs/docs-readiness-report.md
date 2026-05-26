@@ -205,7 +205,7 @@ The documentation connects architecture, control families, implementation behavi
 ## Known Gaps
 
 - Live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, AD, and Entra ID connector behavior remains planned/draft unless explicitly implemented.
-- Persistent graph storage, durable queueing, production WORM audit storage, approved SIEM forwarding, production deployment packaging, and production evidence retention remain future work.
+- Environment-specific graph storage drivers, managed queue workers, production WORM audit storage, approved SIEM forwarding, production deployment packaging, and production evidence retention remain future work.
 - OSCAL output is guidance only; no OSCAL generator is implemented.
 - Production runbook exercises, post-action reviews, and assessor-approved control statements are deployment-specific and out of scope for the local documentation foundation.
 

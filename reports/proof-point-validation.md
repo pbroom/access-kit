@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T05:13:02.257Z
+Generated at: 2026-05-26T05:49:41.621Z
 
-Branch: codex/rebac-microsoft-graph-entra-readonly
+Branch: codex/rebac-production-job-queue
 
 Node: v24.4.1
 
@@ -34,14 +34,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-production-job-queue
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-production-job-queue
 > tsx scripts/validate-schemas.ts
 
 Validated 17 schemas and 17 example fixtures.
@@ -67,10 +67,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-production-job-queue
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-production-job-queue/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -82,7 +82,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-production-job-queue
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -105,7 +105,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-production-job-queue
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -118,23 +118,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-production-job-queue
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-job-queue
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  01:12:55
-   Duration  388ms (transform 145ms, setup 0ms, import 257ms, tests 33ms, environment 0ms)
+   Start at  01:49:34
+   Duration  395ms (transform 155ms, setup 0ms, import 269ms, tests 33ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-production-job-queue
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -145,7 +145,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-production-job-queue
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -156,7 +156,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-production-job-queue
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -167,7 +167,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-production-job-queue
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -178,61 +178,61 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-production-job-queue
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-job-queue
 
 
  Test Files  6 passed (6)
-      Tests  92 passed (92)
-   Start at  01:12:58
-   Duration  281ms (transform 584ms, setup 0ms, import 743ms, tests 70ms, environment 0ms)
+      Tests  102 passed (102)
+   Start at  01:49:38
+   Duration  310ms (transform 682ms, setup 0ms, import 846ms, tests 82ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-production-job-queue
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-job-queue
 
 
- Test Files  2 passed (2)
-      Tests  88 passed (88)
-   Start at  01:12:59
-   Duration  636ms (transform 237ms, setup 0ms, import 345ms, tests 280ms, environment 0ms)
+ Test Files  3 passed (3)
+      Tests  90 passed (90)
+   Start at  01:49:38
+   Duration  677ms (transform 465ms, setup 0ms, import 685ms, tests 309ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-job-queue
 
 
  Test Files  1 passed (1)
       Tests  7 passed (7)
-   Start at  01:13:00
-   Duration  255ms (transform 114ms, setup 0ms, import 141ms, tests 21ms, environment 0ms)
+   Start at  01:49:39
+   Duration  269ms (transform 126ms, setup 0ms, import 154ms, tests 21ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-production-job-queue
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-job-queue
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  01:13:01
-   Duration  436ms (transform 416ms, setup 0ms, import 768ms, tests 157ms, environment 0ms)
+   Start at  01:49:40
+   Duration  448ms (transform 439ms, setup 0ms, import 790ms, tests 159ms, environment 0ms)
 ```
 
 
@@ -248,8 +248,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
 - Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.
 - Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
-- Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, and production external adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph and connector-state tenant/secret/backup checks, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
-- API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
+- Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, and queue tenant/secret/backup checks, queue idempotency, priority, retry, dead-letter, replay, and connector-health semantics, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
+- API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
 - Microsoft Graph connector tests for Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
@@ -258,12 +258,12 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-graph-entra-readonly
 
 - Select and configure an environment-specific production relationship graph and policy model store driver behind the production graph adapter.
 - Replace local append-only audit persistence with production WORM or immutable ledger-backed audit storage.
-- Replace local JSON job persistence with production queue/job storage behind the persistent storage contracts.
+- Select and configure an environment-specific queue driver behind the production queue/job adapter.
 - Replace synthetic production persistence manifest evidence with environment-specific IaC outputs, approvals, and retained evidence artifacts.
 - Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and SIEM export metadata with durable append-only audit storage, approved SIEM forwarding, retention, and replay procedures.
 - Retain live Microsoft Graph sandbox evidence for environment-specific verification, and replace remaining synthetic SharePoint and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Select and configure environment-specific production connector-state storage behind the production connector-state adapter for discovery runs, native-grant readback, drift findings, and reconciliation evidence.
-- Replace local JSON dry-run provisioning, controlled synthetic enforcement, readiness gates, and reconciliation jobs with durable queues, retries, and dead-letter handling.
+- Deploy managed queue workers with production monitoring, retry, dead-letter, replay, and emergency revocation operating procedures.
 - Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, emergency revocation behavior, and connector least-privilege review are complete.
 - Replace local ATO package proof points with deployment-specific diagrams, assessor-reviewed control statements, retained SBOM/security artifacts, access review campaigns, exception workflow, backup/restore test evidence, and ConMon delivery.

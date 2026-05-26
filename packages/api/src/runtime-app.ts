@@ -5,6 +5,7 @@ import type {
   EvidencePackageRepository,
   InMemoryRebacStore,
   PersistenceDegradationReceipt,
+  ProductionJobQueueAdapter,
   RebacDecisionEngine,
   RebacGraphRepository,
   RebacJobRepository,
@@ -19,6 +20,7 @@ export interface RebacLocalAppOptions {
   persistence?: RebacRuntimePersistence;
   graphRepository?: RebacGraphRepository;
   jobRepository?: RebacJobRepository;
+  jobQueue?: ProductionJobQueueAdapter;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
@@ -27,6 +29,7 @@ export interface RebacLocalAppOptions {
 export interface RebacRuntimePersistence {
   graphRepository?: RebacGraphRepository;
   jobRepository?: RebacJobRepository;
+  jobQueue?: ProductionJobQueueAdapter;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
@@ -52,6 +55,7 @@ export interface RebacLocalApp {
   persistenceDegradations: RebacPersistenceDegradation[];
   graphRepository?: RebacGraphRepository;
   jobRepository?: RebacJobRepository;
+  jobQueue?: ProductionJobQueueAdapter;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
@@ -61,9 +65,12 @@ export interface RebacLocalApp {
 }
 
 export function normalizeRuntimePersistence(options: RebacLocalAppOptions): RebacRuntimePersistence {
+  const jobQueue = options.persistence?.jobQueue ?? options.jobQueue;
+
   return {
     graphRepository: options.persistence?.graphRepository ?? options.graphRepository,
-    jobRepository: options.persistence?.jobRepository ?? options.jobRepository,
+    jobRepository: options.persistence?.jobRepository ?? options.jobRepository ?? jobQueue,
+    jobQueue,
     stateRepository: options.persistence?.stateRepository ?? options.stateRepository,
     auditRepository: options.persistence?.auditRepository ?? options.auditRepository,
     evidenceRepository: options.persistence?.evidenceRepository ?? options.evidenceRepository
