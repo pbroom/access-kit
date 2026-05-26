@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T04:24:15.299Z
+Generated at: 2026-05-26T04:27:39.467Z
 
 Branch: codex/rebac-production-graph-store
 
@@ -126,8 +126,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  00:24:09
-   Duration  364ms (transform 138ms, setup 0ms, import 243ms, tests 32ms, environment 0ms)
+   Start at  00:27:33
+   Duration  365ms (transform 136ms, setup 0ms, import 242ms, tests 33ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -186,8 +186,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  6 passed (6)
       Tests  92 passed (92)
-   Start at  00:24:12
-   Duration  292ms (transform 620ms, setup 0ms, import 781ms, tests 70ms, environment 1ms)
+   Start at  00:27:36
+   Duration  280ms (transform 570ms, setup 0ms, import 727ms, tests 72ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -202,8 +202,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  2 passed (2)
       Tests  88 passed (88)
-   Start at  00:24:13
-   Duration  644ms (transform 231ms, setup 0ms, import 338ms, tests 296ms, environment 0ms)
+   Start at  00:27:37
+   Duration  628ms (transform 232ms, setup 0ms, import 341ms, tests 280ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -218,8 +218,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  00:24:14
-   Duration  429ms (transform 378ms, setup 0ms, import 740ms, tests 155ms, environment 0ms)
+   Start at  00:27:38
+   Duration  424ms (transform 370ms, setup 0ms, import 729ms, tests 158ms, environment 0ms)
 ```
 
 
