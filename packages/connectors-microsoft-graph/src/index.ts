@@ -24,14 +24,13 @@ import {
 } from "@access-kit/core";
 
 export const MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID = "microsoft-graph-entra-readonly";
-export const MICROSOFT_GRAPH_M365_TEAMS_REQUIRED_READ_SCOPES = [
+export const MICROSOFT_GRAPH_M365_TEAMS_RESOURCE_SPECIFIC_READ_SCOPES = [
   "TeamSettings.Read.Group"
 ] as const;
 export const MICROSOFT_GRAPH_ENTRA_REQUIRED_READ_SCOPES = [
   "User.Read.All",
   "GroupMember.Read.All",
-  "Application.Read.All",
-  ...MICROSOFT_GRAPH_M365_TEAMS_REQUIRED_READ_SCOPES
+  "Application.Read.All"
 ] as const;
 export const MICROSOFT_GRAPH_ENTRA_FORBIDDEN_WRITE_SCOPES = [
   "User.ReadWrite.All",
@@ -412,7 +411,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         requiredReadScopes: this.requiredReadScopes,
         forbiddenWriteScopes: [...MICROSOFT_GRAPH_ENTRA_FORBIDDEN_WRITE_SCOPES],
         scopeJustification:
-          "User, group membership and ownership, application, and scoped Teams settings read permissions are sufficient for redacted Entra, Microsoft 365 group, Teams coupling, service-principal, and app-role assignment readback without provider writes."
+          "User, group membership and ownership, and application read permissions are sufficient for redacted tenant-wide Entra, Microsoft 365 group, service-principal, and app-role assignment readback without provider writes. TeamSettings.Read.Group is resource-specific consent and only enriches team records when granted for that team."
       },
       operations: {
         pagination: "required",
@@ -901,19 +900,22 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       `/groups/${encodeURIComponent(group.id!)}/owners?$select=id,displayName,userPrincipalName,appId,servicePrincipalType`,
       "relationships"
     );
-    this.#pushWarning({
-      code: "GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED",
-      message: "Microsoft Graph group-owner readback can omit service-principal owners in some tenants or rollout states; ownership evidence should treat missing service principals as coverage-limited.",
-      severity: "info",
-      scope: "relationships",
-      retryable: false
-    });
 
     if (owners.length === 0) {
       this.#pushWarning({
         code: "GRAPH_M365_GROUP_OWNER_COVERAGE_EMPTY",
         message: "Microsoft Graph returned no owners for a Microsoft 365 group; ownership coverage was retained as a warning instead of inventing canonical owners.",
         severity: "warning",
+        scope: "relationships",
+        retryable: false
+      });
+    }
+
+    if (owners.some(isGraphServicePrincipalObject)) {
+      this.#pushWarning({
+        code: "GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED",
+        message: "Microsoft Graph returned service-principal group owners; ownership evidence should treat service-principal owner coverage as tenant-rollout dependent.",
+        severity: "info",
         scope: "relationships",
         retryable: false
       });
@@ -1338,6 +1340,10 @@ function isM365Group(group: GraphGroup): boolean {
 
 function isTeamsBackedGroup(group: GraphGroup): boolean {
   return (group.resourceProvisioningOptions ?? []).some((option) => option.toLowerCase() === "team");
+}
+
+function isGraphServicePrincipalObject(object: GraphDirectoryObject): boolean {
+  return object["@odata.type"] === "#microsoft.graph.servicePrincipal" || Boolean(object.appId || object.servicePrincipalType);
 }
 
 function nativeGrantTypeForPrincipal(principalType: NativePrincipalType): NativeGrant["grantType"] {

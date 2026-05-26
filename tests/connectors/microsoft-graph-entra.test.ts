@@ -202,6 +202,23 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     expect(serialized).not.toContain("raw-m365-group-1");
   });
 
+  it("does not emit service-principal owner visibility warnings for user-only owners", async () => {
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client: createM365TeamsFixtureClient([
+        { id: "raw-user-owner", "@odata.type": "#microsoft.graph.user", displayName: "Owner Example" }
+      ]),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-m365-teams-sandbox-fixture.json"
+    });
+
+    await connector.discoverRelationships();
+
+    expect(connector.getDiscoveryMetadata().warnings.map((warning) => warning.code))
+      .not.toContain("GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED");
+  });
+
   it("keeps live provider writes disabled even when provisioning hooks are called", async () => {
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
       client: createFixtureClient(),
@@ -542,7 +559,10 @@ function createFixtureClient(): FixtureGraphClient {
   });
 }
 
-function createM365TeamsFixtureClient(): FixtureGraphClient {
+function createM365TeamsFixtureClient(ownerObjects: Array<Record<string, unknown>> = [
+  { id: "raw-user-owner", "@odata.type": "#microsoft.graph.user", displayName: "Owner Example" },
+  { id: "raw-sp-bot", "@odata.type": "#microsoft.graph.servicePrincipal", displayName: "Automation Bot" }
+]): FixtureGraphClient {
   return new FixtureGraphClient({
     "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
       {
@@ -606,10 +626,7 @@ function createM365TeamsFixtureClient(): FixtureGraphClient {
     ],
     "/groups/raw-m365-group-1/owners?$select=id,displayName,userPrincipalName,appId,servicePrincipalType": [
       {
-        value: [
-          { id: "raw-user-owner", "@odata.type": "#microsoft.graph.user", displayName: "Owner Example" },
-          { id: "raw-sp-bot", "@odata.type": "#microsoft.graph.servicePrincipal", displayName: "Automation Bot" }
-        ],
+        value: ownerObjects,
         status: 200
       }
     ],

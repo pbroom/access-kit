@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T02:58:58.717Z
+Generated at: 2026-05-28T02:59:39.773Z
 
 Branch: 
 
@@ -130,8 +130,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  22:58:53
-   Duration  294ms (transform 132ms, setup 0ms, import 211ms, tests 20ms, environment 0ms)
+   Start at  22:59:34
+   Duration  270ms (transform 126ms, setup 0ms, import 199ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -212,8 +212,8 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 
  Test Files  10 passed (10)
       Tests  148 passed (148)
-   Start at  22:58:56
-   Duration  229ms (transform 823ms, setup 0ms, import 1.14s, tests 100ms, environment 0ms)
+   Start at  22:59:37
+   Duration  224ms (transform 784ms, setup 0ms, import 1.10s, tests 103ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -228,8 +228,8 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 
  Test Files  4 passed (4)
       Tests  107 passed (107)
-   Start at  22:58:56
-   Duration  486ms (transform 460ms, setup 0ms, import 700ms, tests 258ms, environment 0ms)
+   Start at  22:59:37
+   Duration  475ms (transform 467ms, setup 0ms, import 697ms, tests 249ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -239,9 +239,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
 
 
  Test Files  3 passed (3)
-      Tests  34 passed (34)
-   Start at  22:58:57
-   Duration  213ms (transform 296ms, setup 0ms, import 408ms, tests 43ms, environment 0ms)
+      Tests  35 passed (35)
+   Start at  22:59:38
+   Duration  211ms (transform 293ms, setup 0ms, import 404ms, tests 43ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -256,8 +256,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  22:58:58
-   Duration  311ms (transform 349ms, setup 0ms, import 604ms, tests 107ms, environment 0ms)
+   Start at  22:59:39
+   Duration  305ms (transform 345ms, setup 0ms, import 596ms, tests 104ms, environment 0ms)
 ```
 
 

@@ -10,11 +10,11 @@
   },
   "consent": {
     "status": "approved",
-    "scopesApproved": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All", "TeamSettings.Read.Group"],
+    "scopesApproved": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"],
     "evidence": ["docs/connector-contract.md", "docs/security-model.md"]
   },
   "leastPrivilege": {
-    "requiredReadScopes": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All", "TeamSettings.Read.Group"],
+    "requiredReadScopes": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"],
     "forbiddenWriteScopes": [
       "User.ReadWrite.All",
       "Group.ReadWrite.All",
@@ -24,7 +24,7 @@
       "Directory.ReadWrite.All",
       "TeamSettings.ReadWrite.Group"
     ],
-    "scopeJustification": "User, group membership and ownership, application, and scoped Teams settings read permissions are sufficient for redacted Entra, Microsoft 365 group, Teams coupling, service-principal, and app-role assignment readback without provider writes."
+    "scopeJustification": "User, group membership and ownership, and application read permissions are sufficient for redacted tenant-wide Entra, Microsoft 365 group, service-principal, and app-role assignment readback without provider writes. TeamSettings.Read.Group is resource-specific consent and only enriches team records when granted for that team."
   },
   "operations": {
     "pagination": "required",
