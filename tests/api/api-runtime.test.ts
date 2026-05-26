@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   AuditRecorder,
+  createDefaultPolicyModel,
   LocalAppendOnlyAuditRepository,
   LocalFileEvidenceRepository,
   LocalJsonFileGraphRepository,
@@ -31,14 +32,18 @@ import {
 import {
   checkDecision,
   checkEnforcementReadiness,
+  createPolicy,
   createProvisioningJob,
   createProvisioningPlan,
   createRebacApiServer,
   createRebacLocalApp,
   createLocalRuntimePersistence,
+  listPolicies,
+  publishPolicy,
   readRebacApiRuntimeConfig,
   runReconciliation,
   syncConnector,
+  validatePolicy,
   type RebacApiServerOptions
 } from "../../packages/api/src/index.js";
 
@@ -86,7 +91,7 @@ describe("ReBAC API runtime", () => {
 
     const draft = await postWithIdempotency<JsonObject>("/v1/policies", "idem-policy-create", {
       name: "case access",
-      model: { effect: "allow" },
+      model: createDefaultPolicyModel(),
       tests: [{ name: "default proof points" }]
     });
     expect(draft).toMatchObject({
@@ -100,7 +105,10 @@ describe("ReBAC API runtime", () => {
     });
     expect(validation).toMatchObject({
       valid: true,
-      checks: [{ name: "syntax", status: "pass", message: expect.any(String) }]
+      checks: expect.arrayContaining([
+        { name: "schema_version", status: "pass", message: expect.any(String) },
+        { name: "tenant_boundary_fail_closed", status: "pass", message: expect.any(String) }
+      ])
     });
 
     const published = await postWithIdempotency<JsonObject>(
@@ -116,6 +124,17 @@ describe("ReBAC API runtime", () => {
       status: "published",
       publishedAt: "2026-05-21T17:05:00.000Z"
     });
+
+    const duplicatePublish = await fetch(`${baseUrl}/v1/policies/${encodeURIComponent(String(draft.id))}/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-policy-publish-again" },
+      body: JSON.stringify({
+        changeTicket: "CHG-1234",
+        approverId: "user:policy-approver"
+      })
+    });
+    expect(duplicatePublish.status).toBe(409);
+    await expect(duplicatePublish.json()).resolves.toMatchObject({ code: "POLICY_NOT_VALIDATED" });
 
     const rolledBack = await postWithIdempotency<JsonObject>(
       `/v1/policies/${encodeURIComponent(String(draft.id))}/rollback`,
@@ -133,10 +152,41 @@ describe("ReBAC API runtime", () => {
     });
     expect(rolledBack.publishedAt).toBe(published.publishedAt);
 
+    await post<JsonObject>(`/v1/policies/${encodeURIComponent(String(draft.id))}/validate`, {
+      mode: "validate"
+    });
+    const republished = await postWithIdempotency<JsonObject>(
+      `/v1/policies/${encodeURIComponent(String(draft.id))}/publish`,
+      "idem-policy-republish",
+      {
+        changeTicket: "CHG-1236",
+        approverId: "user:policy-approver"
+      }
+    );
+    expect(republished).toMatchObject({
+      id: draft.id,
+      status: "published",
+      publishedAt: "2026-05-21T17:10:00.000Z"
+    });
+
     const secondDraft = await postWithIdempotency<JsonObject>("/v1/policies", "idem-policy-create-second", {
       name: "case escalation",
-      model: { effect: "allow" },
+      model: createDefaultPolicyModel(),
       tests: [{ name: "escalation proof points" }]
+    });
+    const unvalidatedPublish = await fetch(`${baseUrl}/v1/policies/${encodeURIComponent(String(secondDraft.id))}/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-policy-publish-unvalidated" },
+      body: JSON.stringify({
+        changeTicket: "CHG-2233",
+        approverId: "user:policy-approver"
+      })
+    });
+    expect(unvalidatedPublish.status).toBe(409);
+    await expect(unvalidatedPublish.json()).resolves.toMatchObject({ code: "POLICY_NOT_VALIDATED" });
+
+    await post<JsonObject>(`/v1/policies/${encodeURIComponent(String(secondDraft.id))}/validate`, {
+      mode: "validate"
     });
     const secondPublished = await postWithIdempotency<JsonObject>(
       `/v1/policies/${encodeURIComponent(String(secondDraft.id))}/publish`,
@@ -181,6 +231,34 @@ describe("ReBAC API runtime", () => {
     });
     expect(missingValidation.status).toBe(404);
     await expect(missingValidation.json()).resolves.toMatchObject({ code: "POLICY_NOT_FOUND" });
+  });
+
+  it("demotes validated policies when publish-time revalidation fails", () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    const model = createDefaultPolicyModel();
+    const policy = createPolicy(app, {
+      name: "mutable case access",
+      model,
+      tests: [{ name: "default proof points" }]
+    }, "idem-policy-create-mutable");
+
+    expect(validatePolicy(app, policy.id).valid).toBe(true);
+    expect(listPolicies(app).items.find((item) => item.id === policy.id)).toMatchObject({ status: "validated" });
+
+    model.actions.push({ name: "delete", grants: ["not_a_relation"] });
+
+    let error: unknown;
+    try {
+      publishPolicy(app, policy.id, {
+        changeTicket: "CHG-VALIDATION-FAIL",
+        approverId: "user:policy-approver"
+      }, "idem-policy-publish-invalid");
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toMatchObject({ code: "POLICY_VALIDATION_FAILED", statusCode: 422 });
+    expect(listPolicies(app).items.find((item) => item.id === policy.id)).toMatchObject({ status: "draft" });
   });
 
   it("serves readiness without auth and reports runtime guardrails", async () => {
@@ -592,7 +670,7 @@ describe("ReBAC API runtime", () => {
       {
         path: "/v1/policies",
         idempotencyKey: "idem-invalid-policy-draft",
-        body: { name: "bad", model: {}, tests: [], unexpected: true },
+        body: { name: "bad", model: createDefaultPolicyModel(), tests: [], unexpected: true },
         expectedCode: "INVALID_POLICY_DRAFT"
       },
       {

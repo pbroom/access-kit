@@ -4,6 +4,7 @@ export * from "./engine.js";
 export * from "./evidence-integrity.js";
 export * from "./fixtures.js";
 export * from "./persistence.js";
+export * from "./policy-model.js";
 export * from "./policy-proof-points.js";
 export * from "./repositories.js";
 export * from "./store.js";

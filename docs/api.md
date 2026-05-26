@@ -60,6 +60,14 @@ Decisions do not create grants and do not mutate native providers. Provisioning 
 
 `GET /v1/resources/{id}/native-access` returns observed `NativeGrant` records from the latest discovery data. It supports connector, subject, native permission, grant type, and principal type filters. These records represent provider readback only; they are not intended grants and do not create authorization decisions.
 
+## Policy Lifecycle
+
+`POST /v1/policies` accepts a draft with a versioned model matching `schemas/policy-model.schema.json` and synthetic test descriptors. Draft creation stores the candidate model but does not make it publishable.
+
+`POST /v1/policies/{id}/validate` runs deterministic static validation from `packages/core/src/policy-model.ts`. Successful validation moves a draft to `validated`; test mode also records proof-point eligibility.
+
+`POST /v1/policies/{id}/publish` fails closed unless the policy has passed validation. Unvalidated drafts return `POLICY_NOT_VALIDATED`; models that no longer pass validation return `POLICY_VALIDATION_FAILED`.
+
 ## Phase 3 And 4 Provisioning
 
 `POST /v1/provisioning/plans` defaults to `mode: "dry_run"` with `dryRun: true`. A plan records connector ID, action idempotency keys, pending verification metadata, and compensation intent. Revocation plans use `grantId`; grant/repair plans use subject, resource, and action.

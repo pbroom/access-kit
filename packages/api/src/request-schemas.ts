@@ -25,6 +25,69 @@ ajv.addFormat("date-time", {
 const idPattern = "^[a-z0-9_:-]+$";
 const dateTime = { type: "string", format: "date-time" } as const;
 const jsonObject = { type: "object", additionalProperties: true } as const;
+const policyModelSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "schemaVersion",
+    "id",
+    "version",
+    "resourceTypes",
+    "relations",
+    "actions",
+    "inheritanceRules",
+    "denyRules",
+    "contextConstraints",
+    "classificationConstraints",
+    "tenantBoundary",
+    "migrations"
+  ],
+  properties: {
+    schemaVersion: { const: "access-kit.policy-model.v1" },
+    id: { type: "string", pattern: idPattern },
+    version: { type: "string", minLength: 1 },
+    resourceTypes: {
+      type: "array",
+      minItems: 1,
+      items: jsonObject
+    },
+    relations: {
+      type: "array",
+      minItems: 1,
+      items: jsonObject
+    },
+    actions: {
+      type: "array",
+      minItems: 1,
+      items: jsonObject
+    },
+    inheritanceRules: {
+      type: "array",
+      minItems: 1,
+      items: jsonObject
+    },
+    denyRules: {
+      type: "array",
+      minItems: 1,
+      items: jsonObject
+    },
+    contextConstraints: {
+      type: "array",
+      items: jsonObject
+    },
+    classificationConstraints: {
+      type: "array",
+      minItems: 1,
+      items: jsonObject
+    },
+    tenantBoundary: jsonObject,
+    migrations: {
+      type: "array",
+      items: jsonObject
+    },
+    metadata: jsonObject
+  }
+} as const;
 const enforcementControlSchema = {
   type: "object",
   additionalProperties: false,
@@ -103,7 +166,7 @@ const schemas: Record<RuntimeRequestSchemaName, object> = {
     required: ["name", "model", "tests"],
     properties: {
       name: { type: "string", minLength: 1 },
-      model: jsonObject,
+      model: policyModelSchema,
       tests: {
         type: "array",
         items: jsonObject

@@ -11,7 +11,7 @@ This glossary aligns documentation, API contracts, CLI commands, schemas, runboo
 | Subject | A person, group, service account, service principal, managed identity, device, or workload. | `schemas/subject.schema.json` |
 | Resource | A governed object such as a workspace, document, application, dataset, AWS role, or API. | `schemas/resource.schema.json` |
 | Relationship tuple | A versioned business fact connecting a subject to an object through a relation. It is not a permission by itself. | `schemas/relationship.schema.json` |
-| Policy model | Versioned authorization rules that interpret relationship facts and request context. | `tests/fixtures/policy/proof-points.json` |
+| Policy model | Versioned authorization rules that interpret relationship facts and request context. | `schemas/policy-model.schema.json`, `packages/core/src/policy-model.ts`, `tests/fixtures/policy/proof-points.json` |
 | Decision | A deterministic allow or deny result for subject, action, resource, policy version, and relationship version. | `schemas/decision.schema.json` |
 | Explanation | Decision evidence that includes reason code, relationship path, constraints, and versions. The current response shape is the decision schema with relationship path populated. | `schemas/decision.schema.json` |
 | Reason code | Stable machine-readable decision rationale such as `ALLOW_VIA_RELATIONSHIP_PATH` or `DENY_DEFAULT_NO_RELATIONSHIP_PATH`. | `packages/core/src/engine.ts` |

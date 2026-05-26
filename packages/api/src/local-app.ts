@@ -6,6 +6,7 @@ import {
   RebacDecisionEngine,
   sha256,
   stableStringify,
+  validatePolicyModel,
   verifyAuditChain,
   type AccessReviewEvidence,
   type AuditEvent,
@@ -36,6 +37,8 @@ import {
   type ExceptionRecord,
   type JsonRecord,
   type PoamItem,
+  type PolicyModel,
+  type PolicyModelValidationResult,
   type NativeGrant,
   type NativeGrantType,
   type NativePrincipalType,
@@ -115,7 +118,7 @@ interface AuditEventExportOptions {
 
 export interface PolicyDraft {
   name: string;
-  model: JsonRecord;
+  model: PolicyModel;
   tests: JsonRecord[];
 }
 
@@ -127,10 +130,7 @@ export interface PolicySummary {
   publishedAt?: string;
 }
 
-export interface PolicyValidationResult {
-  valid: boolean;
-  checks: Array<{ name: string; status: "pass" | "warn" | "fail"; message?: string; evidence?: JsonRecord }>;
-}
+export type PolicyValidationResult = PolicyModelValidationResult;
 
 interface PolicyPublishRequest {
   changeTicket: string;
@@ -141,8 +141,14 @@ interface PolicyRollbackRequest extends PolicyPublishRequest {
   targetVersion: string;
 }
 
+interface PolicyRecord {
+  draft: PolicyDraft;
+  summary: PolicySummary;
+  validation?: PolicyValidationResult;
+}
+
 interface PolicyState {
-  policies: Map<string, PolicySummary>;
+  policies: Map<string, PolicyRecord>;
   idempotency: Map<string, PolicySummary>;
 }
 
@@ -212,7 +218,7 @@ export function explainDecision(app: RebacLocalApp, request: DecisionRequest): R
 }
 
 export function listPolicies(app: RebacLocalApp): { items: PolicySummary[] } {
-  return { items: [...policyState(app).policies.values()] };
+  return { items: [...policyState(app).policies.values()].map((record) => record.summary) };
 }
 
 export function createPolicy(app: RebacLocalApp, draft: PolicyDraft, idempotencyKey: string): PolicySummary {
@@ -231,7 +237,7 @@ export function createPolicy(app: RebacLocalApp, draft: PolicyDraft, idempotency
     status: "draft",
     createdAt
   };
-  state.policies.set(id, summary);
+  state.policies.set(id, { draft, summary });
   state.idempotency.set(`create:${idempotencyKey}`, summary);
   return summary;
 }
@@ -244,20 +250,27 @@ export function validatePolicy(app: RebacLocalApp, policyId: string, mode: "vali
     throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
   }
 
-  if (existing.status === "draft") {
-    state.policies.set(policyId, { ...existing, status: "validated" });
-  }
+  const validation = validatePolicyModel(existing.draft.model);
+  const checks = mode === "test" && validation.valid
+    ? [
+        ...validation.checks,
+        {
+          name: "proof_points",
+          status: "pass" as const,
+          message: "Policy model is eligible for deterministic proof-point execution."
+        }
+      ]
+    : validation.checks;
+  const result: PolicyValidationResult = { valid: validation.valid, checks };
+  const summary =
+    validation.valid && ["draft", "rolled_back", "validated"].includes(existing.summary.status)
+      ? { ...existing.summary, status: "validated" as const }
+      : !validation.valid && existing.summary.status === "validated"
+        ? { ...existing.summary, status: "draft" as const }
+        : existing.summary;
 
-  return {
-    valid: true,
-    checks: [
-      {
-        name: mode === "test" ? "proof_points" : "syntax",
-        status: "pass",
-        message: "Local policy contract accepted for the current ReBAC runtime."
-      }
-    ]
-  };
+  state.policies.set(policyId, { ...existing, summary, validation: result });
+  return result;
 }
 
 export function publishPolicy(app: RebacLocalApp, policyId: string, request: PolicyPublishRequest, idempotencyKey: string): PolicySummary {
@@ -274,17 +287,32 @@ export function publishPolicy(app: RebacLocalApp, policyId: string, request: Pol
     throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
   }
 
+  if (prior.summary.status !== "validated") {
+    throw new RebacLocalAppError(409, "POLICY_NOT_VALIDATED", `Policy ${policyId} must pass validation before publication.`);
+  }
+
+  const validation = validatePolicyModel(prior.draft.model);
+  if (!validation.valid) {
+    state.policies.set(policyId, {
+      ...prior,
+      summary: { ...prior.summary, status: "draft" },
+      validation
+    });
+    throw new RebacLocalAppError(422, "POLICY_VALIDATION_FAILED", `Policy ${policyId} failed deterministic validation.`);
+  }
+
+  // Approval fields are validated at the HTTP boundary but not persisted by the local stub.
+  void request;
+
   const now = app.now();
   const summary: PolicySummary = {
     id: policyId,
     version: `${policyId}:published`,
     status: "published",
-    createdAt: prior.createdAt,
+    createdAt: prior.summary.createdAt,
     publishedAt: now
   };
-  // Approval fields are validated at the HTTP boundary but not persisted by the local stub.
-  void request;
-  state.policies.set(policyId, summary);
+  state.policies.set(policyId, { ...prior, summary, validation });
   state.idempotency.set(idempotencyScope, summary);
   return summary;
 }
@@ -307,10 +335,10 @@ export function rollbackPolicy(app: RebacLocalApp, policyId: string, request: Po
     id: policyId,
     version: request.targetVersion,
     status: "rolled_back",
-    createdAt: prior.createdAt,
-    publishedAt: prior.publishedAt
+    createdAt: prior.summary.createdAt,
+    publishedAt: prior.summary.publishedAt
   };
-  state.policies.set(policyId, summary);
+  state.policies.set(policyId, { ...prior, summary });
   state.idempotency.set(idempotencyScope, summary);
   return summary;
 }

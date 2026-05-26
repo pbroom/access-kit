@@ -1,9 +1,11 @@
 import proofPoints from "../tests/fixtures/policy/proof-points.json" assert { type: "json" };
 import {
+  createDefaultPolicyModel,
   type DriftFinding,
   evaluateDecisionProofPoint,
   evaluateIdempotencyProofPoint,
-  type PolicyProofPoint
+  type PolicyProofPoint,
+  validatePolicyModel
 } from "../packages/core/src/index.js";
 
 const validDriftStatuses = new Set<DriftFinding["status"]>([
@@ -37,6 +39,16 @@ const requiredProofPointNames = new Set([
 ]);
 
 const seen = new Set<string>();
+const modelValidation = validatePolicyModel(createDefaultPolicyModel());
+
+if (!modelValidation.valid) {
+  throw new Error(
+    `Default policy model failed validation: ${modelValidation.checks
+      .filter((check) => check.status === "fail")
+      .map((check) => check.message ?? check.name)
+      .join("; ")}`
+  );
+}
 
 for (const proof of proofPoints as PolicyProofPoint[]) {
   seen.add(proof.name);
@@ -79,6 +91,7 @@ for (const required of requiredProofPointNames) {
 }
 
 console.log(`Validated ${seen.size} policy proof points.`);
+console.log(`PASS default policy model -> ${modelValidation.checks.length} checks`);
 for (const name of seen) {
   console.log(`PASS ${name}`);
 }
