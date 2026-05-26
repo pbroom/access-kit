@@ -16,5 +16,8 @@ data:
   REBAC_PRODUCTION_SECRETS_MANAGER_REF: ref:replace-with-approved-secrets-manager
   REBAC_PRODUCTION_OBSERVABILITY_REF: ref:replace-with-approved-observability-stack
   REBAC_PRODUCTION_BACKUP_PLAN_REF: ref:replace-with-approved-backup-plan
+  # RTO/RPO defaults below apply to the relationship graph and native grants data class only.
+  # Queue, audit/evidence, connector-state, and configuration each have separate targets;
+  # see docs/production-reference-architecture.md#rtorpo-targets for the full table.
   REBAC_PRODUCTION_RTO: 4h
   REBAC_PRODUCTION_RPO: 15m
