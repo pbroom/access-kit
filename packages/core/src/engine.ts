@@ -595,12 +595,8 @@ function isVisibleAt(entity: { createdAt: string; updatedAt?: string; status?: s
 }
 
 function effectiveLifecycleStateAt(node: Subject | Resource, asOf: string): Subject["lifecycleState"] | Resource["lifecycleState"] {
-  if (node.lifecycleState === "active") {
-    return node.lifecycleState;
-  }
-
   if (node.updatedAt && Date.parse(node.updatedAt) > Date.parse(asOf)) {
-    return "active";
+    return node.lifecycleState === "active" ? "inactive" : "active";
   }
 
   return node.lifecycleState;
