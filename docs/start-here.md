@@ -42,6 +42,7 @@ pnpm ci:check
 | Source | Canonical path | Use |
 | --- | --- | --- |
 | Public API | `openapi/rebac-control-plane.yaml` | API routes, operation IDs, request and response schemas. |
+| API reference | `docs/api-reference.md` | Generated reference for auth, idempotency, parameters, responses, and example artifacts. |
 | Domain contracts | `schemas/*.schema.json` | Portable JSON object contracts. |
 | Runtime types | `packages/core/src/domain.ts` | TypeScript implementation types mirroring schema concepts. |
 | CLI contract | `packages/cli/src/commands.ts` | CLI command tree and API surface mapping. |

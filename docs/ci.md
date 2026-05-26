@@ -5,7 +5,7 @@
 The repo treats API and evidence contracts as first-class CI gates. Automation-specific validation reads `scripts/lib/automation-contract.ts`, the typed manifest that defines package-script expectations, CI job command expectations, steward label policy, stack readiness rules, and proof-point evidence command ordering.
 
 - `pnpm validate:contracts` validates JSON Schemas, OpenAPI paths, API examples, contract snapshots, generated client metadata, policy model validation, policy proof points, and CLI-to-API command mappings.
-- `pnpm validate:docs` validates relative Markdown links, required runbook sections, and documentation examples against JSON Schema/OpenAPI contracts.
+- `pnpm validate:docs` validates relative Markdown links, required runbook sections, documentation examples against JSON Schema/OpenAPI contracts, and generated API reference freshness.
 - `pnpm validate:automation` validates the implementation backlog, PR state labels, steward scripts, automation docs, and CI automation gate.
 - `pnpm validate:ci` validates that the GitHub Actions workflow still contains the expected contract, quality, evidence, and security jobs.
 - `pnpm validate:packaging` validates the deployable API Dockerfile, runtime healthcheck, non-root container contract, and container CI smoke-test wiring.
