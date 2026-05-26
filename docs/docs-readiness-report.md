@@ -23,7 +23,7 @@ The documentation goal is complete for the repository foundation after this foll
 | API overview, Decision API, API errors, reason codes | `docs/api.md`, `docs/decision-lifecycle.md`, `docs/explain-api.md` |
 | CLI overview and commands | `docs/cli.md`, `packages/cli/src/commands.ts` |
 | Policy model and testing | `docs/policy-testing-guide.md`, `tests/fixtures/policy/proof-points.json` |
-| Connector contract and capability model | `docs/connector-contract.md` |
+| Connector contract, capability model, and authoring guidance | `docs/connector-contract.md`, `docs/connector-authoring-tutorial.md` |
 | Security model and threat model | `docs/security-model.md`, `docs/threat-model.md` |
 | Audit logging and tamper evidence | `docs/audit-event-model.md` |
 | ATO overview, evidence catalog, OSCAL guidance | `docs/ato-evidence-model.md`, `docs/evidence-catalog.md` |
@@ -46,6 +46,7 @@ The documentation goal is complete for the repository foundation after this foll
 | Explain API | `docs/explain-api.md` | Added |
 | Audit Event Model | `docs/audit-event-model.md` | Added |
 | Connector Contract | `docs/connector-contract.md` | Added |
+| Connector Authoring Tutorial | `docs/connector-authoring-tutorial.md` | Added |
 | Drift Detection Model | `docs/drift-detection-model.md` | Added |
 | Evidence Catalog | `docs/evidence-catalog.md` | Added |
 | Control Traceability Matrix | `docs/control-traceability-matrix.md` | Added |
@@ -78,6 +79,7 @@ The documentation goal is complete for the repository foundation after this foll
 | `adrs/ADR-0002-deterministic-authorization.md` | `adrs/0002-deterministic-authorization.md` | Mapped | Existing ADR naming convention wins. |
 | `docs/runbooks/*.md` | `runbooks/*.md` | Added top-level runbook family | Runbooks are operational artifacts distinct from narrative docs; README documents the location. |
 | `docs/docs-readiness-report.md` | `docs/docs-readiness-report.md` | Added | Required readiness artifact had no equivalent. |
+| `docs/connector-authoring-tutorial.md` | `docs/connector-authoring-tutorial.md` | Added | Author-facing connector guidance is distinct from the connector contract and sample connector template. |
 | OSCAL artifacts | `docs/ato-evidence-model.md` | Guidance only | OSCAL generation is not implemented; downstream OSCAL should transform canonical evidence export data. |
 
 ## Existing Artifacts Reused
@@ -109,6 +111,7 @@ The documentation goal is complete for the repository foundation after this foll
 - `docs/explain-api.md`
 - `docs/audit-event-model.md`
 - `docs/connector-contract.md`
+- `docs/connector-authoring-tutorial.md`
 - `docs/drift-detection-model.md`
 - `docs/evidence-catalog.md`
 - `docs/control-traceability-matrix.md`
@@ -172,6 +175,13 @@ The documentation connects architecture, control families, implementation behavi
 
 ## Validation Performed
 
+- AK-050 connector authoring update validation passed:
+  - `corepack pnpm validate:docs` validated 187 relative Markdown links across 42 files, runbook sections, documentation examples, and API reference freshness.
+  - `corepack pnpm validate:automation` validated backlog state, scripts, labels, docs, and CI automation contracts.
+  - `corepack pnpm validate:connector-security` validated security gates for the 4 registered connectors.
+  - `corepack pnpm evidence:check` confirmed proof-point validation evidence is current.
+  - `git diff --check` passed.
+  - `corepack pnpm ci:check` passed after the tutorial and navigation updates.
 - `corepack pnpm install` completed with the existing lockfile.
 - `git diff --check` passed.
 - New standalone JSON examples parsed successfully with Node.

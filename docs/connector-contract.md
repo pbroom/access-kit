@@ -61,6 +61,8 @@ The gate requires:
 
 The current synthetic provider connectors remain read-only and blocked for enforcement. The `mock` connector may pass controlled synthetic enforcement readiness only with `liveProviderWrites: false`.
 
+Authors adding a new read-only connector should start with the [Connector Authoring Tutorial](connector-authoring-tutorial.md). It turns this gate into a step-by-step path for identity setup, consent, least-privilege scopes, pagination, throttling, tombstones, coverage warnings, sync recovery, and release evidence.
+
 ## Microsoft Graph Entra Read-Only Foundation
 
 `@access-kit/connectors-microsoft-graph` exports `MicrosoftGraphEntraReadOnlyConnector`, an injectable Microsoft Graph adapter for Entra users, groups, service principals, and app-role assignments. It is registered by the API runtime only when sandbox configuration is present:
@@ -106,6 +108,7 @@ AC-2, AC-3, AC-6, AU-2, AU-6, CM-2, CM-3, CA-7, IA-5, SC-7, SI-4, SA-9, and SR c
 ## Related References
 
 - [Provisioning Lifecycle](provisioning-lifecycle.md)
+- [Connector Authoring Tutorial](connector-authoring-tutorial.md)
 - [Drift Detection Model](drift-detection-model.md)
 - [System Context and Boundary](system-context-and-boundary.md)
 - `schemas/discovery-run.schema.json`
