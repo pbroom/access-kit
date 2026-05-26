@@ -1,4 +1,4 @@
-const SENSITIVE_KEY_PATTERN = /(?:secret|password|credential|privatekey|signingkey|hmackey|encryptionkey)/i;
+const SENSITIVE_KEY_PATTERN = /(?:secret|token|password|credential|accesskey|privatekey|signingkey|hmackey|encryptionkey)/;
 
 const SENSITIVE_KEY_NAMES = new Set([
   "accesskey",

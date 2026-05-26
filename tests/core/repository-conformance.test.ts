@@ -585,7 +585,17 @@ describe("production job queue adapter", () => {
       })
     ).toThrow("contains secret material");
 
-    for (const key of ["apiKey", "api_key", "clientKey", "hmacKey", "signingKey", "encryptionKey"]) {
+    for (const key of [
+      "apiKey",
+      "api_key",
+      "clientKey",
+      "hmacKey",
+      "signingKey",
+      "encryptionKey",
+      "oauthToken",
+      "jwtToken",
+      "accessKeyId"
+    ]) {
       expect(() =>
         queue.enqueueJob({
           kind: "evidence",
