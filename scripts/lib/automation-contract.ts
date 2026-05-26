@@ -131,7 +131,11 @@ export const automationContract = {
     { name: "security:pass", command: "pnpm audit --audit-level high && git diff --check && pnpm ci:check" },
     { name: "labels:sync", command: "node --import tsx scripts/sync-github-labels.ts" },
     { name: "labels:check", command: "node --import tsx scripts/sync-github-labels.ts --check" },
-    { name: "automation:doctor", command: "node --import tsx scripts/automation-doctor.ts" }
+    { name: "automation:doctor", command: "node --import tsx scripts/automation-doctor.ts" },
+    {
+      name: "validate:connector-security",
+      command: "node --conditions=types --import tsx scripts/validate-connector-security-gate.ts"
+    }
   ],
   nodeImportTsxScripts: [
     "pr:status",
@@ -211,6 +215,7 @@ export const automationContract = {
             name: "contract-validation",
             requiredRuns: [
               "pnpm validate:contracts",
+              "pnpm validate:connector-security",
               "pnpm validate:docs",
               "pnpm validate:automation",
               "pnpm validate:ci",
@@ -274,6 +279,7 @@ export const automationContract = {
       { name: "schema validation", args: ["validate:schemas"] },
       { name: "OpenAPI validation", args: ["validate:openapi"] },
       { name: "policy fixture validation", args: ["validate:policy"] },
+      { name: "connector security gate validation", args: ["validate:connector-security"] },
       { name: "CLI command contract", args: ["validate:cli-contract"] },
       { name: "container packaging validation", args: ["validate:packaging"] },
       { name: "release packaging validation", args: ["validate:release-packaging"] },
@@ -285,9 +291,10 @@ export const automationContract = {
     ],
     coveredProofPoints: [
       "TypeScript strict type checking.",
-      "JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, and evidence export examples.",
+      "JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, connector-security-review, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, and evidence export examples.",
       "OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, enforcement-readiness, generated client metadata, contract snapshots, versioning, deprecation, authentication, rate-limit, and API example path groups.",
       "Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.",
+      "Connector security gate validation for connector identity, consent, tenant boundary, least-privilege read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults.",
       "CLI command contract mapping each operator command to an API surface.",
       "Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.",
       "Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.",

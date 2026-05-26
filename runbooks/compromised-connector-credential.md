@@ -32,6 +32,7 @@ Security engineer, connector owner, provider platform administrator, and ISSO fo
 rebac connector list
 rebac connector test mock
 rebac discovery runs --connector mock
+pnpm validate:connector-security
 rebac audit search --from 2026-05-23
 rebac evidence export --framework nist-800-53 --controls IA-5,AC-6,AU-6,IR-4 --from 2026-05-23T00:00:00.000Z --to 2026-05-23T23:59:59.000Z --format json
 ```
@@ -49,9 +50,10 @@ For live providers, immediately disable or rotate the provider credential using 
 1. Disable or rotate credential.
 2. Confirm old credential no longer works.
 3. Confirm new credential has least privilege.
-4. Run connector test.
-5. Run discovery or reconciliation if readback integrity may be affected.
-6. Review audit events for unauthorized activity.
+4. Run `pnpm validate:connector-security` to confirm identity, consent, scopes, tenant boundary, secret handling, and no-write defaults still match the reviewed gate.
+5. Run connector test.
+6. Run discovery or reconciliation if readback integrity may be affected.
+7. Review audit events for unauthorized activity.
 
 ## Audit Events Emitted
 
@@ -68,6 +70,7 @@ For live providers, immediately disable or rotate the provider credential using 
 - Connector test after rotation.
 - Activity review.
 - Updated least-privilege review.
+- Connector security gate output.
 
 ## Escalation Path
 

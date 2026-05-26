@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/connector-security-review.schema.json",
+  "title": "ConnectorSecurityReview",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "connectorId",
+    "provider",
+    "tenantBoundary",
+    "synthetic",
+    "identity",
+    "consent",
+    "leastPrivilege",
+    "operations",
+    "secrets",
+    "enforcement"
+  ],
+  "properties": {
+    "connectorId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "provider": { "type": "string", "minLength": 1 },
+    "tenantBoundary": { "type": "string", "minLength": 1 },
+    "synthetic": { "type": "boolean" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "subject", "evidence"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["synthetic", "managed_identity", "service_principal", "access_key", "role"]
+        },
+        "subject": { "type": "string", "minLength": 1 },
+        "evidence": { "$ref": "#/$defs/evidenceRefs" }
+      }
+    },
+    "consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "scopesApproved", "evidence"],
+      "properties": {
+        "status": { "type": "string", "enum": ["synthetic", "approved", "blocked"] },
+        "scopesApproved": { "$ref": "#/$defs/scopes" },
+        "evidence": { "$ref": "#/$defs/evidenceRefs" }
+      }
+    },
+    "leastPrivilege": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredReadScopes", "forbiddenWriteScopes", "scopeJustification"],
+      "properties": {
+        "requiredReadScopes": { "$ref": "#/$defs/scopes" },
+        "forbiddenWriteScopes": { "$ref": "#/$defs/scopes" },
+        "scopeJustification": { "type": "string", "minLength": 20 }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pagination", "throttling", "deletion", "coverageWarnings", "nativeAccessReadback"],
+      "properties": {
+        "pagination": { "type": "string", "enum": ["required", "not_applicable"] },
+        "throttling": { "type": "string", "enum": ["required", "not_applicable"] },
+        "deletion": { "type": "string", "enum": ["mark_deleted", "ignore", "unsupported", "not_applicable"] },
+        "coverageWarnings": { "type": "string", "const": "required" },
+        "nativeAccessReadback": { "type": "boolean" }
+      }
+    },
+    "secrets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storesSecrets", "handling", "rotation", "evidence"],
+      "properties": {
+        "storesSecrets": { "type": "boolean" },
+        "handling": { "type": "string", "enum": ["none", "managed_identity", "vault_required"] },
+        "rotation": { "type": "string", "enum": ["not_applicable", "required"] },
+        "evidence": { "$ref": "#/$defs/evidenceRefs" }
+      }
+    },
+    "enforcement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "liveWritesAllowed",
+        "controlledSyntheticOnly",
+        "readinessRequired",
+        "rollbackRequired",
+        "emergencyRevocationRequired",
+        "monitoringRequired"
+      ],
+      "properties": {
+        "liveWritesAllowed": { "type": "boolean", "const": false },
+        "controlledSyntheticOnly": { "type": "boolean" },
+        "readinessRequired": { "type": "boolean" },
+        "rollbackRequired": { "type": "boolean" },
+        "emergencyRevocationRequired": { "type": "boolean" },
+        "monitoringRequired": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  }
+}
