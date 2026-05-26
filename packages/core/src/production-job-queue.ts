@@ -727,8 +727,6 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
       result: T;
     }
   ): T {
-    let lastConflict = false;
-
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const expected = this.#readQueueRecord();
       const jobs = expected?.jobs ?? emptyJobSnapshot();
@@ -749,12 +747,9 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
         return cloneOptional(mutation.result) as T;
       }
 
-      lastConflict = true;
     }
 
-    throw new Error(lastConflict
-      ? "Production job queue write conflict persisted after retry."
-      : "Production job queue write failed.");
+    throw new Error("Production job queue write conflict persisted after retry.");
   }
 
   #refreshFromStore(): void {

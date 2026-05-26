@@ -398,7 +398,7 @@ function relationshipMatchesTenantBoundary(
   rootTenantId: string | undefined
 ): boolean {
   if (!rootTenantId) {
-    return true;
+    return !stringAttribute(relationship.attributes, "tenantId") && !tenantIdFor(store.getSubject(relationship.objectId) ?? store.getResource(relationship.objectId));
   }
 
   const relationshipTenantId = stringAttribute(relationship.attributes, "tenantId");

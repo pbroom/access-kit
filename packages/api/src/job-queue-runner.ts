@@ -80,6 +80,8 @@ async function executeQueuedJob(app: RebacLocalApp, job: ProductionQueuedJob): P
       return runRevocationJob(app, job);
     case "evidence":
       return exportEvidence(app, readControls(job.payload), readEvidenceFormat(job.payload));
+    default:
+      return assertNever(job.kind);
   }
 }
 
@@ -132,7 +134,11 @@ async function runRevocationJob(app: RebacLocalApp, job: ProductionQueuedJob): P
 }
 
 function connectorId(job: ProductionQueuedJob): string {
-  return optionalString(job.payload, "connectorId") ?? job.connectorId;
+  return job.connectorId;
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unsupported queued job kind: ${String(value)}`);
 }
 
 function readProvisioningMode(payload: JsonRecord): ProvisioningMode | undefined {
