@@ -64,6 +64,27 @@ git diff --check
 
 `pnpm ci:check` is intentionally stricter than a quick test run. It exercises contract validation, CI workflow validation, type checking, linting, tests, build, and evidence freshness.
 
+## Operator Workflow Smoke Example
+
+CI jobs that need an operator-facing smoke path should keep the CLI pointed at a seeded API and assert JSON-producing, fail-closed commands instead of replaying local authorization logic:
+
+```sh
+rebac ready
+rebac connector sync mock --mode read_only
+rebac reconcile run --connector mock --dry-run
+rebac audit integrity
+rebac evidence export --framework nist-800-53 --controls AC-2,AU-6 --format json
+rebac --preview --diff emergency revoke native-grant:document:case-plan:alice \
+  --connector mock \
+  --approver user:incident-commander \
+  --change-ticket inc:2026-05-21:001 \
+  --readiness-report readiness:mock:phase4 \
+  --reason "Approved emergency revocation exercise" \
+  --confirm-revoke
+```
+
+The previewed emergency command is safe for CI examples because it proves approval, readiness, idempotency, JSON output, and diff wiring without executing a revocation. Runtime acceptance tests cover the fail-closed path when readiness evidence is rejected.
+
 ## Steward Commands
 
 Use these commands to keep PR-stack state boring and explicit:

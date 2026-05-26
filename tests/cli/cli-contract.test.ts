@@ -20,12 +20,15 @@ describe("CLI contract", () => {
   it("includes first-class operator, CI/CD, and assessor commands", () => {
     const paths = new Set(CLI_COMMANDS.map((command) => command.path));
 
+    expect(paths).toContain("ready");
     expect(paths).toContain("check");
     expect(paths).toContain("explain");
     expect(paths).toContain("resource native-access");
     expect(paths).toContain("policy validate");
     expect(paths).toContain("policy publish");
     expect(paths).toContain("provision plan");
+    expect(paths).toContain("provision apply");
+    expect(paths).toContain("emergency revoke");
     expect(paths).toContain("reconcile run");
     expect(paths).toContain("discovery runs");
     expect(paths).toContain("audit search");
@@ -46,6 +49,7 @@ describe("CLI contract", () => {
     expect(help).toContain("resource");
     expect(help).toContain("relation");
     expect(help).toContain("policy");
+    expect(help).toContain("emergency");
     expect(help).toContain("provision");
     expect(help).toContain("reconcile");
     expect(help).toContain("discovery");

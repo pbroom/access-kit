@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T04:25:43.404Z
+Generated at: 2026-05-28T04:27:44.687Z
 
-Branch: codex/rebac-cli-operator-distribution
+Branch: 
 
 Node: v24.4.1
 
@@ -37,14 +37,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-schemas.ts
 
 Validated 21 schemas and 21 example fixtures.
@@ -74,10 +74,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-cli-operator-distribution/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-operator-workflow-commands/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -89,7 +89,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -112,7 +112,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-operator-workflow-commands
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -125,23 +125,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-operator-workflow-commands
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-cli-operator-distribution
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-operator-workflow-commands
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  00:25:37
-   Duration  283ms (transform 136ms, setup 0ms, import 211ms, tests 20ms, environment 0ms)
+   Start at  00:27:38
+   Duration  280ms (transform 135ms, setup 0ms, import 209ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -152,7 +152,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -165,7 +165,7 @@ PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclos
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -176,7 +176,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -187,7 +187,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -198,7 +198,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -209,7 +209,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-operator-workflow-commands
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -219,61 +219,61 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-operator-workflow-commands
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-cli-operator-distribution
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-operator-workflow-commands
 
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  00:25:40
-   Duration  244ms (transform 999ms, setup 0ms, import 1.48s, tests 126ms, environment 1ms)
+   Start at  00:27:42
+   Duration  242ms (transform 1.04s, setup 0ms, import 1.47s, tests 125ms, environment 1ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-operator-workflow-commands
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-cli-operator-distribution
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-operator-workflow-commands
 
 
  Test Files  6 passed (6)
       Tests  112 passed (112)
-   Start at  00:25:41
-   Duration  516ms (transform 786ms, setup 0ms, import 1.24s, tests 400ms, environment 0ms)
+   Start at  00:27:42
+   Duration  507ms (transform 742ms, setup 0ms, import 1.21s, tests 402ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-cli-operator-distribution
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-operator-workflow-commands
 
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  00:25:42
-   Duration  230ms (transform 337ms, setup 0ms, import 451ms, tests 49ms, environment 0ms)
+   Start at  00:27:43
+   Duration  230ms (transform 338ms, setup 0ms, import 449ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-cli-operator-distribution
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-operator-workflow-commands
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-cli-operator-distribution
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-operator-workflow-commands
 
 
  Test Files  3 passed (3)
-      Tests  42 passed (42)
-   Start at  00:25:42
-   Duration  326ms (transform 385ms, setup 0ms, import 648ms, tests 109ms, environment 0ms)
+      Tests  47 passed (47)
+   Start at  00:27:44
+   Duration  328ms (transform 394ms, setup 0ms, import 637ms, tests 115ms, environment 0ms)
 ```
 
 

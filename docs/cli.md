@@ -9,6 +9,8 @@ The implementation command manifest is `packages/cli/src/commands.ts`. Contract 
 ## Command Families
 
 ```text
+rebac ready
+
 rebac subject sync --connector entra-readonly
 rebac subject get user:123
 rebac subject access user:123
@@ -34,6 +36,8 @@ rebac provision apply plan:abc
 rebac provision revoke grant:abc
 rebac provision plan user:123 document:case-plan read --connector mock --mode enforcement --approver user:approver --change-ticket chg:phase4 --readiness-report readiness:mock:phase4 --synthetic-only
 rebac provision apply plan:abc --mode enforcement --approver user:approver
+
+rebac emergency revoke native-grant:document:case-plan:alice --connector mock --approver user:incident-commander --change-ticket inc:2026-05-21:001 --readiness-report readiness:mock:phase4 --reason "Approved emergency revocation exercise" --confirm-revoke
 
 rebac reconcile run --connector sharepoint-readonly --dry-run
 rebac reconcile findings --severity high
@@ -66,7 +70,7 @@ rebac --preview --diff provision plan user:alice document:case-plan read --conne
 rebac completion zsh
 ```
 
-The CLI emits one JSON object for API-backed commands. `--preview` produces the method, path, idempotency key, and request body that would be sent without calling the API; `--diff` adds patch-style request lines for operator review. Exit code `0` means success, `70` means an API or runtime request failure, and `78` means CLI configuration failed before an API request was made.
+The CLI emits one JSON object for API-backed commands, including `rebac ready`, connector sync, reconciliation, audit, evidence, provisioning, and emergency workflows. `--preview` produces the method, path, idempotency key, and request body that would be sent without calling the API; `--diff` adds patch-style request lines for operator review. Exit code `0` means success, `70` means an API or runtime request failure, and `78` means CLI configuration failed before an API request was made.
 
 Policy commands follow the API lifecycle. `rebac policy validate` and `rebac policy test` ask the API to run deterministic model and proof-point checks; `rebac policy publish` requires a change ticket and fails closed when the target policy has not already passed validation.
 
@@ -75,6 +79,8 @@ Read-only discovery uses `rebac connector sync <connector-id> --mode read_only`.
 Dry-run provisioning uses `rebac provision plan` followed by `rebac provision apply`. By default, `apply` creates a dry-run job: provider writes are skipped, verification hooks run, compensation intent is recorded, and audit evidence is emitted.
 
 Controlled enforcement is available only as a synthetic Phase 4 proof point against the `mock` connector. Operators first run `rebac connector readiness mock --mode enforcement --synthetic-only` and pass the resulting report ID into provisioning with `--readiness-report <id>`. The CLI can then send `--mode enforcement --approver <id> --change-ticket <id> --readiness-report <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.
+
+Emergency revocation is intentionally separate from routine dry-run revocation. `rebac emergency revoke` always targets the provisioning plan API with `mode: "enforcement"`, requires an approver, change ticket, readiness report, reason, and `--confirm-revoke`, sends a stable idempotency key, and leaves readiness/audit enforcement to the API. If confirmation is omitted, the CLI exits with `78` before calling the API. If readiness evidence is missing, stale, blocked, or rejected by the runtime, the API response is surfaced as exit code `70` with no local fallback.
 
 Phase 5 assessor commands use the same API contract. `rebac audit integrity` requests an audit hash-chain report, `rebac audit export` requests SIEM-ready JSONL audit records for a time window, and `rebac evidence export` can request a framework, control set, time window, and format for the complete local ATO evidence package, including boundary, data-flow, access-review, exception, operational, ConMon, POA&M, OSCAL fragments, signed package metadata, verifier checks, control trace views, and SIEM metadata. `rebac evidence verify --package <path>` posts an exported package to the verifier endpoint and returns package hash, section hash, signature, deployment-scope, OSCAL, POA&M, and control trace checks.
 

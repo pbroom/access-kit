@@ -30,6 +30,43 @@ afterEach(async () => {
 });
 
 describe("CLI API wrapper", () => {
+  it("checks API readiness and emits JSON output", async () => {
+    await runCli("ready");
+
+    expect(lastOutput()).toMatchObject({
+      status: "ready_with_warnings",
+      version: "0.1.0",
+      checks: expect.arrayContaining([
+        expect.objectContaining({ name: "api_runtime", status: "pass" })
+      ])
+    });
+  });
+
+  it("uses API failure exit code when readiness is not accepted", async () => {
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const program = buildCli({
+      apiUrl: baseUrl,
+      fetch: async () =>
+        new Response(JSON.stringify({ status: "not_ready" }), {
+          status: 503,
+          headers: { "content-type": "application/json" }
+        }),
+      writeJson: (value) => output.push(value)
+    });
+    program.exitOverride();
+
+    try {
+      await expect(program.parseAsync(["node", "rebac", "ready"])).resolves.toBe(program);
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.apiFailure);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("API request failed: 503"));
+      expect(output).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
+  });
+
   it("runs check through the API", async () => {
     await runCli("check", "user:alice", "read", "document:case-plan");
 
@@ -381,6 +418,119 @@ describe("CLI API wrapper", () => {
     });
   });
 
+  it("requires explicit approval, readiness, and confirmation for emergency revoke", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      {
+        now: () => "2026-05-21T17:00:00.000Z"
+      },
+      "emergency",
+      "revoke",
+      "native-grant:document:case-plan:alice",
+      "--connector",
+      "mock",
+      "--approver",
+      "user:incident-commander",
+      "--change-ticket",
+      "inc:2026-05-21:001",
+      "--readiness-report",
+      "readiness:mock:phase4",
+      "--reason",
+      "Approved emergency revocation exercise",
+      "--confirm-revoke"
+    );
+
+    expect(requests.at(-1)?.url).toBe("http://api.example/v1/provisioning/plans");
+    expect(requests.at(-1)?.headers["idempotency-key"]).toMatch(/^idem:cli:post:/);
+    expect(requests.at(-1)?.body).toEqual({
+      grantId: "native-grant:document:case-plan:alice",
+      connectorId: "mock",
+      action: "revoke",
+      mode: "enforcement",
+      dryRun: false,
+      approval: {
+        decision: "approved",
+        approverId: "user:incident-commander",
+        changeTicket: "inc:2026-05-21:001",
+        approvedAt: "2026-05-21T17:00:00.000Z",
+        reason: "Approved emergency revocation exercise"
+      },
+      readinessReportId: "readiness:mock:phase4",
+      control: {
+        syntheticOnly: true,
+        liveProviderWrites: false,
+        incidentMode: false,
+        breakGlass: false
+      }
+    });
+  });
+
+  it("fails closed before API calls when emergency revoke is not confirmed", async () => {
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const requests: CapturedRequest[] = [];
+
+    try {
+      await runCliWithFetch(
+        requests,
+        "emergency",
+        "revoke",
+        "native-grant:document:case-plan:alice",
+        "--connector",
+        "mock",
+        "--approver",
+        "user:incident-commander",
+        "--change-ticket",
+        "inc:2026-05-21:001",
+        "--readiness-report",
+        "readiness:mock:phase4",
+        "--reason",
+        "Approved emergency revocation exercise"
+      );
+
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.configuration);
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("emergency revoke requires --confirm-revoke"));
+      expect(requests).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
+  });
+
+  it("fails closed when emergency revoke readiness evidence is not accepted by the API", async () => {
+    const previousExitCode = process.exitCode;
+    const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    try {
+      await runCli(
+        "emergency",
+        "revoke",
+        "native-grant:document:case-plan:alice",
+        "--connector",
+        "mock",
+        "--approver",
+        "user:incident-commander",
+        "--change-ticket",
+        "inc:2026-05-21:001",
+        "--readiness-report",
+        "readiness:mock:missing",
+        "--reason",
+        "Approved emergency revocation exercise",
+        "--confirm-revoke"
+      );
+
+      const stderr = errorSpy.mock.calls.map((call) => String(call[0])).join("");
+      expect(process.exitCode).toBe(CLI_EXIT_CODES.apiFailure);
+      expect(stderr).toContain("ENFORCEMENT_READINESS_NOT_FOUND");
+      expect(output).toEqual([]);
+    } finally {
+      process.exitCode = previousExitCode;
+      errorSpy.mockRestore();
+    }
+  });
+
   it("forwards connector enforcement readiness checks to the API", async () => {
     const requests: CapturedRequest[] = [];
 
@@ -700,6 +850,7 @@ describe("CLI API wrapper", () => {
       errorSpy.mockClear();
       await expect(program.parseAsync(["node", "rebac", "connector", "sync", "mock", "--mode", "enforcement"])).resolves.toBe(program);
       expect(process.exitCode).toBe(CLI_EXIT_CODES.apiFailure);
+
     } finally {
       process.exitCode = previousExitCode;
       errorSpy.mockRestore();

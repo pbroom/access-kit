@@ -48,6 +48,7 @@ export interface CliOptions {
 }
 
 export const CLI_COMMANDS: CliCommandSpec[] = [
+  { path: "ready", description: "Check API runtime readiness.", apiSurface: "GET /v1/ready" },
   { path: "subject sync", description: "Sync subjects from a connector.", apiSurface: "POST /v1/connectors/{id}/sync" },
   { path: "subject get", description: "Inspect a canonical subject.", apiSurface: "GET /v1/subjects/{id}" },
   { path: "subject access", description: "Explain current subject access.", apiSurface: "GET /v1/subjects/{id}/access" },
@@ -67,6 +68,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "provision plan", description: "Create a dry-run or controlled synthetic enforcement provisioning plan.", apiSurface: "POST /v1/provisioning/plans" },
   { path: "provision apply", description: "Run a dry-run or controlled synthetic enforcement provisioning job for a plan.", apiSurface: "POST /v1/provisioning/jobs" },
   { path: "provision revoke", description: "Create a revocation plan.", apiSurface: "POST /v1/provisioning/plans" },
+  { path: "emergency revoke", description: "Create an approved emergency revocation plan.", apiSurface: "POST /v1/provisioning/plans" },
   { path: "reconcile run", description: "Run reconciliation for a connector.", apiSurface: "POST /v1/reconciliation/run" },
   { path: "reconcile findings", description: "List drift findings.", apiSurface: "GET /v1/reconciliation/findings" },
   { path: "reconcile remediate", description: "Plan approved dry-run remediation for a drift finding.", apiSurface: "POST /v1/reconciliation/findings/{id}/remediation" },
@@ -97,12 +99,14 @@ export function buildCli(options: CliOptions = {}): Command {
     .option("--diff", "Include request diff lines in preview output (requires --preview)");
 
   const context = createCliContext(options);
+  addReadinessCommand(program, context);
   addSubjectCommands(program, context);
   addResourceCommands(program, context);
   addRelationCommands(program, context);
   addPolicyCommands(program, context);
   addDecisionCommands(program, context);
   addProvisioningCommands(program, context);
+  addEmergencyCommands(program, context);
   addReconciliationCommands(program, context);
   addDiscoveryCommands(program, context);
   addAuditCommands(program, context);
@@ -186,6 +190,14 @@ interface ProvisioningOptions extends CommandWithConnector {
   readinessReport?: string;
 }
 
+interface EmergencyRevokeOptions extends CommandWithConnector {
+  approver?: string;
+  changeTicket?: string;
+  readinessReport?: string;
+  reason?: string;
+  confirmRevoke?: boolean;
+}
+
 interface ConnectorReadinessOptions {
   mode?: "enforcement";
   syntheticOnly?: boolean;
@@ -234,6 +246,11 @@ function createCliContext(options: CliOptions): CliContext {
       }),
     now: options.now ?? (() => new Date().toISOString())
   };
+}
+
+function addReadinessCommand(program: Command, context: CliContext): void {
+  const ready = program.command("ready").description("Check API runtime readiness.");
+  ready.action(withApi(context, ready, (client) => client.get("/v1/ready")));
 }
 
 function addSubjectCommands(program: Command, context: CliContext): void {
@@ -707,6 +724,49 @@ function addConnectorCommands(program: Command, context: CliContext): void {
     const options = sync.opts<CommandWithMode>();
     return client.post(`/v1/connectors/${encodeURIComponent(readString(args, 0, "connector-id"))}/sync`, {
       mode: options.mode ?? "read_only"
+    });
+  }));
+}
+
+function addEmergencyCommands(program: Command, context: CliContext): void {
+  const emergency = program.command("emergency").description("Emergency operator workflows.");
+  const revoke = emergency
+    .command("revoke")
+    .argument("<grant-id>")
+    .requiredOption("--connector <id>")
+    .requiredOption("--approver <id>")
+    .requiredOption("--change-ticket <id>")
+    .requiredOption("--readiness-report <id>")
+    .requiredOption("--reason <text>")
+    .option("--confirm-revoke");
+
+  revoke.action(withApi(context, revoke, (client, args) => {
+    const options = revoke.opts<EmergencyRevokeOptions>();
+
+    if (options.confirmRevoke !== true) {
+      throw new CliConfigurationError("emergency revoke requires --confirm-revoke");
+    }
+
+    return client.post("/v1/provisioning/plans", {
+      grantId: readString(args, 0, "grant-id"),
+      connectorId: required(options.connector, "connector"),
+      action: "revoke",
+      mode: "enforcement",
+      dryRun: false,
+      approval: {
+        decision: "approved",
+        approverId: required(options.approver, "approver"),
+        changeTicket: required(options.changeTicket, "change-ticket"),
+        approvedAt: context.now(),
+        reason: required(options.reason, "reason")
+      },
+      readinessReportId: required(options.readinessReport, "readiness-report"),
+      control: {
+        syntheticOnly: true,
+        liveProviderWrites: false,
+        incidentMode: false,
+        breakGlass: false
+      }
     });
   }));
 }

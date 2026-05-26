@@ -4,6 +4,7 @@ set -eu
 # Synthetic operator and assessor walkthrough.
 # Requires a running Access Kit API and REBAC_API_URL when not using the default local URL.
 
+rebac ready
 rebac connector list
 rebac connector test mock
 rebac connector sync mock --mode read_only
@@ -28,3 +29,11 @@ rebac evidence export \
   --from 2026-05-01T00:00:00.000Z \
   --to 2026-05-31T23:59:59.000Z \
   --format json
+
+rebac --preview --diff emergency revoke native-grant:document:case-plan:alice \
+  --connector mock \
+  --approver user:incident-commander \
+  --change-ticket inc:2026-05-21:001 \
+  --readiness-report readiness:mock:phase4 \
+  --reason "Approved emergency revocation exercise" \
+  --confirm-revoke
