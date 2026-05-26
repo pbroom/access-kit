@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-25T23:23:41.952Z
+Generated at: 2026-05-26T03:35:09.804Z
 
 Branch: codex/rebac-api-conformance-clients
 
@@ -42,7 +42,7 @@ All proof-point validation commands passed.
 > access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsx scripts/validate-schemas.ts
 
-Validated 15 schemas and 15 example fixtures.
+Validated 16 schemas and 16 example fixtures.
 PASS audit-event.json -> schemas/audit-event.schema.json
 PASS audit-export.json -> schemas/audit-export.schema.json
 PASS audit-integrity.json -> schemas/audit-integrity.schema.json
@@ -54,6 +54,7 @@ PASS evidence-export.json -> schemas/evidence-export.schema.json
 PASS native-grant.json -> schemas/native-grant.schema.json
 PASS persistence-deployment-manifest.json -> schemas/persistence-deployment-manifest.schema.json
 PASS persistence-deployment-readiness.json -> schemas/persistence-deployment-readiness.schema.json
+PASS policy-model.json -> schemas/policy-model.schema.json
 PASS provisioning-plan.json -> schemas/provisioning-plan.schema.json
 PASS relationship.json -> schemas/relationship.schema.json
 PASS resource.json -> schemas/resource.schema.json
@@ -82,6 +83,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
+PASS default policy model -> 14 checks
 PASS deny by default without relationship path
 PASS deny unsupported action despite read relationship
 PASS allow through relationship path
@@ -109,8 +111,8 @@ PASS drift is represented as security finding
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  19:23:35
-   Duration  359ms (transform 129ms, setup 0ms, import 235ms, tests 33ms, environment 0ms)
+   Start at  23:35:03
+   Duration  367ms (transform 130ms, setup 0ms, import 240ms, tests 33ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -167,10 +169,10 @@ PASS Local proof-point persistence manifests remain blocked from production read
  RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-conformance-clients
 
 
- Test Files  3 passed (3)
-      Tests  61 passed (61)
-   Start at  19:23:39
-   Duration  240ms (transform 233ms, setup 0ms, import 294ms, tests 40ms, environment 0ms)
+ Test Files  5 passed (5)
+      Tests  76 passed (76)
+   Start at  23:35:07
+   Duration  264ms (transform 466ms, setup 0ms, import 572ms, tests 52ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -184,9 +186,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  2 passed (2)
-      Tests  85 passed (85)
-   Start at  19:23:39
-   Duration  626ms (transform 211ms, setup 0ms, import 315ms, tests 299ms, environment 0ms)
+      Tests  88 passed (88)
+   Start at  23:35:07
+   Duration  626ms (transform 221ms, setup 0ms, import 327ms, tests 286ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -200,9 +202,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  3 passed (3)
-      Tests  32 passed (32)
-   Start at  19:23:41
-   Duration  431ms (transform 394ms, setup 0ms, import 725ms, tests 167ms, environment 0ms)
+      Tests  33 passed (33)
+   Start at  23:35:09
+   Duration  438ms (transform 370ms, setup 0ms, import 706ms, tests 186ms, environment 0ms)
 ```
 
 
