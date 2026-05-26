@@ -319,7 +319,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       requiredReadScopes: this.requiredReadScopes,
       synthetic: false,
       warnings: [...this.#baseWarnings(), ...this.#warnings],
-      cursor: this.#snapshot?.cursor
+      cursor: this.#snapshot?.cursor ?? this.#buildCursor()
     };
   }
 
