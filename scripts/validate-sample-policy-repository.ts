@@ -14,6 +14,12 @@ import {
   type Resource,
   type Subject
 } from "../packages/core/src/index.js";
+import {
+  compareGeneratedPolicyTestArtifacts,
+  GENERATED_POLICY_REVIEW_NOTICE,
+  GENERATED_POLICY_TEST_SCHEMA_VERSION,
+  type GeneratedPolicyTestManifest
+} from "./lib/generated-policy-tests.js";
 
 interface SamplePolicyManifest {
   repositoryId: string;
@@ -27,6 +33,11 @@ interface SamplePolicyManifest {
   tupleFixtures: TupleFixtureArtifact[];
   regressionSnapshots: SnapshotArtifact[];
   generatedExamples: GeneratedExampleArtifact[];
+  generatedPolicyTests: {
+    command: string;
+    checkCommand: string;
+    manifestPath: string;
+  };
 }
 
 interface VersionedArtifact {
@@ -263,10 +274,36 @@ for (const example of manifest.generatedExamples) {
   assertJsonEqual(`${example.responsePath} generated response`, response, testCase.expected);
 }
 
+if (manifest.generatedPolicyTests.command !== "pnpm generate:policy-tests") {
+  throw new Error("Sample policy repository must expose pnpm generate:policy-tests for generated starter coverage.");
+}
+if (manifest.generatedPolicyTests.checkCommand !== "pnpm validate:generated-policy-tests") {
+  throw new Error("Sample policy repository must expose pnpm validate:generated-policy-tests for drift checks.");
+}
+
+const generatedPolicyDrift = await compareGeneratedPolicyTestArtifacts({ root, sampleRoot, write: false });
+if (generatedPolicyDrift.length > 0) {
+  throw new Error(`Generated policy test artifacts drifted: ${generatedPolicyDrift.join(", ")}`);
+}
+
+const generatedPolicyManifest = await readSampleJson<GeneratedPolicyTestManifest>(manifest.generatedPolicyTests.manifestPath);
+if (generatedPolicyManifest.schemaVersion !== GENERATED_POLICY_TEST_SCHEMA_VERSION) {
+  throw new Error(`${manifest.generatedPolicyTests.manifestPath} declares an unsupported schema version.`);
+}
+if (generatedPolicyManifest.reviewNotice !== GENERATED_POLICY_REVIEW_NOTICE) {
+  throw new Error(`${manifest.generatedPolicyTests.manifestPath} must label generated tests as review aids only.`);
+}
+if (generatedPolicyManifest.suites.length !== manifest.models.length) {
+  throw new Error("Generated policy test manifest must include one starter suite per model version.");
+}
+if (generatedPolicyManifest.migrationRegressionSnapshots.length !== manifest.migrations.length) {
+  throw new Error("Generated policy test manifest must include one migration regression snapshot per migration.");
+}
+
 scanForForbiddenIdentifiers(manifest, "policy-repository.json");
 
 console.log("Validated sample policy repository.");
-console.log(`PASS ${models.size} model versions, ${manifest.migrations.length} migration(s), ${fixturesByRelationshipVersion.size} tuple fixture set(s), ${casesByName.size} regression case(s), ${countClassificationBoundaryCases(classificationBoundaryCoverage)} classification-boundary coverage case(s), and ${manifest.generatedExamples.length} generated API example(s).`);
+console.log(`PASS ${models.size} model versions, ${manifest.migrations.length} migration(s), ${fixturesByRelationshipVersion.size} tuple fixture set(s), ${casesByName.size} regression case(s), ${countClassificationBoundaryCases(classificationBoundaryCoverage)} classification-boundary coverage case(s), ${manifest.generatedExamples.length} generated API example(s), and ${generatedPolicyManifest.suites.length} generated starter policy suite(s).`);
 
 async function readSampleJson<T>(path: string): Promise<T> {
   return readJson<T>(join(sampleRoot, path));

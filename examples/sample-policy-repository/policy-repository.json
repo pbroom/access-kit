@@ -87,6 +87,10 @@
       "requestPath": "generated/api/case-docs-v2/cross-tenant-escalation-denied.request.json",
       "responsePath": "generated/api/case-docs-v2/cross-tenant-escalation-denied.response.json"
     }
-  ]
+  ],
+  "generatedPolicyTests": {
+    "command": "pnpm generate:policy-tests",
+    "checkCommand": "pnpm validate:generated-policy-tests",
+    "manifestPath": "generated/policy-tests/manifest.json"
+  }
 }
-

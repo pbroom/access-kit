@@ -22,6 +22,8 @@
     "validate:openapi": "tsx scripts/validate-openapi.ts",
     "validate:policy": "tsx scripts/validate-policy-fixtures.ts",
     "validate:sample-policy": "tsx scripts/validate-sample-policy-repository.ts",
+    "generate:policy-tests": "tsx scripts/generate-policy-tests.ts",
+    "validate:generated-policy-tests": "tsx scripts/generate-policy-tests.ts --check",
     "validate:connector-security": "node --conditions=types --import tsx scripts/validate-connector-security-gate.ts",
     "validate:cli-contract": "vitest run tests/cli/cli-contract.test.ts",
     "validate:docs": "tsx scripts/validate-doc-links.ts && tsx scripts/validate-doc-runbooks.ts && tsx scripts/validate-doc-examples.ts && pnpm validate:api-reference",

@@ -1,0 +1,238 @@
+{
+  "policyVersion": "policy:case-docs-v2",
+  "relationshipVersion": "generated:tuple-set:case-docs-v2",
+  "reviewOnly": true,
+  "subjects": [
+    {
+      "id": "user:generated-reviewer",
+      "type": "user",
+      "displayName": "Generated Reviewer",
+      "sourceSystem": "generated-policy-tests",
+      "lifecycleState": "active",
+      "identifiers": {
+        "generatedId": "generated-reviewer"
+      },
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "subject:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "user:generated-unassigned",
+      "type": "user",
+      "displayName": "Generated Unassigned User",
+      "sourceSystem": "generated-policy-tests",
+      "lifecycleState": "active",
+      "identifiers": {
+        "generatedId": "generated-unassigned"
+      },
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "subject:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "user:generated-outsider",
+      "type": "user",
+      "displayName": "Generated Outside User",
+      "sourceSystem": "generated-policy-tests",
+      "lifecycleState": "active",
+      "identifiers": {
+        "generatedId": "generated-outsider"
+      },
+      "attributes": {
+        "tenantId": "tenant:generated-foreign"
+      },
+      "version": "subject:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "group:generated-review-team",
+      "type": "group",
+      "displayName": "Generated Review Team",
+      "sourceSystem": "generated-policy-tests",
+      "lifecycleState": "active",
+      "identifiers": {
+        "generatedId": "generated-review-team"
+      },
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "subject:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    }
+  ],
+  "resources": [
+    {
+      "id": "workspace:generated-workspace",
+      "type": "workspace",
+      "displayName": "Generated Workspace",
+      "sourceSystem": "generated-policy-tests",
+      "ownerId": "user:generated-reviewer",
+      "dataStewardId": "user:generated-reviewer",
+      "technicalOwnerId": "user:generated-reviewer",
+      "classification": "internal",
+      "lifecycleState": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "resource:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "document:generated-case-plan",
+      "type": "document",
+      "displayName": "Generated Case Plan",
+      "sourceSystem": "generated-policy-tests",
+      "ownerId": "user:generated-reviewer",
+      "dataStewardId": "user:generated-reviewer",
+      "technicalOwnerId": "user:generated-reviewer",
+      "classification": "confidential",
+      "lifecycleState": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "resource:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z",
+      "parentId": "workspace:generated-workspace"
+    },
+    {
+      "id": "document:generated-denied-report",
+      "type": "document",
+      "displayName": "Generated Denied Report",
+      "sourceSystem": "generated-policy-tests",
+      "ownerId": "user:generated-reviewer",
+      "dataStewardId": "user:generated-reviewer",
+      "technicalOwnerId": "user:generated-reviewer",
+      "classification": "confidential",
+      "lifecycleState": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "resource:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z",
+      "parentId": "workspace:generated-workspace"
+    },
+    {
+      "id": "document:generated-foreign-plan",
+      "type": "document",
+      "displayName": "Generated Foreign Plan",
+      "sourceSystem": "generated-policy-tests",
+      "ownerId": "user:generated-reviewer",
+      "dataStewardId": "user:generated-reviewer",
+      "technicalOwnerId": "user:generated-reviewer",
+      "classification": "confidential",
+      "lifecycleState": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-foreign"
+      },
+      "version": "resource:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "document:generated-restricted-summary",
+      "type": "document",
+      "displayName": "Generated Restricted Summary",
+      "sourceSystem": "generated-policy-tests",
+      "ownerId": "user:generated-reviewer",
+      "dataStewardId": "user:generated-reviewer",
+      "technicalOwnerId": "user:generated-reviewer",
+      "classification": "restricted",
+      "lifecycleState": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "resource:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z",
+      "parentId": "workspace:generated-workspace"
+    }
+  ],
+  "relationships": [
+    {
+      "id": "relationship:generated-reviewer-membership",
+      "subjectId": "user:generated-reviewer",
+      "relation": "member_of",
+      "objectId": "group:generated-review-team",
+      "sourceSystem": "generated-policy-tests",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "tuple:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "relationship:generated-read-grant",
+      "subjectId": "group:generated-review-team",
+      "relation": "viewer_of",
+      "objectId": "workspace:generated-workspace",
+      "sourceSystem": "generated-policy-tests",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "tuple:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "relationship:generated-target-containment",
+      "subjectId": "workspace:generated-workspace",
+      "relation": "contains",
+      "objectId": "document:generated-case-plan",
+      "sourceSystem": "generated-policy-tests",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "tuple:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "relationship:generated-denied-containment",
+      "subjectId": "workspace:generated-workspace",
+      "relation": "contains",
+      "objectId": "document:generated-denied-report",
+      "sourceSystem": "generated-policy-tests",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "tuple:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "relationship:generated-restricted-containment",
+      "subjectId": "workspace:generated-workspace",
+      "relation": "contains",
+      "objectId": "document:generated-restricted-summary",
+      "sourceSystem": "generated-policy-tests",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "tuple:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "relationship:generated-explicit-deny",
+      "subjectId": "group:generated-review-team",
+      "relation": "denied",
+      "objectId": "document:generated-denied-report",
+      "sourceSystem": "generated-policy-tests",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "tuple:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    }
+  ]
+}
