@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assessAdminAuthorizationReadiness,
+  assertAdminAuthorizationDescriptorSafe,
   createLocalBearerTokenAdminAuthorizationDescriptor,
   type AdminAuthorizationDescriptor
 } from "../../packages/core/src/index.js";
@@ -18,6 +19,15 @@ describe("admin authorization readiness", () => {
       version: "admin-authorization-readiness:v1"
     });
     expect(report.checks.map((check) => check.status)).toEqual(["fail", "fail", "fail", "fail", "fail", "fail", "fail"]);
+  });
+
+  it("gives local bearer-token sections independent evidence refs", () => {
+    const descriptor = createLocalBearerTokenAdminAuthorizationDescriptor(["docs/security-model.md#authentication"]);
+
+    descriptor.authentication.evidenceRefs.push("evidence/admin-auth/idp.json");
+
+    expect(descriptor.ingress.evidenceRefs).toEqual(["docs/security-model.md#authentication"]);
+    expect(descriptor.adminRebac.evidenceRefs).toEqual(["docs/security-model.md#authentication"]);
   });
 
   it("passes a complete IdP gateway, admin ReBAC, secrets, emergency, and audit evidence descriptor", () => {
@@ -97,6 +107,49 @@ describe("admin authorization readiness", () => {
     expect(() => assessAdminAuthorizationReadiness(descriptor, checkedAt)).toThrow(
       "contains secret material and must reference redacted external secret handles"
     );
+  });
+
+  it("rejects common secret key-name variants even when values do not match a token pattern", () => {
+    const descriptor = createProductionDescriptor({
+      secrets: {
+        secretRefs: ["ref:access-kit/admin-gateway/client-secret"]
+      }
+    });
+    const descriptorWithExtension = descriptor as AdminAuthorizationDescriptor & {
+      extensions: { bearerToken: string; api_secret: string };
+    };
+    descriptorWithExtension.extensions = {
+      bearerToken: "plain-live-token",
+      api_secret: "plain-live-secret"
+    };
+
+    expect(() => assertAdminAuthorizationDescriptorSafe(descriptorWithExtension)).toThrow(
+      "contains secret material and must reference redacted external secret handles"
+    );
+  });
+
+  it("allows non-secret operational token and secret suffixes", () => {
+    const descriptor = createProductionDescriptor({
+      secrets: {
+        secretRefs: ["ref:access-kit/admin-gateway/client-secret"]
+      }
+    });
+    const descriptorWithExtension = descriptor as AdminAuthorizationDescriptor & {
+      extensions: {
+        csrf_token: string;
+        next_token: string;
+        pagination_token: string;
+        scope_secret: string;
+      };
+    };
+    descriptorWithExtension.extensions = {
+      csrf_token: "csrf-state",
+      next_token: "next-page",
+      pagination_token: "page-cursor",
+      scope_secret: "read:users"
+    };
+
+    expect(() => assertAdminAuthorizationDescriptorSafe(descriptorWithExtension)).not.toThrow();
   });
 });
 

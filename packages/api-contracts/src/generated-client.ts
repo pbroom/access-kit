@@ -88,6 +88,10 @@ export function createRebacClient(options: RebacClientOptions): {
         throw new RebacClientError(400, "CLIENT_MISSING_IDEMPOTENCY_KEY");
       }
 
+      if (requestOptions.body !== undefined && methodForbidsBody(operation.method)) {
+        throw new RebacClientError(400, "CLIENT_INVALID_BODY");
+      }
+
       const response = await clientFetch(buildUrl(baseUrl, operation, requestOptions), {
         body: requestOptions.body === undefined ? undefined : JSON.stringify(requestOptions.body),
         headers: buildHeaders(operation, options.apiKey, requestOptions),
@@ -111,6 +115,10 @@ function getGeneratedOperation(operationId: GeneratedClientOperationId): ApiCont
   }
 
   return operation;
+}
+
+function methodForbidsBody(method: string): boolean {
+  return method === "GET" || method === "HEAD";
 }
 
 function trimTrailingSlashes(value: string): string {

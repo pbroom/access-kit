@@ -102,27 +102,27 @@ export function createLocalBearerTokenAdminAuthorizationDescriptor(
       mfaRequired: false,
       sessionTtlMinutes: 0,
       revocationSlaMinutes: 1440,
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     },
     ingress: {
       mode: "none",
       mtlsRequired: false,
       trustedIdentityHeaders: [],
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     },
     adminRebac: {
       separateFromApplicationAuthorization: false,
       leastPrivilegeRoles: [],
       roleBindings: [],
       revocationSlaMinutes: 1440,
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     },
     secrets: {
       manager: "local_env",
       secretRefs: [],
       rotationDays: 365,
       noPlaintextEnvironmentSecrets: false,
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     },
     emergency: {
       breakGlassApprovalRequired: false,
@@ -130,12 +130,12 @@ export function createLocalBearerTokenAdminAuthorizationDescriptor(
       temporaryElevationMaxMinutes: 1440,
       incidentModeNotificationTargets: [],
       postActionReviewRequired: false,
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     },
     audit: {
       auditEventTypes: ["api.authentication_failed"],
       evidenceExportRequired: false,
-      evidenceRefs
+      evidenceRefs: [...evidenceRefs]
     }
   };
 }
@@ -384,7 +384,31 @@ function looksLikeSecretValue(value: string): boolean {
 }
 
 function isSecretKeyName(key: string): boolean {
-  return /^(apiKey|apiToken|accessToken|refreshToken|password|clientSecret|privateKey|authorization|cookie)$/i.test(key);
+  const normalized = key.replaceAll(/[^a-z0-9]/gi, "").toLowerCase();
+  return [
+    "accesskey",
+    "accesstoken",
+    "apikey",
+    "apisecret",
+    "apitoken",
+    "authorization",
+    "authtoken",
+    "bearertoken",
+    "clientkey",
+    "clientsecret",
+    "cookie",
+    "encryptionkey",
+    "hmackey",
+    "idtoken",
+    "password",
+    "privatekey",
+    "refreshtoken",
+    "secret",
+    "sessiontoken",
+    "signingkey",
+    "token",
+    "xapikey"
+  ].includes(normalized);
 }
 
 function isAllowedReference(value: string): boolean {
