@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { auditEventHash, stableStringify, verifyAuditChain } from "./audit.js";
+import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
 import {
   assertObjectArrayFields,
   assertStoredPayloadHash,
@@ -1000,14 +1001,6 @@ function upsertByDecisionId(items: DecisionResult[], item: DecisionResult): Deci
   }
 
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
-}
-
-function matchesDriftFindingFilter(finding: DriftFinding, filter: DriftFindingFilter): boolean {
-  return (!filter.severity || finding.severity === filter.severity)
-    && (!filter.status || finding.status === filter.status)
-    && (!filter.lifecycleState || finding.lifecycleState === filter.lifecycleState)
-    && (!filter.ownerId || finding.ownerId === filter.ownerId)
-    && (!filter.assigneeId || finding.assigneeId === filter.assigneeId);
 }
 
 function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {

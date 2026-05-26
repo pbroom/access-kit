@@ -500,7 +500,7 @@ function addReconciliationCommands(program: Command, context: CliContext): void 
       },
       autoRepairPolicy: {
         enabled: false,
-        allowedActions: ["revoke", "repair"],
+        allowedActions: ["revoke", "repair", "review"],
         maxSeverity: options.maxSeverity ?? "high",
         requireApproval: true,
         requireConnectorReadiness: true,

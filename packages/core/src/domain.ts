@@ -345,7 +345,7 @@ export interface DriftHookEvidence {
 
 export interface DriftAutoRepairPolicy {
   enabled: boolean;
-  allowedActions: DriftRecommendedAction[];
+  allowedActions: Exclude<DriftRecommendedAction, "exception">[];
   maxSeverity: DriftSeverity;
   requireApproval: boolean;
   requireConnectorReadiness: boolean;

@@ -152,7 +152,7 @@ describe("CLI API wrapper", () => {
       },
       autoRepairPolicy: {
         enabled: false,
-        allowedActions: ["revoke", "repair"],
+        allowedActions: ["revoke", "repair", "review"],
         maxSeverity: "high",
         requireApproval: true,
         requireConnectorReadiness: true,

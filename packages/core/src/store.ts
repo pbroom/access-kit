@@ -17,6 +17,8 @@ import type {
   Resource,
   Subject
 } from "./domain.js";
+import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
+import type { DriftFindingFilter } from "./persistence.js";
 
 export interface RebacSeedData {
   subjects?: Subject[];
@@ -260,14 +262,8 @@ export class InMemoryRebacStore {
     return job;
   }
 
-  listDriftFindings(filter: Partial<Pick<DriftFinding, "severity" | "status" | "lifecycleState" | "ownerId" | "assigneeId">> = {}): DriftFinding[] {
-    return [...this.#driftFindings.values()].filter((finding) => {
-      return (!filter.severity || finding.severity === filter.severity)
-        && (!filter.status || finding.status === filter.status)
-        && (!filter.lifecycleState || finding.lifecycleState === filter.lifecycleState)
-        && (!filter.ownerId || finding.ownerId === filter.ownerId)
-        && (!filter.assigneeId || finding.assigneeId === filter.assigneeId);
-    });
+  listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {
+    return [...this.#driftFindings.values()].filter((finding) => matchesDriftFindingFilter(finding, filter));
   }
 
   getDriftFinding(id: CanonicalId): DriftFinding | undefined {

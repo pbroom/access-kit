@@ -40,6 +40,7 @@ import {
   normalizeJobSnapshot,
   stableHash
 } from "./repository-envelopes.js";
+import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
 import { isProductionSensitiveKey } from "./production-secret-material.js";
 import type { RebacGraphStorageReceipt, RebacJobStorageReceipt } from "./repositories.js";
 
@@ -879,14 +880,6 @@ function upsertByDecisionId(items: DecisionResult[], item: DecisionResult): Deci
   }
 
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
-}
-
-function matchesDriftFindingFilter(finding: DriftFinding, filter: DriftFindingFilter): boolean {
-  return (!filter.severity || finding.severity === filter.severity)
-    && (!filter.status || finding.status === filter.status)
-    && (!filter.lifecycleState || finding.lifecycleState === filter.lifecycleState)
-    && (!filter.ownerId || finding.ownerId === filter.ownerId)
-    && (!filter.assigneeId || finding.assigneeId === filter.assigneeId);
 }
 
 function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {
