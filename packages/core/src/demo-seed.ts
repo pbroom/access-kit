@@ -304,7 +304,7 @@ export function createDemoPolicyFixture(decisionRequests: DemoDecisionRequest[] 
     },
     tests: decisionRequests.map((request) => ({
       name: request.name,
-      request: { ...request.request },
+      request: structuredClone(request.request),
       expectedDecision: request.expectedDecision,
       expectedReasonCode: request.expectedReasonCode
     }))

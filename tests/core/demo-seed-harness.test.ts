@@ -114,6 +114,22 @@ describe("demo seed harness", () => {
     ]);
   });
 
+  it("keeps policy fixture request contexts isolated from decision presets", () => {
+    const harness = createDemoSeedHarness();
+    const policyRequest = harness.policy.tests[0]?.request;
+    const presetRequest = harness.decisionRequests[0]?.request;
+
+    expect(policyRequest).toBeDefined();
+    expect(presetRequest).toBeDefined();
+
+    policyRequest!.context = {
+      ...policyRequest!.context,
+      purpose: "mutated-policy-fixture"
+    };
+
+    expect(presetRequest!.context).not.toMatchObject({ purpose: "mutated-policy-fixture" });
+  });
+
   it("keeps the checked example manifest aligned with the core harness", () => {
     const harness = createDemoSeedHarness();
     const manifest = JSON.parse(
