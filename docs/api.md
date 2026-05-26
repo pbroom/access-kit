@@ -4,6 +4,21 @@
 
 `openapi/rebac-control-plane.yaml` is the public API source of truth. The TypeScript runtime must conform to it rather than inventing routes independently.
 
+`@access-kit/api-contracts` now publishes two checked-in integration artifacts from that contract:
+
+- `apiContractSnapshot` records every OpenAPI operation with method, path, authentication boundary, idempotency requirement, and deprecation state.
+- `createRebacClient` is the generated TypeScript client artifact. It refuses protected calls without a bearer token, refuses idempotent writes without an `Idempotency-Key`, and treats non-2xx API responses as errors instead of falling back to local authorization logic.
+
+`pnpm validate:openapi` compares those artifacts against OpenAPI so route, client, CLI, and runtime drift fails in CI.
+
+## Versioning And Deprecation
+
+The OpenAPI `info.version` and `apiContractSnapshot.contractVersion` must match. Version `0.1.0` has no deprecated operations. Future deprecations must stay represented in OpenAPI, the contract snapshot, and generated clients with a migration note until the next major contract; removing an operation requires an explicit major-version contract change.
+
+## Rate-Limit And Retry Behavior
+
+The local proof-point runtime currently rate-limits authentication-failure audit sampling to one recorded event per failure reason per one-minute window. The OpenAPI contract also defines a `RateLimited` response with `Retry-After` for future deployed gateways or runtime throttles. Generated clients must surface that retry window and must not authorize locally, reuse stale decisions, or bypass Access Kit when the API returns `429`.
+
 ## Service Runtime
 
 The API package exposes a `rebac-api` entrypoint and container image for local deployment packaging proof points. It starts the same OpenAPI-shaped runtime used by tests and accepts these environment variables:

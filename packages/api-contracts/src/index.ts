@@ -1,5 +1,8 @@
 export const openApiSpecPath = "openapi/rebac-control-plane.yaml";
 
+export * from "./contract-snapshot.js";
+export * from "./generated-client.js";
+
 export const schemaManifest = [
   "schemas/subject.schema.json",
   "schemas/resource.schema.json",

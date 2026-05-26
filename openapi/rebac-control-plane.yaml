@@ -8,6 +8,17 @@ info:
     supports local decisions, read-only mock plus synthetic provider discovery,
     dry-run provisioning, and approval-gated synthetic mock enforcement; live
     Microsoft, AWS, SharePoint, AD, and Power Platform enforcement are deferred.
+  x-access-kit-versioning:
+    deprecationPolicy: >
+      No operation is deprecated in 0.1.0. Future deprecations must keep the
+      operation in OpenAPI and generated clients with a migration note until the
+      next major contract.
+  x-access-kit-rate-limits:
+    authenticationFailureAuditSamplingWindowSeconds: 60
+    retryAfterHeader: Retry-After
+    clientBehavior: >
+      Clients must treat 429 responses as retryable only after honoring
+      Retry-After and must not fall back to local authorization decisions.
 servers:
   - url: https://rebac.example.gov
     description: Placeholder production boundary
@@ -970,6 +981,18 @@ components:
             $ref: "#/components/schemas/Error"
     Unauthenticated:
       description: A valid bearer token is required.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: Request rate limit or audit-sampling boundary was reached.
+      headers:
+        Retry-After:
+          description: Seconds to wait before retrying.
+          schema:
+            type: integer
+            minimum: 1
       content:
         application/json:
           schema:

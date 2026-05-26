@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T03:20:38.800Z
+Generated at: 2026-05-26T03:35:09.804Z
 
-Branch: codex/rebac-policy-test-harness
+Branch: codex/rebac-api-conformance-clients
 
 Node: v24.4.1
 
@@ -32,14 +32,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsx scripts/validate-schemas.ts
 
 Validated 16 schemas and 16 example fixtures.
@@ -64,20 +64,22 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-policy-test-harness/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-api-conformance-clients/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
 PASS API examples validate against OpenAPI request and response schemas.
+PASS API contract snapshot and generated TypeScript client metadata match OpenAPI.
+PASS API versioning, deprecation, authentication, and rate-limit metadata are present.
 ```
 
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -100,23 +102,23 @@ PASS drift is represented as security finding
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-api-conformance-clients
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-test-harness
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-conformance-clients
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:20:32
-   Duration  364ms (transform 131ms, setup 0ms, import 239ms, tests 33ms, environment 0ms)
+   Start at  23:35:03
+   Duration  367ms (transform 130ms, setup 0ms, import 240ms, tests 33ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -127,7 +129,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -138,7 +140,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -149,7 +151,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-api-conformance-clients
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -160,49 +162,49 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-api-conformance-clients
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-test-harness
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-conformance-clients
 
 
  Test Files  5 passed (5)
       Tests  76 passed (76)
-   Start at  23:20:36
-   Duration  275ms (transform 466ms, setup 0ms, import 573ms, tests 60ms, environment 0ms)
+   Start at  23:35:07
+   Duration  264ms (transform 466ms, setup 0ms, import 572ms, tests 52ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-api-conformance-clients
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-test-harness
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-conformance-clients
 
 
- Test Files  1 passed (1)
-      Tests  81 passed (81)
-   Start at  23:20:36
-   Duration  623ms (transform 159ms, setup 0ms, import 256ms, tests 273ms, environment 0ms)
+ Test Files  2 passed (2)
+      Tests  88 passed (88)
+   Start at  23:35:07
+   Duration  626ms (transform 221ms, setup 0ms, import 327ms, tests 286ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-policy-test-harness
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-api-conformance-clients
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-test-harness
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-conformance-clients
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  23:20:38
-   Duration  441ms (transform 393ms, setup 0ms, import 760ms, tests 160ms, environment 0ms)
+   Start at  23:35:09
+   Duration  438ms (transform 370ms, setup 0ms, import 706ms, tests 186ms, environment 0ms)
 ```
 
 
@@ -210,7 +212,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 - TypeScript strict type checking.
 - JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, and evidence export examples.
-- OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, and enforcement-readiness path groups.
+- OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, enforcement-readiness, generated client metadata, contract snapshots, versioning, deprecation, authentication, rate-limit, and API example path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - CLI command contract mapping each operator command to an API surface.
 - Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.
@@ -220,6 +222,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 - Local core engine tests for deterministic check/explain, decision audit emission, persistent graph/job repository contracts, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, defensive in-memory conformance behavior, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, and reconciliation.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
+- Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
 
 ## Outstanding Requirements
 

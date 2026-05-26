@@ -4,6 +4,12 @@ import addFormats from "ajv-formats";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import YAML from "yaml";
+import {
+  apiContractSnapshot,
+  generatedClientContractVersion,
+  generatedClientOperations,
+  type ApiContractOperationSnapshot
+} from "../packages/api-contracts/src/index.js";
 
 const root = process.cwd();
 const openApiPath = join(root, "openapi/rebac-control-plane.yaml");
@@ -11,10 +17,14 @@ const openApiPath = join(root, "openapi/rebac-control-plane.yaml");
 await SwaggerParser.validate(openApiPath);
 
 const parsed = YAML.parse(await readFile(openApiPath, "utf8")) as {
+  openapi: string;
+  info: Record<string, unknown>;
   paths: Record<string, Record<string, unknown>>;
   components: {
+    responses: Record<string, unknown>;
     schemas: Record<string, unknown>;
   };
+  security?: unknown[];
 };
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 addFormats(ajv);
@@ -95,6 +105,14 @@ if (!referencesDecisionSchema(explainResponseSchemaRef)) {
 const explainResponseSchema = asRecord(await readJsonFile("schemas/decision.schema.json"), "schemas/decision.schema.json");
 const explainResponseExample = await readJsonFile("examples/api/explain.response.json");
 assertValidExample(explainResponseSchema, explainResponseExample, "examples/api/explain.response.json");
+const errorSchema = asRecord(parsed.components.schemas.Error, "Error schema");
+const authFailureExample = await readJsonFile("examples/api/auth-failure.response.json");
+assertValidExample(errorSchema, authFailureExample, "examples/api/auth-failure.response.json");
+
+const openApiOperations = getOpenApiOperationSnapshot();
+assertOperationSnapshot(apiContractSnapshot.operations, openApiOperations, "checked-in API contract snapshot");
+assertOperationSnapshot(generatedClientOperations, openApiOperations, "generated TypeScript client operations");
+assertContractMetadata();
 
 const provisioningJob = asRecord(parsed.components.schemas.ProvisioningJob, "ProvisioningJob schema");
 assertEnumIncludes(getProperty(provisioningJob, "mode"), "enforcement", "ProvisioningJob mode");
@@ -128,6 +146,8 @@ console.log(`PASS ${requiredOperations.size} required API path groups are presen
 console.log("PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.");
 console.log("PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.");
 console.log("PASS API examples validate against OpenAPI request and response schemas.");
+console.log("PASS API contract snapshot and generated TypeScript client metadata match OpenAPI.");
+console.log("PASS API versioning, deprecation, authentication, and rate-limit metadata are present.");
 
 function getRequestSchema(operation: unknown, label: string): Record<string, unknown> {
   const operationRecord = asRecord(operation, `${label} operation`);
@@ -274,6 +294,114 @@ function assertEnumExactly(schema: Record<string, unknown>, expectedValues: stri
   if (!Array.isArray(values) || values.length !== expectedValues.length || expectedValues.some((value) => !values.includes(value))) {
     throw new Error(`OpenAPI ${label} must have enum values: ${expectedValues.join(", ")}`);
   }
+}
+
+function getOpenApiOperationSnapshot(): ApiContractOperationSnapshot[] {
+  return Object.entries(parsed.paths).flatMap(([path, pathItem]) =>
+    ["get", "post", "put", "delete"].flatMap((method) => {
+      const operation = pathItem[method];
+
+      if (!operation) {
+        return [];
+      }
+
+      const operationRecord = asRecord(operation, `${method.toUpperCase()} ${path}`);
+      const operationId = operationRecord.operationId;
+
+      if (typeof operationId !== "string" || operationId.length === 0) {
+        throw new Error(`OpenAPI ${method.toUpperCase()} ${path} is missing operationId.`);
+      }
+
+      const auth = isPublicOperation(operationRecord) ? "public" : "bearer";
+
+      if (auth === "public" && !["/v1/health", "/v1/ready"].includes(path)) {
+        throw new Error(`OpenAPI ${method.toUpperCase()} ${path} cannot be public without an explicit review.`);
+      }
+
+      if (Boolean(operationRecord.deprecated) && typeof operationRecord["x-deprecation-note"] !== "string") {
+        throw new Error(`OpenAPI deprecated operation ${operationId} must include x-deprecation-note.`);
+      }
+
+      return [
+        {
+          operationId,
+          method: method.toUpperCase() as "DELETE" | "GET" | "POST" | "PUT",
+          path,
+          auth,
+          idempotencyKey: hasIdempotencyKey(operationRecord),
+          deprecated: Boolean(operationRecord.deprecated)
+        }
+      ];
+    })
+  );
+}
+
+function assertOperationSnapshot(
+  actual: readonly unknown[],
+  expected: readonly unknown[],
+  label: string
+): void {
+  const actualJson = JSON.stringify(actual);
+  const expectedJson = JSON.stringify(expected);
+
+  if (actualJson !== expectedJson) {
+    throw new Error(`OpenAPI ${label} drifted from openapi/rebac-control-plane.yaml.`);
+  }
+}
+
+function assertContractMetadata(): void {
+  if (parsed.openapi !== apiContractSnapshot.openApiVersion) {
+    throw new Error(`OpenAPI version ${parsed.openapi} does not match contract snapshot ${apiContractSnapshot.openApiVersion}.`);
+  }
+
+  if (parsed.info.version !== apiContractSnapshot.contractVersion) {
+    throw new Error(`OpenAPI info.version ${String(parsed.info.version)} does not match contract snapshot ${apiContractSnapshot.contractVersion}.`);
+  }
+
+  if (parsed.info.version !== generatedClientContractVersion) {
+    throw new Error(
+      `OpenAPI info.version ${String(parsed.info.version)} does not match generated client ${generatedClientContractVersion}.`
+    );
+  }
+
+  const versioning = asRecord(parsed.info["x-access-kit-versioning"], "OpenAPI versioning extension");
+  const deprecationPolicy = versioning.deprecationPolicy;
+  if (typeof deprecationPolicy !== "string" || !deprecationPolicy.includes("No operation is deprecated")) {
+    throw new Error("OpenAPI must document versioning and deprecation policy.");
+  }
+
+  const rateLimits = asRecord(parsed.info["x-access-kit-rate-limits"], "OpenAPI rate-limit extension");
+  if (
+    rateLimits.authenticationFailureAuditSamplingWindowSeconds !==
+      apiContractSnapshot.rateLimitPolicy.authenticationFailureAuditSamplingWindowSeconds ||
+    rateLimits.retryAfterHeader !== apiContractSnapshot.rateLimitPolicy.retryAfterHeader
+  ) {
+    throw new Error("OpenAPI rate-limit metadata must match the API contract snapshot.");
+  }
+
+  const rateLimited = asRecord(parsed.components.responses.RateLimited, "RateLimited response");
+  const headers = asRecord(rateLimited.headers, "RateLimited response headers");
+  if (!headers[apiContractSnapshot.rateLimitPolicy.retryAfterHeader]) {
+    throw new Error("OpenAPI RateLimited response must document Retry-After.");
+  }
+}
+
+function isPublicOperation(operation: Record<string, unknown>): boolean {
+  const security = operation.security ?? parsed.security;
+  return Array.isArray(security) && security.length === 0;
+}
+
+function hasIdempotencyKey(operation: Record<string, unknown>): boolean {
+  const parameters = operation.parameters;
+
+  if (!Array.isArray(parameters)) {
+    return false;
+  }
+
+  return parameters.some((parameter) => {
+    const record = asRecord(parameter, "OpenAPI operation parameter");
+    return record.$ref === "#/components/parameters/IdempotencyKey" || record.name === "Idempotency-Key";
+  });
 }
 
 function asRecord(value: unknown, label: string): Record<string, unknown> {
