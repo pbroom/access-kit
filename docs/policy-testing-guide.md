@@ -10,7 +10,7 @@ Application developers, platform engineers, security engineers, policy authors, 
 
 ## What This Is
 
-Policy testing combines a versioned policy model contract with synthetic proof points. `schemas/policy-model.schema.json` defines the portable model shape, `packages/core/src/policy-model.ts` validates model semantics, and `tests/fixtures/policy/proof-points.json` verifies deny-by-default, allow paths, explicit deny, expiration, suspended users, idempotency, and drift behavior.
+Policy testing combines a versioned policy model contract with synthetic proof points and stress fixtures. `schemas/policy-model.schema.json` defines the portable model shape, `packages/core/src/policy-model.ts` validates model semantics, `tests/fixtures/policy/proof-points.json` verifies core proof points, and `tests/core/policy-model-harness.test.ts` exercises malformed model cases, traversal bounds, tenant-boundary abuse, replay, and time-travel behavior.
 
 ## What This Is Not
 
@@ -31,7 +31,15 @@ Current proof points cover:
 - idempotent relationship write behavior
 - drift finding behavior
 
-Current model validation covers resource types, relations, action mappings, inheritance rules, deny rules, context and classification constraints, tenant boundaries, migrations, and generated-policy metadata warnings.
+Current model validation covers resource types, relations, action mappings, inheritance rules, deny rules, context and classification constraints, tenant boundaries, migration ordering and cycles, and generated-policy metadata warnings.
+
+Current harness coverage adds:
+
+- table-driven malformed model fuzz cases
+- cyclic and wide graph traversal bounds
+- cross-tenant resource lookup and relationship traversal denial
+- connector-state and evidence leakage checks on denied tenant-boundary decisions
+- replay, idempotency collision, and time-travel decision fixtures
 
 ## Concrete Example
 

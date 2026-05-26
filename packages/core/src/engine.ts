@@ -4,8 +4,11 @@ import type {
   DecisionRequest,
   DecisionResult,
   DecisionValue,
+  JsonRecord,
   RelationshipPathStep,
-  RelationshipTuple
+  RelationshipTuple,
+  Resource,
+  Subject
 } from "./domain.js";
 import { InMemoryRebacStore } from "./store.js";
 
@@ -129,16 +132,29 @@ export class RebacDecisionEngine {
       return denied("DENY_RESOURCE_NOT_ACTIVE");
     }
 
+    const rootTenantId = tenantIdFor(subject);
+
+    if (tenantBoundaryDenies(subject, resource)) {
+      return denied("DENY_TENANT_BOUNDARY");
+    }
+
     const activeRelationships = this.#store
       .listRelationships()
       .filter((relationship) => isActiveRelationship(relationship, evaluatedAt));
-    const explicitDeny = findDenyPath(this.#store, activeRelationships, request.subjectId, request.resourceId);
+    const explicitDeny = findDenyPath(this.#store, activeRelationships, request.subjectId, request.resourceId, rootTenantId);
 
     if (explicitDeny.length > 0) {
       return denied("DENY_EXPLICIT_OVERRIDE", explicitDeny);
     }
 
-    const relationshipPath = findAllowPath(this.#store, activeRelationships, request.subjectId, request.resourceId, request.action);
+    const relationshipPath = findAllowPath(
+      this.#store,
+      activeRelationships,
+      request.subjectId,
+      request.resourceId,
+      request.action,
+      rootTenantId
+    );
 
     if (relationshipPath.length === 0) {
       return denied("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
@@ -213,7 +229,8 @@ function findAllowPath(
   relationships: RelationshipTuple[],
   subjectId: string,
   resourceId: string,
-  action: string
+  action: string,
+  rootTenantId: string | undefined
 ): RelationshipPathStep[] {
   const allowedRelations = actionAllowRelations.get(action.toLowerCase()) ?? new Set<string>();
   const queue: Array<{ currentId: string; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
@@ -230,6 +247,10 @@ function findAllowPath(
 
     for (const relationship of relationships) {
       if (relationship.subjectId !== next.currentId) {
+        continue;
+      }
+
+      if (!relationshipMatchesTenantBoundary(store, relationship, rootTenantId)) {
         continue;
       }
 
@@ -279,7 +300,8 @@ function findDenyPath(
   store: InMemoryRebacStore,
   relationships: RelationshipTuple[],
   subjectId: string,
-  resourceId: string
+  resourceId: string,
+  rootTenantId: string | undefined
 ): RelationshipPathStep[] {
   const queue: Array<{ currentId: string; path: RelationshipPathStep[] }> = [{ currentId: subjectId, path: [] }];
   const visited = new Set<string>([subjectId]);
@@ -293,6 +315,10 @@ function findDenyPath(
 
     for (const relationship of relationships) {
       if (relationship.subjectId !== next.currentId) {
+        continue;
+      }
+
+      if (!relationshipMatchesTenantBoundary(store, relationship, rootTenantId)) {
         continue;
       }
 
@@ -353,6 +379,47 @@ function isActiveGraphNode(store: InMemoryRebacStore, id: string): boolean {
   }
 
   return false;
+}
+
+function tenantBoundaryDenies(subject: Subject, resource: Resource): boolean {
+  const subjectTenantId = tenantIdFor(subject);
+  const resourceTenantId = tenantIdFor(resource);
+
+  if (!subjectTenantId && !resourceTenantId) {
+    return false;
+  }
+
+  return !subjectTenantId || !resourceTenantId || subjectTenantId !== resourceTenantId;
+}
+
+function relationshipMatchesTenantBoundary(
+  store: InMemoryRebacStore,
+  relationship: RelationshipTuple,
+  rootTenantId: string | undefined
+): boolean {
+  if (!rootTenantId) {
+    return true;
+  }
+
+  const relationshipTenantId = stringAttribute(relationship.attributes, "tenantId");
+
+  if (relationshipTenantId && relationshipTenantId !== rootTenantId) {
+    return false;
+  }
+
+  const objectNode = store.getSubject(relationship.objectId) ?? store.getResource(relationship.objectId);
+
+  return tenantIdFor(objectNode) === rootTenantId;
+}
+
+function tenantIdFor(node: Pick<Subject | Resource, "attributes"> | undefined): string | undefined {
+  return stringAttribute(node?.attributes, "tenantId");
+}
+
+function stringAttribute(attributes: JsonRecord | undefined, key: string): string | undefined {
+  const value = attributes?.[key];
+
+  return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
 function toPathStep(relationship: RelationshipTuple): RelationshipPathStep {
