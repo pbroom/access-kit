@@ -10,11 +10,11 @@ Connector developers, platform engineers, security engineers, ISSOs, assessors, 
 
 ## What This Is
 
-The connector contract defines how Access Kit interacts with provider-specific systems while preserving a portable authorization model. The current repo includes a mock connector and synthetic read-only Entra ID, SharePoint, and AWS-style fixtures that prove contract shape without live tenant access.
+The connector contract defines how Access Kit interacts with provider-specific systems while preserving a portable authorization model. The current repo includes a mock connector, synthetic read-only Entra ID, SharePoint, and AWS-style fixtures that prove contract shape without live tenant access, and an optional Microsoft Graph Entra read-only foundation for sandbox tenants.
 
 ## What This Is Not
 
-This is not a claim that live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, or AD connector behavior is implemented. Synthetic connectors do not call provider APIs and must not be treated as production integrations.
+This is not a claim that AWS, SharePoint, Teams, Power Platform, Dataverse, or AD live connector behavior is implemented. Synthetic connectors do not call provider APIs and must not be treated as production integrations. The Microsoft Graph connector is opt-in, read-only, and must retain sandbox-run evidence before anyone claims live-tenant verification.
 
 ## Capability Model
 
@@ -60,6 +60,27 @@ The gate requires:
 - live provider writes blocked unless a future reviewed live connector slice adds approved readiness, rollback, monitoring, and emergency revocation evidence
 
 The current synthetic provider connectors remain read-only and blocked for enforcement. The `mock` connector may pass controlled synthetic enforcement readiness only with `liveProviderWrites: false`.
+
+## Microsoft Graph Entra Read-Only Foundation
+
+`@access-kit/connectors-microsoft-graph` exports `MicrosoftGraphEntraReadOnlyConnector`, an injectable Microsoft Graph adapter for Entra users, groups, service principals, and app-role assignments. It is registered by the API runtime only when sandbox configuration is present:
+
+- `REBAC_MICROSOFT_GRAPH_ENTRA_ID_ENABLED=true`
+- `REBAC_MICROSOFT_GRAPH_TENANT_ID`
+- `REBAC_MICROSOFT_GRAPH_ACCESS_TOKEN` or `REBAC_MICROSOFT_GRAPH_TOKEN_FILE`
+- `REBAC_MICROSOFT_GRAPH_SANDBOX_EVIDENCE`, recommended for retained sandbox evidence
+
+The connector uses `User.Read.All`, `GroupMember.Read.All`, and `Application.Read.All` as the approved aggregate read-only application scope set for this foundation. Microsoft documents `User.Read.All` as the least-privilege application permission for listing users, `GroupMember.Read.All` as the least-privilege application permission for group-member readback, and `Application.Read.All` as the least-privilege application permission for service-principal and app-role-assignment readback. The aggregate set intentionally avoids write scopes and `Directory.Read.All`, but it is still reviewed as a tenant-wide sandbox permission set:
+
+- [List users](https://learn.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0)
+- [List groups](https://learn.microsoft.com/graph/api/group-list?view=graph-rest-1.0)
+- [List group members](https://learn.microsoft.com/en-us/graph/api/group-list-members?view=graph-rest-1.0)
+- [List service principals](https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list?view=graph-rest-1.0)
+- [List appRoleAssignments granted for a service principal](https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignedto?view=graph-rest-1.0)
+
+Discovery maps provider objects into redacted Access Kit records. Tenant IDs, Graph object IDs, user principal names, display names, request IDs, bearer tokens, and raw pagination cursors are not stored in canonical IDs, warnings, native-grant attributes, or evidence. Pagination and throttling are captured as warnings, and missing sandbox evidence emits `GRAPH_SANDBOX_EVIDENCE_REQUIRED` instead of silently claiming live coverage.
+
+The connector does not implement Graph writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled.
 
 ## Concrete Example
 

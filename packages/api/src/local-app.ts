@@ -411,7 +411,7 @@ export async function syncConnector(
   const runSequence = nextAppRecordSequence(app, `discovery:${connectorId}`, app.store.listDiscoveryRuns({ connectorId }).length);
   const runKey = `${connectorId}:${compactTimestamp(startedAt)}:${runSequence}`;
   connector.mode = mode;
-  const metadata = connector.getDiscoveryMetadata?.();
+  const initialMetadata = connector.getDiscoveryMetadata?.();
   const subjects = await connector.discoverSubjects();
   const resources = await connector.discoverResources();
   const relationships = await connector.discoverRelationships();
@@ -423,11 +423,12 @@ export async function syncConnector(
   const nativeGrants: NativeGrant[] = [];
   for (const resource of resources) {
     const grants = await connector.readCurrentAccess(resource.id);
-    grants.forEach((grant) => app.store.upsertNativeGrant(grant));
     nativeGrants.push(...grants);
   }
+  app.store.replaceNativeGrantsForConnector(connectorId, nativeGrants);
 
   const completedAt = app.now();
+  const metadata = connector.getDiscoveryMetadata?.() ?? initialMetadata;
   const warnings = metadata?.warnings ?? [];
   const run: DiscoveryRun = {
     id: `discovery:${runKey}`,

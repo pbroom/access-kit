@@ -100,8 +100,16 @@ function validateIdentityAndConsent(
     failures.push(`${connector.id}: tenant boundary must be explicit and cannot use the fallback boundary.`);
   }
 
-  if (!review.synthetic || !metadata.synthetic || review.identity.kind !== "synthetic" || review.consent.status !== "synthetic") {
-    failures.push(`${connector.id}: current connector security review must be synthetic and explicitly consented as synthetic.`);
+  if (review.synthetic !== metadata.synthetic) {
+    failures.push(`${connector.id}: review and discovery metadata must agree on synthetic status.`);
+  }
+
+  if (review.synthetic) {
+    if (review.identity.kind !== "synthetic" || review.consent.status !== "synthetic") {
+      failures.push(`${connector.id}: synthetic connector security review must use synthetic identity and synthetic consent.`);
+    }
+  } else if (review.identity.kind === "synthetic" || review.consent.status !== "approved") {
+    failures.push(`${connector.id}: live-read connector security review must use a non-synthetic identity and approved consent.`);
   }
 
   requireSameSet(review.consent.scopesApproved, requiredReadScopes, `${connector.id}: consent scopes`, failures);
@@ -117,13 +125,17 @@ function validateIdentityAndConsent(
   }
 
   for (const scope of requiredReadScopes) {
-    if (!scope.startsWith("synthetic:") || !scope.includes(".read") || /write/i.test(scope)) {
-      failures.push(`${connector.id}: scope ${scope} must be synthetic, read-only, and non-writing.`);
+    if (review.synthetic) {
+      if (!scope.startsWith("synthetic:") || !scope.includes(".read") || isWriteScope(scope)) {
+        failures.push(`${connector.id}: scope ${scope} must be synthetic, read-only, and non-writing.`);
+      }
+    } else if (!isApprovedLiveReadScope(scope)) {
+      failures.push(`${connector.id}: scope ${scope} must be an approved live read-only provider scope.`);
     }
   }
 
   for (const scope of review.leastPrivilege.forbiddenWriteScopes) {
-    if (!/write/i.test(scope)) {
+    if (!isWriteScope(scope)) {
       failures.push(`${connector.id}: forbidden scope ${scope} must describe a write capability.`);
     }
   }
@@ -203,12 +215,26 @@ function validateOperations(
 }
 
 function validateSecretHandling(review: ConnectorSecurityReview, checks: string[], failures: string[]): void {
-  if (review.secrets.storesSecrets || review.secrets.handling !== "none" || review.secrets.rotation !== "not_applicable") {
+  if (review.synthetic && (review.secrets.storesSecrets || review.secrets.handling !== "none" || review.secrets.rotation !== "not_applicable")) {
     failures.push(`${review.connectorId}: synthetic connectors must not store secrets or require runtime secret rotation.`);
   }
 
+  if (!review.synthetic) {
+    if (review.secrets.storesSecrets) {
+      failures.push(`${review.connectorId}: live-read connectors must not store secret material in connector state.`);
+    }
+
+    if (review.secrets.handling === "none") {
+      failures.push(`${review.connectorId}: live-read connectors must require managed identity or vault-backed secret handling.`);
+    }
+
+    if (review.secrets.handling === "vault_required" && review.secrets.rotation !== "required") {
+      failures.push(`${review.connectorId}: vault-backed live-read credentials must require rotation evidence.`);
+    }
+  }
+
   requireEvidenceFiles(review.secrets.evidence, `${review.connectorId}: secret-handling evidence`, failures);
-  checks.push("secret handling is documented as synthetic/no-secret");
+  checks.push(review.synthetic ? "secret handling is documented as synthetic/no-secret" : "secret handling is documented as managed identity or vault-backed with no stored secrets");
 }
 
 async function validateNoWriteReadiness(
@@ -283,6 +309,17 @@ function requireNoDuplicates(values: readonly string[], label: string, failures:
   if (new Set(values).size !== values.length) {
     failures.push(`${label} must not contain duplicates.`);
   }
+}
+
+function isApprovedLiveReadScope(scope: string): boolean {
+  return (
+    ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"].includes(scope) &&
+    !isWriteScope(scope)
+  );
+}
+
+function isWriteScope(scope: string): boolean {
+  return /write/i.test(scope) || /readwrite/i.test(scope);
 }
 
 function requireEvidenceFiles(paths: readonly string[], label: string, failures: string[]): void {

@@ -166,6 +166,17 @@ export class InMemoryRebacStore {
     return grant;
   }
 
+  replaceNativeGrantsForConnector(sourceConnectorId: CanonicalId, grants: NativeGrant[]): NativeGrant[] {
+    for (const [id, grant] of this.#nativeGrants.entries()) {
+      if (grant.sourceConnectorId === sourceConnectorId) {
+        this.#nativeGrants.delete(id);
+      }
+    }
+
+    grants.forEach((grant) => this.upsertNativeGrant(grant));
+    return grants;
+  }
+
   recordDiscoveryRun(run: DiscoveryRun): DiscoveryRun {
     assertNotRecorded(this.#discoveryRuns, run.id, "Discovery run");
     this.#discoveryRuns.set(run.id, run);

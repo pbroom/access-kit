@@ -5,7 +5,7 @@
 The repo treats API and evidence contracts as first-class CI gates. Automation-specific validation reads `scripts/lib/automation-contract.ts`, the typed manifest that defines package-script expectations, CI job command expectations, steward label policy, stack readiness rules, and proof-point evidence command ordering.
 
 - `pnpm validate:contracts` validates JSON Schemas, OpenAPI paths, API examples, contract snapshots, generated client metadata, policy model validation, policy proof points, connector security gates, and CLI-to-API command mappings.
-- `pnpm validate:connector-security` validates connector identity, consent, tenant boundaries, least-privilege read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults.
+- `pnpm validate:connector-security` validates connector identity, consent, tenant boundaries, least-privilege read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults, including approved live-read Microsoft Graph scopes when the optional sandbox connector is registered.
 - `pnpm validate:docs` validates relative Markdown links, required runbook sections, documentation examples against JSON Schema/OpenAPI contracts, and generated API reference freshness.
 - `pnpm validate:automation` validates the implementation backlog, PR state labels, steward scripts, automation docs, and CI automation gate.
 - `pnpm validate:ci` validates that the GitHub Actions workflow still contains the expected contract, quality, evidence, and security jobs.
@@ -14,6 +14,7 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - `pnpm validate:deployment-manifests` validates the Kubernetes manifests, probe wiring, secret references, restricted runtime security, network policy, and signed-image admission policy example.
 - `pnpm validate:persistence-deployment` validates the schema-backed synthetic production persistence manifest, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - `pnpm test:core` includes shared repository conformance coverage for in-memory proof-point repositories, local JSON graph/job stores, and the production graph plus connector-state adapters.
+- `pnpm exec vitest run tests/connectors` covers the Microsoft Graph Entra read-only connector foundation with fixture-backed pagination, throttling, redaction, app-role mapping, no-write behavior, and optional runtime registration.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm build` verify TypeScript quality across supported Node versions.
 - `pnpm evidence:check` regenerates proof-point evidence in check mode and fails when the committed report no longer matches the normalized generated output.
 - `pnpm audit --audit-level high`, Gitleaks, and CodeQL provide initial dependency, secret, and static-analysis coverage.

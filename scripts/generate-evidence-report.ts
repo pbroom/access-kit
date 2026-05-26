@@ -150,7 +150,7 @@ function normalizeReport(report: string): string {
     .replace(vitestFileSummaryPattern, "")
     .replace(vitestSlowTestPattern, "")
     .replace(/\/[^\s`]*access-kit[^\s`]*/g, "<repo>")
-    .replace(/^[ ]RUN[ ]{2}v.+$/gm, " RUN  v<vitest> <repo>")
+    .replace(/^[ ]*RUN[ ]{2}v.+$/gm, " RUN  v<vitest> <repo>")
     .replace(/^[ ]{3}Start at .+$/gm, "   Start at  <time>")
     .replace(/^[ ]{3}Duration .+$/gm, "   Duration  <duration>");
 }

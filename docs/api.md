@@ -63,7 +63,7 @@ Decisions do not create grants and do not mutate native providers. Provisioning 
 
 ## Phase 2 Read-Only Discovery
 
-`GET /v1/connectors` returns the registered connector adapters, including provider, tenant boundary, required read scopes, and capability flags. Phase 2 registers synthetic `mock`, `entra-readonly`, `sharepoint-readonly`, and `aws-readonly` connectors. These are contract fixtures, not live tenant integrations.
+`GET /v1/connectors` returns the registered connector adapters, including provider, tenant boundary, required read scopes, and capability flags. Phase 2 registers synthetic `mock`, `entra-readonly`, `sharepoint-readonly`, and `aws-readonly` connectors. These are contract fixtures, not live tenant integrations. When `REBAC_MICROSOFT_GRAPH_ENTRA_ID_ENABLED=true` and sandbox token configuration is present, the runtime also registers `microsoft-graph-entra-readonly`, an opt-in read-only Microsoft Graph connector that redacts tenant data and leaves provider writes blocked.
 
 `POST /v1/connectors/{id}/test` returns connector health and permission checks. Check statuses are `pass`, `warn`, or `fail`; only failures make the response invalid.
 
