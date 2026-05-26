@@ -236,7 +236,7 @@ The documentation connects architecture, control families, implementation behavi
 
 ## Known Gaps
 
-- Live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, AD, and Entra ID connector behavior remains planned/draft unless explicitly implemented.
+- Live Microsoft writes, AWS, Power Platform, Dataverse, AD, and unsupported Microsoft native-grant behavior remains planned/draft unless explicitly implemented; the Microsoft Graph sandbox connector only provides staged read-only Entra, M365/Teams, SharePoint, and OneDrive discovery where documented.
 - Environment-specific graph storage drivers, managed queue workers, selected WORM or immutable-ledger audit drivers, approved SIEM forwarding deployment, IdP or mTLS gateway deployment, admin ReBAC role-binding evidence, and production evidence retention remain future work. The production audit/evidence adapter and admin authorization readiness boundaries are implemented as contract proof points, not as approved deployments.
 - OSCAL output is implemented as proof-point evidence fragments; production OSCAL packages still require deployment-specific review, signing keys, retention, and assessor approval.
 - Production runbook exercises, post-action reviews, and assessor-approved control statements are deployment-specific and out of scope for the local documentation foundation.

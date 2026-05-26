@@ -27,10 +27,15 @@ export const MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID = "microsoft-graph-entra-readonl
 export const MICROSOFT_GRAPH_M365_TEAMS_RESOURCE_SPECIFIC_READ_SCOPES = [
   "TeamSettings.Read.Group"
 ] as const;
+export const MICROSOFT_GRAPH_SHAREPOINT_ONEDRIVE_REQUIRED_READ_SCOPES = [
+  "Files.Read.All",
+  "Sites.Read.All"
+] as const;
 export const MICROSOFT_GRAPH_ENTRA_REQUIRED_READ_SCOPES = [
   "User.Read.All",
   "GroupMember.Read.All",
-  "Application.Read.All"
+  "Application.Read.All",
+  ...MICROSOFT_GRAPH_SHAREPOINT_ONEDRIVE_REQUIRED_READ_SCOPES
 ] as const;
 export const MICROSOFT_GRAPH_ENTRA_FORBIDDEN_WRITE_SCOPES = [
   "User.ReadWrite.All",
@@ -39,13 +44,17 @@ export const MICROSOFT_GRAPH_ENTRA_FORBIDDEN_WRITE_SCOPES = [
   "Application.ReadWrite.All",
   "AppRoleAssignment.ReadWrite.All",
   "Directory.ReadWrite.All",
-  "TeamSettings.ReadWrite.Group"
+  "TeamSettings.ReadWrite.Group",
+  "Files.ReadWrite.All",
+  "Sites.ReadWrite.All"
 ] as const;
 
 const DEFAULT_BASE_URL = "https://graph.microsoft.com/v1.0";
 const DEFAULT_MAX_PAGES = 100;
 const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_MAX_DRIVE_ITEM_DEPTH = 8;
 const REDACTION_HASH_LENGTH = 16;
+const DRIVE_ITEM_SELECT = "id,name,webUrl,parentReference,folder,file,package,deleted,size,createdDateTime,lastModifiedDateTime";
 
 export interface MicrosoftGraphCollectionPage<T> {
   value: T[];
@@ -176,6 +185,7 @@ export interface MicrosoftGraphEntraConnectorOptions {
   credentialHandling?: "managed_identity" | "vault_required";
   maxPages?: number;
   maxRetries?: number;
+  maxDriveItemDepth?: number;
   sleep?: (milliseconds: number) => Promise<void>;
 }
 
@@ -254,6 +264,62 @@ interface GraphAppRoleAssignment {
   createdDateTime?: string | null;
 }
 
+interface GraphSite {
+  id?: string;
+  name?: string | null;
+  displayName?: string | null;
+  webUrl?: string | null;
+  isPersonalSite?: boolean | null;
+  root?: JsonRecord | null;
+  siteCollection?: {
+    hostname?: string | null;
+    dataLocationCode?: string | null;
+    root?: JsonRecord | null;
+  } | null;
+  deletedDateTime?: string | null;
+}
+
+interface GraphDrive {
+  id?: string;
+  name?: string | null;
+  driveType?: string | null;
+  webUrl?: string | null;
+  createdDateTime?: string | null;
+  lastModifiedDateTime?: string | null;
+  owner?: {
+    user?: { id?: string; displayName?: string | null } | null;
+    group?: { id?: string; displayName?: string | null } | null;
+  } | null;
+  quota?: {
+    state?: string | null;
+    total?: number | null;
+  } | null;
+  sharePointIds?: {
+    siteId?: string | null;
+    webId?: string | null;
+    listId?: string | null;
+  } | null;
+}
+
+interface GraphDriveItem {
+  id?: string;
+  name?: string | null;
+  webUrl?: string | null;
+  folder?: { childCount?: number | null } | null;
+  file?: { mimeType?: string | null } | null;
+  package?: JsonRecord | null;
+  deleted?: JsonRecord | null;
+  size?: number | null;
+  createdDateTime?: string | null;
+  lastModifiedDateTime?: string | null;
+  parentReference?: {
+    driveId?: string | null;
+    id?: string | null;
+    siteId?: string | null;
+    path?: string | null;
+  } | null;
+}
+
 interface EntraSnapshot {
   subjects: Subject[];
   resources: Resource[];
@@ -275,6 +341,10 @@ interface RelationshipCoverage {
   relationships: RelationshipTuple[];
   grantsByResource: Map<string, NativeGrant[]>;
 }
+
+type DriveInventorySource =
+  | { kind: "sharepoint"; siteResource: Resource }
+  | { kind: "onedrive"; user: GraphUser; ownerSubject?: Subject };
 
 export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   mode: ConnectorAdapter["mode"] = "read_only";
@@ -299,6 +369,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   readonly #credentialHandling: "managed_identity" | "vault_required";
   readonly #maxPages: number;
   readonly #maxRetries: number;
+  readonly #maxDriveItemDepth: number;
   readonly #sleep: (milliseconds: number) => Promise<void>;
   #snapshot?: EntraSnapshot;
   #warnings: DiscoveryRunWarning[] = [];
@@ -314,6 +385,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     this.#credentialHandling = options.credentialHandling ?? "vault_required";
     this.#maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
     this.#maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.#maxDriveItemDepth = options.maxDriveItemDepth ?? DEFAULT_MAX_DRIVE_ITEM_DEPTH;
     this.#sleep = options.sleep ?? sleep;
   }
 
@@ -419,7 +491,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         requiredReadScopes: this.requiredReadScopes,
         forbiddenWriteScopes: [...MICROSOFT_GRAPH_ENTRA_FORBIDDEN_WRITE_SCOPES],
         scopeJustification:
-          "User, group membership and ownership, and application read permissions are sufficient for redacted tenant-wide Entra, Microsoft 365 group, service-principal, and app-role assignment readback without provider writes. TeamSettings.Read.Group is resource-specific consent and only enriches team records when granted for that team."
+          "User, group membership and ownership, application, site, and file read permissions are sufficient for redacted tenant-wide Entra, Microsoft 365 group, SharePoint, OneDrive, service-principal, app-role assignment, and inventory readback without provider writes. TeamSettings.Read.Group is resource-specific consent and only enriches team records when granted for that team."
       },
       operations: {
         pagination: "required",
@@ -495,6 +567,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     const maps = this.#buildEntityMaps(users, groups, servicePrincipals);
     const relationshipCoverage = await this.#buildRelationships(groups, maps);
     const grantsByResource = await this.#buildNativeGrants(servicePrincipals, maps);
+    const sharePointAndOneDriveResources = await this.#buildSharePointAndOneDriveInventory(users, maps);
     for (const [resourceId, grants] of relationshipCoverage.grantsByResource.entries()) {
       grantsByResource.set(resourceId, [...(grantsByResource.get(resourceId) ?? []), ...grants]);
     }
@@ -502,11 +575,12 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
 
     this.#snapshot = {
       subjects: [...maps.subjectsByGraphId.values()],
-      resources: [
+      resources: uniqueResources([
         ...maps.applicationResourcesByGraphId.values(),
         ...maps.m365GroupResourcesByGraphId.values(),
-        ...maps.teamResourcesByGroupId.values()
-      ],
+        ...maps.teamResourcesByGroupId.values(),
+        ...sharePointAndOneDriveResources
+      ]),
       relationships: relationshipCoverage.relationships,
       grantsByResource,
       cursor
@@ -1027,6 +1101,185 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     );
   }
 
+  async #buildSharePointAndOneDriveInventory(users: GraphUser[], maps: EntraEntityMaps): Promise<Resource[]> {
+    const resources = new Map<string, Resource>();
+    const sites = await this.#readCollection<GraphSite>(
+      "/sites?$select=id,name,displayName,webUrl,isPersonalSite,root,siteCollection",
+      "resources"
+    );
+    this.#pushWarning({
+      code: "GRAPH_SHAREPOINT_SITE_SEARCH_COVERAGE_LIMITED",
+      message: "Microsoft Graph SharePoint inventory used the tenant sites collection without a deployment-specific search scope; operators must verify subsite coverage before treating inventory as complete.",
+      severity: "warning",
+      scope: "resources",
+      retryable: false
+    });
+
+    if (sites.length === 0) {
+      this.#pushWarning({
+        code: "GRAPH_SHAREPOINT_SITES_COVERAGE_EMPTY",
+        message: "Microsoft Graph returned no SharePoint sites for inventory; site and drive coverage is empty for this run.",
+        severity: "info",
+        scope: "resources",
+        retryable: false
+      });
+    }
+
+    for (const site of sites) {
+      if (!site.id) {
+        this.#warnMissingId("resources");
+        continue;
+      }
+
+      const siteResource = this.#sharePointSiteResource(site);
+      resources.set(siteResource.id, siteResource);
+      await this.#addSiteDrives(site, siteResource, resources);
+    }
+
+    for (const user of users) {
+      if (!user.id) {
+        continue;
+      }
+
+      this.#pushWarning({
+        code: "GRAPH_ONEDRIVE_USER_ENUMERATION_SEQUENTIAL",
+        message: "Microsoft Graph OneDrive inventory enumerates user drives per imported user; large tenants should monitor throttling and coverage before treating OneDrive inventory as complete.",
+        severity: "info",
+        scope: "resources",
+        retryable: true,
+        objectId: maps.subjectsByGraphId.get(user.id)?.id
+      });
+      await this.#addUserDrives(user, maps.subjectsByGraphId.get(user.id), resources);
+    }
+
+    return [...resources.values()];
+  }
+
+  async #addSiteDrives(site: GraphSite, siteResource: Resource, resources: Map<string, Resource>): Promise<void> {
+    const drives = await this.#readCollection<GraphDrive>(
+      `/sites/${encodeURIComponent(site.id!)}/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds`,
+      "resources"
+    );
+
+    if (drives.length === 0) {
+      this.#pushWarning({
+        code: "GRAPH_SHAREPOINT_SITE_DRIVES_EMPTY",
+        message: "Microsoft Graph returned a SharePoint site without readable drives; document-library inventory may be incomplete.",
+        severity: "info",
+        scope: "resources",
+        retryable: false,
+        objectId: siteResource.id
+      });
+    }
+
+    for (const drive of drives) {
+      await this.#addDriveInventory(drive, { kind: "sharepoint", siteResource }, resources);
+    }
+  }
+
+  async #addUserDrives(user: GraphUser, ownerSubject: Subject | undefined, resources: Map<string, Resource>): Promise<void> {
+    const drives = await this.#readCollection<GraphDrive>(
+      `/users/${encodeURIComponent(user.id!)}/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds`,
+      "resources"
+    );
+
+    if (drives.length === 0) {
+      this.#pushWarning({
+        code: "GRAPH_ONEDRIVE_DRIVES_EMPTY",
+        message: "Microsoft Graph returned no readable OneDrive drives for at least one imported user; OneDrive coverage may be incomplete.",
+        severity: "info",
+        scope: "resources",
+        retryable: false,
+        objectId: ownerSubject?.id
+      });
+    }
+
+    for (const drive of drives) {
+      await this.#addDriveInventory(drive, { kind: "onedrive", user, ownerSubject }, resources);
+    }
+  }
+
+  async #addDriveInventory(drive: GraphDrive, source: DriveInventorySource, resources: Map<string, Resource>): Promise<void> {
+    if (!drive.id) {
+      this.#warnMissingId("resources");
+      return;
+    }
+
+    const driveResource = this.#driveResource(drive, source);
+    if (resources.has(driveResource.id)) {
+      this.#pushWarning({
+        code: "GRAPH_DRIVE_DUPLICATE_DISCOVERY",
+        message: "Microsoft Graph returned the same drive through multiple inventory paths; duplicate drive resources were collapsed by redacted drive id.",
+        severity: "info",
+        scope: "resources",
+        retryable: false,
+        objectId: driveResource.id
+      });
+      return;
+    }
+
+    resources.set(driveResource.id, driveResource);
+    this.#recordInventoryInheritanceWarning(driveResource);
+    await this.#addDriveItems(drive, driveRootChildrenPath(drive.id), driveResource, resources, 0);
+  }
+
+  async #addDriveItems(
+    drive: GraphDrive,
+    childrenPath: string,
+    parentResource: Resource,
+    resources: Map<string, Resource>,
+    depth: number
+  ): Promise<void> {
+    if (!drive.id) {
+      return;
+    }
+
+    if (depth >= this.#maxDriveItemDepth) {
+      this.#pushWarning({
+        code: "GRAPH_DRIVE_ITEM_DEPTH_LIMIT_REACHED",
+        message: "Microsoft Graph drive item traversal reached the configured depth limit; deeper folders were skipped with coverage warning.",
+        severity: "warning",
+        scope: "resources",
+        retryable: true,
+        objectId: parentResource.id
+      });
+      return;
+    }
+
+    const items = await this.#readCollection<GraphDriveItem>(childrenPath, "resources");
+    for (const item of items) {
+      if (!item.id) {
+        this.#warnMissingId("resources");
+        continue;
+      }
+
+      const itemType = driveItemResourceType(item);
+      if (!itemType) {
+        this.#pushWarning({
+          code: "GRAPH_DRIVE_ITEM_UNSUPPORTED_FACET_SKIPPED",
+          message: "Microsoft Graph returned a drive item without a folder, package, or file facet; the item was skipped instead of becoming an ambiguous resource.",
+          severity: "warning",
+          scope: "resources",
+          retryable: false,
+          objectId: parentResource.id
+        });
+        continue;
+      }
+
+      const resource = this.#driveItemResource(drive, item, itemType, parentResource);
+      if (resources.has(resource.id)) {
+        continue;
+      }
+
+      resources.set(resource.id, resource);
+      this.#recordInventoryInheritanceWarning(resource);
+
+      if (isDriveItemContainer(item)) {
+        await this.#addDriveItems(drive, driveItemChildrenPath(drive.id, item.id), resource, resources, depth + 1);
+      }
+    }
+  }
+
   async #buildNativeGrants(
     servicePrincipals: GraphServicePrincipal[],
     maps: EntraEntityMaps
@@ -1198,6 +1451,131 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     };
   }
 
+  #sharePointSiteResource(site: GraphSite): Resource {
+    const graphId = site.id ?? "unknown";
+    const personalSite = Boolean(site.isPersonalSite);
+    return {
+      id: `sharepoint-site:microsoft-graph:${redactValue(graphId)}`,
+      type: "sharepoint_site",
+      displayName: `${personalSite ? "OneDrive personal site" : "SharePoint site"} ${redactValue(graphId)}`,
+      sourceSystem: this.id,
+      ownerId: "user:access-kit-owner",
+      dataStewardId: "user:access-kit-steward",
+      technicalOwnerId: "user:access-kit-operator",
+      classification: personalSite ? "confidential" : "internal",
+      lifecycleState: site.deletedDateTime ? "deleted" : "active",
+      attributes: {
+        tenantId: this.tenantBoundary,
+        graphObjectHash: redactValue(graphId),
+        graphType: "site",
+        siteKind: personalSite ? "onedrive_personal_site" : "sharepoint_site",
+        hostnameHash: site.siteCollection?.hostname ? redactValue(site.siteCollection.hostname) : undefined,
+        dataLocationCode: site.siteCollection?.dataLocationCode ?? undefined,
+        rootSite: Boolean(site.root || site.siteCollection?.root),
+        webUrlHash: site.webUrl ? redactValue(site.webUrl) : undefined,
+        redacted: true
+      },
+      version: "resource:v1",
+      createdAt: this.#now(),
+      lastSeenAt: this.#now()
+    };
+  }
+
+  #driveResource(drive: GraphDrive, source: DriveInventorySource): Resource {
+    const graphId = drive.id ?? "unknown";
+    const sourceAttributes = source.kind === "sharepoint"
+      ? {
+          inventorySource: "sharepoint_site",
+          inheritedFromObjectId: source.siteResource.id
+        }
+      : {
+          inventorySource: "onedrive_user",
+          ownerSubjectId: source.ownerSubject?.id,
+          ownerUserHash: source.user.id ? redactValue(source.user.id) : undefined,
+          inheritedFromObjectId: source.ownerSubject?.id
+        };
+
+    return {
+      id: `workspace:microsoft-graph-drive:${redactValue(graphId)}`,
+      type: "workspace",
+      displayName: `${source.kind === "sharepoint" ? "SharePoint drive" : "OneDrive drive"} ${redactValue(graphId)}`,
+      sourceSystem: this.id,
+      ownerId: "user:access-kit-owner",
+      dataStewardId: "user:access-kit-steward",
+      technicalOwnerId: "user:access-kit-operator",
+      classification: source.kind === "onedrive" ? "confidential" : "internal",
+      lifecycleState: "active",
+      parentId: source.kind === "sharepoint" ? source.siteResource.id : undefined,
+      attributes: {
+        tenantId: this.tenantBoundary,
+        graphObjectHash: redactValue(graphId),
+        graphType: "drive",
+        driveType: drive.driveType ?? undefined,
+        nameHash: drive.name ? redactValue(drive.name) : undefined,
+        webUrlHash: drive.webUrl ? redactValue(drive.webUrl) : undefined,
+        quotaState: drive.quota?.state ?? undefined,
+        quotaTotalBytes: drive.quota?.total ?? undefined,
+        sharePointSiteHash: drive.sharePointIds?.siteId ? redactValue(drive.sharePointIds.siteId) : undefined,
+        sharePointWebHash: drive.sharePointIds?.webId ? redactValue(drive.sharePointIds.webId) : undefined,
+        sharePointListHash: drive.sharePointIds?.listId ? redactValue(drive.sharePointIds.listId) : undefined,
+        ownerUserHash: drive.owner?.user?.id ? redactValue(drive.owner.user.id) : undefined,
+        ownerGroupHash: drive.owner?.group?.id ? redactValue(drive.owner.group.id) : undefined,
+        inheritanceAmbiguous: true,
+        inheritanceMarker: "provider_permissions_deferred_to_native_grant_readback",
+        canonicalAccessGranted: false,
+        ...sourceAttributes,
+        redacted: true
+      },
+      version: "resource:v1",
+      createdAt: this.#now(),
+      lastSeenAt: this.#now()
+    };
+  }
+
+  #driveItemResource(
+    drive: GraphDrive,
+    item: GraphDriveItem,
+    type: Extract<Resource["type"], "folder" | "document">,
+    parentResource: Resource
+  ): Resource {
+    const graphId = item.id ?? "unknown";
+    const isFolder = type === "folder";
+    return {
+      id: `${isFolder ? "folder" : "document"}:microsoft-graph-drive-item:${redactValue(graphId)}`,
+      type,
+      displayName: `${isFolder ? "Microsoft Graph folder" : "Microsoft Graph file"} ${redactValue(graphId)}`,
+      sourceSystem: this.id,
+      ownerId: "user:access-kit-owner",
+      dataStewardId: "user:access-kit-steward",
+      technicalOwnerId: "user:access-kit-operator",
+      classification: parentResource.classification,
+      lifecycleState: item.deleted ? "deleted" : "active",
+      parentId: parentResource.id,
+      attributes: {
+        tenantId: this.tenantBoundary,
+        graphObjectHash: redactValue(graphId),
+        graphType: "driveItem",
+        driveHash: drive.id ? redactValue(drive.id) : undefined,
+        itemFacet: item.folder ? "folder" : item.package ? "package" : "file",
+        nameHash: item.name ? redactValue(item.name) : undefined,
+        webUrlHash: item.webUrl ? redactValue(item.webUrl) : undefined,
+        mimeType: item.file?.mimeType ?? undefined,
+        sizeBytes: item.size ?? undefined,
+        folderChildCount: item.folder?.childCount ?? undefined,
+        parentReferenceHash: item.parentReference?.id ? redactValue(item.parentReference.id) : undefined,
+        parentPathHash: item.parentReference?.path ? redactValue(item.parentReference.path) : undefined,
+        inheritedFromObjectId: parentResource.id,
+        inheritanceAmbiguous: true,
+        inheritanceMarker: "provider_permissions_deferred_to_native_grant_readback",
+        canonicalAccessGranted: false,
+        redacted: true
+      },
+      version: "resource:v1",
+      createdAt: this.#now(),
+      lastSeenAt: this.#now()
+    };
+  }
+
   #teamResource(group: GraphGroup, team: GraphTeam | undefined, parentId: string): Resource {
     const graphId = team?.id ?? group.id ?? "unknown";
     return {
@@ -1310,9 +1688,20 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     });
   }
 
+  #recordInventoryInheritanceWarning(resource: Resource): void {
+    this.#pushWarning({
+      code: "GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS",
+      message: "SharePoint and OneDrive inventory recorded inheritance markers only; explicit or broken permissions are deferred to native grant readback and no canonical access was granted from inventory.",
+      severity: "warning",
+      scope: "resources",
+      retryable: false,
+      objectId: resource.id
+    });
+  }
+
   #pushWarning(warning: DiscoveryRunWarning): void {
-    const key = `${warning.code}:${warning.scope}:${warning.message}`;
-    if (this.#warnings.some((existing) => `${existing.code}:${existing.scope}:${existing.message}` === key)) {
+    const key = `${warning.code}:${warning.scope}:${warning.objectId ?? ""}:${warning.message}`;
+    if (this.#warnings.some((existing) => `${existing.code}:${existing.scope}:${existing.objectId ?? ""}:${existing.message}` === key)) {
       return;
     }
 
@@ -1366,6 +1755,30 @@ function isTeamsBackedGroup(group: GraphGroup): boolean {
 
 function isGraphServicePrincipalObject(object: GraphDirectoryObject): boolean {
   return object["@odata.type"] === "#microsoft.graph.servicePrincipal" || Boolean(object.appId || object.servicePrincipalType);
+}
+
+function driveRootChildrenPath(driveId: string): string {
+  return `/drives/${encodeURIComponent(driveId)}/root/children?$select=${DRIVE_ITEM_SELECT}`;
+}
+
+function driveItemChildrenPath(driveId: string, itemId: string): string {
+  return `/drives/${encodeURIComponent(driveId)}/items/${encodeURIComponent(itemId)}/children?$select=${DRIVE_ITEM_SELECT}`;
+}
+
+function driveItemResourceType(item: GraphDriveItem): Extract<Resource["type"], "folder" | "document"> | undefined {
+  if (item.folder || item.package) {
+    return "folder";
+  }
+
+  return item.file ? "document" : undefined;
+}
+
+function isDriveItemContainer(item: GraphDriveItem): boolean {
+  return Boolean(item.folder || item.package);
+}
+
+function uniqueResources(resources: Resource[]): Resource[] {
+  return [...new Map(resources.map((resource) => [resource.id, resource])).values()];
 }
 
 function nativeGrantTypeForPrincipal(principalType: NativePrincipalType): NativeGrant["grantType"] {
@@ -1577,12 +1990,12 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
           name: `${connectorId} connector`,
           type: "connector",
           trustZone: "future_production",
-          dataClassification: "redacted directory metadata",
-          description: "Read-only Microsoft Graph adapter for Entra users, groups, service principals, and app-role assignments."
+          dataClassification: "redacted directory and collaboration metadata",
+          description: "Read-only Microsoft Graph adapter for Entra users, groups, service principals, app-role assignments, M365/Teams coupling, SharePoint, and OneDrive inventory."
         }
       ],
       externalSystems: ["microsoft-graph"],
-      assumptions: ["Connector evidence redacts tenant identifiers, object identifiers, emails, names, request identifiers, tokens, and cursors."],
+      assumptions: ["Connector evidence redacts tenant identifiers, object identifiers, emails, names, URLs, paths, request identifiers, tokens, and cursors."],
       version: "system-boundary:v1"
     },
     dataFlows: [
@@ -1591,7 +2004,7 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
         name: `${connectorId} connector evidence emission`,
         source: `component:connector:${connectorId}`,
         destination: "component:api-runtime",
-        dataTypes: ["redacted_directory_inventory", "redacted_app_role_assignments", "connector_audit_events"],
+        dataTypes: ["redacted_directory_inventory", "redacted_collaboration_inventory", "redacted_app_role_assignments", "connector_audit_events"],
         protections: ["read_only_scopes", "redacted_identifiers", "no_provider_writes"],
         liveTenantData: true
       }

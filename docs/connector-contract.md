@@ -10,11 +10,11 @@ Connector developers, platform engineers, security engineers, ISSOs, assessors, 
 
 ## What This Is
 
-The connector contract defines how Access Kit interacts with provider-specific systems while preserving a portable authorization model. The current repo includes a mock connector, synthetic read-only Entra ID, SharePoint, and AWS-style fixtures that prove contract shape without live tenant access, plus optional Microsoft Graph Entra and AWS read-only foundations for sandbox evidence.
+The connector contract defines how Access Kit interacts with provider-specific systems while preserving a portable authorization model. The current repo includes a mock connector, synthetic read-only Entra ID, SharePoint, OneDrive, and AWS-style fixtures that prove contract shape without live tenant or live account access, plus optional Microsoft Graph and AWS read-only foundations for sandbox evidence.
 
 ## What This Is Not
 
-This is not a claim that SharePoint, Teams, Power Platform, Dataverse, or AD live connector behavior is implemented. Synthetic connectors do not call provider APIs and must not be treated as production integrations. The Microsoft Graph and AWS connector foundations are opt-in and read-only, and must retain sandbox-run evidence before anyone claims live-tenant or live-account verification.
+This is not a claim that Power Platform, Dataverse, AD, Microsoft write behavior, Microsoft native grant readback, or AWS write behavior is implemented. Synthetic connectors do not call provider APIs and must not be treated as production integrations. The Microsoft Graph and AWS connector foundations are opt-in and read-only, and must retain sandbox-run evidence before anyone claims live-tenant or live-account verification.
 
 ## Capability Model
 
@@ -63,16 +63,16 @@ The current synthetic provider connectors remain read-only and blocked for enfor
 
 Authors adding a new read-only connector should start with the [Connector Authoring Tutorial](connector-authoring-tutorial.md). It turns this gate into a step-by-step path for identity setup, consent, least-privilege scopes, pagination, throttling, tombstones, coverage warnings, sync recovery, and release evidence.
 
-## Microsoft Graph Entra And M365/Teams Read-Only Foundation
+## Microsoft Graph Entra, M365/Teams, SharePoint, And OneDrive Read-Only Foundation
 
-`@access-kit/connectors-microsoft-graph` exports `MicrosoftGraphEntraReadOnlyConnector`, an injectable Microsoft Graph adapter for Entra users, groups, service principals, app-role assignments, Microsoft 365 groups, and group-backed Teams coupling. It is registered by the API runtime only when sandbox configuration is present:
+`@access-kit/connectors-microsoft-graph` exports `MicrosoftGraphEntraReadOnlyConnector`, an injectable Microsoft Graph adapter for Entra users, groups, service principals, app-role assignments, Microsoft 365 groups, group-backed Teams coupling, SharePoint sites and drives, folders, files, and OneDrive inventory. It is registered by the API runtime only when sandbox configuration is present:
 
 - `REBAC_MICROSOFT_GRAPH_ENTRA_ID_ENABLED=true`
 - `REBAC_MICROSOFT_GRAPH_TENANT_ID`
 - `REBAC_MICROSOFT_GRAPH_ACCESS_TOKEN` or `REBAC_MICROSOFT_GRAPH_TOKEN_FILE`
 - `REBAC_MICROSOFT_GRAPH_SANDBOX_EVIDENCE`, recommended for retained sandbox evidence
 
-The connector uses `User.Read.All`, `GroupMember.Read.All`, and `Application.Read.All` as the approved tenant-wide read-only application scope set for this foundation. Microsoft documents `User.Read.All` as the least-privilege application permission for listing users, `GroupMember.Read.All` as the least-privilege application permission for group, member, and owner readback, and `Application.Read.All` as the least-privilege application permission for service-principal and app-role-assignment readback. Microsoft documents `TeamSettings.Read.Group` as resource-specific consent for reading a team record by ID, so it is not part of the tenant-wide approved application scope gate; when that team-scoped consent is unavailable, the connector retains the Microsoft 365 group marker and emits coverage warnings instead of claiming full Team settings coverage. The aggregate tenant-wide set intentionally avoids write scopes and `Directory.Read.All`, but it is still reviewed as a tenant-wide sandbox permission set:
+The connector uses `User.Read.All`, `GroupMember.Read.All`, `Application.Read.All`, `Files.Read.All`, and `Sites.Read.All` as the approved tenant-wide read-only application scope set for this foundation. Microsoft documents `User.Read.All` as the least-privilege application permission for listing users, `GroupMember.Read.All` as the least-privilege application permission for group, member, and owner readback, `Application.Read.All` as the least-privilege application permission for service-principal and app-role-assignment readback, `Files.Read.All` as the least-privilege application permission for drive and drive item inventory, and `Sites.Read.All` as the least-privilege application permission for tenant SharePoint site inventory. Microsoft documents `TeamSettings.Read.Group` as resource-specific consent for reading a team record by ID, so it is not part of the tenant-wide approved application scope gate; when that team-scoped consent is unavailable, the connector retains the Microsoft 365 group marker and emits coverage warnings instead of claiming full Team settings coverage. The aggregate tenant-wide set intentionally avoids write scopes and `Directory.Read.All`, but it is still reviewed as a tenant-wide sandbox permission set:
 
 - [List users](https://learn.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0)
 - [List groups](https://learn.microsoft.com/graph/api/group-list?view=graph-rest-1.0)
@@ -81,12 +81,17 @@ The connector uses `User.Read.All`, `GroupMember.Read.All`, and `Application.Rea
 - [List service principals](https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list?view=graph-rest-1.0)
 - [List appRoleAssignments granted for a service principal](https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignedto?view=graph-rest-1.0)
 - [Get team](https://learn.microsoft.com/en-us/graph/api/team-get?view=graph-rest-1.0)
+- [List sites](https://learn.microsoft.com/en-us/graph/api/site-list?view=graph-rest-1.0)
+- [List drives](https://learn.microsoft.com/en-us/graph/api/drive-list?view=graph-rest-1.0)
+- [List drive item children](https://learn.microsoft.com/en-us/graph/api/driveitem-list-children?view=graph-rest-1.0)
 
-Discovery maps provider objects into redacted Access Kit records. Tenant IDs, Graph object IDs, user principal names, display names, request IDs, bearer tokens, Teams web URLs, and raw pagination cursors are not stored in canonical IDs, warnings, native-grant attributes, or evidence. Pagination and throttling are captured as warnings, and missing sandbox evidence emits `GRAPH_SANDBOX_EVIDENCE_REQUIRED` instead of silently claiming live coverage.
+Discovery maps provider objects into redacted Access Kit records. Tenant IDs, Graph object IDs, user principal names, display names, request IDs, bearer tokens, Teams web URLs, SharePoint and OneDrive URLs, drive item paths, and raw pagination cursors are not stored in canonical IDs, warnings, native-grant attributes, or evidence. Pagination and throttling are captured as warnings, and missing sandbox evidence emits `GRAPH_SANDBOX_EVIDENCE_REQUIRED` instead of silently claiming live coverage.
 
 Microsoft 365 groups are imported as explicit `workspace` resources only when Graph reports `groupTypes` containing `Unified`. Groups with `resourceProvisioningOptions` containing `Team` also get an explicit `team` resource linked by `m365_group_backs_team`. Direct group members and owners become provider-specific relationships such as `m365_group_member`, `m365_group_owner`, `team_member`, and `team_owner`, plus observed native grants such as `m365Group:member` and `team:owner`. These facts preserve provider semantics instead of converting collaboration membership into generic application access.
 
-Coverage warnings are part of the contract. Group-backed Teams membership does not import private-channel, shared-channel, channel-specific, installed-app, or Teams permission-grant coverage. Microsoft Graph group-owner readback can also be incomplete for service-principal owners in some tenant or rollout states, so the connector emits `GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED` rather than treating missing service principals as proof of no ownership.
+SharePoint sites are imported as `sharepoint_site` resources. Site and OneDrive document libraries are imported as `workspace` resources with `graphType: "drive"`, and drive items are imported as `folder` or `document` resources under their parent drive or folder. These inventory records include explicit inheritance markers such as `inheritanceAmbiguous`, `inheritedFromObjectId`, and `canonicalAccessGranted: false`. The connector does not infer readers, owners, or intended access from inventory hierarchy; native SharePoint and drive permissions remain a separate staged readback slice.
+
+Coverage warnings are part of the contract. Group-backed Teams membership does not import private-channel, shared-channel, channel-specific, installed-app, or Teams permission-grant coverage. Microsoft Graph group-owner readback can also be incomplete for service-principal owners in some tenant or rollout states, so the connector emits `GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED` rather than treating missing service principals as proof of no ownership. SharePoint and OneDrive inventory emits `GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS` when it records hierarchy inheritance markers without explicit permission readback, and empty or skipped site, drive, or folder reads remain warnings instead of canonical access facts.
 
 The connector does not implement Graph writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled.
 
@@ -109,7 +114,7 @@ The connector does not implement AWS writes. Provisioning hooks return dry-run p
 
 ## Concrete Example
 
-`rebac connector sync sharepoint-readonly --mode read_only` calls `POST /v1/connectors/{id}/sync`. The connector returns a `DiscoveryRun` with counts, warnings, cursor metadata, read-only evidence, and audit event IDs. Native grants discovered in the run can be inspected with `rebac resource native-access`.
+`rebac connector sync microsoft-graph-entra-readonly --mode read_only` calls `POST /v1/connectors/{id}/sync` when the optional sandbox connector is configured. The connector returns a `DiscoveryRun` with counts, warnings, cursor metadata, read-only evidence, and audit event IDs. Native grants discovered in supported slices can be inspected with `rebac resource native-access`; SharePoint and OneDrive inventory alone does not mint native grants.
 
 ## Security Considerations
 

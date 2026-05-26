@@ -18,7 +18,9 @@ const root = process.cwd();
 const requiredConnectorIds = ["mock", "entra-readonly", "sharepoint-readonly", "aws-readonly"] as const;
 const approvedLiveReadScopes = new Set<string>([
   "Application.Read.All",
+  "Files.Read.All",
   "GroupMember.Read.All",
+  "Sites.Read.All",
   "TeamSettings.Read.Group",
   "User.Read.All",
   "access-analyzer:ListFindings",

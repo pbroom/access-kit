@@ -10,11 +10,11 @@
   },
   "consent": {
     "status": "approved",
-    "scopesApproved": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"],
+    "scopesApproved": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All", "Files.Read.All", "Sites.Read.All"],
     "evidence": ["docs/connector-contract.md", "docs/security-model.md"]
   },
   "leastPrivilege": {
-    "requiredReadScopes": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"],
+    "requiredReadScopes": ["User.Read.All", "GroupMember.Read.All", "Application.Read.All", "Files.Read.All", "Sites.Read.All"],
     "forbiddenWriteScopes": [
       "User.ReadWrite.All",
       "Group.ReadWrite.All",
@@ -22,9 +22,11 @@
       "Application.ReadWrite.All",
       "AppRoleAssignment.ReadWrite.All",
       "Directory.ReadWrite.All",
-      "TeamSettings.ReadWrite.Group"
+      "TeamSettings.ReadWrite.Group",
+      "Files.ReadWrite.All",
+      "Sites.ReadWrite.All"
     ],
-    "scopeJustification": "User, group membership and ownership, and application read permissions are sufficient for redacted tenant-wide Entra, Microsoft 365 group, service-principal, and app-role assignment readback without provider writes. TeamSettings.Read.Group is resource-specific consent and only enriches team records when granted for that team."
+    "scopeJustification": "User, group membership and ownership, application, site, and file read permissions are sufficient for redacted tenant-wide Entra, Microsoft 365 group, SharePoint, OneDrive, service-principal, app-role assignment, and inventory readback without provider writes. TeamSettings.Read.Group is resource-specific consent and only enriches team records when granted for that team."
   },
   "operations": {
     "pagination": "required",
