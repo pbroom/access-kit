@@ -265,18 +265,22 @@ function checkRelations(model: PolicyModel): PolicyModelValidationCheck {
 
 function checkActionMappings(model: PolicyModel, relationNames: Set<string>): PolicyModelValidationCheck {
   const actions = new Map(model.actions.map((action) => [action.name, action]));
+  for (const action of model.actions) {
+    if (action.grants.length === 0) {
+      return fail("action_grants_declared", `Action ${action.name} must map to at least one grant relation.`);
+    }
+    for (const grant of action.grants) {
+      if (!relationNames.has(grant)) {
+        return fail("action_grants_known", `Action ${action.name} references unknown relation ${grant}.`);
+      }
+    }
+  }
   for (const [requiredAction, requiredRelations] of supportedActions) {
     const action = actions.get(requiredAction);
     if (!action) {
       return fail("canonical_actions_present", `Missing canonical action ${requiredAction}.`);
     }
-    if (action.grants.length === 0) {
-      return fail("action_grants_declared", `Action ${requiredAction} must map to at least one grant relation.`);
-    }
     for (const grant of action.grants) {
-      if (!relationNames.has(grant)) {
-        return fail("action_grants_known", `Action ${requiredAction} references unknown relation ${grant}.`);
-      }
       if (!requiredRelations.includes(grant)) {
         return fail("action_grants_compatible", `Action ${requiredAction} uses relation ${grant}, which is not compatible with the current engine.`);
       }
@@ -364,7 +368,7 @@ function checkContextConstraints(model: PolicyModel): PolicyModelValidationCheck
     }
   }
 
-  return unique;
+  return pass("context_constraint_types_known", "Context constraint types are supported.");
 }
 
 function checkMigrations(model: PolicyModel): PolicyModelValidationCheck {

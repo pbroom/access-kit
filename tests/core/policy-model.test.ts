@@ -18,6 +18,7 @@ describe("policy model validation", () => {
       expect.arrayContaining([
         expect.objectContaining({ name: "schema_version", status: "pass" }),
         expect.objectContaining({ name: "inheritance_rules_declared", status: "pass" }),
+        expect.objectContaining({ name: "context_constraint_types_known", status: "pass" }),
         expect.objectContaining({ name: "tenant_boundary_fail_closed", status: "pass" })
       ])
     );
@@ -28,6 +29,23 @@ describe("policy model validation", () => {
     model.actions = model.actions.map((action) =>
       action.name === "read" ? { ...action, grants: ["not_a_relation"] } : action
     );
+
+    const result = validatePolicyModel(model);
+
+    expect(result.valid).toBe(false);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "action_grants_known", status: "fail" })
+      ])
+    );
+  });
+
+  it("rejects unknown grants on non-canonical actions", () => {
+    const model = cloneDefaultModel();
+    model.actions.push({
+      name: "delete",
+      grants: ["not_a_relation"]
+    });
 
     const result = validatePolicyModel(model);
 

@@ -32,14 +32,18 @@ import {
 import {
   checkDecision,
   checkEnforcementReadiness,
+  createPolicy,
   createProvisioningJob,
   createProvisioningPlan,
   createRebacApiServer,
   createRebacLocalApp,
   createLocalRuntimePersistence,
+  listPolicies,
+  publishPolicy,
   readRebacApiRuntimeConfig,
   runReconciliation,
   syncConnector,
+  validatePolicy,
   type RebacApiServerOptions
 } from "../../packages/api/src/index.js";
 
@@ -227,6 +231,34 @@ describe("ReBAC API runtime", () => {
     });
     expect(missingValidation.status).toBe(404);
     await expect(missingValidation.json()).resolves.toMatchObject({ code: "POLICY_NOT_FOUND" });
+  });
+
+  it("demotes validated policies when publish-time revalidation fails", () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    const model = createDefaultPolicyModel();
+    const policy = createPolicy(app, {
+      name: "mutable case access",
+      model,
+      tests: [{ name: "default proof points" }]
+    }, "idem-policy-create-mutable");
+
+    expect(validatePolicy(app, policy.id).valid).toBe(true);
+    expect(listPolicies(app).items.find((item) => item.id === policy.id)).toMatchObject({ status: "validated" });
+
+    model.actions.push({ name: "delete", grants: ["not_a_relation"] });
+
+    let error: unknown;
+    try {
+      publishPolicy(app, policy.id, {
+        changeTicket: "CHG-VALIDATION-FAIL",
+        approverId: "user:policy-approver"
+      }, "idem-policy-publish-invalid");
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toMatchObject({ code: "POLICY_VALIDATION_FAILED", statusCode: 422 });
+    expect(listPolicies(app).items.find((item) => item.id === policy.id)).toMatchObject({ status: "draft" });
   });
 
   it("serves readiness without auth and reports runtime guardrails", async () => {

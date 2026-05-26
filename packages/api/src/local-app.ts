@@ -293,7 +293,11 @@ export function publishPolicy(app: RebacLocalApp, policyId: string, request: Pol
 
   const validation = validatePolicyModel(prior.draft.model);
   if (!validation.valid) {
-    state.policies.set(policyId, { ...prior, validation });
+    state.policies.set(policyId, {
+      ...prior,
+      summary: { ...prior.summary, status: "draft" },
+      validation
+    });
     throw new RebacLocalAppError(422, "POLICY_VALIDATION_FAILED", `Policy ${policyId} failed deterministic validation.`);
   }
 
