@@ -1820,9 +1820,7 @@ function buildPoamItems(
         id: finding.remediation.poamItemId,
         controlId: finding.controlId,
         weakness: finding.weakness,
-        status: finding.remediation.status === "completed"
-          ? "mitigated"
-          : finding.remediation.status === "planned" || finding.remediation.status === "in_progress"
+        status: finding.remediation.status === "planned" || finding.remediation.status === "in_progress"
             ? "planned"
             : "open",
         ownerRole: finding.remediation.ownerRole,
@@ -2005,7 +2003,7 @@ function buildAccessReviews(campaigns: AccessReviewCampaign[], reviewedAt: strin
     ownerRole: campaign.ownerRole,
     reviewerRole: campaign.reviewerRole,
     status: campaign.status === "completed" ? "completed" : "planned",
-    reviewedAt,
+    reviewedAt: campaign.completedAt ?? reviewedAt,
     dueAt: campaign.dueAt,
     completedAt: campaign.completedAt,
     subjectCount: campaign.subjectCount,
@@ -2055,8 +2053,11 @@ function exceptionRecordStatus(status: ExceptionRequest["status"]): ExceptionRec
   if (status === "expired") {
     return "expired";
   }
-  if (status === "revoked" || status === "remediated") {
+  if (status === "revoked") {
     return "revoked";
+  }
+  if (status === "remediated") {
+    return "remediated";
   }
 
   return "open";

@@ -411,7 +411,7 @@
         "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
         "action": { "type": "string", "minLength": 1 },
         "reason": { "type": "string", "minLength": 1 },
-        "status": { "type": "string", "enum": ["open", "approved", "expired", "revoked"] },
+        "status": { "type": "string", "enum": ["open", "approved", "expired", "revoked", "remediated"] },
         "requestStatus": { "type": "string", "enum": ["requested", "owner_approved", "risk_accepted", "expired", "revoked", "remediated"] },
         "requesterRole": { "type": "string", "minLength": 1 },
         "ownerRole": { "type": "string", "minLength": 1 },

@@ -627,7 +627,7 @@ export interface ExceptionRecord {
   resourceId: CanonicalId;
   action: string;
   reason: string;
-  status: "open" | "approved" | "expired" | "revoked";
+  status: "open" | "approved" | "expired" | "revoked" | "remediated";
   requestStatus: ExceptionRequestStatus;
   requesterRole: string;
   ownerRole: string;
