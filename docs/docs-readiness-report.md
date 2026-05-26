@@ -23,7 +23,7 @@ The documentation goal is complete for the repository foundation after this foll
 | API overview, Decision API, API errors, reason codes | `docs/api.md`, `docs/decision-lifecycle.md`, `docs/explain-api.md` |
 | CLI overview and commands | `docs/cli.md`, `packages/cli/src/commands.ts` |
 | Policy model and testing | `docs/policy-testing-guide.md`, `tests/fixtures/policy/proof-points.json` |
-| Connector contract, capability model, and authoring guidance | `docs/connector-contract.md`, `docs/connector-authoring-tutorial.md` |
+| Connector contract, capability model, authoring guidance, and sample template | `docs/connector-contract.md`, `docs/connector-authoring-tutorial.md`, `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` |
 | Security model and threat model | `docs/security-model.md`, `docs/threat-model.md` |
 | Audit logging and tamper evidence | `docs/audit-event-model.md` |
 | ATO overview, evidence catalog, OSCAL guidance | `docs/ato-evidence-model.md`, `docs/evidence-catalog.md` |
@@ -47,6 +47,7 @@ The documentation goal is complete for the repository foundation after this foll
 | Audit Event Model | `docs/audit-event-model.md` | Added |
 | Connector Contract | `docs/connector-contract.md` | Added |
 | Connector Authoring Tutorial | `docs/connector-authoring-tutorial.md` | Added |
+| Sample Read-Only Connector Template | `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` | Added |
 | Drift Detection Model | `docs/drift-detection-model.md` | Added |
 | Evidence Catalog | `docs/evidence-catalog.md` | Added |
 | Control Traceability Matrix | `docs/control-traceability-matrix.md` | Added |
@@ -112,6 +113,8 @@ The documentation goal is complete for the repository foundation after this foll
 - `docs/audit-event-model.md`
 - `docs/connector-contract.md`
 - `docs/connector-authoring-tutorial.md`
+- `examples/connectors/sample-readonly-template.md`
+- `packages/connectors-sample-readonly/`
 - `docs/drift-detection-model.md`
 - `docs/evidence-catalog.md`
 - `docs/control-traceability-matrix.md`
@@ -175,6 +178,17 @@ The documentation connects architecture, control families, implementation behavi
 
 ## Validation Performed
 
+- AK-051 sample connector template validation passed:
+  - `corepack pnpm install --frozen-lockfile` confirmed the new workspace package is lockfile-clean.
+  - `corepack pnpm exec vitest run tests/connectors/sample-readonly.test.ts` passed 4 focused sample connector tests.
+  - `corepack pnpm exec vitest run tests/connectors` passed 11 connector package tests across Microsoft Graph and the sample template.
+  - `corepack pnpm validate:docs` validated 192 relative Markdown links across 43 files, runbook sections, documentation examples, and API reference freshness.
+  - `corepack pnpm validate:automation` validated backlog state, scripts, labels, docs, and CI automation contracts.
+  - `corepack pnpm validate:connector-security` validated security gates for the 4 runtime connectors.
+  - `corepack pnpm evidence:generate` refreshed proof-point validation evidence for the expanded connector test surface.
+  - `corepack pnpm evidence:check` confirmed proof-point validation evidence is current.
+  - `git diff --check` passed.
+  - `corepack pnpm ci:check` passed after the template, tests, docs, lockfile, and evidence updates.
 - AK-050 connector authoring update validation passed:
   - `corepack pnpm validate:docs` validated 187 relative Markdown links across 42 files, runbook sections, documentation examples, and API reference freshness.
   - `corepack pnpm validate:automation` validated backlog state, scripts, labels, docs, and CI automation contracts.

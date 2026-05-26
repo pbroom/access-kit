@@ -117,7 +117,7 @@ pnpm pr:stack
 | `docs/automation.md` | PR steward, next-slice, labels, and merge-readiness operating loop. |
 | `docs/` | Concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, provisioning, connector contract and authoring, drift, deployment, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
 | `runbooks/` | Emergency revocation, rollback, drift, outage, break-glass, export, credential, and decision API outage procedures. |
-| `examples/` | Synthetic API, CLI, and control/evidence mapping examples. |
+| `examples/` | Synthetic API, CLI, connector template, and control/evidence mapping examples. |
 | `.github/workflows/` | CI, contract validation, and security checks. |
 | `deploy/` | Reference Kubernetes deployment manifests and admission-policy examples. |
 | `adrs/` | Architecture decision records for the foundation. |
@@ -128,6 +128,7 @@ pnpm pr:stack
 | `packages/api-contracts/` | Contract and schema manifest exports. |
 | `packages/cli/` | CLI command contract and operator CLI implementation. |
 | `packages/connectors-mock/` | Mock and synthetic provider connectors implementing the adapter boundary. |
+| `packages/connectors-sample-readonly/` | Copyable sample read-only connector template with redacted fixtures and contract tests. |
 | `scripts/` | Validation, evidence-generation, steward, and stack-readiness commands. |
 | `tests/fixtures/` | Schema examples and policy proof points. |
 | `reports/` | Generated validation evidence. |
@@ -143,6 +144,7 @@ pnpm pr:stack
 | Domain model | [`docs/domain-model.md`](docs/domain-model.md) |
 | Connector contract | [`docs/connector-contract.md`](docs/connector-contract.md) |
 | Connector authoring tutorial | [`docs/connector-authoring-tutorial.md`](docs/connector-authoring-tutorial.md) |
+| Sample connector template | [`examples/connectors/sample-readonly-template.md`](examples/connectors/sample-readonly-template.md) and [`packages/connectors-sample-readonly/`](packages/connectors-sample-readonly/) |
 | Security model | [`docs/security-model.md`](docs/security-model.md) |
 | Threat model | [`docs/threat-model.md`](docs/threat-model.md) |
 | Evidence catalog | [`docs/evidence-catalog.md`](docs/evidence-catalog.md) |

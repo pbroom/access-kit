@@ -10,6 +10,7 @@ These examples are synthetic and safe to use in documentation, demos, tests, and
 | Policy proof points | `tests/fixtures/policy/proof-points.json` |
 | API request/response examples | `examples/api/*.json` |
 | CLI command examples | `examples/cli/operator-and-assessor.sh` |
+| Connector template example | `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` |
 | Control/evidence mapping example | `examples/control-evidence-mapping.json` |
 
 Schema fixtures are validated by `pnpm validate:schemas`. Policy proof points are validated by `pnpm validate:policy`. The examples in this directory are documentation examples and should remain consistent with OpenAPI, CLI, and schema contracts.

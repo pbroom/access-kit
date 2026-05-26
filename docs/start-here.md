@@ -48,6 +48,7 @@ pnpm ci:check
 | CLI contract | `packages/cli/src/commands.ts` | CLI command tree and API surface mapping. |
 | Connector contract | `docs/connector-contract.md` | Connector capability model, security review gate, and live-read boundary. |
 | Connector authoring tutorial | `docs/connector-authoring-tutorial.md` | Safe read-only connector authoring flow and release-gate evidence. |
+| Sample connector template | `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` | Copyable read-only connector implementation with synthetic fixtures and tests. |
 | Policy model | `schemas/policy-model.schema.json`, `packages/core/src/policy-model.ts` | Versioned model shape and deterministic validation rules. |
 | Policy proof points | `tests/fixtures/policy/proof-points.json` | Deterministic authorization behaviors under test. |
 | Schema examples | `tests/fixtures/schema-examples/*.json` | Validated synthetic examples for core objects, including the policy model example. |
