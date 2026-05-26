@@ -588,7 +588,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     let retryCount = 0;
 
     while (true) {
-      const record = await this.#client.get<T>(path, { headers: { ConsistencyLevel: "eventual" } });
+      const record = await this.#client.get<T>(path);
       const status = record.status ?? 200;
 
       if (status === 429) {
@@ -765,10 +765,10 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
             scope: "native_grants",
             retryable: false
           });
-        } else {
+        } else if ((group.resourceProvisioningOptions ?? []).length > 0) {
           this.#pushWarning({
             code: "GRAPH_M365_GROUP_WITHOUT_TEAM",
-            message: "Microsoft Graph returned a Microsoft 365 group without a Teams backing marker; Teams membership semantics were not inferred for that group.",
+            message: "Microsoft Graph returned a Microsoft 365 group with non-empty resourceProvisioningOptions but no Teams backing marker; Teams membership semantics were not inferred for that group.",
             severity: "info",
             scope: "resources",
             retryable: false

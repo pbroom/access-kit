@@ -24,6 +24,7 @@ const noSleep = async (): Promise<void> => {};
 
 class FixtureGraphClient implements MicrosoftGraphReadClient {
   readonly calls: string[] = [];
+  readonly requests: Array<{ path: string; headers?: Record<string, string> }> = [];
   readonly #pages: Map<string, Array<MicrosoftGraphCollectionPage<unknown>>>;
   readonly #records: Map<string, Array<MicrosoftGraphRecordResponse<unknown>>>;
 
@@ -35,8 +36,9 @@ class FixtureGraphClient implements MicrosoftGraphReadClient {
     this.#records = new Map(Object.entries(records));
   }
 
-  async list<T>(pathOrUrl: string): Promise<MicrosoftGraphCollectionPage<T>> {
+  async list<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphCollectionPage<T>> {
     this.calls.push(pathOrUrl);
+    this.requests.push({ path: pathOrUrl, headers: options?.headers });
     const pages = this.#pages.get(pathOrUrl);
     if (!pages || pages.length === 0) {
       throw new Error(`No fixture page for ${pathOrUrl}`);
@@ -45,8 +47,9 @@ class FixtureGraphClient implements MicrosoftGraphReadClient {
     return pages.shift() as MicrosoftGraphCollectionPage<T>;
   }
 
-  async get<T>(pathOrUrl: string): Promise<MicrosoftGraphRecordResponse<T>> {
+  async get<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphRecordResponse<T>> {
     this.calls.push(pathOrUrl);
+    this.requests.push({ path: pathOrUrl, headers: options?.headers });
     const records = this.#records.get(pathOrUrl);
     if (!records || records.length === 0) {
       throw new Error(`No fixture record for ${pathOrUrl}`);
@@ -194,6 +197,7 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       "/teams/raw-m365-group-1?$select=id,displayName,description,webUrl,isArchived,visibility",
       "/groups/raw-m365-group-1/owners?$select=id,displayName,userPrincipalName,appId,servicePrincipalType"
     ]));
+    expect(client.requests.find((request) => request.path.startsWith("/teams/"))?.headers).toBeUndefined();
     expect(serialized).not.toContain("tenant-live-123");
     expect(serialized).not.toContain("M365 Collaboration");
     expect(serialized).not.toContain("Case Team");
@@ -217,6 +221,21 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
 
     expect(connector.getDiscoveryMetadata().warnings.map((warning) => warning.code))
       .not.toContain("GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED");
+  });
+
+  it("does not warn for ordinary Microsoft 365 groups without Teams backing", async () => {
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client: createFixtureClient(),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-sandbox-fixture.json"
+    });
+
+    await connector.discoverResources();
+
+    expect(connector.getDiscoveryMetadata().warnings.map((warning) => warning.code))
+      .not.toContain("GRAPH_M365_GROUP_WITHOUT_TEAM");
   });
 
   it("keeps live provider writes disabled even when provisioning hooks are called", async () => {
