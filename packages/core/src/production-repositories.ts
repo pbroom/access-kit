@@ -774,7 +774,7 @@ function assertNoSecretMaterial(value: unknown, path: string): void {
 function isSensitiveKey(key: string): boolean {
   const normalized = key.replaceAll(/[-_\s]/g, "").toLowerCase();
 
-  return /(secret|password|credential|privatekey)/i.test(normalized)
+  return /(secret|password|credential|privatekey|signingkey|hmackey|encryptionkey)/i.test(normalized)
     || [
       "accesskey",
       "apikey",

@@ -853,6 +853,9 @@ function assertSigningKeyMaterial(keyMaterial: string): void {
   if (keyMaterial.trim().length === 0) {
     throw new Error("Production audit signing key material is required.");
   }
+  if (keyMaterial.length < 16) {
+    throw new Error("Production audit signing key material must be at least 16 characters.");
+  }
 }
 
 function withRecordHash<T extends { recordHash: string }>(record: T): T {

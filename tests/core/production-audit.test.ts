@@ -37,6 +37,13 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
       location: "worm://audit/access-kit-test",
       signingKeyMaterial: ""
     })).toThrow("Production audit signing key material is required.");
+
+    expect(() => new ProductionAuditEvidenceAdapter({
+      store: new InMemoryExternalAppendOnlyAuditStore(),
+      tenantBoundary,
+      location: "worm://audit/access-kit-test",
+      signingKeyMaterial: "short"
+    })).toThrow("Production audit signing key material must be at least 16 characters.");
   });
 
   it("retains ordered audit events, signed windows, SIEM delivery metadata, evidence receipts, and backups", () => {

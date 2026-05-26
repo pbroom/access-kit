@@ -222,6 +222,20 @@ describe("production graph and connector-state adapters", () => {
         })
       )
     ).toThrow("contains secret material");
+
+    expect(() =>
+      repository.recordDiscoveryRun(
+        createDiscoveryRun({
+          evidence: {
+            readOnly: true,
+            tenantBoundary: conformanceTenant,
+            signingKey: "local-test-signing-key",
+            hmac_key: "local-test-hmac-key",
+            encryptionKey: "local-test-encryption-key"
+          } as unknown as ReturnType<typeof createDiscoveryRun>["evidence"]
+        })
+      )
+    ).toThrow("contains secret material");
   });
 
   it("rejects cross-tenant discovery evidence when loading stored connector state", () => {
