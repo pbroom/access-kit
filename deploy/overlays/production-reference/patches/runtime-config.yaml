@@ -6,6 +6,7 @@ metadata:
   annotations:
     access-kit.io/reference-architecture: production
 data:
+  # Set to idp_gateway or mtls_gateway depending on the admin boundary selected for this environment.
   REBAC_ADMIN_AUTH_MODE: idp_gateway
   REBAC_PRODUCTION_GRAPH_STORE_REF: ref:replace-with-approved-graph-store
   REBAC_PRODUCTION_CONNECTOR_STATE_REF: ref:replace-with-approved-connector-state-store

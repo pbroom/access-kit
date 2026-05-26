@@ -192,7 +192,7 @@ The documentation connects architecture, control families, implementation behavi
   - `git diff --check` passed.
   - `corepack pnpm ci:check` passed after the template, tests, docs, lockfile, and evidence updates.
 - AK-041 production reference architecture validation passed:
-  - `corepack pnpm validate:docs` validated the new production reference architecture links, runbook sections, documentation examples, and API reference freshness.
+  - `corepack pnpm validate:docs` validated 197 relative Markdown links across 43 files, including the new production reference architecture links, overlay README, runbook sections, documentation examples, and API reference freshness.
   - `corepack pnpm validate:deployment-manifests` validated the base Kubernetes manifest contract that the production-reference overlay composes.
   - `corepack pnpm validate:persistence-deployment` validated production persistence evidence manifests referenced by the architecture.
   - `corepack pnpm validate:automation` validated the AK-041 backlog status update.
