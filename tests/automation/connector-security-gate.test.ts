@@ -38,6 +38,50 @@ describe("connector security gate validation", () => {
     await expect(validateConnectorSecurityGate(app)).rejects.toThrow("must not advertise provisioning");
   });
 
+  it("rejects live read scopes outside the independent approved-scope gate", async () => {
+    const app = createRebacLocalApp({ now: () => "2026-05-26T00:00:00.000Z" });
+    const connector = app.connectors.get("entra-readonly") as ConnectorAdapter & {
+      requiredReadScopes: string[];
+    };
+    const review = connector.getSecurityReview?.();
+    const metadata = connector.getDiscoveryMetadata?.();
+    const unapprovedReadScope = "Directory.Read.All";
+
+    expect(review).toBeDefined();
+    expect(metadata).toBeDefined();
+
+    connector.requiredReadScopes = [unapprovedReadScope];
+    connector.getSecurityReview = () => ({
+      ...review!,
+      tenantBoundary: "tenant:live-review",
+      synthetic: false,
+      identity: {
+        ...review!.identity,
+        kind: "managed_identity",
+        subject: "connector:entra-readonly:live"
+      },
+      consent: {
+        ...review!.consent,
+        status: "approved",
+        scopesApproved: [unapprovedReadScope]
+      },
+      leastPrivilege: {
+        ...review!.leastPrivilege,
+        requiredReadScopes: [unapprovedReadScope]
+      }
+    });
+    connector.getDiscoveryMetadata = () => ({
+      ...metadata!,
+      tenantBoundary: "tenant:live-review",
+      synthetic: false,
+      requiredReadScopes: [unapprovedReadScope]
+    });
+
+    await expect(validateConnectorSecurityGate(app)).rejects.toThrow(
+      `${connector.id}: scope ${unapprovedReadScope} must be an approved live read-only provider scope.`
+    );
+  });
+
   it.each(["mark_deleted", "ignore", "unsupported"] as const)("rejects %s deletion behavior without cursor metadata", async (deletion) => {
     const app = createRebacLocalApp({ now: () => "2026-05-26T00:00:00.000Z" });
     const connector = app.connectors.get("entra-readonly")!;

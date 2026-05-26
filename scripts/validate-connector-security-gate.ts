@@ -16,6 +16,11 @@ import type {
 
 const root = process.cwd();
 const requiredConnectorIds = ["mock", "entra-readonly", "sharepoint-readonly", "aws-readonly"] as const;
+const approvedLiveReadScopes = new Set<string>([
+  "Application.Read.All",
+  "GroupMember.Read.All",
+  "User.Read.All"
+]);
 const safeSyntheticControl: EnforcementControl = {
   syntheticOnly: true,
   liveProviderWrites: false,
@@ -316,10 +321,7 @@ function requireNoDuplicates(values: readonly string[], label: string, failures:
 }
 
 function isApprovedLiveReadScope(scope: string): boolean {
-  return (
-    ["User.Read.All", "GroupMember.Read.All", "Application.Read.All"].includes(scope) &&
-    !isWriteScope(scope)
-  );
+  return approvedLiveReadScopes.has(scope) && !isWriteScope(scope);
 }
 
 function isWriteScope(scope: string): boolean {

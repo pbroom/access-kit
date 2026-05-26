@@ -8,6 +8,7 @@ import {
   type MicrosoftGraphCollectionPage,
   type MicrosoftGraphReadClient
 } from "../../packages/connectors-microsoft-graph/src/index.js";
+import { auditPayloadHash, type AuditEvent } from "../../packages/core/src/index.js";
 import { createRuntimeConnectors } from "../../packages/api/src/runtime-connectors.js";
 import {
   createRebacLocalApp,
@@ -18,6 +19,7 @@ import {
 import { validateConnectorSecurityGate } from "../../scripts/validate-connector-security-gate.js";
 
 const now = "2026-05-26T12:00:00.000Z";
+const noSleep = async (): Promise<void> => {};
 
 class FixtureGraphClient implements MicrosoftGraphReadClient {
   readonly calls: string[] = [];
@@ -65,7 +67,8 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       client,
       tenantId: "tenant-live-123",
       now: () => now,
-      maxRetries: 1
+      maxRetries: 1,
+      sleep: noSleep
     });
 
     const subjects = await connector.discoverSubjects();
@@ -116,7 +119,8 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
       client: createFixtureClient(),
       tenantId: "tenant-live-123",
-      now: () => now
+      now: () => now,
+      sleep: noSleep
     });
     const review = connector.getSecurityReview();
     const plan = await connector.planProvisioningChange({
@@ -181,6 +185,7 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       client: createFixtureClient(),
       tenantId: "tenant-live-123",
       now: () => now,
+      sleep: noSleep,
       sandboxEvidenceRef: "reports/microsoft-graph-sandbox-fixture.json"
     }));
 
@@ -195,7 +200,8 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
       client,
       tenantId: "tenant-live-123",
-      now: () => now
+      now: () => now,
+      sleep: noSleep
     });
     app.connectors.set(MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, connector);
     const applicationId = "application:entra:351056de453711cb";
@@ -245,6 +251,93 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       expect.objectContaining({ nativePermission: "appRole:Reader" })
     ]);
     expect(secondGrants).toEqual([]);
+  });
+
+  it("awaits Microsoft Graph retryAfterSeconds before retrying throttled reads", async () => {
+    const client = new FixtureGraphClient({
+      "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
+        { value: [], status: 429, retryAfterSeconds: 2.5 },
+        { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 }
+      ],
+      "/groups?$select=id,displayName,securityEnabled,groupTypes,deletedDateTime": [
+        { value: [], status: 200 }
+      ],
+      "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
+        { value: [], status: 200 }
+      ]
+    });
+    const sleeps: number[] = [];
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client,
+      tenantId: "tenant-live-123",
+      now: () => now,
+      maxRetries: 1,
+      sleep: async (milliseconds) => {
+        sleeps.push(milliseconds);
+      }
+    });
+
+    await expect(connector.discoverSubjects()).resolves.toEqual([
+      expect.objectContaining({ type: "user" })
+    ]);
+    expect(sleeps).toEqual([2500]);
+    expect(client.calls.slice(0, 2)).toEqual([
+      "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime",
+      "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime"
+    ]);
+  });
+
+  it("caps Microsoft Graph retryAfterSeconds before sleeping", async () => {
+    const client = new FixtureGraphClient({
+      "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
+        { value: [], status: 429, retryAfterSeconds: 3600 },
+        { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 }
+      ],
+      "/groups?$select=id,displayName,securityEnabled,groupTypes,deletedDateTime": [
+        { value: [], status: 200 }
+      ],
+      "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
+        { value: [], status: 200 }
+      ]
+    });
+    const sleeps: number[] = [];
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client,
+      tenantId: "tenant-live-123",
+      now: () => now,
+      maxRetries: 1,
+      sleep: async (milliseconds) => {
+        sleeps.push(milliseconds);
+      }
+    });
+
+    await connector.discoverSubjects();
+
+    expect(sleeps).toEqual([60_000]);
+  });
+
+  it("derives connector evidence periods from source audit events and falls back to now", async () => {
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client: createFixtureClient(),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep
+    });
+
+    await expect(connector.emitEvidence([
+      createAuditEvent("evt:late", "2026-05-26T12:30:00.000Z"),
+      createAuditEvent("evt:early", "2026-05-26T10:15:00.000Z")
+    ])).resolves.toMatchObject({
+      periodStart: "2026-05-26T10:15:00.000Z",
+      periodEnd: "2026-05-26T12:30:00.000Z",
+      sourceEventIds: ["evt:late", "evt:early"]
+    });
+
+    await expect(connector.emitEvidence([])).resolves.toMatchObject({
+      periodStart: now,
+      periodEnd: now,
+      sourceEventIds: []
+    });
   });
 
   it("registers the Microsoft Graph connector only when sandbox environment credentials are present", () => {
@@ -356,6 +449,18 @@ function createFixtureClient(): FixtureGraphClient {
       }
     ]
   });
+}
+
+function createAuditEvent(eventId: string, occurredAt: string): AuditEvent {
+  return {
+    eventId,
+    eventType: "connector.discovery",
+    occurredAt,
+    actor: "connector:microsoft-graph-entra-readonly",
+    correlationId: `corr:${eventId}`,
+    payloadHash: auditPayloadHash({}),
+    payload: {}
+  };
 }
 
 function createTwoSyncFixtureClient(): FixtureGraphClient {
