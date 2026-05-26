@@ -207,8 +207,12 @@ function validateOperations(
 
   if (metadata.cursor) {
     requireEquals(review.operations.deletion, metadata.cursor.deletedObjectBehavior, `${review.connectorId}: deletion behavior`, failures);
+  } else if (review.operations.deletion === "mark_deleted" || review.operations.deletion === "ignore") {
+    failures.push(`${review.connectorId}: deletion behavior ${review.operations.deletion} requires metadata.cursor.`);
   } else if (review.operations.deletion === "not_applicable") {
     failures.push(`${review.connectorId}: deletion semantics cannot be not_applicable for provider discovery connectors.`);
+  } else if (review.operations.deletion === "unsupported") {
+    failures.push(`${review.connectorId}: deletion behavior unsupported requires metadata.cursor documenting provider deletion limitations.`);
   }
 
   checks.push("pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed");

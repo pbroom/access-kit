@@ -101,6 +101,8 @@ export interface ConnectorAdapter {
 
 Provider-style connectors must default to `mode: "read_only"` and must not advertise provisioning support before a separate live-enforcement review. Read-only connectors should still implement dry-run or failed write methods when the interface requires them, but those methods must not call provider write APIs.
 
+The interface keeps `getSecurityReview()` optional so adapter implementations can compile before they enter the runtime gate. Any connector registered in the runtime or prepared for provider release must implement it, because `pnpm validate:connector-security` treats a missing security review as a release blocker.
+
 ## Discovery Metadata
 
 `getDiscoveryMetadata()` is the operator and reviewer view of connector scope:
@@ -122,7 +124,7 @@ Metadata must not contain raw tenant IDs, object IDs, user principal names, requ
 
 ## Security Review Evidence
 
-Every runtime connector must expose `getSecurityReview()` and pass `pnpm validate:connector-security`.
+Although the adapter interface marks `getSecurityReview()` optional, every runtime connector must expose it and pass `pnpm validate:connector-security`.
 
 The review must include:
 
@@ -145,12 +147,12 @@ getSecurityReview(): ConnectorSecurityReview {
     identity: {
       kind: "managed_identity",
       subject: "connector:provider:tenant-redacted",
-      evidence: ["docs/connector-contract.md"]
+      evidence: ["evidence/connectors/provider-redacted/identity-review.md"]
     },
     consent: {
       status: "approved",
       scopesApproved: this.requiredReadScopes,
-      evidence: ["docs/connector-contract.md"]
+      evidence: ["evidence/connectors/provider-redacted/read-only-consent.md"]
     },
     leastPrivilege: {
       requiredReadScopes: this.requiredReadScopes,
