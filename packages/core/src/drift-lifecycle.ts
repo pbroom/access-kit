@@ -96,12 +96,12 @@ export function driftSeverityAllowed(findingSeverity: DriftSeverity, maxSeverity
 }
 
 export function resolveDriftLifecycleState(finding: DriftFinding, now: string): DriftLifecycleState {
-  if (finding.exceptionExpiresAt && Date.parse(finding.exceptionExpiresAt) <= Date.parse(now)) {
-    return "expired_exception";
-  }
-
   if (finding.lifecycleState) {
     return finding.lifecycleState;
+  }
+
+  if (finding.exceptionExpiresAt && Date.parse(finding.exceptionExpiresAt) <= Date.parse(now)) {
+    return "expired_exception";
   }
 
   if (finding.status === "accepted") {

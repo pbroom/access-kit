@@ -1101,6 +1101,7 @@ export async function planDriftRemediationDryRun(
       }, finding.sourceConnectorId, { mode: "dry_run" }, idempotencyKey);
   const plannedAt = app.now();
   const hookEvidence = mergeDriftHookEvidence(finding.hookEvidence, request.hookEvidence ?? []);
+  const remediationAction = driftRemediationAction(finding.recommendedAction);
   const updatedFinding = enrichDriftFindingLifecycle({
     ...finding,
     nativeGrantId,
@@ -1115,7 +1116,7 @@ export async function planDriftRemediationDryRun(
       dryRunRepair: {
         planId: plan.id,
         mode: "dry_run",
-        action: finding.recommendedAction === "exception" ? "review" : finding.recommendedAction,
+        action: remediationAction,
         status: "planned",
         providerWrite: false,
         generatedAt: plannedAt,
@@ -2245,20 +2246,13 @@ function getDefaultConnectorId(app: RebacLocalApp): string {
 }
 
 function inferNativeGrantIdForFinding(app: RebacLocalApp, finding: DriftFinding): string | undefined {
-  const matchingGrant = app.store
-    .listNativeGrants({
-      sourceConnectorId: finding.sourceConnectorId,
-      targetObjectId: finding.resourceId,
-      subjectId: finding.subjectId
-    })
-    .find((grant) => grant.nativePermission === finding.nativeAccess)
-    ?? app.store
-      .listNativeGrants({
-        sourceConnectorId: finding.sourceConnectorId,
-        targetObjectId: finding.resourceId,
-        subjectId: finding.subjectId
-      })
-      .at(0);
+  const candidateGrants = app.store.listNativeGrants({
+    sourceConnectorId: finding.sourceConnectorId,
+    targetObjectId: finding.resourceId,
+    subjectId: finding.subjectId
+  });
+  const matchingGrant = candidateGrants.find((grant) => grant.nativePermission === finding.nativeAccess)
+    ?? candidateGrants.at(0);
 
   return matchingGrant?.id;
 }
@@ -2298,13 +2292,18 @@ function assertDriftRemediationControls(finding: DriftFinding, request: DriftRem
     );
   }
 
-  if (finding.recommendedAction !== "review" && !policy.allowedActions.includes(finding.recommendedAction)) {
+  const remediationAction = driftRemediationAction(finding.recommendedAction);
+  if (!policy.allowedActions.includes(remediationAction)) {
     throw new RebacLocalAppError(
       409,
       "DRIFT_AUTO_REPAIR_ACTION_BLOCKED",
-      `Finding ${finding.id} recommended action ${finding.recommendedAction} is not allowed by policy.`
+      `Finding ${finding.id} recommended action ${remediationAction} is not allowed by policy.`
     );
   }
+}
+
+function driftRemediationAction(action: DriftFinding["recommendedAction"]): Exclude<DriftFinding["recommendedAction"], "exception"> {
+  return action === "exception" ? "review" : action;
 }
 
 function mergeDriftHookEvidence(existing: DriftHookEvidence[], incoming: DriftHookEvidence[]): DriftHookEvidence[] {

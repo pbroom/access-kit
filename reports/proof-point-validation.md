@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T15:44:54.039Z
+Generated at: 2026-05-26T16:16:54.104Z
 
 Branch: codex/rebac-drift-lifecycle
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  11:44:43
-   Duration  544ms (transform 233ms, setup 0ms, import 385ms, tests 40ms, environment 0ms)
+   Start at  12:16:45
+   Duration  488ms (transform 211ms, setup 0ms, import 349ms, tests 37ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -185,10 +185,10 @@ PASS Local proof-point persistence manifests remain blocked from production read
  RUN  v4.1.7 /Users/peterbroomfield/access-kit-drift-lifecycle
 
 
- Test Files  8 passed (8)
-      Tests  123 passed (123)
-   Start at  11:44:48
-   Duration  617ms (transform 1.45s, setup 0ms, import 2.09s, tests 157ms, environment 0ms)
+ Test Files  9 passed (9)
+      Tests  125 passed (125)
+   Start at  12:16:49
+   Duration  553ms (transform 1.33s, setup 0ms, import 1.84s, tests 136ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -202,9 +202,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  4 passed (4)
-      Tests  98 passed (98)
-   Start at  11:44:49
-   Duration  1.10s (transform 955ms, setup 0ms, import 1.54s, tests 506ms, environment 0ms)
+      Tests  99 passed (99)
+   Start at  12:16:50
+   Duration  1.01s (transform 904ms, setup 0ms, import 1.35s, tests 586ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -215,8 +215,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-drift-lifecycle
 
  Test Files  1 passed (1)
       Tests  11 passed (11)
-   Start at  11:44:51
-   Duration  430ms (transform 187ms, setup 0ms, import 230ms, tests 26ms, environment 0ms)
+   Start at  12:16:52
+   Duration  370ms (transform 187ms, setup 0ms, import 231ms, tests 25ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-drift-lifecycle
 
  Test Files  3 passed (3)
       Tests  34 passed (34)
-   Start at  11:44:52
-   Duration  1.07s (transform 1.07s, setup 0ms, import 1.98s, tests 578ms, environment 0ms)
+   Start at  12:16:53
+   Duration  560ms (transform 606ms, setup 0ms, import 1.04s, tests 189ms, environment 0ms)
 ```
 
 

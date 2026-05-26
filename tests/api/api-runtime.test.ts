@@ -2557,6 +2557,73 @@ describe("ReBAC API runtime", () => {
     ]));
   });
 
+  it("plans exception drift remediation as a review dry-run action", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    app.store.upsertDriftFinding({
+      id: "drift:exception-review",
+      resourceId: "resource:case-plan",
+      subjectId: "user:case-owner",
+      nativeAccess: "owner",
+      intendedAccess: "none",
+      severity: "high",
+      lifecycleState: "open",
+      ownerId: "role:security-operations",
+      assigneeId: "role:security-engineer",
+      detectedAt: TEST_NOW,
+      sourceConnectorId: "mock",
+      recommendedAction: "exception",
+      status: "open",
+      exceptionExpiresAt: "2026-06-21T17:00:00.000Z",
+      scheduledReconciliation: {
+        cadence: "daily",
+        scheduledAt: TEST_NOW,
+        nextRunAt: "2026-05-22T17:00:00.000Z",
+        gracePeriodHours: 24,
+        overdue: false
+      },
+      hookEvidence: [],
+      remediation: {},
+      autoRepairPolicy: {
+        enabled: false,
+        allowedActions: ["review"],
+        maxSeverity: "high",
+        requireApproval: true,
+        requireConnectorReadiness: true,
+        liveProviderWrites: false
+      },
+      version: "drift:v1",
+      createdAt: TEST_NOW
+    });
+    await restartServer({ app });
+
+    const updated = await postWithIdempotency<{
+      remediation: { dryRunRepair: { action: string; providerWrite: boolean; mode: string } };
+    }>("/v1/reconciliation/findings/drift%3Aexception-review/remediation", "idem-drift-exception-review", {
+      approval: {
+        decision: "approved",
+        approverId: "user:security-approver",
+        changeTicket: "chg:drift-exception-review",
+        approvedAt: TEST_NOW,
+        reason: "Approve dry-run review planning for exception governance."
+      },
+      autoRepairPolicy: {
+        enabled: false,
+        allowedActions: ["review"],
+        maxSeverity: "high",
+        requireApproval: true,
+        requireConnectorReadiness: true,
+        liveProviderWrites: false,
+        reason: "Dry-run review only; no provider mutation is allowed."
+      }
+    });
+
+    expect(updated.remediation.dryRunRepair).toMatchObject({
+      action: "review",
+      mode: "dry_run",
+      providerWrite: false
+    });
+  });
+
   it("requires explicit dry-run reconciliation", async () => {
     for (const body of [{ connectorId: "mock" }, { connectorId: "mock", dryRun: false }]) {
       const response = await fetch(`${baseUrl}/v1/reconciliation/run`, {
