@@ -106,4 +106,5 @@ A degraded mode can close only after:
 - [Security Model](security-model.md)
 - [Deployment Runbook](deployment-runbook.md)
 - [Evidence Catalog](evidence-catalog.md)
+- [Runbook Exercise Evidence](runbook-exercise-evidence.md)
 - [Degraded Mode Operations Runbook](../runbooks/degraded-mode-operations.md)

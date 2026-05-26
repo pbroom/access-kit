@@ -35,6 +35,7 @@ This is not a complete system security plan, production evidence vault, WORM arc
 | Admin authorization readiness | `packages/core/src/admin-authorization.ts` and `/v1/ready` | IdP or mTLS gateway, admin ReBAC, secrets-manager, break-glass, incident notification, and post-action review evidence contract. |
 | Governance workflow evidence | `packages/core/src/governance.ts` and [Access Review And Exception Governance](../runbooks/access-review-exceptions.md) | Durable campaigns, findings, exception requests, owner approvals, risk acceptance, expiry, remediation, ConMon, and POA&M-ready records. |
 | HA and degraded-mode evidence | `docs/ha-degraded-mode-operations.md` and [Degraded Mode Operations Runbook](../runbooks/degraded-mode-operations.md) | Queue backpressure, audit-forwarder outage, read-only fallback, emergency revocation priority, health signals, and recovery criteria. |
+| Runbook exercise evidence | `schemas/runbook-exercise.schema.json` and [Runbook Exercise Evidence](runbook-exercise-evidence.md) | Rehearsed, redacted, deployment-scoped records for incident response, break-glass, backup/restore, contingency, emergency revocation, SIEM replay, and post-action review exercises. |
 | Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest with reproducible integrity hashes and optional immutable external storage receipts. |
 | Evidence integrity verifier | [Evidence Integrity Verifier](evidence-integrity-verifier.md) | Steps for recomputing package and section hashes from stable JSON. |
 | Validation report | `reports/proof-point-validation.md` | Generated proof-point evidence. |
@@ -61,6 +62,7 @@ A governance lead samples `CA-7` for the same period. The operator exports evide
 - Production admin authorization evidence requires IdP or mTLS gateway configuration references, admin ReBAC policy and role-binding evidence, secrets-manager references, break-glass approval, incident notifications, and post-action review records.
 - Exception records are residual-risk evidence only; they must not silently allow access or bypass deterministic authorization decisions.
 - Degraded-mode evidence should retain health/readiness output, queue metrics, SIEM replay receipts, connector warnings, emergency revocation priority observations, and recovery sign-off without embedding secrets or live tenant data.
+- Runbook exercise evidence must label local or staging rehearsals as rehearsed proof, keep `assessorApproved` false, and avoid production-operation claims until the deployment-specific record has been reviewed.
 - Mark assumptions, gaps, and planned controls clearly.
 
 ## Audit And Evidence Implications
@@ -78,6 +80,9 @@ AC, AU, CA, CM, IA, IR, RA, SA, SC, SI, SR, and PT families may reference eviden
 - [Assessor Inspection Guide](assessor-inspection-guide.md)
 - [Audit Event Model](audit-event-model.md)
 - [Access Review And Exception Governance](../runbooks/access-review-exceptions.md)
+- [Runbook Exercise Evidence](runbook-exercise-evidence.md)
 - `schemas/evidence-export.schema.json`
+- `schemas/runbook-exercise.schema.json`
 - `tests/fixtures/schema-examples/evidence-export.json`
+- `tests/fixtures/schema-examples/runbook-exercise.json`
 - [ADR 0008: Evidence export control mapping](../adrs/0008-evidence-export-control-mapping.md)

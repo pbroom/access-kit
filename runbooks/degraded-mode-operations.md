@@ -78,6 +78,7 @@ rebac evidence export --framework nist-800-53 --controls AC-3,AU-6,IR-4,SI-4 --f
 - Connector health, cursor age, coverage warnings, and reconciliation output.
 - Backup/restore evidence for recovered stores.
 - Admin authorization, break-glass, notification, session expiry, and post-action review evidence when emergency administration was used.
+- Runbook exercise record conforming to `schemas/runbook-exercise.schema.json` when the scenario is rehearsed for incident response, contingency, emergency revocation, SIEM replay, backup/restore, or post-action review evidence.
 
 ## Escalation Path
 

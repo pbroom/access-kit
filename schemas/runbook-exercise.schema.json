@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/runbook-exercise.schema.json",
+  "title": "RunbookExerciseEvidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "exerciseId",
+    "version",
+    "generatedAt",
+    "ownerRole",
+    "deploymentScope",
+    "classification",
+    "exerciseWindow",
+    "redaction",
+    "controls",
+    "runbookRefs",
+    "scenarios",
+    "retention",
+    "validation",
+    "gaps"
+  ],
+  "properties": {
+    "exerciseId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "version": { "type": "string", "const": "runbook-exercise-evidence:v1" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "ownerRole": { "type": "string", "minLength": 1 },
+    "deploymentScope": { "$ref": "#/$defs/deploymentScope" },
+    "classification": { "$ref": "#/$defs/classification" },
+    "exerciseWindow": { "$ref": "#/$defs/exerciseWindow" },
+    "redaction": { "$ref": "#/$defs/redaction" },
+    "controls": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(?:\\([0-9]+\\))?$" }
+    },
+    "runbookRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "pattern": "^runbooks/[a-z0-9-]+\\.md$" }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 7,
+      "items": { "$ref": "#/$defs/scenario" }
+    },
+    "retention": { "$ref": "#/$defs/retention" },
+    "validation": { "$ref": "#/$defs/validation" },
+    "gaps": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  },
+  "$defs": {
+    "deploymentScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["environment", "deploymentId", "tenantBoundary", "liveTenantData", "dataSource", "scopeStatement"],
+      "properties": {
+        "environment": { "type": "string", "enum": ["local_proof_point", "staging", "production"] },
+        "deploymentId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "tenantBoundary": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "liveTenantData": { "type": "boolean" },
+        "dataSource": { "type": "string", "enum": ["synthetic", "redacted_production"] },
+        "scopeStatement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "classification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceKind", "assessorApproved", "productionOperation", "approvalStatement"],
+      "properties": {
+        "evidenceKind": { "type": "string", "const": "rehearsed_proof" },
+        "assessorApproved": { "type": "boolean", "const": false },
+        "productionOperation": { "type": "boolean", "const": false },
+        "approvalStatement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "exerciseWindow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "endedAt", "durationMinutes"],
+      "properties": {
+        "startedAt": { "type": "string", "format": "date-time" },
+        "endedAt": { "type": "string", "format": "date-time" },
+        "durationMinutes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "syntheticData", "sensitiveDataIncluded", "rules"],
+      "properties": {
+        "status": { "type": "string", "const": "redacted" },
+        "syntheticData": { "type": "boolean", "const": true },
+        "sensitiveDataIncluded": { "type": "boolean", "const": false },
+        "rules": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "title",
+        "status",
+        "runbookRef",
+        "sourceEventIds",
+        "commands",
+        "evidenceRefs",
+        "observations",
+        "reviewRequired",
+        "gaps"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "incident_response",
+            "break_glass",
+            "backup_restore",
+            "contingency",
+            "emergency_revocation",
+            "siem_replay",
+            "post_action_review"
+          ]
+        },
+        "title": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["pass", "gap"] },
+        "runbookRef": { "type": "string", "pattern": "^runbooks/[a-z0-9-]+\\.md$" },
+        "sourceEventIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "observations": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "reviewRequired": { "type": "boolean" },
+        "gaps": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["backend", "location", "retentionDays", "immutable", "packageHash", "retainedUntil"],
+      "properties": {
+        "backend": { "type": "string", "enum": ["local_file", "external_evidence_store"] },
+        "location": { "type": "string", "minLength": 1 },
+        "retentionDays": { "type": "integer", "minimum": 1 },
+        "immutable": { "type": "boolean" },
+        "packageHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "retainedUntil": { "type": "string", "format": "date-time" }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "validatedBy", "validatedAt", "commands"],
+      "properties": {
+        "status": { "type": "string", "enum": ["pass", "fail"] },
+        "validatedBy": { "type": "string", "minLength": 1 },
+        "validatedAt": { "type": "string", "format": "date-time" },
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
