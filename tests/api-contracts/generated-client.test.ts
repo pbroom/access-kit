@@ -75,6 +75,43 @@ describe("generated API client", () => {
     });
   });
 
+  it("allows explicitly empty path parameters without treating them as missing", async () => {
+    const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const client = createRebacClient({
+      apiKey: localCredential,
+      baseUrl: "http://127.0.0.1:3000",
+      fetch: async (input, init) => {
+        calls.push({ input, init });
+        return jsonResponse({ status: "ok" });
+      }
+    });
+
+    await client.request("getSubject", {
+      pathParams: { id: "" }
+    });
+
+    expect(String(calls[0]?.input)).toBe("http://127.0.0.1:3000/v1/subjects/");
+  });
+
+  it("raises a typed client error for invalid base URLs", () => {
+    let error: unknown;
+
+    try {
+      createRebacClient({
+        apiKey: localCredential,
+        baseUrl: "/local-api",
+        fetch: async () => jsonResponse({ status: "ok" })
+      });
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(error).toMatchObject({
+      code: "CLIENT_INVALID_BASE_URL",
+      status: 400
+    });
+  });
+
   it("preserves retry-after metadata when the API returns a rate-limit response", async () => {
     const client = createRebacClient({
       apiKey: localCredential,

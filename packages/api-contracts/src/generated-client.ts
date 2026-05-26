@@ -71,7 +71,7 @@ export function createRebacClient(options: RebacClientOptions): {
   readonly request: <T>(operationId: GeneratedClientOperationId, requestOptions?: RebacRequestOptions) => Promise<T>;
 } {
   const clientFetch = options.fetch ?? fetch;
-  const baseUrl = trimTrailingSlashes(options.baseUrl);
+  const baseUrl = normalizeBaseUrl(options.baseUrl);
 
   return {
     async request<T>(
@@ -123,11 +123,23 @@ function trimTrailingSlashes(value: string): string {
   return value.slice(0, end);
 }
 
+function normalizeBaseUrl(value: string): string {
+  const baseUrl = trimTrailingSlashes(value);
+
+  try {
+    new URL(baseUrl);
+  } catch {
+    throw new RebacClientError(400, "CLIENT_INVALID_BASE_URL");
+  }
+
+  return baseUrl;
+}
+
 function buildUrl(baseUrl: string, operation: ApiContractOperationSnapshot, options: RebacRequestOptions): string {
   const path = operation.path.replace(/\{([^}]+)\}/g, (_, key: string) => {
     const value = options.pathParams?.[key];
 
-    if (!value) {
+    if (value === undefined) {
       throw new RebacClientError(400, `CLIENT_MISSING_PATH_PARAM:${key}`);
     }
 
