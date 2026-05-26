@@ -121,7 +121,11 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
     this.tenantBoundary = tenantBoundary;
     this.#now = options.now ?? (() => sampleNow);
     this.#maxPages = options.maxPages ?? 10;
-    this.#scenarios = options.scenarios ?? [createDefaultSampleScenario()];
+    const scenarios = options.scenarios ?? [createDefaultSampleScenario()];
+    if (scenarios.length === 0) {
+      throw new Error("SampleReadOnlyConnector requires at least one scenario.");
+    }
+    this.#scenarios = scenarios;
   }
 
   async discoverSubjects(): Promise<Subject[]> {
@@ -347,7 +351,7 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
   }
 
   async revokeAccess(nativeGrantId: CanonicalId): Promise<ProvisioningPlan> {
-    return createRevocationPlan(this.id, nativeGrantId, SAMPLE_APPLICATION_RESOURCE_ID, this.#now());
+    return createRevocationPlan(this.id, nativeGrantId, this.#resourceIdForNativeGrant(nativeGrantId), this.#now());
   }
 
   async detectDrift(): Promise<DriftFinding[]> {
@@ -484,6 +488,20 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
 
   #metadataScenario(): SampleConnectorScenario {
     return this.#scenarios[Math.max(this.#scenarioIndex, 0)]!;
+  }
+
+  #resourceIdForNativeGrant(nativeGrantId: CanonicalId): CanonicalId {
+    const scenario = this.#activeScenario();
+
+    for (const [resourceId, pages] of Object.entries(scenario.nativeGrantPagesByResource)) {
+      for (const page of pages) {
+        if (page.items.some((record) => `native-grant:sample:${sampleHash(record.rawGrantId)}` === nativeGrantId)) {
+          return resourceId as CanonicalId;
+        }
+      }
+    }
+
+    throw new Error(`SampleReadOnlyConnector cannot resolve resource for native grant ${nativeGrantId}.`);
   }
 
   #readPages<T>(scope: WarningScope, pages: readonly SampleProviderPage<T>[]): T[] {

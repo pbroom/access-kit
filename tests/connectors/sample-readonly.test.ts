@@ -159,6 +159,51 @@ describe("SampleReadOnlyConnector", () => {
     await expect(connector.verifyProvisioningChange(plan)).resolves.toBe(false);
   });
 
+  it("resolves dry-run revocation plans from the fixture grant index", async () => {
+    const connector = new SampleReadOnlyConnector({ now: () => now });
+    const [documentGrant] = await connector.readCurrentAccess(SAMPLE_DOCUMENT_RESOURCE_ID);
+
+    await expect(connector.revokeAccess(documentGrant!.id)).resolves.toMatchObject({
+      resourceId: SAMPLE_DOCUMENT_RESOURCE_ID,
+      actions: [
+        expect.objectContaining({
+          targetObjectId: SAMPLE_DOCUMENT_RESOURCE_ID,
+          requestedState: { nativeGrantId: documentGrant!.id, status: "revoked" }
+        })
+      ]
+    });
+    await expect(connector.revokeAccess("native-grant:sample:missing")).rejects.toThrow("cannot resolve resource");
+  });
+
+  it("fails explicitly for empty fixtures and reports configured page caps", async () => {
+    const scenario = createDefaultSampleScenario();
+    const connector = new SampleReadOnlyConnector({
+      now: () => now,
+      maxPages: 2,
+      scenarios: [
+        {
+          ...scenario,
+          subjectPages: [
+            ...scenario.subjectPages,
+            {
+              items: [
+                {
+                  rawId: "provider-user-after-page-cap",
+                  kind: "user",
+                  safeDisplayName: "Sample Page Cap User"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    });
+
+    await expect(() => new SampleReadOnlyConnector({ scenarios: [] })).toThrow("at least one scenario");
+    await expect(connector.discoverSubjects()).resolves.toHaveLength(3);
+    expect(connector.getDiscoveryMetadata().warnings.map((warning) => warning.code)).toContain("SAMPLE_PAGE_LIMIT_REACHED");
+  });
+
   it("fails closed on ambiguous boundaries and passes the connector security gate when registered intentionally", async () => {
     const app = createRebacLocalApp({ now: () => now });
     const connector = new SampleReadOnlyConnector({ now: () => now });
