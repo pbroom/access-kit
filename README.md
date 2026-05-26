@@ -137,7 +137,7 @@ pnpm pr:stack
 | `docs/developer-evaluation-path.md` | Full local 30-minute evaluation path over policy tests, dry-run provisioning, reconciliation, audit export, and evidence export. |
 | `docs/implementation-backlog.md` | Durable slice backlog for Codex and human coordination. |
 | `docs/automation.md` | PR steward, next-slice, labels, and merge-readiness operating loop. |
-| `docs/` | Concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, provisioning, connector contract and authoring, drift, deployment, production reference architecture, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
+| `docs/` | Concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, PEP conformance, provisioning, connector contract and authoring, drift, deployment, production reference architecture, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
 | `runbooks/` | Emergency revocation, rollback, drift, outage, break-glass, export, credential, and decision API outage procedures. |
 | `examples/` | Synthetic API, CLI, connector template, and control/evidence mapping examples. |
 | `.github/workflows/` | CI, contract validation, and security checks. |
@@ -168,6 +168,7 @@ pnpm pr:stack
 | Public API | [`openapi/rebac-control-plane.yaml`](openapi/rebac-control-plane.yaml) |
 | API notes | [`docs/api.md`](docs/api.md) |
 | CLI contract | [`docs/cli.md`](docs/cli.md) |
+| PEP conformance | [`docs/pep-conformance.md`](docs/pep-conformance.md) |
 | Domain model | [`docs/domain-model.md`](docs/domain-model.md) |
 | Connector contract | [`docs/connector-contract.md`](docs/connector-contract.md) |
 | Connector authoring tutorial | [`docs/connector-authoring-tutorial.md`](docs/connector-authoring-tutorial.md) |
@@ -187,7 +188,7 @@ pnpm pr:stack
 
 1. Start with [`docs/start-here.md`](docs/start-here.md).
 2. Read [`docs/concept-of-operations.md`](docs/concept-of-operations.md) and [`docs/system-context-and-boundary.md`](docs/system-context-and-boundary.md) for operating scope.
-3. Read [`docs/domain-model.md`](docs/domain-model.md), [`docs/decision-lifecycle.md`](docs/decision-lifecycle.md), and [`docs/explain-api.md`](docs/explain-api.md) for authorization behavior.
+3. Read [`docs/domain-model.md`](docs/domain-model.md), [`docs/decision-lifecycle.md`](docs/decision-lifecycle.md), [`docs/explain-api.md`](docs/explain-api.md), and [`docs/pep-conformance.md`](docs/pep-conformance.md) for authorization behavior and enforcement expectations.
 4. Read [`docs/provisioning-lifecycle.md`](docs/provisioning-lifecycle.md), [`docs/connector-contract.md`](docs/connector-contract.md), [`docs/connector-authoring-tutorial.md`](docs/connector-authoring-tutorial.md), and [`docs/drift-detection-model.md`](docs/drift-detection-model.md) for operational change control.
 5. Read [`docs/audit-event-model.md`](docs/audit-event-model.md), [`docs/evidence-catalog.md`](docs/evidence-catalog.md), [`docs/control-traceability-matrix.md`](docs/control-traceability-matrix.md), and [`docs/assessor-inspection-guide.md`](docs/assessor-inspection-guide.md) for inspection and evidence.
 6. Read [`docs/security-model.md`](docs/security-model.md), [`docs/threat-model.md`](docs/threat-model.md), and the runbooks before operating enforcement paths.
