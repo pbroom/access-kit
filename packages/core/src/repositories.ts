@@ -660,7 +660,7 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
   }
 
   listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {
-    return clone(this.#jobs.driftFindings.filter((finding) => !filter.severity || finding.severity === filter.severity));
+    return clone(this.#jobs.driftFindings.filter((finding) => matchesDriftFindingFilter(finding, filter)));
   }
 
   upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign {
@@ -1000,6 +1000,14 @@ function upsertByDecisionId(items: DecisionResult[], item: DecisionResult): Deci
   }
 
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
+}
+
+function matchesDriftFindingFilter(finding: DriftFinding, filter: DriftFindingFilter): boolean {
+  return (!filter.severity || finding.severity === filter.severity)
+    && (!filter.status || finding.status === filter.status)
+    && (!filter.lifecycleState || finding.lifecycleState === filter.lifecycleState)
+    && (!filter.ownerId || finding.ownerId === filter.ownerId)
+    && (!filter.assigneeId || finding.assigneeId === filter.assigneeId);
 }
 
 function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {

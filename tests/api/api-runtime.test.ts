@@ -2202,12 +2202,30 @@ describe("ReBAC API runtime", () => {
     expect(body.code).toBe("UNSUPPORTED_CONNECTOR_MODE");
   });
 
-  it("runs dry-run reconciliation", async () => {
-    const reconciliation = await post<{ status: string; findings: unknown[]; counts: { findings: number; highOrCritical: number }; auditEventIds: string[] }>(
+  it("runs dry-run reconciliation with lifecycle defaults", async () => {
+    const reconciliation = await post<{
+      status: string;
+      trigger: string;
+      schedule: { cadence: string; scheduledAt: string; gracePeriodHours: number; overdue: boolean };
+      findings: Array<{
+        lifecycleState: string;
+        ownerId: string;
+        assigneeId: string;
+        nativeGrantId: string;
+        autoRepairPolicy: { liveProviderWrites: boolean; requireApproval: boolean };
+      }>;
+      counts: { findings: number; highOrCritical: number };
+      auditEventIds: string[];
+    }>(
       "/v1/reconciliation/run",
       {
         connectorId: "mock",
-        dryRun: true
+        dryRun: true,
+        trigger: "scheduled",
+        schedule: {
+          cadence: "daily",
+          scheduledAt: TEST_NOW
+        }
       }
     );
     const evidence = await get<{
@@ -2238,7 +2256,21 @@ describe("ReBAC API runtime", () => {
     const [exceptionRequest] = evidence.exceptionRegister;
 
     expect(reconciliation.status).toBe("completed");
+    expect(reconciliation.trigger).toBe("scheduled");
+    expect(reconciliation.schedule).toMatchObject({
+      cadence: "daily",
+      scheduledAt: TEST_NOW,
+      gracePeriodHours: 24,
+      overdue: false
+    });
     expect(reconciliation.findings).toHaveLength(1);
+    expect(reconciliation.findings[0]).toMatchObject({
+      lifecycleState: "open",
+      ownerId: "role:security-operations",
+      assigneeId: "role:security-engineer",
+      nativeGrantId: "native-grant:mock:document:case-plan:user:external:read:direct",
+      autoRepairPolicy: { liveProviderWrites: false, requireApproval: true }
+    });
     expect(reconciliation.counts).toEqual({ findings: 1, highOrCritical: 1 });
     expect(reconciliation.auditEventIds).toHaveLength(2);
     expect(evidence.exceptionRegister).toEqual(expect.arrayContaining([
@@ -2290,10 +2322,31 @@ describe("ReBAC API runtime", () => {
       nativeAccess: "owner",
       intendedAccess: "none",
       severity: "high",
+      lifecycleState: "open",
+      ownerId: "Role/Security.Ops",
+      assigneeId: "User.Security@example.com",
       detectedAt: TEST_NOW,
       sourceConnectorId: "mock",
       recommendedAction: "exception",
       status: "open",
+      exceptionExpiresAt: "2026-06-21T17:00:00.000Z",
+      scheduledReconciliation: {
+        cadence: "daily",
+        scheduledAt: TEST_NOW,
+        nextRunAt: "2026-05-22T17:00:00.000Z",
+        gracePeriodHours: 24,
+        overdue: false
+      },
+      hookEvidence: [],
+      remediation: {},
+      autoRepairPolicy: {
+        enabled: false,
+        allowedActions: ["review"],
+        maxSeverity: "high",
+        requireApproval: true,
+        requireConnectorReadiness: true,
+        liveProviderWrites: false
+      },
       version: "drift:v1",
       createdAt: TEST_NOW
     };
@@ -2418,6 +2471,90 @@ describe("ReBAC API runtime", () => {
     expect(highFindings.items).toHaveLength(1);
     expect(highFindings.items[0]?.severity).toBe("high");
     expect(mediumFindings.items).toEqual([]);
+  });
+
+  it("records approved drift dry-run remediation with ticket and SIEM evidence", async () => {
+    const reconciliation = await postWithIdempotency<{
+      findings: Array<{ id: string }>;
+    }>("/v1/reconciliation/run", "idem-drift-remediation-reconcile", {
+      connectorId: "mock",
+      dryRun: true
+    });
+    const findingId = reconciliation.findings[0]?.id;
+
+    expect(findingId).toBe("drift:001");
+
+    const updated = await postWithIdempotency<{
+      status: string;
+      lifecycleState: string;
+      hookEvidence: Array<{ system: string; referenceId: string; status: string }>;
+      autoRepairPolicy: { enabled: boolean; liveProviderWrites: boolean; requireApproval: boolean };
+      remediation: {
+        approval: { approverId: string; changeTicket: string };
+        dryRunRepair: { planId: string; mode: string; providerWrite: boolean; action: string };
+      };
+    }>(`/v1/reconciliation/findings/${encodeURIComponent(String(findingId))}/remediation`, "idem-drift-remediation-plan", {
+      approval: {
+        decision: "approved",
+        approverId: "user:security-approver",
+        changeTicket: "chg:drift-001",
+        approvedAt: TEST_NOW,
+        reason: "Approve dry-run revocation planning for unauthorized external access."
+      },
+      autoRepairPolicy: {
+        enabled: false,
+        allowedActions: ["revoke"],
+        maxSeverity: "high",
+        requireApproval: true,
+        requireConnectorReadiness: true,
+        liveProviderWrites: false,
+        reason: "Dry-run only; no provider mutation is allowed."
+      },
+      hookEvidence: [
+        {
+          system: "ticket",
+          referenceId: "chg:drift-001",
+          status: "linked",
+          recordedAt: TEST_NOW
+        },
+        {
+          system: "siem",
+          referenceId: "siem:drift-001",
+          status: "notified",
+          recordedAt: TEST_NOW
+        }
+      ]
+    });
+    const filtered = await get<{ items: Array<{ id: string; lifecycleState: string }> }>(
+      "/v1/reconciliation/findings?status=repairing&lifecycleState=repairing"
+    );
+    const audit = await get<{ items: Array<{ eventType: string }> }>("/v1/audit/events");
+
+    expect(updated).toMatchObject({
+      status: "repairing",
+      lifecycleState: "repairing",
+      autoRepairPolicy: { enabled: false, liveProviderWrites: false, requireApproval: true },
+      remediation: {
+        approval: { approverId: "user:security-approver", changeTicket: "chg:drift-001" },
+        dryRunRepair: {
+          mode: "dry_run",
+          providerWrite: false,
+          action: "revoke"
+        }
+      }
+    });
+    expect(updated.remediation.dryRunRepair.planId).toMatch(/^plan:revoke:/);
+    expect(updated.hookEvidence).toEqual(expect.arrayContaining([
+      expect.objectContaining({ system: "ticket", referenceId: "chg:drift-001", status: "linked" }),
+      expect.objectContaining({ system: "siem", referenceId: "siem:drift-001", status: "notified" })
+    ]));
+    expect(filtered.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: "drift:001", lifecycleState: "repairing" })
+    ]));
+    expect(audit.items.map((event) => event.eventType)).toEqual(expect.arrayContaining([
+      "drift.remediation_approved",
+      "drift.repair_dry_run_planned"
+    ]));
   });
 
   it("requires explicit dry-run reconciliation", async () => {

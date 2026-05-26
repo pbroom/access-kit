@@ -36,6 +36,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "provision revoke", description: "Create a revocation plan.", apiSurface: "POST /v1/provisioning/plans" },
   { path: "reconcile run", description: "Run reconciliation for a connector.", apiSurface: "POST /v1/reconciliation/run" },
   { path: "reconcile findings", description: "List drift findings.", apiSurface: "GET /v1/reconciliation/findings" },
+  { path: "reconcile remediate", description: "Plan approved dry-run remediation for a drift finding.", apiSurface: "POST /v1/reconciliation/findings/{id}/remediation" },
   { path: "discovery runs", description: "List read-only connector discovery runs.", apiSurface: "GET /v1/discovery/runs" },
   { path: "audit search", description: "Search append-only audit events.", apiSurface: "GET /v1/audit/events" },
   { path: "audit integrity", description: "Verify append-only audit hash-chain integrity.", apiSurface: "GET /v1/audit/integrity" },
@@ -87,10 +88,23 @@ interface CommandWithMode {
 
 interface ReconcileRunOptions extends CommandWithConnector {
   dryRun?: boolean;
+  scheduled?: boolean;
+  cadence?: string;
+  scheduledAt?: string;
 }
 
 interface ReconcileFindingsOptions {
   severity?: string;
+  status?: string;
+  lifecycleState?: string;
+}
+
+interface ReconcileRemediateOptions {
+  approver?: string;
+  changeTicket?: string;
+  ticket?: string;
+  siem?: string;
+  maxSeverity?: string;
 }
 
 interface DiscoveryRunsOptions extends CommandWithConnector {
@@ -427,21 +441,74 @@ function addReconciliationCommands(program: Command, context: CliContext): void 
   const reconcile = program.command("reconcile").description("Reconciliation and drift commands.");
 
   const run = reconcile.command("run").requiredOption("--connector <id>").option("--dry-run");
+  run.option("--scheduled", "mark the reconciliation as scheduled").option("--cadence <cadence>").option("--scheduled-at <date>");
   run.action(withApi(context, run, (client) => {
     const options = run.opts<ReconcileRunOptions>();
-    return client.post("/v1/reconciliation/run", {
+    const body: Record<string, unknown> = {
       connectorId: required(options.connector, "connector"),
       dryRun: options.dryRun ?? true
-    });
+    };
+
+    if (options.scheduled || options.cadence || options.scheduledAt) {
+      body.trigger = options.scheduled ? "scheduled" : "manual";
+      body.schedule = {
+        cadence: options.cadence ?? (options.scheduled ? "daily" : "manual"),
+        scheduledAt: options.scheduledAt ?? context.now()
+      };
+    }
+
+    return client.post("/v1/reconciliation/run", body);
   }));
 
-  const findings = reconcile.command("findings").option("--severity <severity>");
+  const findings = reconcile.command("findings").option("--severity <severity>").option("--status <status>").option("--lifecycle-state <state>");
   findings.action(withApi(context, findings, (client) => {
     const options = findings.opts<ReconcileFindingsOptions>();
     const params = new URLSearchParams();
     if (options.severity) params.set("severity", options.severity);
+    if (options.status) params.set("status", options.status);
+    if (options.lifecycleState) params.set("lifecycleState", options.lifecycleState);
     const query = params.toString();
     return client.get(`/v1/reconciliation/findings${query ? `?${query}` : ""}`);
+  }));
+
+  const remediate = reconcile
+    .command("remediate")
+    .requiredOption("--finding <id>")
+    .requiredOption("--change-ticket <id>")
+    .option("--approver <id>")
+    .option("--ticket <id>")
+    .option("--siem <id>")
+    .option("--max-severity <severity>", "maximum severity allowed by the auto-repair policy", "high");
+  remediate.action(withApi(context, remediate, (client) => {
+    const options = remediate.opts<ReconcileRemediateOptions & { finding?: string }>();
+    const approvedAt = context.now();
+    const hookEvidence = [
+      options.ticket
+        ? { system: "ticket", referenceId: options.ticket, status: "linked", recordedAt: approvedAt }
+        : undefined,
+      options.siem
+        ? { system: "siem", referenceId: options.siem, status: "notified", recordedAt: approvedAt }
+        : undefined
+    ].filter(Boolean);
+
+    return client.post(`/v1/reconciliation/findings/${encodeURIComponent(required(options.finding, "finding"))}/remediation`, {
+      approval: {
+        decision: "approved",
+        approverId: options.approver ?? "user:cli-operator",
+        changeTicket: required(options.changeTicket, "change-ticket"),
+        approvedAt
+      },
+      autoRepairPolicy: {
+        enabled: false,
+        allowedActions: ["revoke", "repair"],
+        maxSeverity: options.maxSeverity ?? "high",
+        requireApproval: true,
+        requireConnectorReadiness: true,
+        liveProviderWrites: false,
+        reason: "CLI dry-run remediation records approval evidence without executing provider writes."
+      },
+      hookEvidence
+    });
   }));
 }
 

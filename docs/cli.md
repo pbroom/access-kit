@@ -37,6 +37,7 @@ rebac provision apply plan:abc --mode enforcement --approver user:approver
 
 rebac reconcile run --connector sharepoint-readonly --dry-run
 rebac reconcile findings --severity high
+rebac reconcile remediate --finding drift:001 --change-ticket chg:drift-001 --ticket chg:drift-001 --siem siem:drift-001 --max-severity high
 
 rebac discovery runs --connector sharepoint-readonly --status completed_with_warnings
 

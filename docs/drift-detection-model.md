@@ -21,11 +21,26 @@ Drift is not just a connector warning, SIEM alert, or helpdesk ticket. It is an 
 1. Discovery records observed native grants.
 2. Intended access is derived from decisions, approvals, plans, and managed grants.
 3. Reconciliation compares intended and observed state.
-4. Mismatches are classified by severity and recommended action.
-5. Drift findings are written as security objects and audit events.
-6. Operators remediate through revoke, repair, expire, exception, or policy update.
-7. Verification readback confirms closure.
-8. Evidence export retains finding, action, verification, and residual gaps.
+4. Scheduled reconciliation records whether the run was manual or scheduled, the cadence, window, next run, grace period, and overdue flag.
+5. Mismatches are classified by severity, owner, assignee, lifecycle state, and recommended action.
+6. Drift findings are written as security objects and audit events.
+7. Ticket and SIEM hook evidence links the finding to operator and monitoring workflows.
+8. Operators approve remediation before any dry-run repair plan is created.
+9. Auto-repair policy controls remain explicit: approval and connector readiness are required, live provider writes stay disabled, and allowed actions plus maximum severity are recorded with the finding.
+10. Verification readback confirms closure.
+11. Evidence export retains finding, action, verification, exception expiry, and residual gaps.
+
+## Lifecycle States
+
+| State | Meaning | Next action |
+| --- | --- | --- |
+| `open` | Reconciliation detected drift and no operator has triaged it yet. | Assign owner and assignee, link ticket/SIEM evidence, and choose revoke, repair, exception, or review. |
+| `triaged` | Owner has reviewed the finding and confirmed the remediation path. | Capture approval or risk-acceptance evidence. |
+| `accepted` | Risk was accepted for a bounded exception window. | Track `exceptionExpiresAt` and re-open if the exception expires. |
+| `remediation_pending` | Remediation is approved but no repair plan has been generated. | Create a dry-run repair plan. |
+| `repairing` | A dry-run repair plan exists and is awaiting verification or execution in a later approved workflow. | Review dry-run evidence and provider readback. |
+| `resolved` | Readback confirms intended and native access align. | Retain closure evidence. |
+| `expired_exception` | A previously accepted exception passed its expiry. | Escalate as an open security finding and revoke or re-approve. |
 
 ## Common Drift Types
 
@@ -47,10 +62,12 @@ Drift is not just a connector warning, SIEM alert, or helpdesk ticket. It is an 
 - A connector outage can hide drift and should be tracked as degraded evidence.
 - Native grants may be direct, inherited, or group-derived; remediation must avoid breaking unrelated access without review.
 - Exceptions need owner approval, expiry, and evidence.
+- Auto-repair policy cannot permit live provider writes in the local proof point. Dry-run repair evidence may be generated only after approval and connector-readiness controls are recorded.
+- Ticket and SIEM hook evidence should use synthetic or redacted identifiers in local proof-point artifacts.
 
 ## Audit And Evidence Implications
 
-Drift findings support AC, AU, CM, CA, RA, SI, and IR controls. Evidence should include source discovery run, native grant IDs, intended state reference, severity, action, verification, and closure status.
+Drift findings support AC, AU, CM, CA, RA, SI, and IR controls. Evidence should include source discovery run, native grant IDs, intended state reference, severity, lifecycle state, owner, assignee, ticket/SIEM hook evidence, action, approval, dry-run repair plan, exception expiry, verification, and closure status.
 
 ## Related Controls
 

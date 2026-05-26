@@ -635,6 +635,11 @@ paths:
                   type: string
                 dryRun:
                   type: boolean
+                trigger:
+                  type: string
+                  enum: [manual, scheduled]
+                schedule:
+                  $ref: "#/components/schemas/ReconciliationSchedule"
       responses:
         "202":
           description: Reconciliation run accepted.
@@ -658,6 +663,19 @@ paths:
           schema:
             type: string
             enum: [open, accepted, repairing, resolved]
+        - name: lifecycleState
+          in: query
+          schema:
+            type: string
+            enum: [open, triaged, accepted, remediation_pending, repairing, resolved, expired_exception]
+        - name: ownerId
+          in: query
+          schema:
+            type: string
+        - name: assigneeId
+          in: query
+          schema:
+            type: string
       responses:
         "200":
           description: Drift findings.
@@ -671,6 +689,38 @@ paths:
                     type: array
                     items:
                       $ref: "../schemas/drift-finding.schema.json"
+  /v1/reconciliation/findings/{id}/remediation:
+    post:
+      tags: [reconciliation]
+      summary: Plan approved dry-run remediation for a drift finding.
+      operationId: planDriftRemediation
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [approval, autoRepairPolicy]
+              properties:
+                approval:
+                  $ref: "#/components/schemas/ProvisioningApproval"
+                autoRepairPolicy:
+                  $ref: "#/components/schemas/DriftAutoRepairPolicy"
+                hookEvidence:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/DriftHookEvidence"
+      responses:
+        "202":
+          description: Drift finding updated with dry-run remediation evidence.
+          content:
+            application/json:
+              schema:
+                $ref: "../schemas/drift-finding.schema.json"
   /v1/audit/events:
     get:
       tags: [audit]
@@ -1354,10 +1404,80 @@ components:
           enum: [planned, not_required, skipped, failed]
         idempotencyKey:
           type: string
+    ReconciliationSchedule:
+      type: object
+      additionalProperties: false
+      required: [cadence, scheduledAt, gracePeriodHours, overdue]
+      properties:
+        cadence:
+          type: string
+          enum: [manual, hourly, daily, weekly]
+        scheduledAt:
+          type: string
+          format: date-time
+        windowStart:
+          type: string
+          format: date-time
+        windowEnd:
+          type: string
+          format: date-time
+        nextRunAt:
+          type: string
+          format: date-time
+        gracePeriodHours:
+          type: integer
+          minimum: 0
+        overdue:
+          type: boolean
+    DriftAutoRepairPolicy:
+      type: object
+      additionalProperties: false
+      required: [enabled, allowedActions, maxSeverity, requireApproval, requireConnectorReadiness, liveProviderWrites]
+      properties:
+        enabled:
+          type: boolean
+        allowedActions:
+          type: array
+          uniqueItems: true
+          items:
+            type: string
+            enum: [revoke, repair, review]
+        maxSeverity:
+          type: string
+          enum: [low, medium, high, critical]
+        requireApproval:
+          type: boolean
+        requireConnectorReadiness:
+          type: boolean
+        liveProviderWrites:
+          type: boolean
+        reason:
+          type: string
+    DriftHookEvidence:
+      type: object
+      additionalProperties: false
+      required: [system, referenceId, status, recordedAt]
+      properties:
+        system:
+          type: string
+          enum: [ticket, siem]
+        referenceId:
+          type: string
+        status:
+          type: string
+          enum: [pending, linked, notified, failed]
+        recordedAt:
+          type: string
+          format: date-time
+        url:
+          type: string
+        evidence:
+          type: object
+          additionalProperties: true
     ReconciliationRun:
       type: object
       additionalProperties: false
-      required: [id, connectorId, mode, dryRun, status, findings, counts, auditEventIds, version, createdAt]
+      required: [id, connectorId, mode, dryRun, trigger, status, findings, counts, auditEventIds, version, createdAt]
       properties:
         id:
           type: string
@@ -1369,6 +1489,11 @@ components:
         dryRun:
           type: boolean
           const: true
+        trigger:
+          type: string
+          enum: [manual, scheduled]
+        schedule:
+          $ref: "#/components/schemas/ReconciliationSchedule"
         status:
           type: string
           enum: [completed, failed]

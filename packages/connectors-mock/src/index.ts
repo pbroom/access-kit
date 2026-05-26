@@ -318,13 +318,34 @@ export class MockConnector implements ConnectorAdapter {
         id: "drift:001",
         resourceId: "document:case-plan",
         subjectId: "user:external",
-        nativeAccess: "owner",
+        nativeGrantId: "native-grant:mock:document:case-plan:user:external:read:direct",
+        nativeAccess: "read",
         intendedAccess: "none",
         severity: "high",
+        lifecycleState: "open",
+        ownerId: "role:security-operations",
+        assigneeId: "role:security-engineer",
         detectedAt: now,
         sourceConnectorId: this.id,
         recommendedAction: "revoke",
         status: "open",
+        scheduledReconciliation: {
+          cadence: "manual",
+          scheduledAt: now,
+          gracePeriodHours: 0,
+          overdue: false
+        },
+        hookEvidence: [],
+        remediation: {},
+        autoRepairPolicy: {
+          enabled: false,
+          allowedActions: ["revoke"],
+          maxSeverity: "high",
+          requireApproval: true,
+          requireConnectorReadiness: true,
+          liveProviderWrites: false,
+          reason: "Mock drift findings require approval before any remediation and never auto-repair live providers."
+        },
         version: "drift:v1",
         createdAt: now
       }

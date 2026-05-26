@@ -1037,13 +1037,34 @@ function createDriftFinding(): DriftFinding {
     id: "drift:alice-case-plan-read",
     resourceId: "document:case-plan",
     subjectId: "user:alice",
+    nativeGrantId: "native-grant:mock:document:case-plan:user:alice:read:direct",
     nativeAccess: "read",
     intendedAccess: "none",
     severity: "high",
+    lifecycleState: "open",
+    ownerId: "role:security-operations",
+    assigneeId: "role:security-engineer",
     detectedAt: now,
     sourceConnectorId: "mock",
     recommendedAction: "revoke",
     status: "open",
+    scheduledReconciliation: {
+      cadence: "daily",
+      scheduledAt: now,
+      nextRunAt: "2026-05-22T17:00:00.000Z",
+      gracePeriodHours: 24,
+      overdue: false
+    },
+    hookEvidence: [],
+    remediation: {},
+    autoRepairPolicy: {
+      enabled: false,
+      allowedActions: ["revoke"],
+      maxSeverity: "high",
+      requireApproval: true,
+      requireConnectorReadiness: true,
+      liveProviderWrites: false
+    },
     version: "drift-finding:v1",
     createdAt: now
   };
@@ -1055,6 +1076,13 @@ function createReconciliationRun(finding: DriftFinding): ReconciliationRun {
     connectorId: "mock",
     mode: "dry_run",
     dryRun: true,
+    trigger: "manual",
+    schedule: {
+      cadence: "manual",
+      scheduledAt: now,
+      gracePeriodHours: 0,
+      overdue: false
+    },
     status: "completed",
     findings: [finding],
     counts: {

@@ -30,6 +30,8 @@ The domain model is not an identity directory, provider permission model, SIEM s
 
 `NativeGrant` is what a provider actually enforces, such as a SharePoint permission, M365 group membership, Dataverse role, AWS role assignment, or app role. It records whether the grant is direct, inherited, or group-derived; the principal type; optional inheritance source; optional expiration; and connector attributes. These fields support readback, drift analysis, and revocation planning without converting native access into intended access.
 
+`DriftFinding` is the operational security object created when reconciliation finds a mismatch between intended and observed native access. It records severity, lifecycle state, owner, assignee, exception expiry, scheduled reconciliation evidence, ticket/SIEM hook evidence, remediation approval, dry-run repair evidence, and auto-repair policy controls. Auto-repair controls are explicit evidence, not implicit permission to mutate providers; local proof-point findings keep live provider writes disabled.
+
 `DiscoveryRun` records a read-only connector inventory pass. It has connector ID, mode, status, start and completion times, object counts, warnings, cursor/high-watermark details, read-only evidence, and audit event references. It is evidence that provider readback happened without turning native grants into intended access.
 
 `ProvisioningPlan` is the auditable plan that converts a decision or request into dry-run or enforcement actions. It records connector ID, action idempotency keys, verification expectations, and compensation intent. Decisions must not directly mutate providers.

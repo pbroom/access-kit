@@ -284,13 +284,34 @@ export function createDriftFinding(overrides: Partial<DriftFinding> = {}): Drift
     id: "drift:bob-graph-plan-read",
     resourceId: "document:graph-plan",
     subjectId: "user:bob",
+    nativeGrantId: "native-grant:bob-graph-plan-read",
     nativeAccess: "read",
     intendedAccess: "none",
     severity: "high",
+    lifecycleState: "open",
+    ownerId: "role:security-operations",
+    assigneeId: "role:security-engineer",
     detectedAt: conformanceNow,
     sourceConnectorId: "mock",
     recommendedAction: "revoke",
     status: "open",
+    scheduledReconciliation: {
+      cadence: "daily",
+      scheduledAt: conformanceNow,
+      nextRunAt: "2026-05-22T17:00:00.000Z",
+      gracePeriodHours: 24,
+      overdue: false
+    },
+    hookEvidence: [],
+    remediation: {},
+    autoRepairPolicy: {
+      enabled: false,
+      allowedActions: ["revoke"],
+      maxSeverity: "high",
+      requireApproval: true,
+      requireConnectorReadiness: true,
+      liveProviderWrites: false
+    },
     version: "drift-finding:v1",
     createdAt: conformanceNow,
     ...overrides
@@ -408,6 +429,13 @@ export function createReconciliationRun(finding: DriftFinding, overrides: Partia
     connectorId: "mock",
     mode: "dry_run",
     dryRun: true,
+    trigger: "manual",
+    schedule: {
+      cadence: "manual",
+      scheduledAt: conformanceNow,
+      gracePeriodHours: 0,
+      overdue: false
+    },
     status: "completed",
     findings: [finding],
     counts: {

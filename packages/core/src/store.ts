@@ -260,9 +260,13 @@ export class InMemoryRebacStore {
     return job;
   }
 
-  listDriftFindings(filter: Partial<Pick<DriftFinding, "severity">> = {}): DriftFinding[] {
+  listDriftFindings(filter: Partial<Pick<DriftFinding, "severity" | "status" | "lifecycleState" | "ownerId" | "assigneeId">> = {}): DriftFinding[] {
     return [...this.#driftFindings.values()].filter((finding) => {
-      return !filter.severity || finding.severity === filter.severity;
+      return (!filter.severity || finding.severity === filter.severity)
+        && (!filter.status || finding.status === filter.status)
+        && (!filter.lifecycleState || finding.lifecycleState === filter.lifecycleState)
+        && (!filter.ownerId || finding.ownerId === filter.ownerId)
+        && (!filter.assigneeId || finding.assigneeId === filter.assigneeId);
     });
   }
 

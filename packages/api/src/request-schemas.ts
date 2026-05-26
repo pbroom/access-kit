@@ -4,6 +4,7 @@ export type RuntimeRequestSchemaName =
   | "connectorSync"
   | "decisionBatch"
   | "decisionRequest"
+  | "driftRemediation"
   | "enforcementReadiness"
   | "policyDraft"
   | "policyPublish"
@@ -99,6 +100,24 @@ const enforcementControlSchema = {
     breakGlass: { type: "boolean" }
   }
 } as const;
+const driftAutoRepairPolicySchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["enabled", "allowedActions", "maxSeverity", "requireApproval", "requireConnectorReadiness", "liveProviderWrites"],
+  properties: {
+    enabled: { type: "boolean" },
+    allowedActions: {
+      type: "array",
+      items: { enum: ["revoke", "repair", "review"] },
+      uniqueItems: true
+    },
+    maxSeverity: { enum: ["low", "medium", "high", "critical"] },
+    requireApproval: { type: "boolean" },
+    requireConnectorReadiness: { type: "boolean" },
+    liveProviderWrites: { type: "boolean" },
+    reason: { type: "string", minLength: 1 }
+  }
+} as const;
 const provisioningApprovalSchema = {
   type: "object",
   additionalProperties: false,
@@ -158,6 +177,31 @@ const schemas: Record<RuntimeRequestSchemaName, object> = {
       control: enforcementControlSchema,
       requiredApproverRole: { type: "string", minLength: 1 },
       changeTicketPattern: { type: "string", minLength: 1 }
+    }
+  },
+  driftRemediation: {
+    type: "object",
+    additionalProperties: false,
+    required: ["approval", "autoRepairPolicy"],
+    properties: {
+      approval: provisioningApprovalSchema,
+      autoRepairPolicy: driftAutoRepairPolicySchema,
+      hookEvidence: {
+        type: "array",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["system", "referenceId", "status", "recordedAt"],
+          properties: {
+            system: { enum: ["ticket", "siem"] },
+            referenceId: { type: "string", minLength: 1 },
+            status: { enum: ["pending", "linked", "notified", "failed"] },
+            recordedAt: dateTime,
+            url: { type: "string", minLength: 1 },
+            evidence: jsonObject
+          }
+        }
+      }
     }
   },
   policyDraft: {
@@ -229,7 +273,21 @@ const schemas: Record<RuntimeRequestSchemaName, object> = {
     required: ["connectorId", "dryRun"],
     properties: {
       connectorId: { type: "string", minLength: 1 },
-      dryRun: { const: true }
+      dryRun: { const: true },
+      trigger: { enum: ["manual", "scheduled"] },
+      schedule: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          cadence: { enum: ["manual", "hourly", "daily", "weekly"] },
+          scheduledAt: dateTime,
+          windowStart: dateTime,
+          windowEnd: dateTime,
+          nextRunAt: dateTime,
+          gracePeriodHours: { type: "integer", minimum: 0 },
+          overdue: { type: "boolean" }
+        }
+      }
     }
   },
   subject: {

@@ -65,6 +65,7 @@ export const apiContractSnapshot = {
     { operationId: "getProvisioningJob", method: "GET", path: "/v1/provisioning/jobs/{id}", auth: "bearer", idempotencyKey: false, deprecated: false },
     { operationId: "runReconciliation", method: "POST", path: "/v1/reconciliation/run", auth: "bearer", idempotencyKey: true, deprecated: false },
     { operationId: "listDriftFindings", method: "GET", path: "/v1/reconciliation/findings", auth: "bearer", idempotencyKey: false, deprecated: false },
+    { operationId: "planDriftRemediation", method: "POST", path: "/v1/reconciliation/findings/{id}/remediation", auth: "bearer", idempotencyKey: true, deprecated: false },
     { operationId: "searchAuditEvents", method: "GET", path: "/v1/audit/events", auth: "bearer", idempotencyKey: false, deprecated: false },
     { operationId: "verifyAuditIntegrity", method: "GET", path: "/v1/audit/integrity", auth: "bearer", idempotencyKey: false, deprecated: false },
     { operationId: "exportAuditEvents", method: "GET", path: "/v1/audit/export", auth: "bearer", idempotencyKey: false, deprecated: false },
