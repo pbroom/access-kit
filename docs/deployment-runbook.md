@@ -10,6 +10,7 @@ This runbook is a synthetic release-control proof point for the `rebac-api` cont
 - The `Container Release` workflow is run from a `rebac-api-v*` tag or an explicit manual dispatch with `publish=true`.
 - `pnpm validate:deployment-manifests` passes for the deployment manifest set.
 - No production tenant IDs, provider secrets, production subjects, or provider write credentials are used during packaging.
+- The target environment has an approved admin authorization descriptor or a documented exception. Production descriptors must evidence an IdP or mTLS gateway, MFA, bounded sessions, revocation SLA, separate admin ReBAC policy, secrets-manager references, break-glass approval, incident notifications, post-action review, and audit event coverage.
 
 ## Publish Procedure
 
@@ -29,6 +30,7 @@ Before traffic is shifted, verify:
 - `/v1/ready` returns `200` and reports the expected state snapshot, evidence repository, auth guard, and connector readiness checks.
 - Protected API routes return `401` without a bearer token.
 - Protected API routes succeed with the approved deployment identity path.
+- `/v1/ready` reports `admin_authorization` as `pass` for production traffic, or the deployment record explicitly accepts the local proof-point warning for a non-production exercise.
 - Audit events are emitted for failed authentication attempts and write operations.
 - State snapshot and evidence paths are mounted to approved storage for the target environment.
 - The cluster admits only the verified digest when the signed-image admission policy is enforced.
@@ -52,6 +54,8 @@ Before traffic is shifted, verify:
 - Deployment manifest validation result.
 - Readiness and health probe observations.
 - Authentication boundary smoke-test result.
+- Admin authorization readiness output, IdP or mTLS gateway configuration reference, admin ReBAC policy reference, role-binding evidence, revocation evidence, and secrets-manager reference list.
+- Break-glass approval test or tabletop reference, incident notification target verification, and post-action review evidence template.
 - Audit/evidence write verification.
 - Queue worker health, retry/backoff, dead-letter replay, and emergency revocation priority observations when a queue worker is enabled.
 - Audit adapter signed-window, retention-policy, immutable receipt, SIEM delivery, failed-delivery alert, and replay observations when the production audit adapter or forwarder is enabled.
@@ -64,6 +68,7 @@ Before traffic is shifted, verify:
 - Registry retention and promotion controls.
 - Identity-provider-backed API authentication and operator authorization.
 - Approved secrets delivery.
+- Admin ReBAC role design, trusted gateway or mTLS claim mapping, emergency-access approval, incident-mode notification routing, and post-action review retention.
 - Environment-specific graph, connector-state, queue, and WORM or immutable-ledger audit storage drivers behind the validated adapter contracts.
 - Managed queue worker deployment, monitoring, and on-call procedures for retries, dead letters, replay, and emergency revocation handling.
 - Approved SIEM forwarder deployment, alert routing, replay procedure, and retained delivery monitoring evidence.

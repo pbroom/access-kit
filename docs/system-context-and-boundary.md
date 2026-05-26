@@ -22,8 +22,10 @@ This is not a production deployment diagram, FedRAMP boundary authorization, liv
 flowchart LR
   user["Operator, assessor, CI/CD, or application"] --> cli["rebac CLI"]
   user --> api["ReBAC API"]
+  idp["Approved IdP or mTLS gateway"] --> api
   cli --> api
   api --> engine["Deterministic decision engine"]
+  api --> adminauth["Admin authorization readiness contract"]
   api --> store["Local in-memory store"]
   api --> connectors["Mock and synthetic read-only connectors"]
   connectors --> native["Native provider readback boundary"]
@@ -37,8 +39,8 @@ flowchart LR
 
 | Area | Inside current boundary | Outside current boundary |
 | --- | --- | --- |
-| Authentication | IdP assumptions and actor fields in requests. | Actual user authentication, MFA, PIV/CAC, federation, session management. |
-| Authorization | ReBAC decisions, explanations, reason codes, policy and relationship versions. | Native provider enforcement internals and application-local checks. |
+| Authentication | Local bearer-token guardrails and an admin authorization descriptor/readiness contract. | Actual user authentication, MFA, PIV/CAC, federation, session management, gateway operation, and mTLS certificate lifecycle. |
+| Authorization | Application ReBAC decisions, explanations, reason codes, policy and relationship versions; production requirements for a separate admin ReBAC policy. | Native provider enforcement internals, application-local checks, and deployed admin session enforcement. |
 | Connectors | Mock connector and synthetic read-only provider fixtures. | Live Entra ID, AD, SharePoint, Teams, Power Platform, Dataverse, AWS, and provider write APIs. |
 | Storage | Local in-memory runtime, local file-backed proof-point receipts, and production-shaped graph, queue, and audit adapter boundaries. | Selected environment-specific databases, WORM or immutable-ledger driver, approved SIEM deployment, backup/restore operations. |
 | Evidence | Local ATO-oriented package shape and generated proof-point report. | Assessor-approved control statements, deployment diagrams, production scan artifacts. |
@@ -48,6 +50,7 @@ flowchart LR
 | Boundary | Data crossing | Required protection |
 | --- | --- | --- |
 | CLI to API | Operator commands, decision requests, provisioning requests, evidence requests. | Authenticated API session in production, request validation, audit correlation. |
+| IdP or mTLS gateway to API | Verified admin subject, groups, session metadata, or client-certificate identity. | Trusted header provenance, MFA/session controls, certificate validation, revocation, and no secret-bearing logs. |
 | Application to API | Subject, action, resource, context. | Strong caller identity, least privilege, deterministic response handling. |
 | API to connector | Discovery, readback, dry-run verification, synthetic enforcement requests. | Connector capability checks, least privilege, idempotency, audit events. |
 | Connector to native platform | Observed native grants and inventory. | Read-only scopes until live connector review is complete. |
@@ -63,6 +66,7 @@ flowchart LR
 5. Discovery: connector sync reads synthetic inventory and native grants into discovery and native-grant records; the optional Microsoft Graph Entra connector can read a sandbox tenant only when explicitly configured and stores redacted identifiers.
 6. Reconciliation: native grants are compared to intended access and produce drift findings.
 7. Audit and evidence: events are hash chained, exported, mapped to controls, retained through immutable adapter receipts when configured, and tied to SIEM delivery or replay records when a forwarder is used.
+8. Admin authorization readiness: the runtime reports whether local bearer-token proof points have been replaced by an evidenced IdP or mTLS gateway, separate admin ReBAC policy, secrets-manager references, break-glass approval, incident notifications, and post-action review evidence.
 
 ## Concrete Example
 
@@ -72,6 +76,7 @@ For a dry-run revocation, an operator calls `rebac provision revoke grant:case-p
 
 - Boundary documents must not include real tenant IDs, account IDs, emails, tokens, secrets, production hostnames, or sensitive resource names.
 - Deployment-specific diagrams must replace this local proof-point boundary before production assessment.
+- Production admin diagrams must show the IdP or mTLS gateway, trusted identity headers or certificate claims, admin ReBAC policy boundary, secrets manager, session revocation path, break-glass approval path, notification targets, and post-action review evidence store.
 - Live connector credentials require managed identity or vault-backed secret handling and documented rotation.
 - Microsoft Graph sandbox evidence must retain redacted run artifacts and must not contain raw tenant IDs, object IDs, user principal names, bearer tokens, request IDs, or raw Graph pagination cursors.
 - Native platforms remain enforcement points where applicable.

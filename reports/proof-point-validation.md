@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T06:29:23.199Z
+Generated at: 2026-05-26T06:58:57.414Z
 
-Branch: codex/rebac-production-audit-siem
+Branch: codex/rebac-idp-admin-authorization
 
 Node: v24.4.1
 
@@ -34,14 +34,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-idp-admin-authorization
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-idp-admin-authorization
 > tsx scripts/validate-schemas.ts
 
 Validated 17 schemas and 17 example fixtures.
@@ -67,10 +67,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-idp-admin-authorization
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-production-audit-siem/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-idp-admin-authorization/openapi/rebac-control-plane.yaml.
 PASS 28 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -82,7 +82,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-idp-admin-authorization
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -105,7 +105,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-idp-admin-authorization
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -118,23 +118,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-idp-admin-authorization
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-audit-siem
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  02:29:16
-   Duration  407ms (transform 165ms, setup 0ms, import 281ms, tests 33ms, environment 0ms)
+   Start at  02:58:50
+   Duration  410ms (transform 170ms, setup 0ms, import 286ms, tests 32ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-idp-admin-authorization
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -145,7 +145,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-idp-admin-authorization
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -156,7 +156,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-idp-admin-authorization
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -167,7 +167,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-idp-admin-authorization
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -178,61 +178,61 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-idp-admin-authorization
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-audit-siem
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
 
 
- Test Files  7 passed (7)
-      Tests  108 passed (108)
-   Start at  02:29:19
-   Duration  332ms (transform 844ms, setup 0ms, import 1.07s, tests 95ms, environment 0ms)
+ Test Files  8 passed (8)
+      Tests  113 passed (113)
+   Start at  02:58:53
+   Duration  353ms (transform 998ms, setup 0ms, import 1.27s, tests 104ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-idp-admin-authorization
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-audit-siem
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
 
 
  Test Files  4 passed (4)
-      Tests  92 passed (92)
-   Start at  02:29:20
-   Duration  726ms (transform 715ms, setup 0ms, import 1.06s, tests 340ms, environment 0ms)
+      Tests  95 passed (95)
+   Start at  02:58:54
+   Duration  694ms (transform 675ms, setup 0ms, import 1.01s, tests 325ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-audit-siem
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
 
 
  Test Files  1 passed (1)
       Tests  7 passed (7)
-   Start at  02:29:21
-   Duration  273ms (transform 131ms, setup 0ms, import 161ms, tests 21ms, environment 0ms)
+   Start at  02:58:55
+   Duration  298ms (transform 149ms, setup 0ms, import 183ms, tests 23ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-production-audit-siem
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-idp-admin-authorization
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-audit-siem
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-idp-admin-authorization
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  02:29:22
-   Duration  457ms (transform 472ms, setup 0ms, import 831ms, tests 157ms, environment 0ms)
+   Start at  02:58:56
+   Duration  461ms (transform 471ms, setup 0ms, import 836ms, tests 156ms, environment 0ms)
 ```
 
 
@@ -248,8 +248,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-audit-siem
 - Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.
 - Deployment manifest validation for Kubernetes probe wiring, secret references, persistent state/evidence mounts, restricted runtime security, network policy, immutable image digests, and signed-image admission policy.
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
-- Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, and connector-health semantics, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
-- API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
+- Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
+- API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
 - Microsoft Graph connector tests for Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
@@ -261,6 +261,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-production-audit-siem
 - Select and configure an environment-specific queue driver behind the production queue/job adapter.
 - Replace synthetic production persistence manifest evidence with environment-specific IaC outputs, approvals, and retained evidence artifacts.
 - Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
+- Replace local bearer-token admin proof points with environment-specific IdP or mTLS gateway deployment, trusted identity propagation, separate admin ReBAC policy, secrets-manager integration, incident-mode notifications, break-glass approval, post-action review evidence, and request-scoped admin actor binding.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and adapter-level SIEM delivery metadata with deployment-specific durable audit storage, approved SIEM forwarding, retention, alert routing, and replay evidence.
 - Retain live Microsoft Graph sandbox evidence for environment-specific verification, and replace remaining synthetic SharePoint and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Select and configure environment-specific production connector-state storage behind the production connector-state adapter for discovery runs, native-grant readback, drift findings, and reconciliation evidence.

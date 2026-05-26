@@ -26,6 +26,8 @@ Mount `/var/lib/access-kit` to preserve local runtime snapshots, graph/job repos
 
 Because the container binds to a non-loopback host, it refuses to start unless `REBAC_API_KEYS` contains at least one bearer token. Loopback-only local development can still run without keys.
 
+The default admin authorization mode is `local_bearer_token`, which keeps the container proof point runnable but makes `/v1/ready` report an `admin_authorization` warning. Production deployment overlays must replace that proof point with `REBAC_ADMIN_AUTH_MODE=idp_gateway` or `REBAC_ADMIN_AUTH_MODE=mtls_gateway` plus evidence-backed `REBAC_ADMIN_*` settings for identity provider or certificate authority, gateway boundary, admin ReBAC policy, role bindings, secrets manager, break-glass approval, incident notifications, post-action review, audit event types, and evidence references. Do not store IdP secrets, gateway keys, client certificates, or bearer tokens in those descriptor fields; use external secret handles such as `ref:` or vault URIs.
+
 ## Smoke Test
 
 Use synthetic API keys only:
@@ -105,7 +107,7 @@ The manifests intentionally do not include secret values, tenant identifiers, pr
 kubectl apply -k deploy/kubernetes
 ```
 
-The signed-image admission policy example lives at `deploy/policies/kyverno/rebac-api-signed-image-policy.yaml`. It is a policy contract for clusters that use Kyverno and cosign keyless verification; production clusters still need environment approval before enforcing it.
+The signed-image admission policy example lives at `deploy/policies/kyverno/rebac-api-signed-image-policy.yaml`. It is a policy contract for clusters that use Kyverno and cosign keyless verification; production clusters still need environment approval before enforcing it. Production overlays must also add the approved IdP or mTLS gateway, trusted header or certificate validation, secrets-manager integration, network controls, and retained admin authorization evidence before operator traffic is allowed.
 
 ## Persistence Deployment Evidence Gate
 
@@ -123,4 +125,4 @@ Rollback is a digest change, not an in-place image mutation:
 4. Watch `/v1/ready`, `/v1/health`, windowed authentication-failure audit volume, and audit write/readiness checks.
 5. Record the rollback reason, prior digest, replacement digest, verification evidence, approver, and runtime observations in the deployment evidence package.
 
-Future production deployment work still needs environment-specific overlays, ingress and certificate management, signed-image admission enforcement, identity-provider authentication, operator authorization, approved secrets handling, and agency-specific release approvals.
+Future production deployment work still needs environment-specific overlays, ingress and certificate management, signed-image admission enforcement, identity-provider or mTLS authentication, separate admin ReBAC operator authorization, approved secrets handling, incident-mode notification wiring, post-action review evidence retention, and agency-specific release approvals.

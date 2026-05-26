@@ -8,6 +8,7 @@ import { createLocalRuntimePersistence } from "./runtime-persistence.js";
 const config = readRebacApiRuntimeConfig();
 const app = createRebacLocalApp({
   actor: config.actor,
+  adminAuthorization: config.adminAuthorization,
   persistence: createLocalRuntimePersistence(config)
 });
 const server = createRebacApiServer({ app, apiKeys: config.apiKeys });

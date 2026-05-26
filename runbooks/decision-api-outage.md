@@ -24,6 +24,7 @@ Platform engineer, application owner, security engineer, and incident commander 
 - Affected applications and resources.
 - Last known policy version and relationship version.
 - Application fail-behavior configuration.
+- Admin authorization path and emergency operator approval path for outage response.
 - Audit event status.
 
 ## Commands Or Proposed Commands
@@ -47,8 +48,10 @@ rebac audit search --from 2026-05-23
 2. Confirm applications fail closed for sensitive resources.
 3. Permit cached low-risk reads only when policy explicitly allows it.
 4. Restore API and verify health.
-5. Run sample `check` and `explain`.
-6. Confirm audit events were emitted after recovery.
+5. Confirm emergency operator access, if used, came through the approved IdP or mTLS gateway and has been revoked or expired.
+6. Run sample `check` and `explain`.
+7. Confirm audit events were emitted after recovery.
+8. Retain post-action review evidence for any privileged outage action.
 
 ## Audit Events Emitted
 
@@ -62,6 +65,7 @@ rebac audit search --from 2026-05-23
 - Health check output.
 - Incident timeline.
 - Application fail-behavior evidence.
+- Admin session, temporary role, break-glass approval, notification, and post-action review evidence when privileged outage action occurred.
 - Sample decisions after recovery.
 - Audit export for outage window.
 

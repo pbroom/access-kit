@@ -26,6 +26,7 @@ ISSO, security engineer, assessor support role, or evidence owner.
 - Time window.
 - Export format.
 - Authorization to view audit/evidence data.
+- Admin authorization evidence references when the export supports a production deployment claim.
 
 ## Commands Or Proposed Commands
 
@@ -41,6 +42,7 @@ pnpm evidence:check
 - Audit integrity report returns `verified` or findings.
 - Audit export returns JSONL-ready event records and source event IDs.
 - Evidence export returns control mappings, source events, integrity manifest, artifacts, boundary, data flows, ConMon, POA&M, operational evidence, and SIEM metadata.
+- Admin authorization evidence, when in scope, identifies the IdP or mTLS gateway configuration reference, admin ReBAC policy reference, secrets-manager references, break-glass approval, incident notification, post-action review, and related admin audit event types without exposing secret material.
 - When the production audit adapter is configured, retained evidence also includes immutable audit/evidence receipts, signed audit windows, SIEM delivery status, and replay records for failed deliveries.
 
 ## Verification Steps
@@ -51,7 +53,8 @@ pnpm evidence:check
 4. Confirm evidence source event IDs link to audit events.
 5. Recompute evidence package and section hashes with [Evidence Integrity Verifier](../docs/evidence-integrity-verifier.md).
 6. For production adapter runs, confirm signed audit window metadata, retention policy, immutable storage receipts, and SIEM delivery records.
-7. Record validation not performed, if any.
+7. For admin authorization claims, confirm `/v1/ready` reported `admin_authorization` as `pass` or record the non-production proof-point warning.
+8. Record validation not performed, if any.
 
 ## Audit Events Emitted
 
@@ -68,6 +71,7 @@ pnpm evidence:check
 - Storage receipt, if configured.
 - Signed audit window, SIEM delivery, and replay receipt when the production audit adapter or forwarder is configured.
 - Requester, purpose, and delivery record.
+- Admin authorization readiness output and post-action review evidence when the export covers privileged operator activity.
 
 ## Escalation Path
 
