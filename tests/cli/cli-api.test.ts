@@ -620,6 +620,22 @@ describe("CLI API wrapper", () => {
     expect(textOutput.join("\n")).toContain("complete -F _rebac_completion rebac");
   });
 
+  it("escapes fish completion words before shell rendering", async () => {
+    const textOutput: string[] = [];
+    const program = buildCli({
+      apiUrl: "http://api.example",
+      writeJson: (value) => output.push(value),
+      writeText: (value) => textOutput.push(value)
+    });
+    program.exitOverride();
+    program.command("debug\\'token");
+
+    await program.parseAsync(["node", "rebac", "completion", "fish"]);
+
+    expect(output).toEqual([]);
+    expect(textOutput.join("\n")).toContain("complete -c rebac -f -a 'debug\\\\\\'token'");
+  });
+
   it("uses explicit exit codes for API and configuration failures", async () => {
     const previousExitCode = process.exitCode;
     const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);

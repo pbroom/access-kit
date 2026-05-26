@@ -1036,7 +1036,7 @@ function completionWords(command: Command): string[] {
 }
 
 function quoteFishWord(word: string): string {
-  return `'${word.replace(/'/g, "\\'")}'`;
+  return `'${word.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 }
 
 function readOptionalString(value: unknown, label: string): string | undefined {
