@@ -171,6 +171,10 @@ pnpm pr:stack
 | Production reference architecture | [`docs/production-reference-architecture.md`](docs/production-reference-architecture.md) |
 | Security model | [`docs/security-model.md`](docs/security-model.md) |
 | Threat model | [`docs/threat-model.md`](docs/threat-model.md) |
+| Product release packaging | [`docs/release-packaging.md`](docs/release-packaging.md) |
+| Support policy | [`docs/support-policy.md`](docs/support-policy.md) |
+| Security policy | [`SECURITY.md`](SECURITY.md) |
+| Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
 | Evidence catalog | [`docs/evidence-catalog.md`](docs/evidence-catalog.md) |
 | Assessor inspection guide | [`docs/assessor-inspection-guide.md`](docs/assessor-inspection-guide.md) |
 | Implementation backlog | [`docs/implementation-backlog.md`](docs/implementation-backlog.md) |

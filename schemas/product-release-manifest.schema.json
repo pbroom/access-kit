@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/product-release-manifest.schema.json",
+  "title": "ProductReleaseManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "productVersion",
+    "releaseDate",
+    "releaseType",
+    "productionReady",
+    "labels",
+    "artifacts",
+    "compatibility",
+    "policies",
+    "validation"
+  ],
+  "properties": {
+    "version": { "type": "string", "const": "product-release-manifest:v1" },
+    "productVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "releaseDate": { "type": "string", "format": "date" },
+    "releaseType": { "type": "string", "enum": ["proof_point", "production_ready"] },
+    "productionReady": { "type": "boolean" },
+    "labels": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "string", "enum": ["proof-point", "production-ready", "not-production-ready"] },
+      "uniqueItems": true
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/artifact" }
+    },
+    "compatibility": {
+      "type": "array",
+      "minItems": 5,
+      "items": { "$ref": "#/$defs/compatibilityEntry" }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supportPolicy", "securityPolicy", "vulnerabilityDisclosure", "cveDisclosurePath"],
+      "properties": {
+        "supportPolicy": { "type": "string", "minLength": 1 },
+        "securityPolicy": { "type": "string", "minLength": 1 },
+        "vulnerabilityDisclosure": { "type": "string", "minLength": 1 },
+        "cveDisclosurePath": { "type": "string", "minLength": 1 }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requiredCommands", "evidenceRefs"],
+      "properties": {
+        "requiredCommands": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "kind",
+        "channel",
+        "reference",
+        "status",
+        "proofPoint",
+        "productionReady",
+        "releaseNotes",
+        "sbom",
+        "provenance",
+        "signature",
+        "vulnerabilityDisclosure"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": {
+          "type": "string",
+          "enum": ["source", "container", "cli", "sdk", "docs_site"]
+        },
+        "channel": { "type": "string", "minLength": 1 },
+        "reference": { "type": "string", "minLength": 1 },
+        "status": {
+          "type": "string",
+          "enum": ["published_contract", "dependency_gated", "published"]
+        },
+        "proofPoint": { "type": "boolean" },
+        "productionReady": { "type": "boolean" },
+        "releaseNotes": { "type": "string", "minLength": 1 },
+        "sbom": { "type": "string", "minLength": 1 },
+        "provenance": { "type": "string", "minLength": 1 },
+        "signature": { "type": "string", "minLength": 1 },
+        "vulnerabilityDisclosure": { "type": "string", "minLength": 1 }
+      }
+    },
+    "compatibilityEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component", "supported", "notes"],
+      "properties": {
+        "component": { "type": "string", "minLength": 1 },
+        "supported": { "type": "string", "minLength": 1 },
+        "notes": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
+

@@ -1,7 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { AnySchema } from "ajv";
+import Ajv2020 from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 import YAML from "yaml";
 import { isPinnedRequiredActionUse } from "./lib/github-action-ref.js";
+import { readJsonFile } from "./lib/files.js";
 
 type WorkflowJob = Record<string, unknown>;
 
@@ -15,6 +19,10 @@ interface WorkflowDocument {
 
 const root = process.cwd();
 const releaseWorkflow = await readWorkflow(".github/workflows/container-release.yml");
+const releaseManifestSchema = await readJsonFile<AnySchema>("schemas/product-release-manifest.schema.json");
+const releaseManifest = await readJsonFile<ProductReleaseManifest>("releases/v0.1.0/manifest.json");
+
+validateReleaseManifest(releaseManifestSchema, releaseManifest);
 
 requireWorkflowDispatch(releaseWorkflow);
 requirePushTag(releaseWorkflow, "rebac-api-v*");
@@ -62,6 +70,39 @@ requireIncludes(summaryRun, 'image_ref="${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"', "
 console.log("Validated deployable API release packaging.");
 console.log("PASS Container release workflow publishes only on tags or explicit manual dispatch.");
 console.log("PASS Container release workflow builds runtime image with SBOM/provenance, registry attestation, and keyless signing.");
+console.log("PASS Product release manifest covers source, container, CLI, SDK, docs site, compatibility, support, security, and CVE disclosure channels.");
+console.log("PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclosure, and proof-point versus production-ready labels.");
+
+interface ProductReleaseManifest {
+  productVersion: string;
+  releaseType: string;
+  productionReady: boolean;
+  labels: string[];
+  artifacts: ProductReleaseArtifact[];
+  compatibility: Array<{ component: string }>;
+  policies: {
+    supportPolicy: string;
+    securityPolicy: string;
+    vulnerabilityDisclosure: string;
+    cveDisclosurePath: string;
+  };
+  validation: {
+    requiredCommands: string[];
+    evidenceRefs: string[];
+  };
+  version: string;
+}
+
+interface ProductReleaseArtifact {
+  kind: string;
+  name: string;
+  proofPoint: boolean;
+  productionReady: boolean;
+  sbom: string;
+  provenance: string;
+  signature: string;
+  vulnerabilityDisclosure: string;
+}
 
 async function readWorkflow(path: string): Promise<WorkflowDocument> {
   const contents = await readRequiredFile(path);
@@ -82,9 +123,60 @@ async function readRequiredFile(path: string): Promise<string> {
   return readFile(join(root, path), "utf8");
 }
 
+function validateReleaseManifest(schema: AnySchema, manifest: ProductReleaseManifest): void {
+  const ajv = new Ajv2020({ allErrors: true, strict: true });
+  addFormats(ajv);
+  const validate = ajv.compile(schema);
+
+  if (!validate(manifest)) {
+    throw new Error(`Product release manifest failed schema validation: ${ajv.errorsText(validate.errors)}`);
+  }
+
+  requireEquals(manifest.version, "product-release-manifest:v1", "product release manifest version");
+  requireEquals(manifest.releaseType, "proof_point", "current product release type");
+  requireEquals(manifest.productionReady, false, "current product release productionReady");
+  requireIncludes(manifest.labels.join("\n"), "proof-point", "product release labels");
+  requireIncludes(manifest.labels.join("\n"), "not-production-ready", "product release labels");
+
+  for (const kind of ["source", "container", "cli", "sdk", "docs_site"]) {
+    const artifact = manifest.artifacts.find((entry) => entry.kind === kind);
+
+    if (!artifact) {
+      throw new Error(`Product release manifest is missing ${kind} artifact channel`);
+    }
+
+    requireEquals(artifact.proofPoint, true, `${kind} artifact proofPoint`);
+    requireEquals(artifact.productionReady, false, `${kind} artifact productionReady`);
+    requireNonEmpty(artifact.sbom, `${kind} artifact SBOM`);
+    requireNonEmpty(artifact.provenance, `${kind} artifact provenance`);
+    requireNonEmpty(artifact.signature, `${kind} artifact signature`);
+    requireNonEmpty(artifact.vulnerabilityDisclosure, `${kind} artifact vulnerability disclosure`);
+  }
+
+  for (const component of ["Node.js", "pnpm", "API contract", "Container runtime", "Release manifest"]) {
+    if (!manifest.compatibility.some((entry) => entry.component === component)) {
+      throw new Error(`Product release manifest compatibility matrix is missing ${component}`);
+    }
+  }
+
+  requireEquals(manifest.policies.supportPolicy, "docs/support-policy.md", "support policy path");
+  requireEquals(manifest.policies.securityPolicy, "SECURITY.md", "security policy path");
+  requireIncludes(manifest.policies.vulnerabilityDisclosure, "GitHub private vulnerability reporting", "vulnerability disclosure path");
+  requireIncludes(manifest.policies.cveDisclosurePath, "CVE", "CVE disclosure path");
+  requireIncludes(manifest.validation.requiredCommands.join("\n"), "corepack pnpm ci:check", "release validation commands");
+  requireIncludes(manifest.validation.requiredCommands.join("\n"), "git diff --check", "release validation commands");
+  requireIncludes(manifest.validation.evidenceRefs.join("\n"), "reports/proof-point-validation.md", "release evidence refs");
+}
+
 function requireIncludes(contents: string, needle: string, label: string): void {
   if (!contents.includes(needle)) {
     throw new Error(`${label} is missing required text: ${needle}`);
+  }
+}
+
+function requireNonEmpty(value: string, label: string): void {
+  if (value.trim().length === 0) {
+    throw new Error(`${label} must be non-empty`);
   }
 }
 

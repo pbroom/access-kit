@@ -10,7 +10,7 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - `pnpm validate:automation` validates the implementation backlog, PR state labels, steward scripts, automation docs, and CI automation gate.
 - `pnpm validate:ci` validates that the GitHub Actions workflow still contains the expected contract, quality, evidence, and security jobs.
 - `pnpm validate:packaging` validates the deployable API Dockerfile, runtime healthcheck, non-root container contract, and container CI smoke-test wiring.
-- `pnpm validate:release-packaging` validates the GHCR release workflow, publish gates, SBOM/provenance metadata, artifact attestation, and keyless signing wiring.
+- `pnpm validate:release-packaging` validates the GHCR release workflow, publish gates, SBOM/provenance metadata, artifact attestation, keyless signing wiring, product release manifest, compatibility matrix, support policy, security policy, and CVE disclosure path.
 - `pnpm validate:deployment-manifests` validates the Kubernetes manifests, probe wiring, secret references, restricted runtime security, network policy, and signed-image admission policy example.
 - `pnpm validate:persistence-deployment` validates the schema-backed synthetic production persistence manifest, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - `pnpm validate:secure-sdlc` validates release-retained SAST, DAST, dependency scan, SBOM, fuzzing, tenant-isolation abuse, threat-model, vulnerability triage, and NIST SSDF evidence.
@@ -37,6 +37,8 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - Build the same `runtime` image target with Docker Buildx.
 - Publish to GHCR only for release tags or explicit `publish=true` manual dispatches.
 - Emit SBOM/provenance metadata, push GitHub artifact attestations, and sign the published digest with keyless cosign.
+
+`releases/v0.1.0/manifest.json` records the product release packaging contract for source, container, CLI, SDK, and docs-site channels, including support/security policy links and proof-point versus production-ready labels.
 
 `deploy/kubernetes/`, `deploy/policies/kyverno/`, `deploy/persistence/`, and `deploy/live-enforcement-pilot/` are validated in the contract-validation job so probe, admission-policy, persistence deployment evidence, and live-pilot gate drift fails before review.
 
