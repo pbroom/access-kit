@@ -1,0 +1,119 @@
+{
+  "policyVersion": "policy:case-docs-v1",
+  "relationshipVersion": "tuple-set:case-docs-v1",
+  "evaluatedAt": "2026-05-26T12:00:00.000Z",
+  "cases": [
+    {
+      "name": "case team reads confidential case plan",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v1",
+        "relationshipVersion": "tuple-set:case-docs-v1",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 12
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v1",
+        "relationshipVersion": "tuple-set:case-docs-v1",
+        "relationshipPath": [
+          {
+            "subjectId": "user:alice",
+            "relation": "member_of",
+            "objectId": "group:case-team"
+          },
+          {
+            "subjectId": "group:case-team",
+            "relation": "reader_of",
+            "objectId": "workspace:case"
+          },
+          {
+            "subjectId": "workspace:case",
+            "relation": "contains",
+            "objectId": "document:case-plan"
+          }
+        ]
+      }
+    },
+    {
+      "name": "unassigned user is denied by default",
+      "request": {
+        "subjectId": "user:bob",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v1",
+        "relationshipVersion": "tuple-set:case-docs-v1",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 8
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v1",
+        "relationshipVersion": "tuple-set:case-docs-v1",
+        "relationshipPath": []
+      }
+    },
+    {
+      "name": "case team explicit deny beats workspace read",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:payroll-export",
+        "policyVersion": "policy:case-docs-v1",
+        "relationshipVersion": "tuple-set:case-docs-v1",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 18
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_EXPLICIT_OVERRIDE",
+        "policyVersion": "policy:case-docs-v1",
+        "relationshipVersion": "tuple-set:case-docs-v1",
+        "relationshipPath": [
+          {
+            "subjectId": "user:alice",
+            "relation": "member_of",
+            "objectId": "group:case-team"
+          },
+          {
+            "subjectId": "group:case-team",
+            "relation": "denied_read",
+            "objectId": "document:payroll-export"
+          }
+        ]
+      }
+    },
+    {
+      "name": "cross-tenant resource lookup is denied",
+      "request": {
+        "subjectId": "user:eve",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v1",
+        "relationshipVersion": "tuple-set:case-docs-v1",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 5
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_TENANT_BOUNDARY",
+        "policyVersion": "policy:case-docs-v1",
+        "relationshipVersion": "tuple-set:case-docs-v1",
+        "relationshipPath": []
+      }
+    }
+  ]
+}
+

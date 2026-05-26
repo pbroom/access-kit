@@ -41,6 +41,8 @@ Current harness coverage adds:
 - connector-state and evidence leakage checks on denied tenant-boundary decisions
 - replay, idempotency collision, and time-travel decision fixtures
 
+The reusable sample policy repository in [examples/sample-policy-repository](../examples/sample-policy-repository/README.md) shows the policy-as-code layout expected from adopters: model versions, migration files, tuple fixtures, regression snapshots, generated request/response examples, and copyable CI policy-test wiring.
+
 ## Concrete Example
 
 ```json
@@ -64,6 +66,12 @@ Run:
 pnpm validate:policy
 ```
 
+To validate the sample policy repository conventions:
+
+```sh
+pnpm validate:sample-policy
+```
+
 ## Publication Expectations
 
 Before a policy is published:
@@ -71,9 +79,10 @@ Before a policy is published:
 1. Validate the model against `schemas/policy-model.schema.json`.
 2. Run deterministic model validation with `validatePolicyModel`.
 3. Update or add proof points for the intended behavior.
-4. Confirm deny paths, revocation paths, expiration, suspension, and explicit deny behavior.
-5. Run schema, OpenAPI, policy, and CLI contract validation.
-6. Ensure the change ticket and audit evidence reference the policy version.
+4. Update tuple fixtures, migration files, regression snapshots, and generated examples together.
+5. Confirm deny paths, revocation paths, expiration, suspension, explicit deny behavior, and tenant-boundary denial.
+6. Run schema, OpenAPI, policy, sample-policy, and CLI contract validation.
+7. Ensure the change ticket and audit evidence reference the policy version.
 
 ## Security Considerations
 
@@ -97,5 +106,7 @@ AC-3, AC-6, AU-2, CM-3, CM-6, CA-7, RA-5, and SI-4.
 - [Explain API](explain-api.md)
 - [Policy Rollback Runbook](../runbooks/policy-rollback.md)
 - `tests/fixtures/policy/proof-points.json`
+- `examples/sample-policy-repository/`
 - `scripts/validate-policy-fixtures.ts`
+- `scripts/validate-sample-policy-repository.ts`
 - [ADR 0004: Policy model strategy](../adrs/0004-policy-model-strategy.md)

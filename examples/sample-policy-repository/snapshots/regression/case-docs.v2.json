@@ -1,0 +1,112 @@
+{
+  "policyVersion": "policy:case-docs-v2",
+  "relationshipVersion": "tuple-set:case-docs-v2",
+  "evaluatedAt": "2026-05-26T12:00:00.000Z",
+  "cases": [
+    {
+      "name": "support escalation reads case plan during window",
+      "request": {
+        "subjectId": "user:sam",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 22,
+          "businessJustification": "break-fix support",
+          "supportEscalationApproved": true
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "relationshipPath": [
+          {
+            "subjectId": "user:sam",
+            "relation": "member_of",
+            "objectId": "group:support-escalation"
+          },
+          {
+            "subjectId": "group:support-escalation",
+            "relation": "reader_of",
+            "objectId": "document:case-plan"
+          }
+        ]
+      }
+    },
+    {
+      "name": "support escalation expires closed",
+      "evaluatedAt": "2026-05-28T12:00:00.000Z",
+      "request": {
+        "subjectId": "user:sam",
+        "action": "read",
+        "resourceId": "document:case-plan",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 22,
+          "businessJustification": "break-fix support",
+          "supportEscalationApproved": true
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "relationshipPath": []
+      }
+    },
+    {
+      "name": "reader cannot write restricted summary",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "write",
+        "resourceId": "document:restricted-summary",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 30,
+          "businessJustification": "case update",
+          "supportEscalationApproved": false
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "relationshipPath": []
+      }
+    },
+    {
+      "name": "cross-tenant escalation remains denied",
+      "request": {
+        "subjectId": "user:sam",
+        "action": "read",
+        "resourceId": "document:foreign-plan",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 25,
+          "businessJustification": "break-fix support",
+          "supportEscalationApproved": true
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_TENANT_BOUNDARY",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "relationshipPath": []
+      }
+    }
+  ]
+}
+

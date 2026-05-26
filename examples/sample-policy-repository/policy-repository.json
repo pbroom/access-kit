@@ -1,0 +1,92 @@
+{
+  "repositoryId": "sample-policy-repository:case-docs",
+  "currentPolicyVersion": "policy:case-docs-v2",
+  "ci": {
+    "workflow": ".github/workflows/policy-tests.yml",
+    "command": "pnpm validate:sample-policy"
+  },
+  "models": [
+    {
+      "version": "policy:case-docs-v1",
+      "path": "models/case-docs.v1.json"
+    },
+    {
+      "version": "policy:case-docs-v2",
+      "path": "models/case-docs.v2.json"
+    }
+  ],
+  "migrations": [
+    {
+      "fromVersion": "policy:case-docs-v1",
+      "toVersion": "policy:case-docs-v2",
+      "path": "migrations/001-case-docs-v1-to-v2.json"
+    }
+  ],
+  "tupleFixtures": [
+    {
+      "policyVersion": "policy:case-docs-v1",
+      "relationshipVersion": "tuple-set:case-docs-v1",
+      "path": "fixtures/tuple-sets/case-docs.v1.json"
+    },
+    {
+      "policyVersion": "policy:case-docs-v2",
+      "relationshipVersion": "tuple-set:case-docs-v2",
+      "path": "fixtures/tuple-sets/case-docs.v2.json"
+    }
+  ],
+  "regressionSnapshots": [
+    {
+      "policyVersion": "policy:case-docs-v1",
+      "relationshipVersion": "tuple-set:case-docs-v1",
+      "path": "snapshots/regression/case-docs.v1.json"
+    },
+    {
+      "policyVersion": "policy:case-docs-v2",
+      "relationshipVersion": "tuple-set:case-docs-v2",
+      "path": "snapshots/regression/case-docs.v2.json"
+    }
+  ],
+  "generatedExamples": [
+    {
+      "caseName": "case team reads confidential case plan",
+      "requestPath": "generated/api/case-docs-v1/case-team-read-confidential-plan.request.json",
+      "responsePath": "generated/api/case-docs-v1/case-team-read-confidential-plan.response.json"
+    },
+    {
+      "caseName": "unassigned user is denied by default",
+      "requestPath": "generated/api/case-docs-v1/unassigned-user-denied-by-default.request.json",
+      "responsePath": "generated/api/case-docs-v1/unassigned-user-denied-by-default.response.json"
+    },
+    {
+      "caseName": "case team explicit deny beats workspace read",
+      "requestPath": "generated/api/case-docs-v1/explicit-deny-beats-workspace-read.request.json",
+      "responsePath": "generated/api/case-docs-v1/explicit-deny-beats-workspace-read.response.json"
+    },
+    {
+      "caseName": "cross-tenant resource lookup is denied",
+      "requestPath": "generated/api/case-docs-v1/cross-tenant-resource-denied.request.json",
+      "responsePath": "generated/api/case-docs-v1/cross-tenant-resource-denied.response.json"
+    },
+    {
+      "caseName": "support escalation reads case plan during window",
+      "requestPath": "generated/api/case-docs-v2/support-escalation-read-window.request.json",
+      "responsePath": "generated/api/case-docs-v2/support-escalation-read-window.response.json"
+    },
+    {
+      "caseName": "support escalation expires closed",
+      "requestPath": "generated/api/case-docs-v2/support-escalation-expired.request.json",
+      "responsePath": "generated/api/case-docs-v2/support-escalation-expired.response.json"
+    },
+    {
+      "caseName": "reader cannot write restricted summary",
+      "requestPath": "generated/api/case-docs-v2/restricted-summary-write-denied.request.json",
+      "responsePath": "generated/api/case-docs-v2/restricted-summary-write-denied.response.json"
+    },
+    {
+      "caseName": "cross-tenant escalation remains denied",
+      "requestPath": "generated/api/case-docs-v2/cross-tenant-escalation-denied.request.json",
+      "responsePath": "generated/api/case-docs-v2/cross-tenant-escalation-denied.response.json"
+    }
+  ]
+}
+

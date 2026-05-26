@@ -1,0 +1,22 @@
+{
+  "id": "migration:case-docs-v1-to-v2",
+  "fromVersion": "policy:case-docs-v1",
+  "toVersion": "policy:case-docs-v2",
+  "operations": [
+    "add restricted classification to document and dataset resources",
+    "add support escalation businessJustification context requirement",
+    "add support escalation tuple fixture and regression cases"
+  ],
+  "regressionSnapshot": "snapshots/regression/case-docs.v2.json",
+  "generatedExamples": [
+    "generated/api/case-docs-v2/support-escalation-read-window.request.json",
+    "generated/api/case-docs-v2/support-escalation-read-window.response.json",
+    "generated/api/case-docs-v2/support-escalation-expired.request.json",
+    "generated/api/case-docs-v2/support-escalation-expired.response.json",
+    "generated/api/case-docs-v2/restricted-summary-write-denied.request.json",
+    "generated/api/case-docs-v2/restricted-summary-write-denied.response.json",
+    "generated/api/case-docs-v2/cross-tenant-escalation-denied.request.json",
+    "generated/api/case-docs-v2/cross-tenant-escalation-denied.response.json"
+  ]
+}
+

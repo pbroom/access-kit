@@ -1,0 +1,12 @@
+{
+  "subjectId": "user:alice",
+  "action": "read",
+  "resourceId": "document:payroll-export",
+  "policyVersion": "policy:case-docs-v1",
+  "relationshipVersion": "tuple-set:case-docs-v1",
+  "context": {
+    "purpose": "case-work",
+    "riskScore": 18
+  }
+}
+

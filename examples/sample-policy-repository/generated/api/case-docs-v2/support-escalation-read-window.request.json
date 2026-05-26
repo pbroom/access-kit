@@ -1,0 +1,14 @@
+{
+  "subjectId": "user:sam",
+  "action": "read",
+  "resourceId": "document:case-plan",
+  "policyVersion": "policy:case-docs-v2",
+  "relationshipVersion": "tuple-set:case-docs-v2",
+  "context": {
+    "purpose": "case-work",
+    "riskScore": 22,
+    "businessJustification": "break-fix support",
+    "supportEscalationApproved": true
+  }
+}
+
