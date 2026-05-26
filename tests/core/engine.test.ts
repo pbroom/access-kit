@@ -282,6 +282,26 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_AS_OF_IN_FUTURE");
   });
 
+  it("records a valid fallback asOf when denying malformed historical timestamps", () => {
+    const store = new InMemoryRebacStore(createLocalEngineSeed());
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "not-a-date"
+    });
+    const [auditEvent] = store.listAuditEvents();
+
+    expect(result).toMatchObject({
+      decision: "deny",
+      reasonCode: "DENY_INVALID_AS_OF",
+      asOf: now
+    });
+    expect(auditEvent?.payload).toMatchObject({ asOf: now });
+  });
+
   it("denies unsupported actions even when a read path exists", () => {
     const store = new InMemoryRebacStore(createLocalEngineSeed());
     const engine = new RebacDecisionEngine(store, { now: () => now });

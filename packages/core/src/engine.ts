@@ -166,7 +166,7 @@ export class RebacDecisionEngine {
     const asOfMs = Date.parse(versionPins.asOf);
 
     if (!Number.isFinite(asOfMs)) {
-      return denied("DENY_INVALID_AS_OF");
+      return denied("DENY_INVALID_AS_OF", [], { ...versionPins, asOf: evaluatedAt });
     }
 
     if (asOfMs > Date.parse(evaluatedAt)) {
@@ -256,11 +256,15 @@ export class RebacDecisionEngine {
       traversal: traversalGuard.report()
     };
 
-    function denied(reasonCode: string, relationshipPath: RelationshipPathStep[] = []): DecisionContext {
+    function denied(
+      reasonCode: string,
+      relationshipPath: RelationshipPathStep[] = [],
+      deniedVersionPins: DecisionRuntimeVersionPins = versionPins
+    ): DecisionContext {
       return {
         request,
         evaluatedAt,
-        versionPins,
+        versionPins: deniedVersionPins,
         decision: "deny",
         reasonCode,
         relationshipPath,
