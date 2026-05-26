@@ -98,6 +98,12 @@ importers:
 
   packages/core: {}
 
+  packages/typescript-client:
+    dependencies:
+      '@access-kit/core':
+        specifier: workspace:*
+        version: link:../core
+
 packages:
 
   '@apidevtools/json-schema-ref-parser@14.0.1':
