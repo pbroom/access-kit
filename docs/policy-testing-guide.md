@@ -16,6 +16,14 @@ Policy testing combines a versioned policy model contract with synthetic proof p
 
 Policy tests are not production access approvals, live tenant validation, or replacement for access reviews. They prove behavior of deterministic policy logic against synthetic examples.
 
+For interactive local exploration, use the policy playground:
+
+```bash
+pnpm playground:policy examples/policy-playground.sample.json
+```
+
+The playground validates edited models and typed request context before running deterministic in-memory explain calls. It cannot publish policy and never writes production data.
+
 ## Test Coverage
 
 Current proof points cover:
@@ -113,6 +121,7 @@ AC-3, AC-6, AU-2, CM-3, CM-6, CA-7, RA-5, and SI-4.
 
 - [Decision Lifecycle](decision-lifecycle.md)
 - [Explain API](explain-api.md)
+- [Policy Playground](policy-playground.md)
 - [Policy Rollback Runbook](../runbooks/policy-rollback.md)
 - `tests/fixtures/policy/proof-points.json`
 - `examples/sample-policy-repository/`

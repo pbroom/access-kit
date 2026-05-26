@@ -1,0 +1,42 @@
+{
+  "name": "sample-policy-playground",
+  "context": {
+    "purpose": "policy-playground",
+    "tenantId": "tenant:local-demo",
+    "synthetic": true,
+    "localProofPoint": true,
+    "liveTenantData": false
+  },
+  "requests": [
+    {
+      "name": "allow-case-plan-read",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:case-plan"
+      },
+      "expectedDecision": "allow",
+      "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH"
+    },
+    {
+      "name": "deny-external-reviewer",
+      "request": {
+        "subjectId": "user:external-reviewer",
+        "action": "read",
+        "resourceId": "document:case-plan"
+      },
+      "expectedDecision": "deny",
+      "expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+    },
+    {
+      "name": "deny-explicit-read",
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:restricted-notes"
+      },
+      "expectedDecision": "deny",
+      "expectedReasonCode": "DENY_EXPLICIT_OVERRIDE"
+    }
+  ]
+}
