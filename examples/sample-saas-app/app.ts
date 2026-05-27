@@ -15,6 +15,9 @@ export interface SampleSaasCase {
 }
 
 export interface SampleSaasRequest extends ExpressPepRequest {
+  readonly auth?: {
+    readonly subjectId: CanonicalId;
+  };
   readonly params?: {
     readonly caseId?: string;
     readonly tenantId?: CanonicalId;
@@ -279,7 +282,7 @@ function decodePathSegment(value: string): string | undefined {
 }
 
 function subjectIdFromRequest(request: SampleSaasRequest): CanonicalId {
-  return headerValue(request, "x-subject-id") ?? "user:anonymous";
+  return request.auth?.subjectId ?? "user:anonymous";
 }
 
 function buildSampleSaasCorrelationId(request: SampleSaasRequest): CanonicalId {

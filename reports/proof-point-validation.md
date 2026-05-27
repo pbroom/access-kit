@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T04:59:28.985Z
+Generated at: 2026-05-28T05:00:53.974Z
 
-Branch: 
+Branch: codex/rebac-sample-saas-app
 
 Node: v24.4.1
 
@@ -10,16 +10,16 @@ pnpm: 10.30.3
 
 ## Summary
 
-2 proof-point validation command(s) failed.
+All proof-point validation commands passed.
 
 | Proof point | Command | Result |
 | --- | --- | --- |
-| typecheck | `corepack pnpm typecheck` | FAIL |
+| typecheck | `corepack pnpm typecheck` | PASS |
 | schema validation | `corepack pnpm validate:schemas` | PASS |
 | OpenAPI validation | `corepack pnpm validate:openapi` | PASS |
 | API collection validation | `corepack pnpm validate:api-collections` | PASS |
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
-| connector security gate validation | `corepack pnpm validate:connector-security` | FAIL |
+| connector security gate validation | `corepack pnpm validate:connector-security` | PASS |
 | CLI command contract | `corepack pnpm validate:cli-contract` | PASS |
 | container packaging validation | `corepack pnpm validate:packaging` | PASS |
 | release packaging validation | `corepack pnpm validate:release-packaging` | PASS |
@@ -41,22 +41,6 @@ pnpm: 10.30.3
 ```text
 > access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-sample-saas-app
 > tsc --noEmit
-
-packages/api/src/runtime-connectors.ts(7,65): error TS2307: Cannot find module '@access-kit/connectors-aws' or its corresponding type declarations.
-packages/connectors-aws/src/index.ts(24,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
-packages/connectors-aws/src/index.ts(488,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
-packages/connectors-sample-readonly/src/index.ts(21,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
-packages/connectors-sample-readonly/src/index.ts(335,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(158,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(203,62): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(241,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(278,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(413,73): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/sample-readonly.test.ts(68,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/sample-readonly.test.ts(161,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
-tests/connectors/sample-readonly.test.ts(208,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/examples/sample-saas-app.test.ts(283,3): error TS2739: Type '{ action: string; constraints: {}; decision: DecisionValue; decisionId: string; evaluatedAt: string; policyVersion: string; reasonCode: string; relationshipPath: { objectId: string; relation: string; subjectId: string; }[]; relationshipVersion: string; resourceId: string; subjectId: string; }' is missing the following properties from type 'DecisionResult': modelVersion, tupleVersion, contextVersion, asOf
- ELIFECYCLE  Command failed with exit code 2.
 ```
 
 ### schema validation
@@ -142,26 +126,11 @@ PASS drift is represented as security finding
 > access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-sample-saas-app
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
- ELIFECYCLE  Command failed with exit code 1.
-
-node:internal/modules/run_main:105
-    triggerUncaughtException(
-    ^
-Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@access-kit/connectors-aws' imported from /Users/peterbroomfield/access-kit-sample-saas-app/packages/api/src/runtime-connectors.ts
-    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
-    at packageResolve (node:internal/modules/esm/resolve:767:81)
-    at moduleResolve (node:internal/modules/esm/resolve:853:18)
-    at defaultResolve (node:internal/modules/esm/resolve:983:11)
-    at nextResolve (node:internal/modules/esm/hooks:748:28)
-    at resolveBase (file:///Users/peterbroomfield/access-kit-sample-saas-app/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:8037)
-    at resolveDirectory (file:///Users/peterbroomfield/access-kit-sample-saas-app/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:9124)
-    at resolveTsPaths (file:///Users/peterbroomfield/access-kit-sample-saas-app/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:10581)
-    at resolve2 (file:///Users/peterbroomfield/access-kit-sample-saas-app/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:11864)
-    at nextResolve (node:internal/modules/esm/hooks:748:28) {
-  code: 'ERR_MODULE_NOT_FOUND'
-}
-
-Node.js v24.4.1
+Validated connector security gates for 4 connector(s).
+PASS mock: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+PASS entra-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+PASS sharepoint-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
 ```
 
 ### CLI command contract
@@ -176,8 +145,8 @@ Node.js v24.4.1
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  00:59:22
-   Duration  299ms (transform 137ms, setup 0ms, import 219ms, tests 20ms, environment 0ms)
+   Start at  01:00:47
+   Duration  280ms (transform 135ms, setup 0ms, import 209ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -270,8 +239,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  00:59:25
-   Duration  239ms (transform 1.01s, setup 0ms, import 1.44s, tests 126ms, environment 0ms)
+   Start at  01:00:50
+   Duration  240ms (transform 1.04s, setup 0ms, import 1.47s, tests 125ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -286,8 +255,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  00:59:26
-   Duration  520ms (transform 875ms, setup 0ms, import 1.44s, tests 432ms, environment 0ms)
+   Start at  01:00:51
+   Duration  523ms (transform 925ms, setup 0ms, import 1.50s, tests 441ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -302,8 +271,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  2 passed (2)
       Tests  15 passed (15)
-   Start at  00:59:27
-   Duration  280ms (transform 144ms, setup 0ms, import 219ms, tests 29ms, environment 0ms)
+   Start at  01:00:52
+   Duration  286ms (transform 151ms, setup 0ms, import 226ms, tests 29ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -314,8 +283,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  00:59:27
-   Duration  229ms (transform 339ms, setup 0ms, import 450ms, tests 49ms, environment 0ms)
+   Start at  01:00:52
+   Duration  228ms (transform 332ms, setup 0ms, import 444ms, tests 48ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -330,8 +299,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  00:59:28
-   Duration  325ms (transform 370ms, setup 0ms, import 630ms, tests 116ms, environment 0ms)
+   Start at  01:00:53
+   Duration  325ms (transform 384ms, setup 0ms, import 632ms, tests 115ms, environment 0ms)
 ```
 
 

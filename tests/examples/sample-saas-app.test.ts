@@ -49,9 +49,10 @@ describe("sample SaaS application", () => {
     const response = createResponse();
 
     await app.handleCaseRead({
+      auth: { subjectId: "user:alice" },
       headers: {
         "x-correlation-id": "corr:sample-saas-allow",
-        "x-subject-id": "user:alice"
+        "x-subject-id": "user:unassigned"
       },
       path: "/tenants/tenant%3Aalpha/cases/case-plan"
     }, response);
@@ -93,6 +94,7 @@ describe("sample SaaS application", () => {
     const response = createResponse();
 
     await app.handleCaseRead({
+      auth: { subjectId: "user:alice" },
       headers: {
         "x-correlation-id": "corr:sample-saas-tenant-mismatch",
         "x-subject-id": "user:alice"
@@ -118,6 +120,7 @@ describe("sample SaaS application", () => {
     const response = createResponse();
 
     await app.handleCaseRead({
+      auth: { subjectId: "user:alice" },
       headers: {
         "x-correlation-id": "corr:sample-saas-unavailable",
         "x-local-role": "owner",
@@ -150,9 +153,10 @@ describe("sample SaaS application", () => {
     const response = createResponse();
 
     await app.handleCaseRead({
+      auth: { subjectId: "user:unassigned" },
       headers: {
         "x-correlation-id": "corr:sample-saas-deny",
-        "x-subject-id": "user:unassigned"
+        "x-subject-id": "user:alice"
       },
       path: "/tenants/tenant%3Aalpha/cases/case-plan"
     }, response);
@@ -237,6 +241,7 @@ describe("sample SaaS application", () => {
     const response = createResponse();
 
     await app.handleCaseRead({
+      auth: { subjectId: "user:alice" },
       headers: {
         "x-correlation-id": "corr:sample-saas-no-explain",
         "x-subject-id": "user:alice"
@@ -286,6 +291,9 @@ function decision(options: {
     decision: options.decision ?? "allow",
     decisionId: "decision:sample-saas-test",
     evaluatedAt: "2026-05-26T14:00:00.000Z",
+    asOf: "2026-05-26T14:00:00.000Z",
+    contextVersion: "context:test",
+    modelVersion: "model:test",
     policyVersion: "policy:test",
     reasonCode: options.decision === "deny" ? "DENY_DEFAULT_NO_RELATIONSHIP_PATH" : "ALLOW_VIA_RELATIONSHIP_PATH",
     relationshipPath: Array.from({ length: options.relationshipPathLength ?? 0 }, (_, index) => ({
@@ -294,6 +302,7 @@ function decision(options: {
       subjectId: `subject:${index}`
     })),
     relationshipVersion: "relationships:test",
+    tupleVersion: "tuples:test",
     resourceId: "document:case-plan",
     subjectId: "user:alice"
   };

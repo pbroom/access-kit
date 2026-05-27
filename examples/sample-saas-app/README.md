@@ -10,7 +10,9 @@ The route shape is:
 GET /tenants/tenant:alpha/cases/case-plan
 ```
 
-The sample reads `x-subject-id` from the request and builds an Access Kit `check` request for `document:case-plan`. The handler only returns the case after Access Kit returns `allow`; API failures and denials fail closed. Unknown cases and tenant mismatches return a safe denial before a protected resource is resolved.
+The sample reads the subject from trusted application authentication state at `request.auth.subjectId` and builds an Access Kit `check` request for `document:case-plan`. Run authentication middleware before this handler and populate `request.auth` from a verified session, JWT, mTLS gateway identity, or equivalent trusted source. Do not map authorization subjects from caller-supplied headers such as `x-subject-id` or `x-user-id`; those headers are user-controlled unless trusted infrastructure strips and reissues them first.
+
+The handler only returns the case after Access Kit returns `allow`; API failures and denials fail closed. Unknown cases and tenant mismatches return a safe denial before a protected resource is resolved.
 
 The response includes a correlation ID and decision ID for traceability on allowed requests. End-user denial responses contain only a denial code, correlation ID, and safe reason code. They do not include relationship paths, sensitive identifiers, or debug traces.
 
