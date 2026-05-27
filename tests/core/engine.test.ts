@@ -295,9 +295,14 @@ describe("RebacDecisionEngine", () => {
       resourceId: "document:case-plan",
       asOf: "2026-05-22T17:00:00.000Z"
     });
+    const [auditEvent] = store.listAuditEvents();
 
-    expect(result.decision).toBe("deny");
-    expect(result.reasonCode).toBe("DENY_AS_OF_IN_FUTURE");
+    expect(result).toMatchObject({
+      decision: "deny",
+      reasonCode: "DENY_AS_OF_IN_FUTURE",
+      asOf: now
+    });
+    expect(auditEvent?.payload).toMatchObject({ asOf: now });
   });
 
   it("records a valid fallback asOf when denying malformed historical timestamps", () => {

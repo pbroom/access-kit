@@ -170,7 +170,7 @@ export class RebacDecisionEngine {
     }
 
     if (asOfMs > Date.parse(evaluatedAt)) {
-      return denied("DENY_AS_OF_IN_FUTURE");
+      return denied("DENY_AS_OF_IN_FUTURE", [], { ...versionPins, asOf: evaluatedAt });
     }
 
     const subject = visibleSubjectAt(this.#store, request.subjectId, versionPins.asOf);
