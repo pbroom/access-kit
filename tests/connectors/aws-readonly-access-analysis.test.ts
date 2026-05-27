@@ -156,6 +156,38 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
     expect(serialized).not.toContain("case-prod@example.test");
   });
 
+  it("upgrades throttled readback warnings when retries are exhausted", async () => {
+    const pages = createFixturePages();
+    pages[awsReadClientKey("ssoAdmin.listAccountAssignments", {
+      accountId: rawAccountId,
+      permissionSetArn: rawPermissionSetArn
+    })] = [
+      { value: [], status: 429, retryAfterSeconds: 1, requestId: "raw-request-id-1" },
+      { value: [], status: 429, retryAfterSeconds: 1, requestId: "raw-request-id-2" }
+    ];
+    const sleeps: number[] = [];
+    const connector = new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(pages),
+      organizationId,
+      now: () => now,
+      maxRetries: 1,
+      sleep: async (milliseconds) => {
+        sleeps.push(milliseconds);
+      }
+    });
+
+    await connector.discoverSubjects();
+
+    expect(connector.getDiscoveryMetadata().warnings.filter((warning) => warning.code === "AWS_THROTTLE_RETRIED")).toEqual([
+      expect.objectContaining({
+        scope: "native_grants",
+        severity: "warning",
+        retryable: false
+      })
+    ]);
+    expect(sleeps).toEqual([1000]);
+  });
+
   it("skips Access Analyzer findings outside imported AWS resources", async () => {
     const pages: AwsReadClientPages = {
       ...createFixturePages(),

@@ -1124,7 +1124,15 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
 
   #pushWarning(warning: DiscoveryRunWarning): void {
     const key = `${warning.code}:${warning.scope}:${warning.message}`;
-    if (this.#warnings.some((existing) => `${existing.code}:${existing.scope}:${existing.message}` === key)) {
+    const existingIndex = this.#warnings.findIndex((existing) => `${existing.code}:${existing.scope}:${existing.message}` === key);
+    if (existingIndex >= 0) {
+      const existing = this.#warnings[existingIndex]!;
+      if (
+        warningSeverityRank(warning.severity) > warningSeverityRank(existing.severity)
+        || (existing.retryable && !warning.retryable)
+      ) {
+        this.#warnings[existingIndex] = { ...existing, ...warning };
+      }
       return;
     }
 
@@ -1303,6 +1311,10 @@ function retryAfterSecondsToMilliseconds(value: number | undefined): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? Math.min(Math.ceil(value * 1000), MAX_RETRY_AFTER_MILLISECONDS)
     : 0;
+}
+
+function warningSeverityRank(severity: DiscoveryRunWarning["severity"]): number {
+  return severity === "warning" ? 1 : 0;
 }
 
 async function sleep(milliseconds: number): Promise<void> {
