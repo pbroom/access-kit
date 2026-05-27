@@ -63,6 +63,11 @@ export interface MicrosoftGraphRecordResponse<T> {
   requestId?: string;
 }
 
+interface MicrosoftGraphCollectionRead<T> {
+  values: T[];
+  completed: boolean;
+}
+
 export interface MicrosoftGraphReadClient {
   list<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphCollectionPage<T>>;
   get<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphRecordResponse<T>>;
@@ -508,13 +513,19 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   }
 
   async #readCollection<T>(path: string, label: DiscoveryRunWarning["scope"]): Promise<T[]> {
+    return (await this.#readCollectionResult<T>(path, label)).values;
+  }
+
+  async #readCollectionResult<T>(path: string, label: DiscoveryRunWarning["scope"]): Promise<MicrosoftGraphCollectionRead<T>> {
     const values: T[] = [];
     let nextPath: string | undefined = path;
     let pageCount = 0;
     let retryCount = 0;
+    let completed = true;
 
     while (nextPath) {
       if (pageCount >= this.#maxPages) {
+        completed = false;
         this.#pushWarning({
           code: "GRAPH_PAGE_LIMIT_REACHED",
           message: `Microsoft Graph ${label} pagination reached the configured page limit; remaining pages were skipped.`,
@@ -546,10 +557,12 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
           continue;
         }
 
+        completed = false;
         break;
       }
 
       if (status >= 400) {
+        completed = false;
         this.#pushWarning({
           code: "GRAPH_COLLECTION_SKIPPED",
           message: `Microsoft Graph ${label} readback returned HTTP ${status}; unsupported provider behavior was skipped instead of becoming canonical facts.`,
@@ -577,7 +590,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       nextPath = page.nextLink;
     }
 
-    return values;
+    return { values, completed };
   }
 
   async #readRecord<T>(
@@ -896,12 +909,13 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     relationships: RelationshipTuple[],
     grantsByResource: Map<string, NativeGrant[]>
   ): Promise<void> {
-    const owners = await this.#readCollection<GraphDirectoryObject>(
+    const ownerRead = await this.#readCollectionResult<GraphDirectoryObject>(
       `/groups/${encodeURIComponent(group.id!)}/owners?$select=id,displayName,userPrincipalName,appId,servicePrincipalType`,
       "relationships"
     );
+    const owners = ownerRead.values;
 
-    if (owners.length === 0) {
+    if (ownerRead.completed && owners.length === 0) {
       this.#pushWarning({
         code: "GRAPH_M365_GROUP_OWNER_COVERAGE_EMPTY",
         message: "Microsoft Graph returned no owners for a Microsoft 365 group; ownership coverage was retained as a warning instead of inventing canonical owners.",
@@ -1232,7 +1246,8 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       attributes: {
         tenantId: this.tenantBoundary,
         source,
-        ...attributes
+        ...attributes,
+        redacted: true
       },
       version: "native-grant:v1",
       createdAt: this.#now()

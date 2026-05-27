@@ -223,6 +223,22 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       .not.toContain("GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED");
   });
 
+  it("does not report empty Microsoft 365 group ownership when owner readback fails", async () => {
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client: createM365TeamsFixtureClient([], { value: [], status: 403 }),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-m365-teams-sandbox-fixture.json"
+    });
+
+    await connector.discoverRelationships();
+
+    const warningCodes = connector.getDiscoveryMetadata().warnings.map((warning) => warning.code);
+    expect(warningCodes).toContain("GRAPH_COLLECTION_SKIPPED");
+    expect(warningCodes).not.toContain("GRAPH_M365_GROUP_OWNER_COVERAGE_EMPTY");
+  });
+
   it("does not warn for ordinary Microsoft 365 groups without Teams backing", async () => {
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
       client: createFixtureClient(),
@@ -581,7 +597,10 @@ function createFixtureClient(): FixtureGraphClient {
 function createM365TeamsFixtureClient(ownerObjects: Array<Record<string, unknown>> = [
   { id: "raw-user-owner", "@odata.type": "#microsoft.graph.user", displayName: "Owner Example" },
   { id: "raw-sp-bot", "@odata.type": "#microsoft.graph.servicePrincipal", displayName: "Automation Bot" }
-]): FixtureGraphClient {
+], ownerPage: MicrosoftGraphCollectionPage<unknown> = {
+  value: ownerObjects,
+  status: 200
+}): FixtureGraphClient {
   return new FixtureGraphClient({
     "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
       {
@@ -644,10 +663,7 @@ function createM365TeamsFixtureClient(ownerObjects: Array<Record<string, unknown
       }
     ],
     "/groups/raw-m365-group-1/owners?$select=id,displayName,userPrincipalName,appId,servicePrincipalType": [
-      {
-        value: ownerObjects,
-        status: 200
-      }
+      ownerPage
     ],
     "/servicePrincipals/raw-sp-bot/appRoleAssignedTo?$select=id,principalId,principalType,principalDisplayName,resourceId,resourceDisplayName,appRoleId,createdDateTime": [
       { value: [], status: 200 }
