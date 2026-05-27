@@ -343,20 +343,23 @@ function isActiveRelationshipAt(
     return false;
   }
 
+  const asOfMs = Date.parse(asOf);
   const assertedAtMs = Date.parse(relationship.assertedAt);
-  if (Number.isFinite(assertedAtMs) && assertedAtMs > Date.parse(asOf)) {
+  if (Number.isFinite(assertedAtMs) && assertedAtMs > asOfMs) {
     return false;
   }
 
   if (relationship.status === "deleted") {
-    return Boolean(relationship.updatedAt && Date.parse(relationship.updatedAt) > Date.parse(asOf));
+    const deletedAfterAsOf = Boolean(relationship.updatedAt && Date.parse(relationship.updatedAt) > asOfMs);
+    const expiresAfterAsOf = !relationship.expiresAt || Date.parse(relationship.expiresAt) > asOfMs;
+    return deletedAfterAsOf && expiresAfterAsOf;
   }
 
   if (relationship.status === "expired") {
-    return Boolean(relationship.expiresAt && Date.parse(relationship.expiresAt) > Date.parse(asOf));
+    return Boolean(relationship.expiresAt && Date.parse(relationship.expiresAt) > asOfMs);
   }
 
-  return !relationship.expiresAt || Date.parse(relationship.expiresAt) > Date.parse(asOf);
+  return !relationship.expiresAt || Date.parse(relationship.expiresAt) > asOfMs;
 }
 
 function findAllowPath(

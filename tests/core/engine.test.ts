@@ -169,6 +169,42 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
   });
 
+  it("denies deleted relationships that were already expired at a historical asOf timestamp", () => {
+    const seed = createLocalEngineSeed();
+    const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.map((subject) => ({ ...subject, createdAt: historicalCreatedAt })),
+      resources: seed.resources?.map((resource) => ({ ...resource, createdAt: historicalCreatedAt })),
+      relationships: [
+        tuple(
+          "relationship:alice-reader-document-deleted-after-expiry",
+          "user:alice",
+          "reader_of",
+          "document:case-plan",
+          undefined,
+          {
+            assertedAt: historicalCreatedAt,
+            createdAt: historicalCreatedAt,
+            expiresAt: "2026-05-21T12:00:00.000Z",
+            status: "deleted",
+            updatedAt: "2026-05-21T16:00:00.000Z"
+          }
+        )
+      ]
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "2026-05-21T13:00:00.000Z"
+    });
+
+    expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
   it("fails closed when lifecycle state is unknown at a historical asOf timestamp", () => {
     const seed = createLocalEngineSeed();
     const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
