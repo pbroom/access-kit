@@ -40,10 +40,12 @@ export function buildAccessReviewGovernance(input: AccessReviewGovernanceInput):
   const exceptionRequestsById = toIdMap(input.existingExceptionRequests ?? []);
 
   for (const driftFinding of input.driftFindings) {
+    const existingExceptionRequest = exceptionRequestsById.get(exceptionRequestId(driftFinding.id));
     const finding = buildGovernanceFinding(
       driftFinding,
       findingsById.get(governanceFindingId(driftFinding.id)),
-      input.generatedAt
+      input.generatedAt,
+      exceptionExpiresAt(driftFinding, existingExceptionRequest)
     );
     findingsById.set(finding.id, finding);
 
@@ -51,7 +53,7 @@ export function buildAccessReviewGovernance(input: AccessReviewGovernanceInput):
       const exceptionRequest = buildExceptionRequest(
         driftFinding,
         finding,
-        exceptionRequestsById.get(exceptionRequestId(driftFinding.id)),
+        existingExceptionRequest,
         input.generatedAt
       );
       exceptionRequestsById.set(exceptionRequest.id, exceptionRequest);
@@ -148,11 +150,12 @@ function buildAccessReviewCampaign(input: {
 function buildGovernanceFinding(
   driftFinding: DriftFinding,
   existing: GovernanceFinding | undefined,
-  generatedAt: string
+  generatedAt: string,
+  riskAcceptanceExpiresAt: string
 ): GovernanceFinding {
   const normalizedSourceFindingId = governanceEvidenceId(driftFinding.id);
   const remediation = buildRemediationTracking(driftFinding, existing?.remediation, generatedAt);
-  const status = governanceFindingStatus(driftFinding, remediation.status, generatedAt, remediation.dueAt);
+  const status = governanceFindingStatus(driftFinding, remediation.status, generatedAt, riskAcceptanceExpiresAt);
   const evidenceRefs = existing?.evidenceRefs.length
     ? existing.evidenceRefs
     : [`drift:${normalizedSourceFindingId}`, "runbooks/access-review-exceptions.md"];
@@ -286,17 +289,21 @@ function remediationPlan(finding: DriftFinding): string {
   return "Review access with the resource owner and choose revoke, repair, or time-bound exception handling.";
 }
 
+function exceptionExpiresAt(finding: DriftFinding, existing: ExceptionRequest | undefined): string {
+  return existing?.expiresAt ?? addDays(existing?.requestedAt ?? finding.detectedAt, 30);
+}
+
 function governanceFindingStatus(
   finding: DriftFinding,
   remediationStatusValue: GovernanceRemediationTracking["status"],
   generatedAt: string,
-  dueAt: string
+  riskAcceptanceExpiresAt: string
 ): GovernanceFindingStatus {
   if (finding.status === "resolved" || remediationStatusValue === "completed") {
     return "remediated";
   }
   if (finding.status === "accepted") {
-    return isAfter(generatedAt, dueAt) ? "expired" : "risk_accepted";
+    return isAfter(generatedAt, riskAcceptanceExpiresAt) ? "expired" : "risk_accepted";
   }
   if (finding.status === "repairing") {
     return "remediation_planned";

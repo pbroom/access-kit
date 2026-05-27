@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T15:27:07.290Z
+Generated at: 2026-05-27T01:11:25.662Z
 
 Branch: codex/rebac-access-review-exceptions
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  11:27:00
-   Duration  440ms (transform 185ms, setup 0ms, import 308ms, tests 34ms, environment 0ms)
+   Start at  21:11:18
+   Duration  424ms (transform 177ms, setup 0ms, import 296ms, tests 34ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -187,8 +187,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  8 passed (8)
       Tests  123 passed (123)
-   Start at  11:27:03
-   Duration  387ms (transform 1.10s, setup 0ms, import 1.41s, tests 117ms, environment 0ms)
+   Start at  21:11:21
+   Duration  393ms (transform 1.15s, setup 0ms, import 1.49s, tests 115ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -202,9 +202,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  4 passed (4)
-      Tests  98 passed (98)
-   Start at  11:27:04
-   Duration  776ms (transform 801ms, setup 0ms, import 1.16s, tests 370ms, environment 0ms)
+      Tests  99 passed (99)
+   Start at  21:11:22
+   Duration  737ms (transform 707ms, setup 0ms, import 1.05s, tests 359ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -215,8 +215,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
  Test Files  1 passed (1)
       Tests  11 passed (11)
-   Start at  11:27:05
-   Duration  310ms (transform 158ms, setup 0ms, import 192ms, tests 23ms, environment 0ms)
+   Start at  21:11:23
+   Duration  300ms (transform 147ms, setup 0ms, import 181ms, tests 24ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  11:27:06
-   Duration  485ms (transform 500ms, setup 0ms, import 890ms, tests 161ms, environment 0ms)
+   Start at  21:11:24
+   Duration  481ms (transform 516ms, setup 0ms, import 888ms, tests 158ms, environment 0ms)
 ```
 
 

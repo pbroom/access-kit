@@ -2309,6 +2309,49 @@ describe("ReBAC API runtime", () => {
     expect(exception?.sourceFindingId).toMatch(evidenceIdPattern);
   });
 
+  it("keeps accepted governance findings aligned with exception expiry before the acceptance window closes", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    app.store.upsertDriftFinding({
+      id: "drift:accepted-between-review-and-expiry",
+      resourceId: "document:case-plan",
+      subjectId: "user:alice",
+      nativeAccess: "owner",
+      intendedAccess: "none",
+      severity: "critical",
+      detectedAt: "2026-05-01T17:00:00.000Z",
+      sourceConnectorId: "mock",
+      recommendedAction: "exception",
+      status: "accepted",
+      version: "drift:v1",
+      createdAt: "2026-05-01T17:00:00.000Z"
+    });
+    await restartServer({ app });
+
+    const evidence = await get<{
+      exceptionRegister: Array<{
+        status: string;
+        requestStatus: string;
+        riskAcceptance: { status: string; expiresAt: string };
+      }>;
+    }>("/v1/evidence/export?controls=CA-7");
+    const [exception] = evidence.exceptionRegister;
+    const [finding] = app.store.listGovernanceFindings();
+
+    expect(finding).toMatchObject({
+      sourceFindingId: "drift:accepted-between-review-and-expiry",
+      status: "risk_accepted",
+      remediation: { status: "overdue" }
+    });
+    expect(exception).toMatchObject({
+      status: "approved",
+      requestStatus: "risk_accepted",
+      riskAcceptance: {
+        status: "accepted",
+        expiresAt: "2026-05-31T17:00:00.000Z"
+      }
+    });
+  });
+
   it("expires stale exception requests and carries them into ConMon and POAM evidence", async () => {
     const app = createRebacLocalApp({ now: () => TEST_NOW });
     app.store.upsertDriftFinding({
