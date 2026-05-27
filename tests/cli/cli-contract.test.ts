@@ -59,6 +59,15 @@ describe("CLI contract", () => {
     expect(help).toContain("completion");
   });
 
+  it("labels emergency revoke confirmation as required in help", () => {
+    const emergency = buildCli().commands.find((command) => command.name() === "emergency");
+    const revoke = emergency?.commands.find((command) => command.name() === "revoke");
+
+    expect(revoke).toBeDefined();
+    expect(revoke?.helpInformation()).toContain("--confirm-revoke");
+    expect(revoke?.helpInformation()).toContain("Required confirmation for emergency revocation.");
+  });
+
   it("keeps the command manifest aligned with registered Commander leaves", () => {
     expect(new Set(commandLeafPaths(buildCli()))).toEqual(new Set(CLI_COMMANDS.map((command) => command.path)));
   });

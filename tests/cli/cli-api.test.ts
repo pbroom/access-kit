@@ -467,6 +467,34 @@ describe("CLI API wrapper", () => {
     });
   });
 
+  it("keeps emergency revoke idempotency stable across retries with fresh approval timestamps", async () => {
+    const requests: CapturedRequest[] = [];
+    const now = sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:00:01.000Z");
+    const args = [
+      "emergency",
+      "revoke",
+      "native-grant:document:case-plan:alice",
+      "--connector",
+      "mock",
+      "--approver",
+      "user:incident-commander",
+      "--change-ticket",
+      "inc:2026-05-21:001",
+      "--readiness-report",
+      "readiness:mock:phase4",
+      "--reason",
+      "Approved emergency revocation exercise",
+      "--confirm-revoke"
+    ];
+
+    await runCliWithFetch(requests, { now }, ...args);
+    await runCliWithFetch(requests, { now }, ...args);
+
+    expect(requests[0]?.body).toMatchObject({ approval: { approvedAt: "2026-05-21T17:00:00.000Z" } });
+    expect(requests[1]?.body).toMatchObject({ approval: { approvedAt: "2026-05-21T17:00:01.000Z" } });
+    expect(requests[0]?.headers["idempotency-key"]).toBe(requests[1]?.headers["idempotency-key"]);
+  });
+
   it("fails closed before API calls when emergency revoke is not confirmed", async () => {
     const previousExitCode = process.exitCode;
     const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);

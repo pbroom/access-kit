@@ -198,6 +198,10 @@ interface EmergencyRevokeOptions extends CommandWithConnector {
   confirmRevoke?: boolean;
 }
 
+interface RequestOptions {
+  idempotencyBody?: unknown;
+}
+
 interface ConnectorReadinessOptions {
   mode?: "enforcement";
   syntheticOnly?: boolean;
@@ -738,7 +742,7 @@ function addEmergencyCommands(program: Command, context: CliContext): void {
     .requiredOption("--change-ticket <id>")
     .requiredOption("--readiness-report <id>")
     .requiredOption("--reason <text>")
-    .option("--confirm-revoke");
+    .option("--confirm-revoke", "Required confirmation for emergency revocation.");
 
   revoke.action(withApi(context, revoke, (client, args) => {
     const options = revoke.opts<EmergencyRevokeOptions>();
@@ -747,25 +751,36 @@ function addEmergencyCommands(program: Command, context: CliContext): void {
       throw new CliConfigurationError("emergency revoke requires --confirm-revoke");
     }
 
-    return client.post("/v1/provisioning/plans", {
+    const approval = {
+      decision: "approved",
+      approverId: required(options.approver, "approver"),
+      changeTicket: required(options.changeTicket, "change-ticket"),
+      approvedAt: context.now(),
+      reason: required(options.reason, "reason")
+    };
+    const requestBody = {
       grantId: readString(args, 0, "grant-id"),
       connectorId: required(options.connector, "connector"),
       action: "revoke",
       mode: "enforcement",
       dryRun: false,
-      approval: {
-        decision: "approved",
-        approverId: required(options.approver, "approver"),
-        changeTicket: required(options.changeTicket, "change-ticket"),
-        approvedAt: context.now(),
-        reason: required(options.reason, "reason")
-      },
+      approval,
       readinessReportId: required(options.readinessReport, "readiness-report"),
       control: {
         syntheticOnly: true,
         liveProviderWrites: false,
         incidentMode: false,
         breakGlass: false
+      }
+    };
+
+    return client.post("/v1/provisioning/plans", requestBody, {
+      idempotencyBody: {
+        ...requestBody,
+        approval: {
+          ...approval,
+          approvedAt: "cli-generated"
+        }
       }
     });
   }));
@@ -807,20 +822,20 @@ class ApiClient {
     return this.request("GET", path);
   }
 
-  post(path: string, body: unknown): Promise<unknown> {
-    return this.request("POST", path, body);
+  post(path: string, body: unknown, options?: RequestOptions): Promise<unknown> {
+    return this.request("POST", path, body, options);
   }
 
-  put(path: string, body: unknown): Promise<unknown> {
-    return this.request("PUT", path, body);
+  put(path: string, body: unknown, options?: RequestOptions): Promise<unknown> {
+    return this.request("PUT", path, body, options);
   }
 
   delete(path: string): Promise<unknown> {
     return this.request("DELETE", path);
   }
 
-  async request(method: string, path: string, body?: unknown): Promise<unknown> {
-    const idempotencyKey = createIdempotencyKey(method, path, body);
+  async request(method: string, path: string, body?: unknown, options: RequestOptions = {}): Promise<unknown> {
+    const idempotencyKey = createIdempotencyKey(method, path, options.idempotencyBody ?? body);
 
     if (this.options.preview) {
       return buildRequestPreview(this.options, method, path, body, idempotencyKey);
