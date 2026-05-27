@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T16:16:54.104Z
+Generated at: 2026-05-28T01:38:18.037Z
 
 Branch: codex/rebac-drift-lifecycle
 
@@ -26,7 +26,7 @@ All proof-point validation commands passed.
 | persistence deployment evidence validation | `corepack pnpm validate:persistence-deployment` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
-| Microsoft Graph connector tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
+| connector package tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
 
 ## Command Output
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  12:16:45
-   Duration  488ms (transform 211ms, setup 0ms, import 349ms, tests 37ms, environment 0ms)
+   Start at  21:38:13
+   Duration  299ms (transform 130ms, setup 0ms, import 217ms, tests 22ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -185,10 +185,10 @@ PASS Local proof-point persistence manifests remain blocked from production read
  RUN  v4.1.7 /Users/peterbroomfield/access-kit-drift-lifecycle
 
 
- Test Files  9 passed (9)
-      Tests  125 passed (125)
-   Start at  12:16:49
-   Duration  553ms (transform 1.33s, setup 0ms, import 1.84s, tests 136ms, environment 1ms)
+ Test Files  10 passed (10)
+      Tests  128 passed (128)
+   Start at  21:38:15
+   Duration  237ms (transform 751ms, setup 0ms, import 1.08s, tests 96ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -202,21 +202,21 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  4 passed (4)
-      Tests  99 passed (99)
-   Start at  12:16:50
-   Duration  1.01s (transform 904ms, setup 0ms, import 1.35s, tests 586ms, environment 0ms)
+      Tests  102 passed (102)
+   Start at  21:38:16
+   Duration  476ms (transform 441ms, setup 0ms, import 719ms, tests 231ms, environment 0ms)
 ```
 
-### Microsoft Graph connector tests
+### connector package tests
 
 ```text
 RUN  v4.1.7 /Users/peterbroomfield/access-kit-drift-lifecycle
 
 
- Test Files  1 passed (1)
-      Tests  11 passed (11)
-   Start at  12:16:52
-   Duration  370ms (transform 187ms, setup 0ms, import 231ms, tests 25ms, environment 0ms)
+ Test Files  2 passed (2)
+      Tests  18 passed (18)
+   Start at  21:38:16
+   Duration  220ms (transform 219ms, setup 0ms, import 272ms, tests 27ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-drift-lifecycle
 
  Test Files  3 passed (3)
       Tests  34 passed (34)
-   Start at  12:16:53
-   Duration  560ms (transform 606ms, setup 0ms, import 1.04s, tests 189ms, environment 0ms)
+   Start at  21:38:17
+   Duration  329ms (transform 351ms, setup 0ms, import 632ms, tests 114ms, environment 0ms)
 ```
 
 
@@ -250,7 +250,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-drift-lifecycle
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
-- Microsoft Graph connector tests for Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior.
+- Connector package tests for Microsoft Graph Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
 

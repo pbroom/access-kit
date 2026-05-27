@@ -102,6 +102,7 @@ interface ReconcileFindingsOptions {
 interface ReconcileRemediateOptions {
   approver?: string;
   changeTicket?: string;
+  readinessReport?: string;
   ticket?: string;
   siem?: string;
   maxSeverity?: string;
@@ -475,6 +476,7 @@ function addReconciliationCommands(program: Command, context: CliContext): void 
     .command("remediate")
     .requiredOption("--finding <id>")
     .requiredOption("--change-ticket <id>")
+    .requiredOption("--readiness-report <id>")
     .option("--approver <id>")
     .option("--ticket <id>")
     .option("--siem <id>")
@@ -507,6 +509,7 @@ function addReconciliationCommands(program: Command, context: CliContext): void 
         liveProviderWrites: false,
         reason: "CLI dry-run remediation records approval evidence without executing provider writes."
       },
+      readinessReportId: required(options.readinessReport, "readiness-report"),
       hookEvidence
     });
   }));

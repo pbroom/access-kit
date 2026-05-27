@@ -139,6 +139,7 @@ interface ReconciliationRunOptions {
 interface DriftRemediationPlanRequest {
   approval: ProvisioningApproval;
   autoRepairPolicy: DriftAutoRepairPolicy;
+  readinessReportId?: string;
   hookEvidence?: DriftHookEvidence[];
 }
 
@@ -1082,6 +1083,7 @@ export async function planDriftRemediationDryRun(
   }
 
   assertDriftRemediationControls(finding, request);
+  assertEnforcementReadiness(app, finding.sourceConnectorId, request.readinessReportId, request.approval, undefined);
   const nativeGrantId = finding.nativeGrantId ?? inferNativeGrantIdForFinding(app, finding);
 
   if (!nativeGrantId && finding.recommendedAction === "revoke") {
@@ -1123,6 +1125,7 @@ export async function planDriftRemediationDryRun(
         idempotencyKey,
         evidence: {
           connectorId: finding.sourceConnectorId,
+          readinessReportId: request.readinessReportId,
           planId: plan.id,
           actionIds: plan.actions.map((action) => action.actionId),
           dryRun: true,
@@ -1145,6 +1148,7 @@ export async function planDriftRemediationDryRun(
       findingId: updatedFinding.id,
       approval: request.approval,
       autoRepairPolicy: request.autoRepairPolicy,
+      readinessReportId: request.readinessReportId,
       hookEvidence
     }
   }, { persistState: false });

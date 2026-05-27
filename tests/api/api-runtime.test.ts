@@ -2380,10 +2380,30 @@ describe("ReBAC API runtime", () => {
       nativeAccess: "owner",
       intendedAccess: "none",
       severity: "critical",
+      lifecycleState: "accepted",
+      ownerId: "role:security-operations",
+      assigneeId: "role:security-engineer",
       detectedAt: "2026-05-01T17:00:00.000Z",
       sourceConnectorId: "mock",
       recommendedAction: "exception",
       status: "accepted",
+      scheduledReconciliation: {
+        cadence: "daily",
+        scheduledAt: "2026-05-01T17:00:00.000Z",
+        nextRunAt: "2026-05-02T17:00:00.000Z",
+        gracePeriodHours: 24,
+        overdue: false
+      },
+      hookEvidence: [],
+      remediation: {},
+      autoRepairPolicy: {
+        enabled: false,
+        allowedActions: ["review"],
+        maxSeverity: "critical",
+        requireApproval: true,
+        requireConnectorReadiness: true,
+        liveProviderWrites: false
+      },
       version: "drift:v1",
       createdAt: "2026-05-01T17:00:00.000Z"
     });
@@ -2423,10 +2443,30 @@ describe("ReBAC API runtime", () => {
       nativeAccess: "owner",
       intendedAccess: "none",
       severity: "critical",
+      lifecycleState: "accepted",
+      ownerId: "role:security-operations",
+      assigneeId: "role:security-engineer",
       detectedAt: "2026-04-01T00:00:00.000Z",
       sourceConnectorId: "mock",
       recommendedAction: "exception",
       status: "accepted",
+      scheduledReconciliation: {
+        cadence: "daily",
+        scheduledAt: "2026-04-01T00:00:00.000Z",
+        nextRunAt: "2026-04-02T00:00:00.000Z",
+        gracePeriodHours: 24,
+        overdue: true
+      },
+      hookEvidence: [],
+      remediation: {},
+      autoRepairPolicy: {
+        enabled: false,
+        allowedActions: ["review"],
+        maxSeverity: "critical",
+        requireApproval: true,
+        requireConnectorReadiness: true,
+        liveProviderWrites: false
+      },
       version: "drift:v1",
       createdAt: "2026-04-01T00:00:00.000Z"
     });
@@ -2484,6 +2524,7 @@ describe("ReBAC API runtime", () => {
 
     expect(findingId).toBe("drift:001");
 
+    const readiness = await createReadyReadinessReport("mock", controlledEnforcement());
     const updated = await postWithIdempotency<{
       status: string;
       lifecycleState: string;
@@ -2510,6 +2551,7 @@ describe("ReBAC API runtime", () => {
         liveProviderWrites: false,
         reason: "Dry-run only; no provider mutation is allowed."
       },
+      readinessReportId: readiness.id,
       hookEvidence: [
         {
           system: "ticket",
@@ -2557,6 +2599,43 @@ describe("ReBAC API runtime", () => {
     ]));
   });
 
+  it("rejects drift remediation when connector readiness is only asserted by request policy", async () => {
+    const reconciliation = await postWithIdempotency<{
+      findings: Array<{ id: string }>;
+    }>("/v1/reconciliation/run", "idem-drift-remediation-readiness-reconcile", {
+      connectorId: "mock",
+      dryRun: true
+    });
+    const findingId = reconciliation.findings[0]?.id;
+
+    const response = await fetch(`${baseUrl}/v1/reconciliation/findings/${encodeURIComponent(String(findingId))}/remediation`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-drift-remediation-missing-readiness" },
+      body: JSON.stringify({
+        approval: {
+          decision: "approved",
+          approverId: "user:security-approver",
+          changeTicket: "chg:drift-001",
+          approvedAt: TEST_NOW,
+          reason: "Caller policy alone must not authorize drift remediation."
+        },
+        autoRepairPolicy: {
+          enabled: false,
+          allowedActions: ["revoke"],
+          maxSeverity: "high",
+          requireApproval: true,
+          requireConnectorReadiness: true,
+          liveProviderWrites: false,
+          reason: "Dry-run only; no provider mutation is allowed."
+        }
+      })
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("ENFORCEMENT_READINESS_REQUIRED");
+  });
+
   it("plans exception drift remediation as a review dry-run action", async () => {
     const app = createRebacLocalApp({ now: () => TEST_NOW });
     app.store.upsertDriftFinding({
@@ -2596,6 +2675,7 @@ describe("ReBAC API runtime", () => {
     });
     await restartServer({ app });
 
+    const readiness = await createReadyReadinessReport("mock", controlledEnforcement());
     const updated = await postWithIdempotency<{
       remediation: { dryRunRepair: { action: string; providerWrite: boolean; mode: string } };
     }>("/v1/reconciliation/findings/drift%3Aexception-review/remediation", "idem-drift-exception-review", {
@@ -2614,7 +2694,8 @@ describe("ReBAC API runtime", () => {
         requireConnectorReadiness: true,
         liveProviderWrites: false,
         reason: "Dry-run review only; no provider mutation is allowed."
-      }
+      },
+      readinessReportId: readiness.id
     });
 
     expect(updated.remediation.dryRunRepair).toMatchObject({

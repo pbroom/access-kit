@@ -101,6 +101,7 @@ interface ProvisioningJobRequest {
 interface DriftRemediationRequest {
   approval?: unknown;
   autoRepairPolicy?: unknown;
+  readinessReportId?: unknown;
   hookEvidence?: unknown;
 }
 
@@ -912,6 +913,7 @@ function readReconciliationRunRequest(value: unknown): {
 function readDriftRemediationRequest(value: unknown): {
   approval: ProvisioningApproval;
   autoRepairPolicy: DriftAutoRepairPolicy;
+  readinessReportId?: string;
   hookEvidence?: DriftHookEvidence[];
 } {
   const parsed = readSchemaBacked<DriftRemediationRequest>(
@@ -936,6 +938,7 @@ function readDriftRemediationRequest(value: unknown): {
   return {
     approval: parsed.approval,
     autoRepairPolicy: parsed.autoRepairPolicy,
+    readinessReportId: readReadinessReportId(parsed.readinessReportId),
     hookEvidence: parsed.hookEvidence
   };
 }

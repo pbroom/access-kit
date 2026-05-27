@@ -109,10 +109,30 @@ function createDriftFinding(overrides: Partial<DriftFinding> = {}): DriftFinding
     nativeAccess: "owner",
     intendedAccess: "none",
     severity: "high",
+    lifecycleState: "open",
+    ownerId: "role:security-operations",
+    assigneeId: "role:security-engineer",
     detectedAt: now,
     sourceConnectorId: "mock",
     recommendedAction: "revoke",
     status: "open",
+    scheduledReconciliation: {
+      cadence: "daily",
+      scheduledAt: now,
+      nextRunAt: "2026-05-22T17:00:00.000Z",
+      gracePeriodHours: 24,
+      overdue: false
+    },
+    hookEvidence: [],
+    remediation: {},
+    autoRepairPolicy: {
+      enabled: false,
+      allowedActions: ["revoke", "repair", "review"],
+      maxSeverity: "high",
+      requireApproval: true,
+      requireConnectorReadiness: true,
+      liveProviderWrites: false
+    },
     version: "drift:v1",
     createdAt: now,
     ...overrides

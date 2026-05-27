@@ -127,6 +127,8 @@ describe("CLI API wrapper", () => {
       "drift:001",
       "--change-ticket",
       "chg:drift-001",
+      "--readiness-report",
+      "readiness:mock:drift",
       "--ticket",
       "chg:drift-001",
       "--siem",
@@ -158,6 +160,7 @@ describe("CLI API wrapper", () => {
         requireConnectorReadiness: true,
         liveProviderWrites: false
       },
+      readinessReportId: "readiness:mock:drift",
       hookEvidence: [
         { system: "ticket", referenceId: "chg:drift-001", status: "linked", recordedAt: "2026-05-21T17:00:00.000Z" },
         { system: "siem", referenceId: "siem:drift-001", status: "notified", recordedAt: "2026-05-21T17:00:00.000Z" }

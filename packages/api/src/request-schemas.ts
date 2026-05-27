@@ -186,6 +186,7 @@ const schemas: Record<RuntimeRequestSchemaName, object> = {
     properties: {
       approval: provisioningApprovalSchema,
       autoRepairPolicy: driftAutoRepairPolicySchema,
+      readinessReportId: { type: "string", minLength: 1 },
       hookEvidence: {
         type: "array",
         items: {

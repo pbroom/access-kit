@@ -710,6 +710,9 @@ paths:
                   $ref: "#/components/schemas/ProvisioningApproval"
                 autoRepairPolicy:
                   $ref: "#/components/schemas/DriftAutoRepairPolicy"
+                readinessReportId:
+                  type: string
+                  description: Server-recorded connector readiness report that must be ready for the drift finding connector.
                 hookEvidence:
                   type: array
                   items:
