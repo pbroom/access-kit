@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import {
   InMemoryRebacStore,
@@ -268,6 +268,7 @@ export async function compareGeneratedPolicyTestArtifacts(
     generatedAt: options.generatedAt
   });
   const drift: string[] = [];
+  const expectedPaths = new Set(generated.files.map((file) => file.path));
 
   for (const file of generated.files) {
     const absolutePath = join(sampleRoot, file.path);
@@ -284,6 +285,16 @@ export async function compareGeneratedPolicyTestArtifacts(
         await mkdir(dirname(absolutePath), { recursive: true });
         await writeFile(absolutePath, file.contents);
       }
+    }
+  }
+
+  for (const path of await listGeneratedPolicyTestFiles(sampleRoot)) {
+    if (expectedPaths.has(path)) {
+      continue;
+    }
+    drift.push(path);
+    if (options.write) {
+      await rm(join(sampleRoot, path), { force: true });
     }
   }
 
@@ -403,6 +414,9 @@ function generateTupleFixture(
       resources.push(restrictedResource);
     }
     relationships.push(relationship("generated-read-grant", grantSubjectId, surface.readGrantRelation, targetResource.id, tenantId));
+    if (surface.explicitDenyRelation) {
+      relationships.push(relationship("generated-read-grant-on-denied", grantSubjectId, surface.readGrantRelation, deniedResource.id, tenantId));
+    }
   }
 
   if (surface.membershipRelation && surface.groupType) {
@@ -828,6 +842,39 @@ function toPrettyJson(value: unknown): string {
 
 async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf8")) as T;
+}
+
+async function listGeneratedPolicyTestFiles(sampleRoot: string): Promise<string[]> {
+  const root = join(sampleRoot, "generated", "policy-tests");
+  const files: string[] = [];
+
+  await walk(root);
+  return files.sort();
+
+  async function walk(directory: string): Promise<void> {
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch (error) {
+      if (isMissingPathError(error)) {
+        return;
+      }
+      throw error;
+    }
+
+    for (const entry of entries) {
+      const absolutePath = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await walk(absolutePath);
+      } else if (entry.isFile()) {
+        files.push(relative(sampleRoot, absolutePath));
+      }
+    }
+  }
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "ENOENT");
 }
 
 function isSubjectType(value: string): value is SubjectType {

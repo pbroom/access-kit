@@ -1,5 +1,9 @@
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 import {
+  compareGeneratedPolicyTestArtifacts,
   GENERATED_POLICY_REVIEW_NOTICE,
   generatePolicyTestArtifacts
 } from "../../scripts/lib/generated-policy-tests.js";
@@ -64,5 +68,91 @@ describe("generated policy test artifacts", () => {
     expect(migrationSnapshot?.starterRegressionCases.map((test) => test.category)).toEqual(
       expect.arrayContaining(["deny-default", "tenant-boundary", "explicit-deny"])
     );
+  });
+
+  it("grants the denied resource in non-container explicit-deny fixtures", async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), "access-kit-flat-policy-"));
+    const sampleRoot = join(tempRoot, "sample-policy-repository");
+
+    try {
+      await mkdir(join(sampleRoot, "models"), { recursive: true });
+      await writeFile(
+        join(sampleRoot, "policy-repository.json"),
+        `${JSON.stringify(
+          {
+            repositoryId: "sample-policy-repository:flat-docs",
+            currentPolicyVersion: "policy:flat-docs-v1",
+            models: [{ version: "policy:flat-docs-v1", path: "models/flat-docs.v1.json" }],
+            migrations: []
+          },
+          null,
+          2
+        )}\n`
+      );
+      await writeFile(
+        join(sampleRoot, "models", "flat-docs.v1.json"),
+        `${JSON.stringify(
+          {
+            schemaVersion: "access-kit.policy-model.v1",
+            id: "policy-model:flat-docs",
+            version: "policy:flat-docs-v1",
+            resourceTypes: [{ type: "document", classifications: ["internal"] }],
+            relations: [
+              { name: "reader_of", kind: "grant", subjectTypes: ["user"], objectTypes: ["document"] },
+              { name: "denied_read", kind: "deny", subjectTypes: ["user"], objectTypes: ["document"] }
+            ],
+            actions: [{ name: "read", grants: ["reader_of"] }],
+            inheritanceRules: [],
+            denyRules: [{ name: "read-deny", relation: "denied_read", actions: ["read"], precedence: "override" }],
+            contextConstraints: [],
+            classificationConstraints: [{ classification: "internal", allowedActions: ["read"] }],
+            tenantBoundary: { key: "tenantId", source: "resource", crossTenantTraversal: false },
+            migrations: []
+          },
+          null,
+          2
+        )}\n`
+      );
+
+      const generated = await generatePolicyTestArtifacts({ root: process.cwd(), sampleRoot });
+      const [suite] = generated.suites;
+
+      expect(suite?.tupleFixture.relationships).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "relationship:generated-read-grant-on-denied",
+            relation: "reader_of",
+            objectId: "document:generated-denied-report"
+          })
+        ])
+      );
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it("removes orphaned generated policy-test files in write mode", async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), "access-kit-policy-tests-"));
+    const sampleRoot = join(tempRoot, "sample-policy-repository");
+    const orphanPath = join(sampleRoot, "generated", "policy-tests", "orphaned", "stale.json");
+
+    try {
+      await cp(join(process.cwd(), "examples", "sample-policy-repository"), sampleRoot, { recursive: true });
+      await mkdir(dirname(orphanPath), { recursive: true });
+      await writeFile(orphanPath, "{}\n");
+
+      const drift = await compareGeneratedPolicyTestArtifacts({ root: process.cwd(), sampleRoot, write: true });
+      let orphanExists = true;
+      try {
+        await readFile(orphanPath, "utf8");
+      } catch {
+        orphanExists = false;
+      }
+
+      expect(drift).toContain("generated/policy-tests/orphaned/stale.json");
+      expect(orphanExists).toBe(false);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
   });
 });
