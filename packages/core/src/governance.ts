@@ -116,13 +116,15 @@ function buildAccessReviewCampaign(input: {
   exceptionRequests: ExceptionRequest[];
 }): AccessReviewCampaign {
   const hasEvidence = input.sourceEventIds.length > 0 || input.findings.length > 0 || input.exceptionRequests.length > 0;
-  const status = hasEvidence ? "completed" : "planned";
+  const existingOwnerApprovals = input.existing?.ownerApprovals ?? [];
+  const completedOwnerApproval = existingOwnerApprovals.find((approval) => approval.decision === "approved");
+  const status = completedOwnerApproval ? "completed" : hasEvidence ? "active" : "planned";
   const completedAt = status === "completed"
-    ? input.existing?.completedAt ?? input.generatedAt
+    ? input.existing?.completedAt ?? completedOwnerApproval?.decidedAt ?? input.generatedAt
     : undefined;
-  const ownerApprovals = input.existing?.ownerApprovals.length
-    ? input.existing.ownerApprovals
-    : [buildOwnerApproval("Data Owner", status === "completed" ? "approved" : "pending", completedAt, ["evidence:access-review-campaign"])];
+  const ownerApprovals = existingOwnerApprovals.length
+    ? existingOwnerApprovals
+    : [buildOwnerApproval("Data Owner", "pending", undefined, ["evidence:access-review-campaign"])];
 
   return {
     id: LOCAL_ACCESS_REVIEW_CAMPAIGN_ID,

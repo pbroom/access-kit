@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-27T01:11:25.662Z
+Generated at: 2026-05-27T16:24:17.840Z
 
 Branch: codex/rebac-access-review-exceptions
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  21:11:18
-   Duration  424ms (transform 177ms, setup 0ms, import 296ms, tests 34ms, environment 0ms)
+   Start at  12:24:07
+   Duration  459ms (transform 207ms, setup 0ms, import 333ms, tests 36ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -185,10 +185,10 @@ PASS Local proof-point persistence manifests remain blocked from production read
  RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
 
- Test Files  8 passed (8)
-      Tests  123 passed (123)
-   Start at  21:11:21
-   Duration  393ms (transform 1.15s, setup 0ms, import 1.49s, tests 115ms, environment 0ms)
+ Test Files  9 passed (9)
+      Tests  125 passed (125)
+   Start at  12:24:11
+   Duration  925ms (transform 2.23s, setup 0ms, import 3.01s, tests 153ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -203,8 +203,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  4 passed (4)
       Tests  99 passed (99)
-   Start at  21:11:22
-   Duration  737ms (transform 707ms, setup 0ms, import 1.05s, tests 359ms, environment 0ms)
+   Start at  12:24:13
+   Duration  1.62s (transform 2.30s, setup 0ms, import 3.14s, tests 442ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -215,8 +215,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
  Test Files  1 passed (1)
       Tests  11 passed (11)
-   Start at  21:11:23
-   Duration  300ms (transform 147ms, setup 0ms, import 181ms, tests 24ms, environment 0ms)
+   Start at  12:24:15
+   Duration  343ms (transform 178ms, setup 0ms, import 213ms, tests 23ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  21:11:24
-   Duration  481ms (transform 516ms, setup 0ms, import 888ms, tests 158ms, environment 0ms)
+   Start at  12:24:16
+   Duration  968ms (transform 936ms, setup 0ms, import 1.64s, tests 558ms, environment 0ms)
 ```
 
 

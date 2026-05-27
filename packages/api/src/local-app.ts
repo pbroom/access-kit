@@ -1712,6 +1712,10 @@ function buildConMonMetrics(
   const driftFindings = app.store.listDriftFindings();
   const openGovernanceFindings = governanceRecords.findings.filter((finding) => finding.status !== "remediated");
   const openExceptionRequests = governanceRecords.exceptionRequests.filter((request) => !["expired", "revoked", "remediated"].includes(request.status));
+  const pendingOwnerApprovals = [
+    ...governanceRecords.campaigns,
+    ...governanceRecords.exceptionRequests
+  ].filter((record) => record.ownerApprovals.some((approval) => approval.decision === "pending")).length;
 
   return [
     { name: "audit_events_in_period", value: events.length, unit: "count", source: "audit_log" },
@@ -1759,7 +1763,7 @@ function buildConMonMetrics(
     },
     {
       name: "pending_owner_approvals",
-      value: governanceRecords.exceptionRequests.filter((request) => request.ownerApprovals.some((approval) => approval.decision === "pending")).length,
+      value: pendingOwnerApprovals,
       unit: "count",
       source: "governance_store"
     },

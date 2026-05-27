@@ -976,7 +976,12 @@ describe("ReBAC API runtime", () => {
       })
     ]));
     expect(evidence.accessReviews).toEqual(expect.arrayContaining([
-      expect.objectContaining({ status: "completed", subjectCount: expect.any(Number), resourceCount: expect.any(Number) })
+      expect.objectContaining({
+        status: "planned",
+        subjectCount: expect.any(Number),
+        resourceCount: expect.any(Number),
+        ownerApprovals: [expect.objectContaining({ decision: "pending" })]
+      })
     ]));
     expect(evidence.exceptionRegister).toEqual([]);
     expect(evidence.operationalEvidence).toEqual(expect.arrayContaining([
@@ -2220,6 +2225,8 @@ describe("ReBAC API runtime", () => {
       }>;
       accessReviews: Array<{
         campaignId: string;
+        status: string;
+        completedAt?: string;
         findingCount: number;
         exceptionCount: number;
         ownerApprovals: Array<{ decision: string }>;
@@ -2248,18 +2255,20 @@ describe("ReBAC API runtime", () => {
     expect(evidence.accessReviews).toEqual(expect.arrayContaining([
       expect.objectContaining({
         campaignId: "access-review:campaign:local-governance",
+        status: "planned",
         findingCount: 1,
         exceptionCount: 1,
-        ownerApprovals: [expect.objectContaining({ decision: "approved" })],
+        ownerApprovals: [expect.objectContaining({ decision: "pending" })],
         findingIds: expect.arrayContaining([expect.stringMatching(/^governance-finding:/)]),
         exceptionRequestIds: expect.arrayContaining([exceptionRequest?.id]),
         remediationItemIds: expect.arrayContaining([exceptionRequest?.remediation.poamItemId])
       })
     ]));
+    expect(evidence.accessReviews[0]?.completedAt).toBeUndefined();
     expect(evidence.conmonMetrics).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: "access_review_campaigns", value: 1, source: "governance_store" }),
       expect.objectContaining({ name: "open_exception_requests", value: 1, source: "governance_store" }),
-      expect.objectContaining({ name: "pending_owner_approvals", value: 1, source: "governance_store" }),
+      expect.objectContaining({ name: "pending_owner_approvals", value: 2, source: "governance_store" }),
       expect.objectContaining({ name: "pending_risk_acceptances", value: 1, source: "governance_store" })
     ]));
     expect(evidence.poamItems).toEqual(expect.arrayContaining([
