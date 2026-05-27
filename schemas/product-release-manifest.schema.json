@@ -24,7 +24,7 @@
     "productionReady": { "type": "boolean" },
     "labels": {
       "type": "array",
-      "minItems": 2,
+      "minItems": 1,
       "items": { "type": "string", "enum": ["proof-point", "production-ready", "not-production-ready"] },
       "uniqueItems": true
     },
@@ -120,4 +120,3 @@
     }
   }
 }
-

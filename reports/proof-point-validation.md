@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:47:56.220Z
+Generated at: 2026-05-28T03:49:25.489Z
 
 Branch: 
 
@@ -134,8 +134,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:47:50
-   Duration  306ms (transform 138ms, setup 0ms, import 220ms, tests 21ms, environment 0ms)
+   Start at  23:49:19
+   Duration  284ms (transform 134ms, setup 0ms, import 211ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -228,8 +228,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  12 passed (12)
       Tests  164 passed (164)
-   Start at  23:47:53
-   Duration  245ms (transform 949ms, setup 0ms, import 1.37s, tests 118ms, environment 0ms)
+   Start at  23:49:22
+   Duration  238ms (transform 914ms, setup 0ms, import 1.33s, tests 117ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -244,8 +244,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  6 passed (6)
       Tests  112 passed (112)
-   Start at  23:47:54
-   Duration  537ms (transform 848ms, setup 0ms, import 1.31s, tests 413ms, environment 0ms)
+   Start at  23:49:23
+   Duration  513ms (transform 719ms, setup 0ms, import 1.19s, tests 408ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -256,8 +256,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-product-release-packaging
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  23:47:55
-   Duration  239ms (transform 352ms, setup 0ms, import 470ms, tests 49ms, environment 0ms)
+   Start at  23:49:24
+   Duration  234ms (transform 347ms, setup 0ms, import 460ms, tests 50ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -272,8 +272,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-product-release-packaging
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:47:55
-   Duration  324ms (transform 375ms, setup 0ms, import 636ms, tests 111ms, environment 0ms)
+   Start at  23:49:24
+   Duration  318ms (transform 383ms, setup 0ms, import 635ms, tests 104ms, environment 0ms)
 ```
 
 

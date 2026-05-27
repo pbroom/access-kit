@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { AnySchema } from "ajv";
 import Ajv2020 from "ajv/dist/2020.js";
@@ -20,9 +20,17 @@ interface WorkflowDocument {
 const root = process.cwd();
 const releaseWorkflow = await readWorkflow(".github/workflows/container-release.yml");
 const releaseManifestSchema = await readJsonFile<AnySchema>("schemas/product-release-manifest.schema.json");
-const releaseManifest = await readJsonFile<ProductReleaseManifest>("releases/v0.1.0/manifest.json");
+const releaseManifestPaths = await listReleaseManifestPaths("releases");
+const releaseManifests = await Promise.all(
+  releaseManifestPaths.map(async (path) => ({
+    path,
+    manifest: await readJsonFile<ProductReleaseManifest>(path),
+  })),
+);
 
-validateReleaseManifest(releaseManifestSchema, releaseManifest);
+for (const { path, manifest } of releaseManifests) {
+  validateReleaseManifest(releaseManifestSchema, manifest, path);
+}
 
 requireWorkflowDispatch(releaseWorkflow);
 requirePushTag(releaseWorkflow, "rebac-api-v*");
@@ -123,49 +131,82 @@ async function readRequiredFile(path: string): Promise<string> {
   return readFile(join(root, path), "utf8");
 }
 
-function validateReleaseManifest(schema: AnySchema, manifest: ProductReleaseManifest): void {
+async function listReleaseManifestPaths(directory: string): Promise<string[]> {
+  const entries = await readdir(join(root, directory), { withFileTypes: true });
+  const paths = entries
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => join(directory, entry.name, "manifest.json"))
+    .sort();
+
+  if (paths.length === 0) {
+    throw new Error(`${directory} must contain at least one release manifest`);
+  }
+
+  return paths;
+}
+
+function validateReleaseManifest(schema: AnySchema, manifest: ProductReleaseManifest, path: string): void {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
   addFormats(ajv);
   const validate = ajv.compile(schema);
 
   if (!validate(manifest)) {
-    throw new Error(`Product release manifest failed schema validation: ${ajv.errorsText(validate.errors)}`);
+    throw new Error(`${path} failed schema validation: ${ajv.errorsText(validate.errors)}`);
   }
 
-  requireEquals(manifest.version, "product-release-manifest:v1", "product release manifest version");
-  requireEquals(manifest.releaseType, "proof_point", "current product release type");
-  requireEquals(manifest.productionReady, false, "current product release productionReady");
-  requireIncludes(manifest.labels.join("\n"), "proof-point", "product release labels");
-  requireIncludes(manifest.labels.join("\n"), "not-production-ready", "product release labels");
+  requireEquals(manifest.version, "product-release-manifest:v1", `${path} product release manifest version`);
+  requireReleaseLabels(manifest, path);
 
   for (const kind of ["source", "container", "cli", "sdk", "docs_site"]) {
     const artifact = manifest.artifacts.find((entry) => entry.kind === kind);
 
     if (!artifact) {
-      throw new Error(`Product release manifest is missing ${kind} artifact channel`);
+      throw new Error(`${path} is missing ${kind} artifact channel`);
     }
 
-    requireEquals(artifact.proofPoint, true, `${kind} artifact proofPoint`);
-    requireEquals(artifact.productionReady, false, `${kind} artifact productionReady`);
-    requireNonEmpty(artifact.sbom, `${kind} artifact SBOM`);
-    requireNonEmpty(artifact.provenance, `${kind} artifact provenance`);
-    requireNonEmpty(artifact.signature, `${kind} artifact signature`);
-    requireNonEmpty(artifact.vulnerabilityDisclosure, `${kind} artifact vulnerability disclosure`);
+    if (manifest.releaseType === "proof_point") {
+      requireEquals(artifact.proofPoint, true, `${path} ${kind} artifact proofPoint`);
+    }
+
+    requireEquals(artifact.productionReady, manifest.productionReady, `${path} ${kind} artifact productionReady`);
+    requireNonEmpty(artifact.sbom, `${path} ${kind} artifact SBOM`);
+    requireNonEmpty(artifact.provenance, `${path} ${kind} artifact provenance`);
+    requireNonEmpty(artifact.signature, `${path} ${kind} artifact signature`);
+    requireNonEmpty(artifact.vulnerabilityDisclosure, `${path} ${kind} artifact vulnerability disclosure`);
   }
 
   for (const component of ["Node.js", "pnpm", "API contract", "Container runtime", "Release manifest"]) {
     if (!manifest.compatibility.some((entry) => entry.component === component)) {
-      throw new Error(`Product release manifest compatibility matrix is missing ${component}`);
+      throw new Error(`${path} compatibility matrix is missing ${component}`);
     }
   }
 
-  requireEquals(manifest.policies.supportPolicy, "docs/support-policy.md", "support policy path");
-  requireEquals(manifest.policies.securityPolicy, "SECURITY.md", "security policy path");
-  requireIncludes(manifest.policies.vulnerabilityDisclosure, "GitHub private vulnerability reporting", "vulnerability disclosure path");
-  requireIncludes(manifest.policies.cveDisclosurePath, "CVE", "CVE disclosure path");
-  requireIncludes(manifest.validation.requiredCommands.join("\n"), "corepack pnpm ci:check", "release validation commands");
-  requireIncludes(manifest.validation.requiredCommands.join("\n"), "git diff --check", "release validation commands");
-  requireIncludes(manifest.validation.evidenceRefs.join("\n"), "reports/proof-point-validation.md", "release evidence refs");
+  requireEquals(manifest.policies.supportPolicy, "docs/support-policy.md", `${path} support policy path`);
+  requireEquals(manifest.policies.securityPolicy, "SECURITY.md", `${path} security policy path`);
+  requireIncludes(manifest.policies.vulnerabilityDisclosure, "GitHub private vulnerability reporting", `${path} vulnerability disclosure path`);
+  requireIncludes(manifest.policies.cveDisclosurePath, "CVE", `${path} CVE disclosure path`);
+  requireIncludes(manifest.validation.requiredCommands.join("\n"), "corepack pnpm ci:check", `${path} release validation commands`);
+  requireIncludes(manifest.validation.requiredCommands.join("\n"), "git diff --check", `${path} release validation commands`);
+  requireIncludes(manifest.validation.evidenceRefs.join("\n"), "reports/proof-point-validation.md", `${path} release evidence refs`);
+}
+
+function requireReleaseLabels(manifest: ProductReleaseManifest, path: string): void {
+  const labelText = manifest.labels.join("\n");
+
+  if (manifest.releaseType === "proof_point") {
+    requireEquals(manifest.productionReady, false, `${path} proof-point release productionReady`);
+    requireIncludes(labelText, "proof-point", `${path} proof-point release labels`);
+    requireIncludes(labelText, "not-production-ready", `${path} proof-point release labels`);
+    return;
+  }
+
+  requireEquals(manifest.releaseType, "production_ready", `${path} product release type`);
+  requireEquals(manifest.productionReady, true, `${path} production-ready release productionReady`);
+  requireIncludes(labelText, "production-ready", `${path} production-ready release labels`);
+
+  if (manifest.labels.includes("not-production-ready")) {
+    throw new Error(`${path} production-ready release labels must not include not-production-ready`);
+  }
 }
 
 function requireIncludes(contents: string, needle: string, label: string): void {

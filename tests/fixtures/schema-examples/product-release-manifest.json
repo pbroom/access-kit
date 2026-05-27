@@ -1,10 +1,10 @@
 {
   "version": "product-release-manifest:v1",
-  "productVersion": "0.1.0",
-  "releaseDate": "2026-05-26",
-  "releaseType": "proof_point",
-  "productionReady": false,
-  "labels": ["proof-point", "not-production-ready"],
+  "productVersion": "1.0.0",
+  "releaseDate": "2026-06-01",
+  "releaseType": "production_ready",
+  "productionReady": true,
+  "labels": ["production-ready"],
   "artifacts": [
     {
       "name": "Access Kit source release",
@@ -13,7 +13,7 @@
       "reference": "access-kit-v0.1.0",
       "status": "published_contract",
       "proofPoint": true,
-      "productionReady": false,
+      "productionReady": true,
       "releaseNotes": "CHANGELOG.md#010-proof-point-release",
       "sbom": "Dependency audit and package lock retained with release evidence",
       "provenance": "Git tag, commit, and CI validation evidence",
@@ -27,7 +27,7 @@
       "reference": "ghcr.io/pbroom/access-kit/rebac-api@sha256:<digest>",
       "status": "published_contract",
       "proofPoint": true,
-      "productionReady": false,
+      "productionReady": true,
       "releaseNotes": "CHANGELOG.md#container-image-release-notes",
       "sbom": "Buildx SBOM metadata from container-release workflow",
       "provenance": "Buildx provenance plus GitHub artifact attestation",
@@ -41,7 +41,7 @@
       "reference": "@access-kit/cli@0.1.0",
       "status": "dependency_gated",
       "proofPoint": true,
-      "productionReady": false,
+      "productionReady": true,
       "releaseNotes": "CHANGELOG.md#010-proof-point-release",
       "sbom": "npm package dependency metadata and lockfile audit evidence",
       "provenance": "npm provenance when AK-031 package publication lands",
@@ -55,7 +55,7 @@
       "reference": "@access-kit/api-contracts@0.1.0",
       "status": "published_contract",
       "proofPoint": true,
-      "productionReady": false,
+      "productionReady": true,
       "releaseNotes": "CHANGELOG.md#010-proof-point-release",
       "sbom": "npm package dependency metadata and lockfile audit evidence",
       "provenance": "npm provenance for published SDK packages",
@@ -69,7 +69,7 @@
       "reference": "docs/start-here.md",
       "status": "published_contract",
       "proofPoint": true,
-      "productionReady": false,
+      "productionReady": true,
       "releaseNotes": "docs/release-packaging.md",
       "sbom": "Documentation source paths retained in release manifest",
       "provenance": "Git tag and CI docs validation evidence",
@@ -115,4 +115,3 @@
     "evidenceRefs": ["reports/proof-point-validation.md", ".github/workflows/container-release.yml"]
   }
 }
-
