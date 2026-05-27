@@ -136,9 +136,13 @@ describe("SampleReadOnlyConnector", () => {
       reasonCode: "ALLOW_SAMPLE_PROBE",
       policyVersion: "policy:v1",
       relationshipVersion: "relationships:v1",
+      modelVersion: "model:v1",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:none",
       relationshipPath: [],
       constraints: {},
-      evaluatedAt: now
+      evaluatedAt: now,
+      asOf: now
     });
 
     expect(connector.capabilities.supportsProvisioning).toBe(false);

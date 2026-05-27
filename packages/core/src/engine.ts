@@ -110,7 +110,8 @@ export class RebacDecisionEngine {
   #evaluate(request: DecisionRequest, explain: boolean): DecisionResult {
     const startedAt = this.#options.monotonicNow();
     const evaluatedAt = this.#options.now();
-    const versionPins = normalizeDecisionRuntimeVersionPins(request, this.#options, evaluatedAt);
+    const runtimeRequest = explain ? request : { ...request, asOf: evaluatedAt };
+    const versionPins = normalizeDecisionRuntimeVersionPins(runtimeRequest, this.#options, evaluatedAt);
     const context = this.#buildDecisionContext(request, evaluatedAt, versionPins);
     const performance = createDecisionRuntimePerformanceReport(
       Math.max(0, this.#options.monotonicNow() - startedAt),
