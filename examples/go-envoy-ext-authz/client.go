@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type ClientConfig struct {
@@ -103,7 +103,7 @@ func NewClient(config ClientConfig) (*Client, error) {
 
 	httpClient := config.HTTPClient
 	if httpClient == nil {
-		httpClient = http.DefaultClient
+		httpClient = &http.Client{Timeout: 5 * time.Second}
 	}
 
 	return &Client{apiKey: config.APIKey, baseURL: baseURL, httpClient: httpClient}, nil
@@ -184,7 +184,7 @@ func parseClientError(response *http.Response) error {
 		Code          string `json:"code"`
 		CorrelationID string `json:"correlationId"`
 	}{}
-	if err := json.NewDecoder(response.Body).Decode(&errorBody); err != nil && !errors.Is(err, context.Canceled) {
+	if err := json.NewDecoder(response.Body).Decode(&errorBody); err != nil {
 		errorBody.Code = fmt.Sprintf("HTTP_%d", response.StatusCode)
 	}
 

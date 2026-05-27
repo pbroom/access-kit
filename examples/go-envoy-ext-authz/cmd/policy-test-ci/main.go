@@ -7,6 +7,7 @@ import (
 	"os"
 
 	accesskit "github.com/pbroom/access-kit/examples/go-envoy-ext-authz"
+	"github.com/pbroom/access-kit/examples/go-envoy-ext-authz/internal/env"
 )
 
 func main() {
@@ -20,7 +21,7 @@ func main() {
 
 	client, err := accesskit.NewClient(accesskit.ClientConfig{
 		APIKey:  os.Getenv("ACCESS_KIT_API_KEY"),
-		BaseURL: envOrDefault("ACCESS_KIT_BASE_URL", "http://127.0.0.1:3000"),
+		BaseURL: env.OrDefault("ACCESS_KIT_BASE_URL", "http://127.0.0.1:3000"),
 	})
 	if err != nil {
 		log.Fatalf("access kit client setup failed: %v", err)
@@ -41,13 +42,4 @@ func main() {
 	}
 
 	fmt.Printf("policy %s passed %d checks\n", policyID, len(result.Checks))
-}
-
-func envOrDefault(name string, fallback string) string {
-	value := os.Getenv(name)
-	if value == "" {
-		return fallback
-	}
-
-	return value
 }

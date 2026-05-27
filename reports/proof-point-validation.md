@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T05:22:23.401Z
+Generated at: 2026-05-28T05:22:57.647Z
 
 Branch: 
 
@@ -175,8 +175,8 @@ Node.js v24.4.1
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  01:22:16
-   Duration  291ms (transform 137ms, setup 0ms, import 214ms, tests 20ms, environment 0ms)
+   Start at  01:22:51
+   Duration  282ms (transform 135ms, setup 0ms, import 210ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -269,8 +269,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  01:22:20
-   Duration  245ms (transform 1.09s, setup 0ms, import 1.49s, tests 129ms, environment 1ms)
+   Start at  01:22:54
+   Duration  241ms (transform 1.02s, setup 0ms, import 1.45s, tests 125ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -285,8 +285,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  01:22:20
-   Duration  530ms (transform 903ms, setup 0ms, import 1.46s, tests 446ms, environment 0ms)
+   Start at  01:22:54
+   Duration  517ms (transform 859ms, setup 0ms, import 1.46s, tests 437ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -301,8 +301,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  4 passed (4)
       Tests  23 passed (23)
-   Start at  01:22:21
-   Duration  423ms (transform 265ms, setup 0ms, import 440ms, tests 203ms, environment 0ms)
+   Start at  01:22:55
+   Duration  429ms (transform 300ms, setup 0ms, import 471ms, tests 203ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -313,8 +313,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  01:22:22
-   Duration  229ms (transform 345ms, setup 0ms, import 450ms, tests 49ms, environment 0ms)
+   Start at  01:22:56
+   Duration  229ms (transform 335ms, setup 0ms, import 448ms, tests 50ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -329,8 +329,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-go-envoy-ext-authz
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  01:22:22
-   Duration  328ms (transform 383ms, setup 0ms, import 641ms, tests 113ms, environment 0ms)
+   Start at  01:22:57
+   Duration  328ms (transform 377ms, setup 0ms, import 639ms, tests 115ms, environment 0ms)
 ```
 
 
