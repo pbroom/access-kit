@@ -122,8 +122,8 @@ Production adoption must add approved identity, admin authorization, secrets man
 ## Adoption Path
 
 1. Orient on this guide, [Start Here](start-here.md), and [Non-Goals](non-goals.md).
-2. Run the quickstart with synthetic data.
-3. Run the developer evaluation path and review generated local evidence.
+2. Run the [Five-Minute Quickstart](five-minute-quickstart.md) with synthetic data.
+3. Run the [Developer Evaluation Path](developer-evaluation-path.md) and review generated local evidence.
 4. Choose an integration pattern and document failure behavior, audit fields, and protected resources.
 5. Run a sandbox PEP or CLI/operator evaluation without production tenant data.
 6. Complete provider, identity, persistence, queue, audit, SIEM, secrets, runbook, and evidence readiness before any production claim.
