@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T18:54:41.924Z
+Generated at: 2026-05-27T12:54:18.936Z
 
 Branch: codex/rebac-sample-connector-template
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  14:54:33
-   Duration  510ms (transform 214ms, setup 0ms, import 360ms, tests 36ms, environment 0ms)
+   Start at  08:54:08
+   Duration  499ms (transform 217ms, setup 0ms, import 355ms, tests 36ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -187,8 +187,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  8 passed (8)
       Tests  123 passed (123)
-   Start at  14:54:37
-   Duration  500ms (transform 1.49s, setup 0ms, import 1.92s, tests 137ms, environment 1ms)
+   Start at  08:54:12
+   Duration  1.53s (transform 5.39s, setup 0ms, import 7.13s, tests 180ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -203,8 +203,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  4 passed (4)
       Tests  97 passed (97)
-   Start at  14:54:38
-   Duration  886ms (transform 833ms, setup 0ms, import 1.25s, tests 436ms, environment 0ms)
+   Start at  08:54:15
+   Duration  1.31s (transform 1.51s, setup 0ms, import 2.12s, tests 497ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -214,9 +214,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-connector-template
 
 
  Test Files  2 passed (2)
-      Tests  16 passed (16)
-   Start at  14:54:40
-   Duration  350ms (transform 342ms, setup 0ms, import 426ms, tests 37ms, environment 0ms)
+      Tests  18 passed (18)
+   Start at  08:54:16
+   Duration  434ms (transform 355ms, setup 0ms, import 450ms, tests 38ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-connector-template
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  14:54:40
-   Duration  563ms (transform 575ms, setup 0ms, import 1.02s, tests 199ms, environment 0ms)
+   Start at  08:54:17
+   Duration  655ms (transform 706ms, setup 0ms, import 1.25s, tests 222ms, environment 0ms)
 ```
 
 
