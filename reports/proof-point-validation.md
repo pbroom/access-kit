@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:05:27.360Z
+Generated at: 2026-05-28T03:07:18.457Z
 
-Branch: codex/rebac-microsoft-sharepoint-onedrive
+Branch: codex/rebac-microsoft-native-grants
 
 Node: v24.4.1
 
@@ -36,14 +36,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-schemas.ts
 
 Validated 18 schemas and 18 example fixtures.
@@ -70,10 +70,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-microsoft-native-grants/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -85,7 +85,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -108,7 +108,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-microsoft-native-grants
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -121,23 +121,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-microsoft-native-grants
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-native-grants
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:05:22
-   Duration  271ms (transform 127ms, setup 0ms, import 200ms, tests 19ms, environment 0ms)
+   Start at  23:07:13
+   Duration  275ms (transform 128ms, setup 0ms, import 203ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -148,7 +148,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -159,7 +159,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -170,7 +170,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -181,7 +181,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -192,7 +192,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-microsoft-native-grants
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -203,61 +203,61 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-microsoft-native-grants
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-native-grants
 
 
  Test Files  10 passed (10)
       Tests  148 passed (148)
-   Start at  23:05:24
-   Duration  224ms (transform 769ms, setup 0ms, import 1.09s, tests 104ms, environment 0ms)
+   Start at  23:07:15
+   Duration  228ms (transform 787ms, setup 0ms, import 1.12s, tests 105ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-microsoft-native-grants
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-native-grants
 
 
  Test Files  4 passed (4)
       Tests  107 passed (107)
-   Start at  23:05:25
-   Duration  492ms (transform 465ms, setup 0ms, import 738ms, tests 251ms, environment 0ms)
+   Start at  23:07:16
+   Duration  487ms (transform 491ms, setup 0ms, import 731ms, tests 249ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-native-grants
 
 
  Test Files  3 passed (3)
-      Tests  39 passed (39)
-   Start at  23:05:26
-   Duration  216ms (transform 298ms, setup 0ms, import 416ms, tests 46ms, environment 0ms)
+      Tests  41 passed (41)
+   Start at  23:07:17
+   Duration  228ms (transform 335ms, setup 0ms, import 450ms, tests 48ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-microsoft-native-grants
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-native-grants
 
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:05:26
-   Duration  308ms (transform 347ms, setup 0ms, import 606ms, tests 103ms, environment 0ms)
+   Start at  23:07:17
+   Duration  308ms (transform 346ms, setup 0ms, import 607ms, tests 104ms, environment 0ms)
 ```
 
 

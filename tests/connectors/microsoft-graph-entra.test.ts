@@ -586,6 +586,95 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     ]);
   });
 
+  it("preserves previous SharePoint native grants when permission readback is incomplete", async () => {
+    const app = createRebacLocalApp({ now: () => now });
+    app.connectors.set(MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, new MicrosoftGraphEntraReadOnlyConnector({
+      client: createSharePointPermissionFixtureClient([
+        {
+          value: [{
+            id: "raw-drive-perm-1",
+            roles: ["read"],
+            grantedToV2: { user: { id: "raw-user-owner", displayName: "Owner" } }
+          }],
+          status: 200
+        }
+      ]),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-sharepoint-onedrive-sandbox-fixture.json"
+    }));
+
+    await syncConnector(app, MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, "read_only");
+    const drive = app.store.listResources().find((resource) => resource.type === "workspace" && resource.attributes?.graphType === "drive");
+    expect(drive).toBeDefined();
+    expect(readNativeAccess(app, drive!.id)).toEqual([
+      expect.objectContaining({ nativePermission: "drive:read" })
+    ]);
+
+    app.connectors.set(MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, new MicrosoftGraphEntraReadOnlyConnector({
+      client: createSharePointPermissionFixtureClient([
+        { value: [], status: 503 }
+      ]),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      maxRetries: 0,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-sharepoint-onedrive-sandbox-fixture.json"
+    }));
+
+    const second = await syncConnector(app, MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, "read_only");
+    expect(second.status).toBe("completed_with_warnings");
+    expect(second.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "GRAPH_COLLECTION_SKIPPED",
+        scope: "native_grants"
+      })
+    ]));
+    expect(readNativeAccess(app, drive!.id)).toEqual([
+      expect.objectContaining({ nativePermission: "drive:read" })
+    ]);
+  });
+
+  it("replaces SharePoint native grants when complete permission readback returns empty coverage", async () => {
+    const app = createRebacLocalApp({ now: () => now });
+    app.connectors.set(MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, new MicrosoftGraphEntraReadOnlyConnector({
+      client: createSharePointPermissionFixtureClient([
+        {
+          value: [{
+            id: "raw-drive-perm-1",
+            roles: ["read"],
+            grantedToV2: { user: { id: "raw-user-owner", displayName: "Owner" } }
+          }],
+          status: 200
+        }
+      ]),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-sharepoint-onedrive-sandbox-fixture.json"
+    }));
+
+    await syncConnector(app, MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, "read_only");
+    const drive = app.store.listResources().find((resource) => resource.type === "workspace" && resource.attributes?.graphType === "drive");
+    expect(drive).toBeDefined();
+    expect(readNativeAccess(app, drive!.id)).toHaveLength(1);
+
+    app.connectors.set(MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, new MicrosoftGraphEntraReadOnlyConnector({
+      client: createSharePointPermissionFixtureClient([
+        { value: [], status: 200 }
+      ]),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-sharepoint-onedrive-sandbox-fixture.json"
+    }));
+
+    const second = await syncConnector(app, MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, "read_only");
+    expect(second.status).toBe("completed_with_warnings");
+    expect(readNativeAccess(app, drive!.id)).toEqual([]);
+  });
+
   it("awaits Microsoft Graph retryAfterSeconds before retrying throttled reads", async () => {
     const client = new FixtureGraphClient({
       "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
@@ -1102,6 +1191,38 @@ function createSharePointOneDriveFixtureClient(): FixtureGraphClient {
         status: 200
       }
     ]
+  });
+}
+
+function createSharePointPermissionFixtureClient(
+  drivePermissionPages: Array<MicrosoftGraphCollectionPage<unknown>>
+): FixtureGraphClient {
+  return new FixtureGraphClient({
+    "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
+      { value: [{ id: "raw-user-owner", displayName: "Owner", accountEnabled: true, userType: "Member" }], status: 200 }
+    ],
+    "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
+      { value: [], status: 200 }
+    ],
+    "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
+      { value: [], status: 200 }
+    ],
+    "/sites?$select=id,name,displayName,webUrl,isPersonalSite,root,siteCollection": [
+      { value: [{ id: "raw-site-1", displayName: "Validation Site", isPersonalSite: false }], status: 200 }
+    ],
+    "/sites/raw-site-1/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds": [
+      { value: [{ id: "raw-drive-site", name: "Documents", driveType: "documentLibrary" }], status: 200 }
+    ],
+    [`/drives/raw-drive-site/root/children?$select=${driveItemSelect}`]: [
+      { value: [], status: 200 }
+    ],
+    "/users/raw-user-owner/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds": [
+      { value: [], status: 200 }
+    ],
+    [`/sites/raw-site-1/permissions?$select=${permissionSelect}`]: [
+      { value: [], status: 200 }
+    ],
+    [`/drives/raw-drive-site/root/permissions?$select=${permissionSelect}`]: drivePermissionPages
   });
 }
 

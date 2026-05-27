@@ -83,6 +83,11 @@ export interface MicrosoftGraphReadClient {
   get<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphRecordResponse<T>>;
 }
 
+interface MicrosoftGraphCollectionRead<T> {
+  values: T[];
+  completed: boolean;
+}
+
 export interface FetchMicrosoftGraphClientOptions {
   accessToken?: string;
   tokenProvider?: () => Promise<string> | string;
@@ -1464,7 +1469,11 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         continue;
       }
 
-      const permissions = await this.#readCollection<GraphPermission>(permissionsPath, "native_grants");
+      const permissionRead = await this.#readCollectionResult<GraphPermission>(permissionsPath, "native_grants");
+      if (!permissionRead.completed) {
+        this.#nativeAccessReadbackComplete = false;
+      }
+      const permissions = permissionRead.values;
       if (permissions.length === 0) {
         this.#pushWarning({
           code: "GRAPH_NATIVE_GRANT_COVERAGE_EMPTY",
