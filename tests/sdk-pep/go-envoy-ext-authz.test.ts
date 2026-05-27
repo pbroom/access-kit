@@ -16,12 +16,16 @@ describe("Go Envoy ext-authz PEP example", () => {
       "TestExtAuthzPropagatesCorrelationIDsAndLogsAllowDecisions",
       "TestExtAuthzDeniesByDefaultAndRedactsSensitivePaths",
       "TestExtAuthzFailsClosedWhenAccessKitFails",
-      "TestExtAuthzGeneratesStableRequestCorrelationID"
+      "TestExtAuthzGeneratesStableRequestCorrelationID",
+      "TestDefaultEnvoyDecisionRequestIgnoresSpoofedDownstreamAuthzTupleHeaders",
+      "TestDefaultEnvoyDecisionRequestRequiresTrustedSubjectHeader"
     ]) {
       expect(source).toContain(`func ${testName}`);
     }
 
     expect(source).toContain("x-local-admin");
+    expect(source).toContain("TrustedSubjectHeader");
+    expect(source).toContain("x-access-kit-action");
     expect(source).toContain("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
     expect(source).toContain("ACCESS_KIT_UNAVAILABLE");
     expect(source).toContain("member_of_sensitive_compensation_group");
@@ -36,6 +40,11 @@ describe("Go Envoy ext-authz PEP example", () => {
     expect(source).toContain("ACCESS_KIT_INVALID_REQUEST");
     expect(source).toContain("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
     expect(source).toContain("x-correlation-id");
+    expect(source).toContain('const TrustedSubjectHeader = "x-access-kit-trusted-subject"');
+    expect(source).not.toContain('firstHeader(request, "x-access-kit-action"');
+    expect(source).not.toContain('firstHeader(request, "x-access-kit-subject"');
+    expect(source).not.toContain('firstHeader(request, "x-access-kit-resource"');
+    expect(source).not.toContain('firstHeader(request, "x-subject-id"');
     expect(source).toContain("DecisionLogEntry");
 
     const denialResponse = source.slice(source.indexOf("type DenialResponse"), source.indexOf("func NewExtAuthzHandler"));
@@ -73,6 +82,8 @@ describe("Go Envoy ext-authz PEP example", () => {
     expect(readme).toContain("go run ./cmd/policy-test-ci");
     expect(readme).toContain("go run ./cmd/ext-authz");
     expect(readme).toContain("failure_mode_allow: false");
+    expect(readme).toContain("x-access-kit-trusted-subject");
+    expect(readme).toContain("Do not let callers choose");
     expect(readme).toContain("Relationship paths, sensitive subject IDs, route paths, and decision IDs stay out");
     expect(readme).not.toMatch(/sk-[A-Za-z0-9]/);
   });
@@ -85,9 +96,14 @@ describe("Go Envoy ext-authz PEP example", () => {
     expect(serialized).toContain("envoy.filters.http.ext_authz");
     expect(serialized).toContain("access_kit_go_ext_authz");
     expect(serialized).toContain("protected_app");
+    expect(serialized).toContain("x-access-kit-trusted-subject");
     expect(serialized).toContain("x-correlation-id");
     expect(config).toContain("failure_mode_allow: false");
     expect(config).not.toContain("failure_mode_allow: true");
+    expect(config).not.toContain("x-subject-id");
+    expect(config).not.toContain("x-access-kit-action");
+    expect(config).not.toContain("x-access-kit-subject");
+    expect(config).not.toContain("x-access-kit-resource");
   });
 });
 

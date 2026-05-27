@@ -106,8 +106,7 @@ func TestExtAuthzPropagatesCorrelationIDsAndLogsAllowDecisions(t *testing.T) {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/authorize", nil)
 	request.Header.Set("x-correlation-id", "corr:go-allow")
-	request.Header.Set("x-subject-id", "user:alice")
-	request.Header.Set("x-access-kit-resource", "document:case-plan")
+	request.Header.Set(TrustedSubjectHeader, "user:alice")
 
 	handler.ServeHTTP(response, request)
 
@@ -141,8 +140,7 @@ func TestExtAuthzDeniesByDefaultAndRedactsSensitivePaths(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/authorize", nil)
 	request.Header.Set("x-correlation-id", "corr:go-deny")
 	request.Header.Set("x-local-admin", "true")
-	request.Header.Set("x-subject-id", "user:external-reviewer")
-	request.Header.Set("x-access-kit-resource", "document:case-plan")
+	request.Header.Set(TrustedSubjectHeader, "user:external-reviewer")
 
 	handler.ServeHTTP(response, request)
 
@@ -176,8 +174,7 @@ func TestExtAuthzFailsClosedWhenAccessKitFails(t *testing.T) {
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/authorize", nil)
 	request.Header.Set("x-correlation-id", "corr:go-auth-failure")
-	request.Header.Set("x-subject-id", "user:alice")
-	request.Header.Set("x-access-kit-resource", "document:case-plan")
+	request.Header.Set(TrustedSubjectHeader, "user:alice")
 
 	handler.ServeHTTP(response, request)
 
@@ -206,13 +203,48 @@ func TestExtAuthzGeneratesStableRequestCorrelationID(t *testing.T) {
 
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/authorize", nil)
-	request.Header.Set("x-subject-id", "user:alice")
-	request.Header.Set("x-access-kit-resource", "document:case-plan")
+	request.Header.Set(TrustedSubjectHeader, "user:alice")
 
 	handler.ServeHTTP(response, request)
 
 	if response.Header().Get("x-correlation-id") != "corr:go-envoy:42" {
 		t.Fatalf("generated correlation ID was not stable for request: %s", response.Header().Get("x-correlation-id"))
+	}
+}
+
+func TestDefaultEnvoyDecisionRequestIgnoresSpoofedDownstreamAuthzTupleHeaders(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/protected/case-plan?debug=true", nil)
+	request.Header.Set(TrustedSubjectHeader, "user:alice")
+	request.Header.Set("x-access-kit-subject", "user:external-reviewer")
+	request.Header.Set("x-subject-id", "user:external-reviewer")
+	request.Header.Set("x-access-kit-action", "admin")
+	request.Header.Set("x-access-kit-resource", "document:restricted-notes")
+
+	decisionRequest, err := DefaultEnvoyDecisionRequest(request)
+	if err != nil {
+		t.Fatalf("default mapper rejected trusted metadata: %v", err)
+	}
+
+	if decisionRequest.SubjectID != "user:alice" {
+		t.Fatalf("default mapper used spoofed subject header: %+v", decisionRequest)
+	}
+	if decisionRequest.Action != "read" {
+		t.Fatalf("default mapper used spoofed action header: %+v", decisionRequest)
+	}
+	if decisionRequest.ResourceID != "route:/protected/case-plan" {
+		t.Fatalf("default mapper used spoofed resource header: %+v", decisionRequest)
+	}
+}
+
+func TestDefaultEnvoyDecisionRequestRequiresTrustedSubjectHeader(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/protected/case-plan", nil)
+	request.Header.Set("x-access-kit-subject", "user:alice")
+	request.Header.Set("x-subject-id", "user:alice")
+	request.Header.Set("x-access-kit-resource", "document:case-plan")
+
+	_, err := DefaultEnvoyDecisionRequest(request)
+	if err == nil || !strings.Contains(err.Error(), TrustedSubjectHeader) {
+		t.Fatalf("default mapper accepted only downstream subject headers: %v", err)
 	}
 }
 

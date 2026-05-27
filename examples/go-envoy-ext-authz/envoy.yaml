@@ -35,11 +35,8 @@ static_resources:
                         authorization_request:
                           allowed_headers:
                             patterns:
-                              - exact: x-access-kit-action
-                              - exact: x-access-kit-resource
-                              - exact: x-access-kit-subject
+                              - exact: x-access-kit-trusted-subject
                               - exact: x-correlation-id
-                              - exact: x-subject-id
                               - exact: x-envoy-original-path
                         authorization_response:
                           allowed_upstream_headers:

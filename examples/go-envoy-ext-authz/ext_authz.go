@@ -57,6 +57,8 @@ type DenialResponse struct {
 	ReasonCode    string `json:"reasonCode"`
 }
 
+const TrustedSubjectHeader = "x-access-kit-trusted-subject"
+
 func NewExtAuthzHandler(config ExtAuthzConfig) (http.Handler, error) {
 	if config.Client == nil {
 		return nil, errors.New("access kit client is required")
@@ -92,22 +94,15 @@ func NewExtAuthzHandler(config ExtAuthzConfig) (http.Handler, error) {
 }
 
 func DefaultEnvoyDecisionRequest(request *http.Request) (DecisionRequest, error) {
-	action := firstHeader(request, "x-access-kit-action")
-	subjectID := firstHeader(request, "x-access-kit-subject", "x-subject-id")
-	resourceID := firstHeader(request, "x-access-kit-resource")
-	if action == "" {
-		action = actionFromMethod(request.Method)
-	}
-
-	if resourceID == "" {
-		resourceID = routeResourceID(request)
-	}
+	action := actionFromMethod(request.Method)
+	subjectID := firstHeader(request, TrustedSubjectHeader)
+	resourceID := routeResourceID(request)
 
 	if subjectID == "" {
-		return DecisionRequest{}, errors.New("missing subject header")
+		return DecisionRequest{}, fmt.Errorf("missing trusted subject header %s", TrustedSubjectHeader)
 	}
 	if resourceID == "" {
-		return DecisionRequest{}, errors.New("missing resource header")
+		return DecisionRequest{}, errors.New("missing route resource")
 	}
 
 	return DecisionRequest{
