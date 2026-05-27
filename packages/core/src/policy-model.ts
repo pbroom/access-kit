@@ -267,7 +267,9 @@ export function validatePolicyModel(model: PolicyModel): PolicyModelValidationRe
     addCheck(check);
   }
   addCheck(checkCaveats(model));
-  addCheck(checkConditionalRelationships(model, relationNames, actionNames));
+  for (const check of checkConditionalRelationships(model, relationNames, actionNames)) {
+    addCheck(check);
+  }
   addCheck(checkExplanationPolicy(model));
   addCheck(checkMigrations(model));
   addCheck(checkGeneratedMetadata(model));
@@ -537,29 +539,49 @@ function checkConditionalRelationships(
   model: PolicyModel,
   relationNames: Set<string>,
   actionNames: Set<string>
-): PolicyModelValidationCheck {
+): PolicyModelValidationCheck[] {
   const caveatNames = new Set((model.caveats ?? []).map((caveat) => caveat.name));
+  const relationActionBindings = new Set<string>();
 
   for (const conditional of model.conditionalRelationships ?? []) {
     if (!relationNames.has(conditional.relation)) {
-      return fail("conditional_relationships_known", `Conditional relationship references unknown relation ${conditional.relation}.`);
+      return [fail("conditional_relationships_known", `Conditional relationship references unknown relation ${conditional.relation}.`)];
     }
     if (conditional.caveats.length === 0) {
-      return fail("conditional_relationships_caveats_known", `Conditional relationship ${conditional.relation} must name at least one caveat.`);
+      return [fail("conditional_relationships_caveats_known", `Conditional relationship ${conditional.relation} must name at least one caveat.`)];
     }
     for (const caveat of conditional.caveats) {
       if (!caveatNames.has(caveat)) {
-        return fail("conditional_relationships_caveats_known", `Conditional relationship ${conditional.relation} references unknown caveat ${caveat}.`);
+        return [fail("conditional_relationships_caveats_known", `Conditional relationship ${conditional.relation} references unknown caveat ${caveat}.`)];
       }
+    }
+    if (conditional.actions?.length === 0) {
+      return [fail("conditional_relationships_actions_known", `Conditional relationship ${conditional.relation} must name at least one action when actions are declared.`)];
     }
     for (const action of conditional.actions ?? []) {
       if (!actionNames.has(action)) {
-        return fail("conditional_relationships_actions_known", `Conditional relationship ${conditional.relation} references unknown action ${action}.`);
+        return [fail("conditional_relationships_actions_known", `Conditional relationship ${conditional.relation} references unknown action ${action}.`)];
       }
+    }
+
+    const scopedActions = conditional.actions ?? [...actionNames].sort();
+    const uniqueScopedActions = new Set(scopedActions);
+    if (uniqueScopedActions.size !== scopedActions.length) {
+      return [fail("conditional_relationships_unique", `Conditional relationship ${conditional.relation} declares duplicate actions.`)];
+    }
+    for (const action of uniqueScopedActions) {
+      const binding = `${conditional.relation}:${action}`;
+      if (relationActionBindings.has(binding)) {
+        return [fail("conditional_relationships_unique", `Conditional relationship ${conditional.relation} has duplicate conditionals for action ${action}.`)];
+      }
+      relationActionBindings.add(binding);
     }
   }
 
-  return pass("conditional_relationships_known", "Conditional relationships reference known relations, actions, and caveats.");
+  return [
+    pass("conditional_relationships_unique", "Conditional relationship relation/action bindings are unique."),
+    pass("conditional_relationships_known", "Conditional relationships reference known relations, actions, and caveats.")
+  ];
 }
 
 function checkExplanationPolicy(model: PolicyModel): PolicyModelValidationCheck {

@@ -184,6 +184,61 @@ describe("policy model validation", () => {
     );
   });
 
+  it("rejects duplicate conditional relationship relation/action bindings", () => {
+    const model = cloneDefaultModel();
+    model.contextConstraints = [
+      { key: "riskScore", type: "number", required: true, auditable: true, min: 0, max: 100 }
+    ];
+    model.caveats = [
+      {
+        name: "low-risk-context",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "context", key: "riskScore", type: "number", operator: "less_than_or_equal", value: 35 }
+        ]
+      },
+      {
+        name: "additional-review",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "context", key: "riskScore", type: "number", operator: "greater_than_or_equal", value: 0 }
+        ]
+      }
+    ];
+    model.conditionalRelationships = [
+      { relation: "reader_of", actions: ["read"], caveats: ["low-risk-context"] },
+      { relation: "reader_of", actions: ["read"], caveats: ["additional-review"] }
+    ];
+
+    const result = validatePolicyModel(model);
+
+    expect(result.valid).toBe(false);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "conditional_relationships_unique", status: "fail" })
+      ])
+    );
+
+    const wildcardModel = cloneDefaultModel();
+    wildcardModel.contextConstraints = model.contextConstraints;
+    wildcardModel.caveats = model.caveats;
+    wildcardModel.conditionalRelationships = [
+      { relation: "reader_of", caveats: ["low-risk-context"] },
+      { relation: "reader_of", actions: ["read"], caveats: ["additional-review"] }
+    ];
+
+    const wildcardResult = validatePolicyModel(wildcardModel);
+
+    expect(wildcardResult.valid).toBe(false);
+    expect(wildcardResult.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "conditional_relationships_unique", status: "fail" })
+      ])
+    );
+  });
+
   it("rejects equality caveats for datetime inputs", () => {
     const model = cloneDefaultModel();
     model.contextConstraints = [

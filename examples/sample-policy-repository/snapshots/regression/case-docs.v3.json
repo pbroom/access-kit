@@ -45,6 +45,88 @@
       }
     },
     {
+      "name": "managed case team reads restricted summary within classification boundary",
+      "coverage": [
+        {
+          "kind": "classification-boundary",
+          "classification": "restricted",
+          "control": "classification.allowedActions",
+          "expectation": "positive"
+        }
+      ],
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:restricted-summary",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 22,
+          "businessJustification": "case review",
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "relationshipPath": [
+          {
+            "subjectId": "user:alice",
+            "relation": "member_of",
+            "objectId": "group:case-team"
+          },
+          {
+            "subjectId": "group:case-team",
+            "relation": "reader_of",
+            "objectId": "workspace:case"
+          },
+          {
+            "subjectId": "workspace:case",
+            "relation": "contains",
+            "objectId": "document:restricted-summary"
+          }
+        ]
+      }
+    },
+    {
+      "name": "managed reader cannot write restricted summary",
+      "coverage": [
+        {
+          "kind": "classification-boundary",
+          "classification": "restricted",
+          "control": "classification.allowedActions",
+          "expectation": "negative"
+        }
+      ],
+      "request": {
+        "subjectId": "user:alice",
+        "action": "write",
+        "resourceId": "document:restricted-summary",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 22,
+          "businessJustification": "case update",
+          "supportEscalationApproved": true,
+          "deviceTrustLevel": "managed",
+          "accessTime": "2026-05-26T12:00:00.000Z"
+        }
+      },
+      "expected": {
+        "decision": "deny",
+        "reasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v3",
+        "relationshipVersion": "tuple-set:case-docs-v3",
+        "relationshipPath": []
+      }
+    },
+    {
       "name": "missing device context fails closed",
       "request": {
         "subjectId": "user:alice",

@@ -392,13 +392,21 @@ function evaluateConditionalRelationshipCaveats(input: {
     !conditional.actions || conditional.actions.includes(input.request.action)
   );
   const explanations: JsonRecord[] = [];
-  const evaluatedCaveatNames = new Set<string>();
 
   for (const step of input.relationshipPath) {
-    const conditional = conditionalRelationships.find((entry) => entry.relation === step.relation);
-    if (!conditional) {
+    const matchingConditionals = conditionalRelationships.filter((entry) => entry.relation === step.relation);
+    if (matchingConditionals.length === 0) {
       continue;
     }
+    if (matchingConditionals.length > 1) {
+      explanations.push(caveatExplanation("duplicate-conditional-relationship", step.relation, "invalid", "DENY_POLICY_CAVEAT_INVALID", []));
+      return {
+        allow: false,
+        reasonCode: "DENY_POLICY_CAVEAT_INVALID",
+        constraints: caveatConstraints(input.policyModel, explanations)
+      };
+    }
+    const [conditional] = matchingConditionals;
 
     const relationship = input.relationships.find((entry) =>
       entry.subjectId === step.subjectId && entry.relation === step.relation && entry.objectId === step.objectId
@@ -416,10 +424,6 @@ function evaluateConditionalRelationshipCaveats(input: {
           constraints: caveatConstraints(input.policyModel, explanations)
         };
       }
-      if (evaluatedCaveatNames.has(caveat.name)) {
-        continue;
-      }
-      evaluatedCaveatNames.add(caveat.name);
 
       const conditionResults = caveat.conditions.map((condition) =>
         evaluateCaveatCondition({

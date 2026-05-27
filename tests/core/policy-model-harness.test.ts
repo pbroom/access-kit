@@ -314,14 +314,79 @@ describe("policy model test harness", () => {
     const repeatedCaveats = repeatedRelation.constraints.policyCaveats as { results: unknown[] };
 
     expect(repeatedRelation.relationshipPath.map((step) => step.relation)).toEqual(["reader_of", "reader_of"]);
-    expect(repeatedCaveats.results).toHaveLength(1);
+    expect(repeatedCaveats.results).toHaveLength(2);
     expect(repeatedCaveats.results).toEqual([
+      expect.objectContaining({
+        caveat: "low-risk-managed-device",
+        relation: "reader_of",
+        status: "pass"
+      }),
       expect.objectContaining({
         caveat: "low-risk-managed-device",
         relation: "reader_of",
         status: "pass"
       })
     ]);
+
+    const edgeModel = createRelationshipEdgePolicyModel();
+    const approvedPath = new RebacDecisionEngine(
+      tenantStore([
+        {
+          ...tuple("relationship:alice-case-team-reader", "user:alice", "reader_of", "group:case-team", "tenant:a"),
+          attributes: { tenantId: "tenant:a", caveatApproved: true }
+        },
+        {
+          ...tuple("relationship:case-team-document-reader", "group:case-team", "reader_of", "document:case-plan", "tenant:a"),
+          attributes: { tenantId: "tenant:a", caveatApproved: true }
+        }
+      ]),
+      {
+        now: () => now,
+        policyModel: edgeModel
+      }
+    ).explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(approvedPath.decision).toBe("allow");
+    expect((approvedPath.constraints.policyCaveats as { results: unknown[] }).results).toHaveLength(2);
+
+    const unapprovedSecondEdge = new RebacDecisionEngine(
+      tenantStore([
+        {
+          ...tuple("relationship:alice-case-team-reader", "user:alice", "reader_of", "group:case-team", "tenant:a"),
+          attributes: { tenantId: "tenant:a", caveatApproved: true }
+        },
+        tuple("relationship:case-team-document-reader", "group:case-team", "reader_of", "document:case-plan", "tenant:a")
+      ]),
+      {
+        now: () => now,
+        policyModel: edgeModel
+      }
+    ).explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    expect(unapprovedSecondEdge).toMatchObject({
+      decision: "deny",
+      reasonCode: "DENY_POLICY_EDGE_CAVEAT_UNSATISFIED",
+      relationshipPath: [
+        {
+          subjectId: "user:alice",
+          relation: "reader_of",
+          objectId: "group:case-team"
+        },
+        {
+          subjectId: "group:case-team",
+          relation: "reader_of",
+          objectId: "document:case-plan"
+        }
+      ]
+    });
 
     const missingDevice = new RebacDecisionEngine(store, {
       now: () => now,
@@ -446,6 +511,24 @@ function createAdvancedPolicyModel(): PolicyModel {
     includeContextKeys: ["riskScore", "deviceTrustLevel", "accessTime"],
     includeCaveatNames: ["low-risk-managed-device"]
   };
+  return model;
+}
+
+function createRelationshipEdgePolicyModel(): PolicyModel {
+  const model = createDefaultPolicyModel();
+  model.caveats = [
+    {
+      name: "edge-approved-read",
+      failClosed: true,
+      reasonCode: "DENY_POLICY_EDGE_CAVEAT_UNSATISFIED",
+      conditions: [
+        { source: "relationship", key: "caveatApproved", type: "boolean", operator: "equals", value: true }
+      ]
+    }
+  ];
+  model.conditionalRelationships = [
+    { relation: "reader_of", actions: ["read"], caveats: ["edge-approved-read"] }
+  ];
   return model;
 }
 

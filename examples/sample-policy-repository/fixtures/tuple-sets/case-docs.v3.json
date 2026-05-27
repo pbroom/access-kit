@@ -100,6 +100,23 @@
       "createdAt": "2026-05-26T00:00:00.000Z"
     },
     {
+      "id": "document:restricted-summary",
+      "type": "document",
+      "displayName": "Restricted Summary",
+      "sourceSystem": "sample-policy-repo",
+      "ownerId": "user:alice",
+      "dataStewardId": "user:alice",
+      "technicalOwnerId": "user:alice",
+      "classification": "restricted",
+      "lifecycleState": "active",
+      "parentId": "workspace:case",
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "resource:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
       "id": "document:foreign-plan",
       "type": "document",
       "displayName": "Foreign Plan",
@@ -150,6 +167,20 @@
       "subjectId": "workspace:case",
       "relation": "contains",
       "objectId": "document:case-plan",
+      "sourceSystem": "sample-policy-repo",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:a"
+      },
+      "version": "tuple:case-docs-v3",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
+      "id": "relationship:workspace-restricted-summary",
+      "subjectId": "workspace:case",
+      "relation": "contains",
+      "objectId": "document:restricted-summary",
       "sourceSystem": "sample-policy-repo",
       "assertedAt": "2026-05-26T00:00:00.000Z",
       "status": "active",
