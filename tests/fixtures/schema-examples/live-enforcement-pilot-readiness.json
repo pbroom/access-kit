@@ -39,6 +39,7 @@
       "evidence": {
         "requiredApproverRoles": ["resource-owner", "security-engineer"],
         "minApprovers": 2,
+        "distinctApproverRoles": 2,
         "approvalExpiresMinutes": 30,
         "breakGlassProhibited": true,
         "incidentModeBlocksEnforcement": true

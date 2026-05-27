@@ -163,6 +163,7 @@ function checkNarrowWritePath(manifest: LiveEnforcementPilotManifest): LiveEnfor
   const passed =
     manifest.connector.mode === "enforcement" &&
     manifest.connector.liveWritesOptIn &&
+    manifest.connector.allowedWriteScopes.length > 0 &&
     manifest.writePath.operation === "revoke_native_grant" &&
     manifest.writePath.scope === "single_resource_direct_grant" &&
     manifest.writePath.maxActionsPerChange === 1 &&
@@ -214,8 +215,10 @@ function checkReadOnlyConfidence(manifest: LiveEnforcementPilotManifest): LiveEn
 
 function checkApprovalWorkflow(manifest: LiveEnforcementPilotManifest): LiveEnforcementPilotReadinessCheck {
   const approval = manifest.approvalWorkflow;
+  const uniqueApproverRoles = new Set(approval.requiredApproverRoles);
   const passed =
     approval.requiredApproverRoles.length >= approval.minApprovers &&
+    uniqueApproverRoles.size === approval.requiredApproverRoles.length &&
     approval.minApprovers >= 2 &&
     approval.separationOfDuties &&
     approval.changeTicketPattern.length > 0 &&
@@ -234,6 +237,7 @@ function checkApprovalWorkflow(manifest: LiveEnforcementPilotManifest): LiveEnfo
     evidence: {
       requiredApproverRoles: approval.requiredApproverRoles,
       minApprovers: approval.minApprovers,
+      distinctApproverRoles: uniqueApproverRoles.size,
       approvalExpiresMinutes: approval.approvalExpiresMinutes,
       breakGlassProhibited: approval.breakGlassProhibited,
       incidentModeBlocksEnforcement: approval.incidentModeBlocksEnforcement

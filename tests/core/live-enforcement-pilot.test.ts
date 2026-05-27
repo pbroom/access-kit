@@ -52,7 +52,93 @@ describe("live enforcement pilot readiness", () => {
       status: "fail"
     }));
   });
+
+  it("blocks pilot writes without explicit approved write scopes", () => {
+    expectBlocked(
+      {
+        ...createManifest(),
+        connector: {
+          ...createManifest().connector,
+          allowedWriteScopes: []
+        }
+      },
+      "pilot_write_path_narrowly_scoped"
+    );
+  });
+
+  it("blocks pilot writes without enough read-only confidence", () => {
+    expectBlocked(
+      {
+        ...createManifest(),
+        readOnlyConfidence: {
+          ...createManifest().readOnlyConfidence,
+          successfulRuns: 2
+        }
+      },
+      "read_only_confidence_before_writes"
+    );
+  });
+
+  it("blocks approval workflows without distinct approver roles and incident gating", () => {
+    expectBlocked(
+      {
+        ...createManifest(),
+        approvalWorkflow: {
+          ...createManifest().approvalWorkflow,
+          requiredApproverRoles: ["resource-owner", "resource-owner"],
+          incidentModeBlocksEnforcement: false
+        }
+      },
+      "approval_workflow_release_gate"
+    );
+  });
+
+  it("blocks pilot writes without required verification audit events", () => {
+    expectBlocked(
+      {
+        ...createManifest(),
+        verification: {
+          ...createManifest().verification,
+          auditEventTypes: ["connector.enforcement_readiness_checked"]
+        }
+      },
+      "verification_and_rollback_hooks"
+    );
+  });
+
+  it("blocks pilot writes when required operational runbooks are missing", () => {
+    expectBlocked(
+      {
+        ...createManifest(),
+        runbookRefs: ["runbooks/emergency-revocation.md"]
+      },
+      "operational_runbooks_present"
+    );
+  });
+
+  it("blocks pilot writes with outstanding release blockers", () => {
+    expectBlocked(
+      {
+        ...createManifest(),
+        releaseGate: {
+          ...createManifest().releaseGate,
+          outstandingBlockers: ["assessor approval pending"]
+        }
+      },
+      "release_gate_ready_without_blockers"
+    );
+  });
 });
+
+function expectBlocked(manifest: LiveEnforcementPilotManifest, checkName: string): void {
+  const report = assessLiveEnforcementPilotReadiness(manifest, "2026-05-26T00:00:00.000Z");
+
+  expect(report.status).toBe("blocked");
+  expect(report.checks).toContainEqual(expect.objectContaining({
+    name: checkName,
+    status: "fail"
+  }));
+}
 
 function createManifest(): LiveEnforcementPilotManifest {
   return {
