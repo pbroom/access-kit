@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T17:54:41.925Z
+Generated at: 2026-05-27T02:00:51.285Z
 
 Branch: codex/rebac-runbook-exercise-evidence
 
@@ -129,8 +129,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  13:54:34
-   Duration  426ms (transform 177ms, setup 0ms, import 297ms, tests 34ms, environment 0ms)
+   Start at  22:00:42
+   Duration  529ms (transform 219ms, setup 0ms, import 363ms, tests 38ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -200,8 +200,8 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 
  Test Files  8 passed (8)
       Tests  123 passed (123)
-   Start at  13:54:38
-   Duration  375ms (transform 1.07s, setup 0ms, import 1.35s, tests 109ms, environment 0ms)
+   Start at  22:00:46
+   Duration  499ms (transform 1.09s, setup 0ms, import 1.68s, tests 132ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -216,8 +216,8 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 
  Test Files  4 passed (4)
       Tests  97 passed (97)
-   Start at  13:54:39
-   Duration  723ms (transform 692ms, setup 0ms, import 1.04s, tests 343ms, environment 0ms)
+   Start at  22:00:47
+   Duration  921ms (transform 822ms, setup 0ms, import 1.26s, tests 464ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -228,8 +228,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-runbook-exercise-evidence
 
  Test Files  1 passed (1)
       Tests  11 passed (11)
-   Start at  13:54:40
-   Duration  287ms (transform 142ms, setup 0ms, import 172ms, tests 23ms, environment 0ms)
+   Start at  22:00:49
+   Duration  346ms (transform 171ms, setup 0ms, import 213ms, tests 26ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -244,8 +244,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-runbook-exercise-evidence
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  13:54:41
-   Duration  478ms (transform 503ms, setup 0ms, import 871ms, tests 162ms, environment 0ms)
+   Start at  22:00:50
+   Duration  574ms (transform 587ms, setup 0ms, import 1.05s, tests 200ms, environment 0ms)
 ```
 
 

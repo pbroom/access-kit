@@ -15,7 +15,7 @@ Production teams can use the same schema for real deployment evidence after repl
 Runbook exercise records use `schemas/runbook-exercise.schema.json` and must include:
 
 - Deployment scope: environment, deployment ID, tenant boundary, data source, and live-tenant-data flag.
-- Classification: `rehearsed_proof`, `assessorApproved: false`, and `productionOperation: false` for local or staging rehearsals.
+- Classification: `rehearsed_proof`, `assessorApproved: false`, and `productionOperation: false` for local or staging rehearsals; production exercise records must use deployment-specific assessor approval values.
 - Redaction: synthetic-data marker, sensitive-data exclusion, and explicit redaction rules.
 - Scenario coverage: incident response, break-glass, backup and restore, contingency, emergency revocation, SIEM replay, and post-action review.
 - Retention: backend, retained location, retention period, package hash, and immutable-storage marker.
@@ -51,5 +51,6 @@ corepack pnpm validate:docs
 
 - Do not include secrets, tokens, live tenant IDs, provider payloads, production emails, or named people.
 - Store role labels, scenario IDs, event IDs, counts, status, hashes, and artifact references instead of raw operational payloads.
+- Replace sample `packageHash` values with the SHA-256 digest for the retained package before using a record as retention evidence.
 - Keep local and staging examples marked as rehearsed proof until an assessor approves deployment-specific operations evidence.
 - Preserve gaps and residual-risk statements instead of silently converting rehearsal evidence into production-readiness claims.

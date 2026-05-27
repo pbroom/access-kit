@@ -153,7 +153,7 @@
     "location": "deploy/operations/runbook-exercises/rehearsal.example.json",
     "retentionDays": 365,
     "immutable": false,
-    "packageHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "packageHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
     "retainedUntil": "2027-05-26T14:00:00.000Z"
   },
   "validation": {

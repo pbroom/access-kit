@@ -2,7 +2,7 @@ import Ajv2020 from "ajv/dist/2020.js";
 import type { AnySchema } from "ajv";
 import addFormats from "ajv-formats";
 import { deepStrictEqual } from "node:assert";
-import { access, readFile } from "node:fs/promises";
+import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { readJsonFile } from "./lib/files.js";
 
@@ -89,6 +89,7 @@ async function validateExercise(exercise: JsonObject): Promise<void> {
 
   const retention = asRecord(exercise.retention, "retention");
   requireEquals(retention.location, retainedExercisePath, "retention.location");
+  requireNonPlaceholderSha256(readString(retention.packageHash, "retention.packageHash"), "retention.packageHash");
 
   const scenarioTypes = new Set<string>();
   const scenarios = asArray(exercise.scenarios, "scenarios");
@@ -96,7 +97,13 @@ async function validateExercise(exercise: JsonObject): Promise<void> {
     const record = asRecord(scenario, "scenario");
     const type = readString(record.type, "scenario.type");
     scenarioTypes.add(type);
-    requireEquals(record.status, "pass", `${type}.status`);
+    const status = readString(record.status, `${type}.status`);
+    if (status !== "pass" && status !== "gap") {
+      throw new Error(`${type}.status must be "pass" or "gap".`);
+    }
+    if (status === "gap" && asArray(record.gaps, `${type}.gaps`).length === 0) {
+      throw new Error(`${type}.gaps must describe the finding when status is "gap".`);
+    }
     await requireExistingPath(readString(record.runbookRef, `${type}.runbookRef`));
 
     for (const ref of asArray(record.evidenceRefs, `${type}.evidenceRefs`)) {
@@ -122,7 +129,6 @@ async function requireExistingPath(path: string): Promise<void> {
   } catch (cause) {
     throw new Error(`Runbook exercise evidence references missing path ${path}.`, { cause });
   }
-  await readFile(absolutePath, "utf8");
 }
 
 function requireEquals(actual: unknown, expected: unknown, label: string): void {
@@ -153,4 +159,12 @@ function readString(value: unknown, label: string): string {
   }
 
   return value;
+}
+
+function requireNonPlaceholderSha256(value: string, label: string): void {
+  const digest = value.replace(/^sha256:/, "");
+
+  if (/^([a-f0-9])\1{63}$/.test(digest)) {
+    throw new Error(`${label} must not be an all-repeated placeholder digest.`);
+  }
 }

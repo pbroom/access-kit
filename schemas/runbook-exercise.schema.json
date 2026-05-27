@@ -70,9 +70,9 @@
       "additionalProperties": false,
       "required": ["evidenceKind", "assessorApproved", "productionOperation", "approvalStatement"],
       "properties": {
-        "evidenceKind": { "type": "string", "const": "rehearsed_proof" },
-        "assessorApproved": { "type": "boolean", "const": false },
-        "productionOperation": { "type": "boolean", "const": false },
+        "evidenceKind": { "type": "string", "enum": ["rehearsed_proof", "production_exercise"] },
+        "assessorApproved": { "type": "boolean" },
+        "productionOperation": { "type": "boolean" },
         "approvalStatement": { "type": "string", "minLength": 1 }
       }
     },
@@ -92,7 +92,7 @@
       "required": ["status", "syntheticData", "sensitiveDataIncluded", "rules"],
       "properties": {
         "status": { "type": "string", "const": "redacted" },
-        "syntheticData": { "type": "boolean", "const": true },
+        "syntheticData": { "type": "boolean" },
         "sensitiveDataIncluded": { "type": "boolean", "const": false },
         "rules": {
           "type": "array",
