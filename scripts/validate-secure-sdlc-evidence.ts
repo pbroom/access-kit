@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
+import { isAbsolute, resolve, sep } from "node:path";
 
-const manifestPath = "release/security-evidence/ak-044-secure-sdlc.example.json";
+const repoRoot = process.cwd();
+const manifestPath = process.env.REBAC_SECURE_SDLC_MANIFEST ?? "release/security-evidence/ak-044-secure-sdlc.example.json";
 const requiredCategories = [
   "sast",
   "dast",
@@ -146,9 +148,7 @@ function validateArtifact(artifact: SecureSdlcArtifact): void {
   }
 
   for (const evidencePath of artifact.evidencePaths) {
-    if (!existsSync(evidencePath)) {
-      throw new Error(`${artifact.category} evidence path does not exist: ${evidencePath}`);
-    }
+    requireRepoRelativeRetainedPath(evidencePath, `${artifact.category} evidence path`);
   }
 
   if (artifact.controls.length === 0) {
@@ -198,9 +198,7 @@ function readMitigationRefs(value: unknown, artifactIndex: number): MitigationRe
   return value.map((item, index) => {
     const mitigation = asRecord(item, `artifact ${artifactIndex} mitigationRefs[${index}]`);
     const evidencePath = readString(mitigation.evidencePath, `artifact ${artifactIndex} mitigationRefs[${index}] evidencePath`);
-    if (!existsSync(evidencePath)) {
-      throw new Error(`artifact ${artifactIndex} mitigationRefs[${index}] evidence path does not exist: ${evidencePath}`);
-    }
+    requireRepoRelativeRetainedPath(evidencePath, `artifact ${artifactIndex} mitigationRefs[${index}] evidence path`);
 
     return {
       abusePath: readAbusePath(mitigation.abusePath, `artifact ${artifactIndex} mitigationRefs[${index}] abusePath`),
@@ -208,6 +206,30 @@ function readMitigationRefs(value: unknown, artifactIndex: number): MitigationRe
       evidencePath
     };
   });
+}
+
+function requireRepoRelativeRetainedPath(repoPath: string, label: string): void {
+  if (isAbsolute(repoPath)) {
+    throw new Error(`${label} must be repo-relative, not absolute: ${repoPath}`);
+  }
+
+  const parts = repoPath.split("/");
+  if (repoPath.includes("\\") || parts.some((part) => part === "" || part === ".")) {
+    throw new Error(`${label} must be a normalized repo-relative path: ${repoPath}`);
+  }
+
+  if (parts.includes("..")) {
+    throw new Error(`${label} must not contain traversal segments: ${repoPath}`);
+  }
+
+  const resolved = resolve(repoRoot, repoPath);
+  if (resolved !== repoRoot && !resolved.startsWith(`${repoRoot}${sep}`)) {
+    throw new Error(`${label} must stay within the repository: ${repoPath}`);
+  }
+
+  if (!existsSync(resolved)) {
+    throw new Error(`${label} does not exist: ${repoPath}`);
+  }
 }
 
 function readCategory(value: unknown, label: string): SecureSdlcArtifact["category"] {
