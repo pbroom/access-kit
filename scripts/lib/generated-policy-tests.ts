@@ -129,6 +129,19 @@ export interface GeneratedExpectedDecision {
   policyVersion: string;
   relationshipVersion: string;
   relationshipPath: RelationshipPathStep[];
+  expectedControl?: GeneratedExpectedControl;
+}
+
+export type GeneratedExpectedControl = GeneratedClassificationBoundaryControl;
+
+export interface GeneratedClassificationBoundaryControl {
+  kind: "classification.allowedActions";
+  classification: string;
+  deniedAction: string;
+  allowedActions: string[];
+  resourceType: ResourceType;
+  resourceId: string;
+  wrongControlNegatives: Array<"relationship.noGrant" | "tenantBoundary" | "explicitDeny">;
 }
 
 export interface GeneratedMigrationRegressionSnapshot {
@@ -177,11 +190,13 @@ interface SelectedModelSurface {
   restrictedTargetType?: ResourceType;
   targetClassification: string;
   restrictedClassification?: string;
+  restrictedAllowedActions?: string[];
   readAction: PolicyModelActionMapping;
   writeAction?: PolicyModelActionMapping;
   membershipRelation?: PolicyModelRelation;
   containmentRelation?: PolicyModelRelation;
   readGrantRelation: string;
+  writeGrantRelation?: string;
   explicitDenyRelation?: string;
 }
 
@@ -343,8 +358,10 @@ function selectModelSurface(model: PolicyModel): SelectedModelSurface {
   const targetType = selectResourceType(model, ["document", "dataset", "api", "application", "workspace"]);
   const crossTenantTargetType = targetType;
   const targetClassification = selectClassification(model, targetType, ["confidential", "internal"]);
-  const restrictedClassification = findRestrictedClassification(model, writeAction);
+  const restrictedClassificationConstraint = findRestrictedClassificationConstraint(model, writeAction);
+  const restrictedClassification = restrictedClassificationConstraint?.classification;
   const restrictedTargetType = restrictedClassification ? targetType : undefined;
+  const writeGrantRelation = writeAction && restrictedClassification ? findGrantRelation(model, writeAction) : undefined;
 
   return {
     subjectType,
@@ -355,11 +372,13 @@ function selectModelSurface(model: PolicyModel): SelectedModelSurface {
     restrictedTargetType,
     targetClassification,
     restrictedClassification,
+    restrictedAllowedActions: restrictedClassificationConstraint?.allowedActions,
     readAction,
     writeAction,
     membershipRelation,
     containmentRelation,
     readGrantRelation,
+    writeGrantRelation,
     explicitDenyRelation
   };
 }
@@ -407,6 +426,11 @@ function generateTupleFixture(
       relationships.push(
         relationship("generated-restricted-containment", container.id, surface.containmentRelation.name, restrictedResource.id, tenantId)
       );
+      if (surface.writeGrantRelation) {
+        relationships.push(
+          relationship("generated-restricted-action-grant", grantSubjectId, surface.writeGrantRelation, container.id, tenantId)
+        );
+      }
     }
   } else {
     resources.push(targetResource, deniedResource, foreignResource);
@@ -414,6 +438,11 @@ function generateTupleFixture(
       resources.push(restrictedResource);
     }
     relationships.push(relationship("generated-read-grant", grantSubjectId, surface.readGrantRelation, targetResource.id, tenantId));
+    if (restrictedResource && surface.writeGrantRelation) {
+      relationships.push(
+        relationship("generated-restricted-action-grant", grantSubjectId, surface.writeGrantRelation, restrictedResource.id, tenantId)
+      );
+    }
     if (surface.explicitDenyRelation) {
       relationships.push(relationship("generated-read-grant-on-denied", grantSubjectId, surface.readGrantRelation, deniedResource.id, tenantId));
     }
@@ -512,7 +541,10 @@ function generateAuthorizationTests(
   surface: SelectedModelSurface
 ): GeneratedAuthorizationTest[] {
   const commonContext = generatedContext(model);
-  const tests: Array<Omit<GeneratedAuthorizationTest, "expected">> = [
+  type GeneratedAuthorizationTestDraft = Omit<GeneratedAuthorizationTest, "expected"> & {
+    expectedControl?: GeneratedExpectedControl;
+  };
+  const tests: GeneratedAuthorizationTestDraft[] = [
     {
       name: "generated reviewer can read through the starter relationship path",
       slug: "generated-reviewer-read-allowed",
@@ -554,7 +586,21 @@ function generateAuthorizationTests(
     });
   }
 
-  if (surface.writeAction && surface.restrictedTargetType && surface.restrictedClassification) {
+  if (
+    surface.writeAction &&
+    surface.restrictedTargetType &&
+    surface.restrictedClassification &&
+    surface.restrictedAllowedActions &&
+    surface.writeGrantRelation
+  ) {
+    const restrictedResourceId = findResourceId(tupleFixture, "generated-restricted-summary");
+    const expectedControl = classificationBoundaryExpectedControl({
+      action: surface.writeAction.name,
+      allowedActions: surface.restrictedAllowedActions,
+      classification: surface.restrictedClassification,
+      resourceId: restrictedResourceId,
+      resourceType: surface.restrictedTargetType
+    });
     tests.push({
       name: "generated restricted resource write remains denied",
       slug: "generated-restricted-write-denied",
@@ -563,21 +609,28 @@ function generateAuthorizationTests(
       coverageIntent: "Starter classification-boundary coverage marks where reviewers add explicit boundary and abuse cases.",
       generatedFrom: {
         action: surface.writeAction.name,
-        classification: surface.restrictedClassification
+        classification: surface.restrictedClassification,
+        expectedControl
       },
+      expectedControl,
       request: request(
         `${surface.subjectType}:generated-reviewer`,
         surface.writeAction.name,
-        findResourceId(tupleFixture, "generated-restricted-summary"),
+        restrictedResourceId,
         commonContext
       )
     });
   }
 
-  return tests.map((test) => ({
-    ...test,
-    expected: evaluateExpectedDecision(tupleFixture, test.request)
-  }));
+  return tests.map((test) => {
+    const { expectedControl, ...publicTest } = test;
+    return {
+      ...publicTest,
+      expected: expectedControl
+        ? evaluateExpectedDecisionForExpectedControl(tupleFixture, test.request, expectedControl)
+        : evaluateExpectedDecision(tupleFixture, test.request)
+    };
+  });
 
   function request(subjectId: string, action: string, resourceId: string, context: JsonRecord): DecisionRequest {
     return {
@@ -589,6 +642,24 @@ function generateAuthorizationTests(
       context
     };
   }
+}
+
+function classificationBoundaryExpectedControl(input: {
+  action: string;
+  allowedActions: string[];
+  classification: string;
+  resourceId: string;
+  resourceType: ResourceType;
+}): GeneratedClassificationBoundaryControl {
+  return {
+    kind: "classification.allowedActions",
+    classification: input.classification,
+    deniedAction: input.action,
+    allowedActions: [...input.allowedActions],
+    resourceType: input.resourceType,
+    resourceId: input.resourceId,
+    wrongControlNegatives: ["relationship.noGrant", "tenantBoundary", "explicitDeny"]
+  };
 }
 
 function evaluateExpectedDecision(
@@ -614,6 +685,27 @@ function evaluateExpectedDecision(
     policyVersion: result.policyVersion,
     relationshipVersion: result.relationshipVersion,
     relationshipPath: result.relationshipPath
+  };
+}
+
+function evaluateExpectedDecisionForExpectedControl(
+  tupleFixture: GeneratedTupleFixture,
+  request: DecisionRequest,
+  expectedControl: GeneratedExpectedControl
+): GeneratedExpectedDecision {
+  const uncontrolledDecision = evaluateExpectedDecision(tupleFixture, request);
+
+  if (uncontrolledDecision.decision !== "allow" || uncontrolledDecision.relationshipPath.length === 0) {
+    throw new Error(
+      `${tupleFixture.policyVersion} generated ${expectedControl.kind} case for ${expectedControl.classification} ${expectedControl.deniedAction} was denied by ${uncontrolledDecision.reasonCode} before the expected control.`
+    );
+  }
+
+  return {
+    ...uncontrolledDecision,
+    decision: "deny",
+    reasonCode: "DENY_CLASSIFICATION_BOUNDARY",
+    expectedControl
   };
 }
 
@@ -773,11 +865,14 @@ function findExplicitDenyRelation(denyRules: PolicyModelDenyRule[]): string | un
   return denyRules.find((rule) => !rule.actions || rule.actions.includes("read") || rule.actions.includes("view"))?.relation;
 }
 
-function findRestrictedClassification(model: PolicyModel, writeAction: PolicyModelActionMapping | undefined): string | undefined {
+function findRestrictedClassificationConstraint(
+  model: PolicyModel,
+  writeAction: PolicyModelActionMapping | undefined
+): PolicyModel["classificationConstraints"][number] | undefined {
   if (!writeAction) {
     return undefined;
   }
-  return model.classificationConstraints.find((constraint) => !constraint.allowedActions.includes(writeAction.name))?.classification;
+  return model.classificationConstraints.find((constraint) => !constraint.allowedActions.includes(writeAction.name));
 }
 
 function selectClassification(model: PolicyModel, resourceType: ResourceType, preferred: string[]): string {

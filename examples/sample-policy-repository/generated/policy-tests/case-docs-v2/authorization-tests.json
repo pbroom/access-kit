@@ -232,6 +232,20 @@
         "createdAt": "2026-05-26T00:00:00.000Z"
       },
       {
+        "id": "relationship:generated-restricted-action-grant",
+        "subjectId": "group:generated-review-team",
+        "relation": "contributor_to",
+        "objectId": "workspace:generated-workspace",
+        "sourceSystem": "generated-policy-tests",
+        "assertedAt": "2026-05-26T00:00:00.000Z",
+        "status": "active",
+        "attributes": {
+          "tenantId": "tenant:generated-review"
+        },
+        "version": "tuple:generated:tuple-set:case-docs-v2",
+        "createdAt": "2026-05-26T00:00:00.000Z"
+      },
+      {
         "id": "relationship:generated-explicit-deny",
         "subjectId": "group:generated-review-team",
         "relation": "denied",
@@ -408,7 +422,23 @@
       "coverageIntent": "Starter classification-boundary coverage marks where reviewers add explicit boundary and abuse cases.",
       "generatedFrom": {
         "action": "write",
-        "classification": "restricted"
+        "classification": "restricted",
+        "expectedControl": {
+          "kind": "classification.allowedActions",
+          "classification": "restricted",
+          "deniedAction": "write",
+          "allowedActions": [
+            "read",
+            "view"
+          ],
+          "resourceType": "document",
+          "resourceId": "document:generated-restricted-summary",
+          "wrongControlNegatives": [
+            "relationship.noGrant",
+            "tenantBoundary",
+            "explicitDeny"
+          ]
+        }
       },
       "request": {
         "subjectId": "user:generated-reviewer",
@@ -425,10 +455,42 @@
       },
       "expected": {
         "decision": "deny",
-        "reasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
+        "reasonCode": "DENY_CLASSIFICATION_BOUNDARY",
         "policyVersion": "policy:case-docs-v2",
         "relationshipVersion": "generated:tuple-set:case-docs-v2",
-        "relationshipPath": []
+        "relationshipPath": [
+          {
+            "subjectId": "user:generated-reviewer",
+            "relation": "member_of",
+            "objectId": "group:generated-review-team"
+          },
+          {
+            "subjectId": "group:generated-review-team",
+            "relation": "contributor_to",
+            "objectId": "workspace:generated-workspace"
+          },
+          {
+            "subjectId": "workspace:generated-workspace",
+            "relation": "contains",
+            "objectId": "document:generated-restricted-summary"
+          }
+        ],
+        "expectedControl": {
+          "kind": "classification.allowedActions",
+          "classification": "restricted",
+          "deniedAction": "write",
+          "allowedActions": [
+            "read",
+            "view"
+          ],
+          "resourceType": "document",
+          "resourceId": "document:generated-restricted-summary",
+          "wrongControlNegatives": [
+            "relationship.noGrant",
+            "tenantBoundary",
+            "explicitDeny"
+          ]
+        }
       }
     }
   ]

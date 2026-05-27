@@ -35,7 +35,8 @@ describe("generated policy test artifacts", () => {
         "ALLOW_VIA_RELATIONSHIP_PATH",
         "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
         "DENY_TENANT_BOUNDARY",
-        "DENY_EXPLICIT_OVERRIDE"
+        "DENY_EXPLICIT_OVERRIDE",
+        "DENY_CLASSIFICATION_BOUNDARY"
       ])
     );
 
@@ -47,6 +48,41 @@ describe("generated policy test artifacts", () => {
         "generated/policy-tests/case-docs-v2/example-requests/generated-reviewer-read-allowed.request.json",
         "generated/policy-tests/case-docs-v2/expected-results/generated-reviewer-read-allowed.expected.json"
       ])
+    );
+  });
+
+  it("binds generated classification-boundary cases to the expected policy control", async () => {
+    const generated = await generatePolicyTestArtifacts({ root: process.cwd() });
+    const v2Suite = generated.suites.find((suite) => suite.source.modelVersion === "policy:case-docs-v2");
+    const classificationBoundaryTest = v2Suite?.authorizationTests.find(
+      (test) => test.category === "classification-boundary"
+    );
+
+    expect(classificationBoundaryTest).toBeDefined();
+    expect(classificationBoundaryTest?.generatedFrom).toMatchObject({
+      action: "write",
+      classification: "restricted",
+      expectedControl: {
+        kind: "classification.allowedActions",
+        classification: "restricted",
+        deniedAction: "write",
+        allowedActions: ["read", "view"],
+        wrongControlNegatives: ["relationship.noGrant", "tenantBoundary", "explicitDeny"]
+      }
+    });
+    expect(classificationBoundaryTest?.expected).toMatchObject({
+      decision: "deny",
+      reasonCode: "DENY_CLASSIFICATION_BOUNDARY",
+      expectedControl: {
+        kind: "classification.allowedActions",
+        classification: "restricted",
+        deniedAction: "write",
+        allowedActions: ["read", "view"]
+      }
+    });
+    expect(classificationBoundaryTest?.expected.reasonCode).not.toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+    expect(classificationBoundaryTest?.expected.relationshipPath.map((step) => step.relation)).toEqual(
+      expect.arrayContaining(["contributor_to", "contains"])
     );
   });
 

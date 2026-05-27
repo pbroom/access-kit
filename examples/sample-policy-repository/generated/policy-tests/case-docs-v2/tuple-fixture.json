@@ -221,6 +221,20 @@
       "createdAt": "2026-05-26T00:00:00.000Z"
     },
     {
+      "id": "relationship:generated-restricted-action-grant",
+      "subjectId": "group:generated-review-team",
+      "relation": "contributor_to",
+      "objectId": "workspace:generated-workspace",
+      "sourceSystem": "generated-policy-tests",
+      "assertedAt": "2026-05-26T00:00:00.000Z",
+      "status": "active",
+      "attributes": {
+        "tenantId": "tenant:generated-review"
+      },
+      "version": "tuple:generated:tuple-set:case-docs-v2",
+      "createdAt": "2026-05-26T00:00:00.000Z"
+    },
+    {
       "id": "relationship:generated-explicit-deny",
       "subjectId": "group:generated-review-team",
       "relation": "denied",
