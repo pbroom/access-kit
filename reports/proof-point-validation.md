@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T05:33:14.876Z
+Generated at: 2026-05-28T05:35:11.521Z
 
 Branch: 
 
@@ -176,8 +176,8 @@ Node.js v24.4.1
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  01:33:07
-   Duration  293ms (transform 136ms, setup 0ms, import 212ms, tests 20ms, environment 0ms)
+   Start at  01:35:04
+   Duration  283ms (transform 135ms, setup 0ms, import 212ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -270,8 +270,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  01:33:10
-   Duration  246ms (transform 1.06s, setup 0ms, import 1.50s, tests 127ms, environment 0ms)
+   Start at  01:35:07
+   Duration  243ms (transform 1.04s, setup 0ms, import 1.49s, tests 126ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -286,8 +286,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  01:33:11
-   Duration  532ms (transform 924ms, setup 0ms, import 1.50s, tests 446ms, environment 0ms)
+   Start at  01:35:08
+   Duration  517ms (transform 894ms, setup 0ms, import 1.48s, tests 437ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -302,8 +302,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  01:33:12
-   Duration  426ms (transform 261ms, setup 0ms, import 443ms, tests 208ms, environment 0ms)
+   Start at  01:35:09
+   Duration  434ms (transform 309ms, setup 0ms, import 484ms, tests 206ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
@@ -320,8 +320,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  1 failed (1)
       Tests  1 failed | 5 passed (6)
-   Start at  01:33:13
-   Duration  156ms (transform 77ms, setup 0ms, import 95ms, tests 8ms, environment 0ms)
+   Start at  01:35:09
+   Duration  158ms (transform 77ms, setup 0ms, import 96ms, tests 8ms, environment 0ms)
 
  ELIFECYCLE  Command failed with exit code 1.
 
@@ -371,8 +371,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  01:33:13
-   Duration  229ms (transform 336ms, setup 0ms, import 450ms, tests 49ms, environment 0ms)
+   Start at  01:35:10
+   Duration  228ms (transform 332ms, setup 0ms, import 444ms, tests 48ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -387,8 +387,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-admin-app
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  01:33:14
-   Duration  328ms (transform 374ms, setup 0ms, import 636ms, tests 117ms, environment 0ms)
+   Start at  01:35:10
+   Duration  325ms (transform 370ms, setup 0ms, import 630ms, tests 116ms, environment 0ms)
 ```
 
 

@@ -297,12 +297,16 @@ export class SampleInternalAdminApplication {
         standingAdminAuthorization: false
       });
 
+      if (!request.breakGlass || !approval) {
+        throw new Error("Invariant violated: break-glass request and approval must be present after validation");
+      }
+
       return allowed(request, adminDecision, [...actionAuditEventIds, event.eventId], {
         approval,
         breakGlass: {
-          incidentId: request.breakGlass!.incidentId,
-          approvedUntil: approval!.expiresAt,
-          requestedMinutes: request.breakGlass!.requestedMinutes,
+          incidentId: request.breakGlass.incidentId,
+          approvedUntil: approval.expiresAt,
+          requestedMinutes: request.breakGlass.requestedMinutes,
           postActionReviewRequired: true,
           standingAdminAuthorization: false
         }
