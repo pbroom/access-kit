@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:00:18.461Z
+Generated at: 2026-05-28T03:01:06.029Z
 
-Branch: 
+Branch: codex/rebac-microsoft-m365-teams
 
 Node: v24.4.1
 
@@ -130,8 +130,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:00:13
-   Duration  271ms (transform 125ms, setup 0ms, import 199ms, tests 20ms, environment 0ms)
+   Start at  23:01:00
+   Duration  272ms (transform 126ms, setup 0ms, import 201ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -212,8 +212,8 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 
  Test Files  10 passed (10)
       Tests  148 passed (148)
-   Start at  23:00:15
-   Duration  223ms (transform 764ms, setup 0ms, import 1.09s, tests 104ms, environment 0ms)
+   Start at  23:01:03
+   Duration  223ms (transform 769ms, setup 0ms, import 1.08s, tests 100ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -228,8 +228,8 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 
  Test Files  4 passed (4)
       Tests  107 passed (107)
-   Start at  23:00:16
-   Duration  489ms (transform 502ms, setup 0ms, import 742ms, tests 248ms, environment 0ms)
+   Start at  23:01:04
+   Duration  492ms (transform 500ms, setup 0ms, import 740ms, tests 252ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -239,9 +239,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
 
 
  Test Files  3 passed (3)
-      Tests  37 passed (37)
-   Start at  23:00:17
-   Duration  211ms (transform 293ms, setup 0ms, import 404ms, tests 44ms, environment 0ms)
+      Tests  38 passed (38)
+   Start at  23:01:04
+   Duration  214ms (transform 297ms, setup 0ms, import 412ms, tests 45ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -256,8 +256,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:00:17
-   Duration  308ms (transform 349ms, setup 0ms, import 602ms, tests 105ms, environment 0ms)
+   Start at  23:01:05
+   Duration  308ms (transform 357ms, setup 0ms, import 602ms, tests 106ms, environment 0ms)
 ```
 
 

@@ -396,6 +396,38 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     expect(secondGrants).toEqual([]);
   });
 
+  it("preserves previous Microsoft Graph native grants when app-role readback is incomplete", async () => {
+    const app = createRebacLocalApp({ now: () => now });
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client: createPartialSecondSyncFixtureClient(),
+      tenantId: "tenant-live-123",
+      now: () => now,
+      maxRetries: 0,
+      sandboxEvidenceRef: "reports/microsoft-graph-sandbox-fixture.json"
+    });
+    app.connectors.set(MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, connector);
+    const applicationId = "application:entra:351056de453711cb";
+
+    await syncConnector(app, MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, "read_only");
+    const firstGrants = readNativeAccess(app, applicationId);
+    const second = await syncConnector(app, MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID, "read_only");
+    const secondGrants = readNativeAccess(app, applicationId);
+
+    expect(firstGrants).toEqual([
+      expect.objectContaining({ nativePermission: "appRole:Reader" })
+    ]);
+    expect(second.status).toBe("completed_with_warnings");
+    expect(second.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "GRAPH_COLLECTION_SKIPPED",
+        scope: "native_grants"
+      })
+    ]));
+    expect(secondGrants).toEqual([
+      expect.objectContaining({ nativePermission: "appRole:Reader" })
+    ]);
+  });
+
   it("awaits Microsoft Graph retryAfterSeconds before retrying throttled reads", async () => {
     const client = new FixtureGraphClient({
       "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
@@ -745,6 +777,58 @@ function createTwoSyncFixtureClient(): FixtureGraphClient {
         status: 200
       },
       { value: [], status: 200 }
+    ]
+  });
+}
+
+function createPartialSecondSyncFixtureClient(): FixtureGraphClient {
+  return new FixtureGraphClient({
+    "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
+      { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 },
+      { value: [{ id: "raw-user-1", displayName: "Alice Example", accountEnabled: true, userType: "Member" }], status: 200 }
+    ],
+    "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
+      { value: [{ id: "raw-group-1", displayName: "Case Reviewers", securityEnabled: true, groupTypes: [] }], status: 200 },
+      { value: [{ id: "raw-group-1", displayName: "Case Reviewers", securityEnabled: true, groupTypes: [] }], status: 200 }
+    ],
+    "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
+      {
+        value: [{
+          id: "raw-sp-1",
+          displayName: "Case Portal",
+          appId: "raw-app-id",
+          servicePrincipalType: "Application",
+          appRoles: [{ id: "raw-role-reader", displayName: "Reader", value: "Reader" }]
+        }],
+        status: 200
+      },
+      {
+        value: [{
+          id: "raw-sp-1",
+          displayName: "Case Portal",
+          appId: "raw-app-id",
+          servicePrincipalType: "Application",
+          appRoles: [{ id: "raw-role-reader", displayName: "Reader", value: "Reader" }]
+        }],
+        status: 200
+      }
+    ],
+    "/groups/raw-group-1/members?$select=id,displayName,userPrincipalName,appId,servicePrincipalType": [
+      { value: [{ id: "raw-user-1", "@odata.type": "#microsoft.graph.user", displayName: "Alice Example" }], status: 200 },
+      { value: [{ id: "raw-user-1", "@odata.type": "#microsoft.graph.user", displayName: "Alice Example" }], status: 200 }
+    ],
+    "/servicePrincipals/raw-sp-1/appRoleAssignedTo?$select=id,principalId,principalType,principalDisplayName,resourceId,resourceDisplayName,appRoleId,createdDateTime": [
+      {
+        value: [{
+          id: "raw-assignment-1",
+          principalId: "raw-group-1",
+          principalType: "Group",
+          resourceId: "raw-sp-1",
+          appRoleId: "raw-role-reader"
+        }],
+        status: 200
+      },
+      { value: [], status: 503 }
     ]
   });
 }

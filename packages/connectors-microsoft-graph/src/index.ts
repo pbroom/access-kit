@@ -302,6 +302,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   readonly #sleep: (milliseconds: number) => Promise<void>;
   #snapshot?: EntraSnapshot;
   #warnings: DiscoveryRunWarning[] = [];
+  #nativeAccessReadbackComplete = true;
 
   constructor(options: MicrosoftGraphEntraConnectorOptions) {
     this.id = options.id ?? MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID;
@@ -319,6 +320,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   async discoverSubjects(): Promise<Subject[]> {
     this.#snapshot = undefined;
     this.#warnings = [];
+    this.#nativeAccessReadbackComplete = true;
     return (await this.#loadSnapshot()).subjects;
   }
 
@@ -385,6 +387,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       requiredReadScopes: this.requiredReadScopes,
       synthetic: false,
       warnings: [...this.#baseWarnings(), ...this.#warnings],
+      nativeAccessReadbackComplete: this.#nativeAccessReadbackComplete,
       cursor: this.#snapshot?.cursor ?? this.#buildPreDiscoveryCursor()
     };
   }
@@ -1040,10 +1043,14 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         continue;
       }
 
-      const assignments = await this.#readCollection<GraphAppRoleAssignment>(
+      const assignmentRead = await this.#readCollectionResult<GraphAppRoleAssignment>(
         `/servicePrincipals/${encodeURIComponent(servicePrincipal.id)}/appRoleAssignedTo?$select=id,principalId,principalType,principalDisplayName,resourceId,resourceDisplayName,appRoleId,createdDateTime`,
         "native_grants"
       );
+      if (!assignmentRead.completed) {
+        this.#nativeAccessReadbackComplete = false;
+      }
+      const assignments = assignmentRead.values;
       const appRoles = maps.appRolesByServicePrincipalId.get(servicePrincipal.id) ?? new Map<string, GraphAppRole>();
       const grants: NativeGrant[] = [];
 
