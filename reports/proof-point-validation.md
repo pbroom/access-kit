@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T04:48:48.780Z
+Generated at: 2026-05-28T04:49:48.664Z
 
-Branch: 
+Branch: codex/rebac-typescript-pep-starter
 
 Node: v24.4.1
 
@@ -10,16 +10,16 @@ pnpm: 10.30.3
 
 ## Summary
 
-2 proof-point validation command(s) failed.
+All proof-point validation commands passed.
 
 | Proof point | Command | Result |
 | --- | --- | --- |
-| typecheck | `corepack pnpm typecheck` | FAIL |
+| typecheck | `corepack pnpm typecheck` | PASS |
 | schema validation | `corepack pnpm validate:schemas` | PASS |
 | OpenAPI validation | `corepack pnpm validate:openapi` | PASS |
 | API collection validation | `corepack pnpm validate:api-collections` | PASS |
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
-| connector security gate validation | `corepack pnpm validate:connector-security` | FAIL |
+| connector security gate validation | `corepack pnpm validate:connector-security` | PASS |
 | CLI command contract | `corepack pnpm validate:cli-contract` | PASS |
 | container packaging validation | `corepack pnpm validate:packaging` | PASS |
 | release packaging validation | `corepack pnpm validate:release-packaging` | PASS |
@@ -40,21 +40,6 @@ pnpm: 10.30.3
 ```text
 > access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsc --noEmit
-
-packages/api/src/runtime-connectors.ts(7,65): error TS2307: Cannot find module '@access-kit/connectors-aws' or its corresponding type declarations.
-packages/connectors-aws/src/index.ts(24,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
-packages/connectors-aws/src/index.ts(488,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
-packages/connectors-sample-readonly/src/index.ts(21,8): error TS2307: Cannot find module '@access-kit/core' or its corresponding type declarations.
-packages/connectors-sample-readonly/src/index.ts(335,34): error TS7006: Parameter 'action' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(158,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(203,62): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(241,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(278,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
-tests/connectors/aws-readonly-access-analysis.test.ts(413,73): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/sample-readonly.test.ts(68,35): error TS7006: Parameter 'warning' implicitly has an 'any' type.
-tests/connectors/sample-readonly.test.ts(161,32): error TS7006: Parameter 'action' implicitly has an 'any' type.
-tests/connectors/sample-readonly.test.ts(208,59): error TS7006: Parameter 'warning' implicitly has an 'any' type.
- ELIFECYCLE  Command failed with exit code 2.
 ```
 
 ### schema validation
@@ -140,26 +125,11 @@ PASS drift is represented as security finding
 > access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-typescript-pep-starter
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
- ELIFECYCLE  Command failed with exit code 1.
-
-node:internal/modules/run_main:105
-    triggerUncaughtException(
-    ^
-Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@access-kit/connectors-aws' imported from /Users/peterbroomfield/access-kit-typescript-pep-starter/packages/api/src/runtime-connectors.ts
-    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:255:9)
-    at packageResolve (node:internal/modules/esm/resolve:767:81)
-    at moduleResolve (node:internal/modules/esm/resolve:853:18)
-    at defaultResolve (node:internal/modules/esm/resolve:983:11)
-    at nextResolve (node:internal/modules/esm/hooks:748:28)
-    at resolveBase (file:///Users/peterbroomfield/access-kit-typescript-pep-starter/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:8037)
-    at resolveDirectory (file:///Users/peterbroomfield/access-kit-typescript-pep-starter/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:9124)
-    at resolveTsPaths (file:///Users/peterbroomfield/access-kit-typescript-pep-starter/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:10581)
-    at resolve2 (file:///Users/peterbroomfield/access-kit-typescript-pep-starter/node_modules/.pnpm/tsx@4.22.3/node_modules/tsx/dist/register-D_B8UL5H.mjs:2:11864)
-    at nextResolve (node:internal/modules/esm/hooks:748:28) {
-  code: 'ERR_MODULE_NOT_FOUND'
-}
-
-Node.js v24.4.1
+Validated connector security gates for 4 connector(s).
+PASS mock: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+PASS entra-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+PASS sharepoint-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
+PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scopes match runtime metadata; read-only health checks and scope checks pass; pagination, throttling, deletion, coverage-warning, and native-readback semantics are reviewed; secret handling is documented as synthetic/no-secret; live writes remain blocked and readiness gate preserves synthetic-only enforcement
 ```
 
 ### CLI command contract
@@ -174,8 +144,8 @@ Node.js v24.4.1
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  00:48:42
-   Duration  293ms (transform 136ms, setup 0ms, import 212ms, tests 20ms, environment 0ms)
+   Start at  00:49:42
+   Duration  279ms (transform 133ms, setup 0ms, import 207ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -268,8 +238,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  00:48:46
-   Duration  239ms (transform 1.02s, setup 0ms, import 1.44s, tests 124ms, environment 1ms)
+   Start at  00:49:46
+   Duration  245ms (transform 1.07s, setup 0ms, import 1.52s, tests 122ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -284,8 +254,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  00:48:46
-   Duration  527ms (transform 902ms, setup 0ms, import 1.50s, tests 443ms, environment 0ms)
+   Start at  00:49:46
+   Duration  515ms (transform 877ms, setup 0ms, import 1.47s, tests 440ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -296,8 +266,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-typescript-pep-starter
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  00:48:47
-   Duration  227ms (transform 330ms, setup 0ms, import 440ms, tests 49ms, environment 0ms)
+   Start at  00:49:47
+   Duration  231ms (transform 340ms, setup 0ms, import 454ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -312,8 +282,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-typescript-pep-starter
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  00:48:48
-   Duration  326ms (transform 382ms, setup 0ms, import 638ms, tests 114ms, environment 0ms)
+   Start at  00:49:48
+   Duration  325ms (transform 385ms, setup 0ms, import 635ms, tests 114ms, environment 0ms)
 ```
 
 

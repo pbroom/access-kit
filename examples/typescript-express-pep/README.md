@@ -15,22 +15,34 @@ The example reads the key from `ACCESS_KIT_API_KEY`. Do not commit real tokens o
 ## Protected Route
 
 ```ts
-import { createAccessKitClient, createAccessKitExpressPepMiddleware } from "@access-kit/typescript-client";
+import {
+  createAccessKitClient,
+  createAccessKitExpressPepMiddleware,
+  type ExpressPepRequest
+} from "@access-kit/typescript-client";
+
+interface AuthenticatedRequest extends ExpressPepRequest {
+  readonly auth: {
+    readonly subjectId: string;
+  };
+}
 
 const accessKit = createAccessKitClient({
   apiKey: process.env.ACCESS_KIT_API_KEY ?? "",
   baseUrl: process.env.ACCESS_KIT_BASE_URL ?? "http://127.0.0.1:3000"
 });
 
-export const requireCasePlanRead = createAccessKitExpressPepMiddleware({
+export const requireCasePlanRead = createAccessKitExpressPepMiddleware<AuthenticatedRequest>({
   client: accessKit,
   buildDecisionRequest: (request) => ({
-    subjectId: String(request.headers?.["x-subject-id"] ?? ""),
+    subjectId: request.auth.subjectId,
     action: "read",
     resourceId: "document:case-plan"
   })
 });
 ```
+
+Run authentication middleware before the PEP and populate `request.auth.subjectId` from a verified session, JWT, mTLS gateway identity, or other trusted middleware result. Do not map `subjectId` from caller-supplied headers such as `x-subject-id` or `x-user-id`; those headers are user-controlled unless a trusted gateway strips and reissues them before the request reaches Express.
 
 When the API denies, rejects authentication, or is unavailable, the middleware returns a denial response with an `x-correlation-id` header. The route handler only runs after the API returns `allow`.
 

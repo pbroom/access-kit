@@ -8,6 +8,7 @@ import {
   AccessKitClientError,
   createAccessKitClient,
   createAccessKitExpressPepMiddleware,
+  type ExpressPepRequest,
   type ExpressPepResponse
 } from "../../packages/typescript-client/src/index.js";
 
@@ -89,6 +90,49 @@ describe("TypeScript client and Express PEP starter", () => {
       reasonCode: "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
     });
     expect(events).toEqual([{ outcome: "deny", reasonCode: "DENY_DEFAULT_NO_RELATIONSHIP_PATH" }]);
+  });
+
+  it("derives subjects from trusted middleware state instead of caller-controlled headers", async () => {
+    interface AuthenticatedPepRequest extends ExpressPepRequest {
+      readonly auth: {
+        readonly subjectId: string;
+      };
+    }
+
+    const observedSubjectIds: string[] = [];
+    const middleware = createAccessKitExpressPepMiddleware<AuthenticatedPepRequest>({
+      client: createAccessKitClient({ apiKey, baseUrl }),
+      buildDecisionRequest: (request) => {
+        observedSubjectIds.push(request.auth.subjectId);
+
+        return {
+          subjectId: request.auth.subjectId,
+          action: "read",
+          resourceId: "document:case-plan"
+        };
+      }
+    });
+    const response = createResponse();
+    let nextCalled = false;
+
+    await middleware(
+      {
+        auth: { subjectId: "user:alice" },
+        headers: {
+          "x-correlation-id": "corr:pep-trusted-subject",
+          "x-subject-id": "user:external-reviewer"
+        }
+      },
+      response,
+      () => {
+        nextCalled = true;
+      }
+    );
+
+    expect(observedSubjectIds).toEqual(["user:alice"]);
+    expect(nextCalled).toBe(true);
+    expect(response.headers["x-correlation-id"]).toBe("corr:pep-trusted-subject");
+    expect(response.body).toBeUndefined();
   });
 
   it("fails closed when API authorization fails", async () => {
