@@ -203,6 +203,31 @@ class FastApiPepDependencyTests(unittest.TestCase):
         self.assertEqual(caught.exception.body["reasonCode"], "DENY_DEFAULT_NO_RELATIONSHIP_PATH")
         self.assertEqual(len(client.check_calls), 1)
 
+    def test_uses_authenticated_request_state_instead_of_caller_subject_header(self):
+        client = MockClient(check_result=decision(decisionId="decision:python-trusted-subject"))
+
+        def build_decision_request(request):
+            return {
+                "subjectId": request["state"]["authenticated_subject_id"],
+                "action": "read",
+                "resourceId": "document:case-plan",
+            }
+
+        dependency = create_fastapi_pep_dependency(client, build_decision_request=build_decision_request)
+        result = dependency({
+            "headers": {
+                "x-correlation-id": "corr:python-trusted-subject",
+                "x-subject-id": "user:external-reviewer",
+            },
+            "state": {
+                "authenticated_subject_id": "user:alice",
+            },
+        }, FakeResponse())
+
+        self.assertEqual(result["decision"], "allow")
+        self.assertEqual(client.check_calls[0][0]["subjectId"], "user:alice")
+        self.assertEqual(client.check_calls[0][1], "corr:python-trusted-subject")
+
     def test_does_not_call_explain_or_expose_debug_details_on_denials(self):
         client = MockClient(
             check_result=decision(

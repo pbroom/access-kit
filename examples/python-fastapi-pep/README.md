@@ -50,10 +50,17 @@ def log_decision(event):
     )
 
 
+def subject_from_authenticated_session(request: Request) -> str:
+    subject_id = getattr(request.state, "authenticated_subject_id", "")
+    if not subject_id:
+        raise RuntimeError("authenticated subject missing before Access Kit PEP")
+    return str(subject_id)
+
+
 require_case_plan_read = create_fastapi_pep_dependency(
     client=access_kit,
     build_decision_request=lambda request: {
-        "subjectId": request.headers.get("x-subject-id", ""),
+        "subjectId": subject_from_authenticated_session(request),
         "action": "read",
         "resourceId": "document:case-plan",
     },
@@ -69,6 +76,8 @@ def read_case_plan(
 ):
     return {"id": "document:case-plan", "title": "Synthetic case plan"}
 ```
+
+Run authentication middleware or a FastAPI dependency before the PEP and populate `request.state.authenticated_subject_id` from a verified session, JWT, mTLS gateway identity, or other trusted result. Do not map `subjectId` from caller-supplied headers such as `x-subject-id` or `x-user-id`; those headers are user-controlled unless a trusted gateway strips and reissues them before the request reaches FastAPI.
 
 When Access Kit allows, the dependency returns the decision and the route handler runs. When Access Kit denies, rejects authentication, times out, or cannot be reached, the dependency raises `AccessKitPepDenied`; the registered handler returns a safe denial body with an `x-correlation-id` header.
 
