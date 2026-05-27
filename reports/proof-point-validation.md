@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-27T02:00:51.285Z
+Generated at: 2026-05-28T02:19:59.102Z
 
 Branch: codex/rebac-runbook-exercise-evidence
 
@@ -27,7 +27,7 @@ All proof-point validation commands passed.
 | runbook exercise evidence validation | `corepack pnpm validate:runbook-exercises` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
-| Microsoft Graph connector tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
+| connector package tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
 
 ## Command Output
@@ -73,7 +73,7 @@ PASS subject.json -> schemas/subject.schema.json
 > tsx scripts/validate-openapi.ts
 
 Validated OpenAPI contract at /Users/peterbroomfield/access-kit-runbook-exercise-evidence/openapi/rebac-control-plane.yaml.
-PASS 28 required API path groups are present.
+PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
 PASS API examples validate against OpenAPI request and response schemas.
@@ -88,7 +88,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
-PASS default policy model -> 16 checks
+PASS default policy model -> 21 checks
 PASS deny by default without relationship path
 PASS deny unsupported action despite read relationship
 PASS allow through relationship path
@@ -129,8 +129,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  22:00:42
-   Duration  529ms (transform 219ms, setup 0ms, import 363ms, tests 38ms, environment 0ms)
+   Start at  22:19:47
+   Duration  663ms (transform 304ms, setup 0ms, import 487ms, tests 44ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -198,10 +198,10 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
  RUN  v4.1.7 /Users/peterbroomfield/access-kit-runbook-exercise-evidence
 
 
- Test Files  8 passed (8)
-      Tests  123 passed (123)
-   Start at  22:00:46
-   Duration  499ms (transform 1.09s, setup 0ms, import 1.68s, tests 132ms, environment 0ms)
+ Test Files  10 passed (10)
+      Tests  148 passed (148)
+   Start at  22:19:52
+   Duration  820ms (transform 2.45s, setup 0ms, import 3.55s, tests 305ms, environment 2ms)
 ```
 
 ### API runtime tests
@@ -215,21 +215,21 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 
 
  Test Files  4 passed (4)
-      Tests  97 passed (97)
-   Start at  22:00:47
-   Duration  921ms (transform 822ms, setup 0ms, import 1.26s, tests 464ms, environment 0ms)
+      Tests  103 passed (103)
+   Start at  22:19:54
+   Duration  1.30s (transform 1.19s, setup 0ms, import 1.78s, tests 676ms, environment 1ms)
 ```
 
-### Microsoft Graph connector tests
+### connector package tests
 
 ```text
 RUN  v4.1.7 /Users/peterbroomfield/access-kit-runbook-exercise-evidence
 
 
- Test Files  1 passed (1)
-      Tests  11 passed (11)
-   Start at  22:00:49
-   Duration  346ms (transform 171ms, setup 0ms, import 213ms, tests 26ms, environment 0ms)
+ Test Files  3 passed (3)
+      Tests  33 passed (33)
+   Start at  22:19:56
+   Duration  552ms (transform 754ms, setup 0ms, import 1.02s, tests 88ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -243,9 +243,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-runbook-exercise-evidence
 
 
  Test Files  3 passed (3)
-      Tests  33 passed (33)
-   Start at  22:00:50
-   Duration  574ms (transform 587ms, setup 0ms, import 1.05s, tests 200ms, environment 0ms)
+      Tests  34 passed (34)
+   Start at  22:19:57
+   Duration  782ms (transform 821ms, setup 0ms, import 1.43s, tests 288ms, environment 0ms)
 ```
 
 
@@ -255,7 +255,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-runbook-exercise-evidence
 - JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, connector-security-review, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, runbook exercise, and evidence export examples.
 - OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, enforcement-readiness, generated client metadata, contract snapshots, versioning, deprecation, authentication, rate-limit, and API example path groups.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
-- Connector security gate validation for connector identity, consent, tenant boundary, least-privilege read scopes, approved Microsoft Graph live-read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults.
+- Connector security gate validation for connector identity, consent, tenant boundary, least-privilege read scopes, approved Microsoft Graph and AWS live-read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults.
 - CLI command contract mapping each operator command to an API surface.
 - Deployable API container packaging validation for the Dockerfile, non-root runtime, /v1/ready healthcheck, API auth smoke path, and CI job.
 - Release packaging validation for GHCR publishing gates, SBOM/provenance metadata, GitHub artifact attestation, and keyless cosign signing.
@@ -264,7 +264,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-runbook-exercise-evidence
 - Runbook exercise evidence validation for rehearsed incident response, break-glass, backup/restore, contingency, emergency revocation, SIEM replay, and post-action review evidence records with redaction and non-production classification checks.
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
-- Microsoft Graph connector tests for Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior.
+- Connector package tests for Microsoft Graph Entra and AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
 
@@ -277,7 +277,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-runbook-exercise-evidence
 - Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
 - Replace local bearer-token admin proof points with environment-specific IdP or mTLS gateway deployment, trusted identity propagation, separate admin ReBAC policy, secrets-manager integration, incident-mode notifications, break-glass approval, post-action review evidence, and request-scoped admin actor binding.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and adapter-level SIEM delivery metadata with deployment-specific durable audit storage, approved SIEM forwarding, retention, alert routing, and replay evidence.
-- Retain live Microsoft Graph sandbox evidence for environment-specific verification, and replace remaining synthetic SharePoint and AWS-style readback fixtures with live read-only connector discovery after connector security review.
+- Retain live Microsoft Graph and AWS sandbox evidence for environment-specific verification, and replace remaining synthetic SharePoint readback fixtures with live read-only connector discovery after connector security review.
 - Select and configure environment-specific production connector-state storage behind the production connector-state adapter for discovery runs, native-grant readback, drift findings, and reconciliation evidence.
 - Deploy managed queue workers with production monitoring, retry, dead-letter, replay, and emergency revocation operating procedures.
 - Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, emergency revocation behavior, and connector least-privilege review are complete.

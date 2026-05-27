@@ -2,9 +2,9 @@ import Ajv2020 from "ajv/dist/2020.js";
 import type { AnySchema } from "ajv";
 import addFormats from "ajv-formats";
 import { deepStrictEqual } from "node:assert";
-import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { readJsonFile } from "./lib/files.js";
+import { requireRetainedRepositoryPath } from "./lib/retained-paths.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -123,12 +123,10 @@ async function validateExercise(exercise: JsonObject): Promise<void> {
 }
 
 async function requireExistingPath(path: string): Promise<void> {
-  const absolutePath = join(root, path);
-  try {
-    await access(absolutePath);
-  } catch (cause) {
-    throw new Error(`Runbook exercise evidence references missing path ${path}.`, { cause });
-  }
+  await requireRetainedRepositoryPath(path, {
+    root,
+    label: "Runbook exercise evidence"
+  });
 }
 
 function requireEquals(actual: unknown, expected: unknown, label: string): void {
