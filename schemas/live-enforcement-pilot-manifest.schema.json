@@ -65,10 +65,12 @@
         "allowedWriteScopes": {
           "type": "array",
           "minItems": 1,
-          "items": { "type": "string", "minLength": 1 }
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["GroupMember.ReadWrite.All"] }
         },
         "forbiddenWriteScopes": {
           "type": "array",
+          "uniqueItems": true,
           "items": { "type": "string", "minLength": 1 }
         },
         "leastPrivilegeReviewRef": { "type": "string", "minLength": 1 }

@@ -135,6 +135,10 @@ export const requiredLiveEnforcementPilotAuditEvents = [
   "drift.finding_reviewed"
 ] as const;
 
+export const approvedLiveEnforcementPilotWriteScopes = [
+  "GroupMember.ReadWrite.All"
+] as const;
+
 export function assessLiveEnforcementPilotReadiness(
   manifest: LiveEnforcementPilotManifest,
   checkedAt: string = new Date().toISOString()
@@ -160,10 +164,15 @@ export function assessLiveEnforcementPilotReadiness(
 }
 
 function checkNarrowWritePath(manifest: LiveEnforcementPilotManifest): LiveEnforcementPilotReadinessCheck {
+  const allowedWriteScopes = new Set(manifest.connector.allowedWriteScopes);
+  const forbiddenWriteScopes = new Set(manifest.connector.forbiddenWriteScopes);
   const passed =
     manifest.connector.mode === "enforcement" &&
     manifest.connector.liveWritesOptIn &&
     manifest.connector.allowedWriteScopes.length > 0 &&
+    allowedWriteScopes.size === manifest.connector.allowedWriteScopes.length &&
+    manifest.connector.allowedWriteScopes.every(isApprovedLiveEnforcementPilotWriteScope) &&
+    manifest.connector.allowedWriteScopes.every((scope) => !forbiddenWriteScopes.has(scope)) &&
     manifest.writePath.operation === "revoke_native_grant" &&
     manifest.writePath.scope === "single_resource_direct_grant" &&
     manifest.writePath.maxActionsPerChange === 1 &&
@@ -185,6 +194,10 @@ function checkNarrowWritePath(manifest: LiveEnforcementPilotManifest): LiveEnfor
       resourceRisk: manifest.writePath.resourceRisk
     }
   });
+}
+
+function isApprovedLiveEnforcementPilotWriteScope(scope: string): boolean {
+  return approvedLiveEnforcementPilotWriteScopes.some((approvedScope) => approvedScope === scope);
 }
 
 function checkReadOnlyConfidence(manifest: LiveEnforcementPilotManifest): LiveEnforcementPilotReadinessCheck {

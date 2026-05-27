@@ -66,6 +66,32 @@ describe("live enforcement pilot readiness", () => {
     );
   });
 
+  it("blocks broad Microsoft Graph write scopes even when other gates pass", () => {
+    expectBlocked(
+      {
+        ...createManifest(),
+        connector: {
+          ...createManifest().connector,
+          allowedWriteScopes: ["Directory.ReadWrite.All"]
+        }
+      },
+      "pilot_write_path_narrowly_scoped"
+    );
+  });
+
+  it("blocks write scopes that are both allowed and forbidden", () => {
+    expectBlocked(
+      {
+        ...createManifest(),
+        connector: {
+          ...createManifest().connector,
+          forbiddenWriteScopes: [...createManifest().connector.forbiddenWriteScopes, "GroupMember.ReadWrite.All"]
+        }
+      },
+      "pilot_write_path_narrowly_scoped"
+    );
+  });
+
   it("blocks pilot writes without enough read-only confidence", () => {
     expectBlocked(
       {

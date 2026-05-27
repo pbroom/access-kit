@@ -203,12 +203,32 @@ function validatePilotCandidateBoundary(manifest: LiveEnforcementPilotManifest):
       resourceRisk: "high"
     }
   });
+  const broadWriteScope = assessLiveEnforcementPilotReadiness({
+    ...manifest,
+    connector: {
+      ...manifest.connector,
+      allowedWriteScopes: ["Directory.ReadWrite.All"]
+    }
+  });
+  const forbiddenScopeOverlap = assessLiveEnforcementPilotReadiness({
+    ...manifest,
+    connector: {
+      ...manifest.connector,
+      forbiddenWriteScopes: [...manifest.connector.forbiddenWriteScopes, "GroupMember.ReadWrite.All"]
+    }
+  });
 
   if (degradedConnector.status !== "blocked") {
     throw new Error("Live enforcement pilot did not block degraded connector health.");
   }
   if (highRisk.status !== "blocked") {
     throw new Error("Live enforcement pilot did not block high-risk resource writes.");
+  }
+  if (broadWriteScope.status !== "blocked") {
+    throw new Error("Live enforcement pilot did not block broad Microsoft Graph write scopes.");
+  }
+  if (forbiddenScopeOverlap.status !== "blocked") {
+    throw new Error("Live enforcement pilot did not block allowed/forbidden write-scope overlap.");
   }
 }
 
