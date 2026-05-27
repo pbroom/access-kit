@@ -40,8 +40,10 @@ A decision is not a native provider permission, provisioning action, ticket appr
 | `DENY_EXPLICIT_OVERRIDE` | A deny or quarantine relationship overrides an allow path. | `deny` |
 | `DENY_SUBJECT_NOT_FOUND` | The subject is unknown. | `deny` |
 | `DENY_SUBJECT_NOT_ACTIVE` | The subject is suspended, terminated, deleted, or inactive. | `deny` |
+| `DENY_SUBJECT_LIFECYCLE_UNKNOWN_AS_OF` | Historical subject lifecycle state cannot be inferred safely from available timestamps. | `deny` |
 | `DENY_RESOURCE_NOT_FOUND` | The resource is unknown. | `deny` |
 | `DENY_RESOURCE_NOT_ACTIVE` | The resource is inactive or deleted. | `deny` |
+| `DENY_RESOURCE_LIFECYCLE_UNKNOWN_AS_OF` | Historical resource lifecycle state cannot be inferred safely from available timestamps. | `deny` |
 | `DENY_INVALID_AS_OF` | The supplied historical evaluation timestamp is not parseable. | `deny` |
 | `DENY_AS_OF_IN_FUTURE` | The supplied historical evaluation timestamp is later than evaluation time. | `deny` |
 | `DENY_TRAVERSAL_BOUND_EXCEEDED` | Graph traversal exceeded configured depth, visited-node, or relationship-scan bounds. | `deny` |

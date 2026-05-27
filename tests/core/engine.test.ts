@@ -169,7 +169,7 @@ describe("RebacDecisionEngine", () => {
     expect(result.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
   });
 
-  it("fails closed when an active node was updated after a historical asOf timestamp", () => {
+  it("fails closed when lifecycle state is unknown at a historical asOf timestamp", () => {
     const seed = createLocalEngineSeed();
     const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
     const store = new InMemoryRebacStore({
@@ -198,7 +198,71 @@ describe("RebacDecisionEngine", () => {
       asOf: "2026-05-21T15:59:00.000Z"
     });
 
-    expect(result.reasonCode).toBe("DENY_SUBJECT_NOT_ACTIVE");
+    expect(result.reasonCode).toBe("DENY_SUBJECT_LIFECYCLE_UNKNOWN_AS_OF");
+  });
+
+  it("does not infer a historical active subject from a later generic update", () => {
+    const seed = createLocalEngineSeed();
+    const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.map((subject) => subject.id === "user:alice"
+        ? {
+            ...subject,
+            lifecycleState: "inactive",
+            createdAt: historicalCreatedAt,
+            updatedAt: "2026-05-21T16:00:00.000Z"
+          }
+        : { ...subject, createdAt: historicalCreatedAt }),
+      resources: seed.resources?.map((resource) => ({ ...resource, createdAt: historicalCreatedAt })),
+      relationships: seed.relationships?.map((relationship) => ({
+        ...relationship,
+        assertedAt: historicalCreatedAt,
+        createdAt: historicalCreatedAt
+      }))
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "2026-05-21T15:59:00.000Z"
+    });
+
+    expect(result.reasonCode).toBe("DENY_SUBJECT_LIFECYCLE_UNKNOWN_AS_OF");
+  });
+
+  it("does not infer a historical active resource from a later generic update", () => {
+    const seed = createLocalEngineSeed();
+    const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
+    const store = new InMemoryRebacStore({
+      ...seed,
+      subjects: seed.subjects?.map((subject) => ({ ...subject, createdAt: historicalCreatedAt })),
+      resources: seed.resources?.map((resource) => resource.id === "document:case-plan"
+        ? {
+            ...resource,
+            lifecycleState: "deleted",
+            createdAt: historicalCreatedAt,
+            updatedAt: "2026-05-21T16:00:00.000Z"
+          }
+        : { ...resource, createdAt: historicalCreatedAt }),
+      relationships: seed.relationships?.map((relationship) => ({
+        ...relationship,
+        assertedAt: historicalCreatedAt,
+        createdAt: historicalCreatedAt
+      }))
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+
+    const result = engine.explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "2026-05-21T15:59:00.000Z"
+    });
+
+    expect(result.reasonCode).toBe("DENY_RESOURCE_LIFECYCLE_UNKNOWN_AS_OF");
   });
 
   it("uses tuple-version pins to choose deterministic historical tuples", () => {

@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-27T01:15:22.625Z
+Generated at: 2026-05-27T01:39:46.207Z
 
 Branch: codex/rebac-time-travel-slos
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  21:15:15
-   Duration  424ms (transform 179ms, setup 0ms, import 300ms, tests 33ms, environment 0ms)
+   Start at  21:39:38
+   Duration  478ms (transform 209ms, setup 0ms, import 345ms, tests 35ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -186,9 +186,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  8 passed (8)
-      Tests  133 passed (133)
-   Start at  21:15:18
-   Duration  371ms (transform 1.01s, setup 0ms, import 1.37s, tests 122ms, environment 0ms)
+      Tests  135 passed (135)
+   Start at  21:39:42
+   Duration  453ms (transform 1.22s, setup 0ms, import 1.68s, tests 154ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -203,8 +203,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  4 passed (4)
       Tests  97 passed (97)
-   Start at  21:15:19
-   Duration  733ms (transform 705ms, setup 0ms, import 1.05s, tests 354ms, environment 0ms)
+   Start at  21:39:43
+   Duration  846ms (transform 777ms, setup 0ms, import 1.17s, tests 426ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -215,8 +215,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-time-travel-slos
 
  Test Files  1 passed (1)
       Tests  11 passed (11)
-   Start at  21:15:20
-   Duration  291ms (transform 145ms, setup 0ms, import 177ms, tests 23ms, environment 0ms)
+   Start at  21:39:44
+   Duration  342ms (transform 173ms, setup 0ms, import 214ms, tests 23ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-time-travel-slos
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  21:15:21
-   Duration  485ms (transform 523ms, setup 0ms, import 895ms, tests 162ms, environment 0ms)
+   Start at  21:39:45
+   Duration  540ms (transform 568ms, setup 0ms, import 998ms, tests 181ms, environment 0ms)
 ```
 
 

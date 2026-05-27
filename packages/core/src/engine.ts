@@ -179,7 +179,12 @@ export class RebacDecisionEngine {
       return denied("DENY_SUBJECT_NOT_FOUND");
     }
 
-    if (effectiveLifecycleStateAt(subject, versionPins.asOf) !== "active") {
+    const subjectLifecycleState = effectiveLifecycleStateAt(subject, versionPins.asOf);
+    if (subjectLifecycleState === "unknown") {
+      return denied("DENY_SUBJECT_LIFECYCLE_UNKNOWN_AS_OF");
+    }
+
+    if (subjectLifecycleState !== "active") {
       return denied("DENY_SUBJECT_NOT_ACTIVE");
     }
 
@@ -189,7 +194,12 @@ export class RebacDecisionEngine {
       return denied("DENY_RESOURCE_NOT_FOUND");
     }
 
-    if (effectiveLifecycleStateAt(resource, versionPins.asOf) !== "active") {
+    const resourceLifecycleState = effectiveLifecycleStateAt(resource, versionPins.asOf);
+    if (resourceLifecycleState === "unknown") {
+      return denied("DENY_RESOURCE_LIFECYCLE_UNKNOWN_AS_OF");
+    }
+
+    if (resourceLifecycleState !== "active") {
       return denied("DENY_RESOURCE_NOT_ACTIVE");
     }
 
@@ -598,9 +608,11 @@ function isVisibleAt(entity: { createdAt: string; updatedAt?: string; status?: s
   return !(entity.status === "deleted" && entity.updatedAt && Date.parse(entity.updatedAt) <= asOfMs);
 }
 
-function effectiveLifecycleStateAt(node: Subject | Resource, asOf: string): Subject["lifecycleState"] | Resource["lifecycleState"] {
+type EffectiveLifecycleState = Subject["lifecycleState"] | Resource["lifecycleState"] | "unknown";
+
+function effectiveLifecycleStateAt(node: Subject | Resource, asOf: string): EffectiveLifecycleState {
   if (node.updatedAt && Date.parse(node.updatedAt) > Date.parse(asOf)) {
-    return node.lifecycleState === "active" ? "inactive" : "active";
+    return "unknown";
   }
 
   return node.lifecycleState;
