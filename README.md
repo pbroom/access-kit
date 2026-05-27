@@ -139,7 +139,7 @@ pnpm pr:stack
 | `docs/automation.md` | PR steward, next-slice, labels, and merge-readiness operating loop. |
 | `docs/` | Concept of operations, boundary, architecture, domain, API, CLI, persistence, decision, PEP conformance, provisioning, connector contract and authoring, drift, deployment, production reference architecture, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
 | `runbooks/` | Emergency revocation, rollback, drift, outage, break-glass, export, credential, and decision API outage procedures. |
-| `examples/` | Synthetic API, CLI, connector template, and control/evidence mapping examples. |
+| `examples/` | Synthetic API, CLI, PEP, sample SaaS app, connector template, and control/evidence mapping examples. |
 | `.github/workflows/` | CI, contract validation, and security checks. |
 | `deploy/` | Reference Kubernetes deployment manifests, production-reference overlays, persistence evidence, and admission-policy examples. |
 | `adrs/` | Architecture decision records for the foundation. |
