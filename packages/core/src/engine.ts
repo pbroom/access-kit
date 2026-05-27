@@ -392,6 +392,7 @@ function evaluateConditionalRelationshipCaveats(input: {
     !conditional.actions || conditional.actions.includes(input.request.action)
   );
   const explanations: JsonRecord[] = [];
+  const evaluatedCaveatNames = new Set<string>();
 
   for (const step of input.relationshipPath) {
     const conditional = conditionalRelationships.find((entry) => entry.relation === step.relation);
@@ -415,6 +416,10 @@ function evaluateConditionalRelationshipCaveats(input: {
           constraints: caveatConstraints(input.policyModel, explanations)
         };
       }
+      if (evaluatedCaveatNames.has(caveat.name)) {
+        continue;
+      }
+      evaluatedCaveatNames.add(caveat.name);
 
       const conditionResults = caveat.conditions.map((condition) =>
         evaluateCaveatCondition({

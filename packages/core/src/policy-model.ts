@@ -504,7 +504,10 @@ function validateCaveatCondition(
     return fail("policy_caveat_conditions_typed", `Policy caveat ${caveat.name} uses an unsupported condition type or operator.`);
   }
   if (!operatorMatchesType(condition.operator, condition.type)) {
-    return fail("policy_caveat_conditions_typed", `Policy caveat ${caveat.name} uses operator ${condition.operator} with ${condition.type}.`);
+    return fail(
+      "policy_caveat_conditions_typed",
+      `Policy caveat ${caveat.name} operator ${condition.operator} is not supported for ${condition.type}.`
+    );
   }
   if (!conditionValueMatchesType(condition.value, condition.type, condition.operator)) {
     return fail("policy_caveat_conditions_typed", `Policy caveat ${caveat.name} compares ${condition.key} to a value with the wrong type.`);
@@ -587,11 +590,14 @@ function checkExplanationPolicy(model: PolicyModel): PolicyModelValidationCheck 
 }
 
 function operatorMatchesType(operator: PolicyModelCaveatOperator, type: PolicyModelContextType): boolean {
-  if (operator === "less_than_or_equal" || operator === "greater_than_or_equal") {
-    return type === "number";
+  if (type === "datetime") {
+    return operator === "before" || operator === "after";
   }
   if (operator === "before" || operator === "after") {
-    return type === "datetime";
+    return false;
+  }
+  if (operator === "less_than_or_equal" || operator === "greater_than_or_equal") {
+    return type === "number";
   }
   return true;
 }

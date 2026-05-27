@@ -78,7 +78,6 @@
         { "source": "context", "key": "deviceTrustLevel", "type": "string", "operator": "one_of", "value": ["managed", "trusted"] },
         { "source": "context", "key": "accessTime", "type": "datetime", "operator": "after", "value": "2026-05-26T00:00:00.000Z" },
         { "source": "context", "key": "accessTime", "type": "datetime", "operator": "before", "value": "2026-05-27T00:00:00.000Z" },
-        { "source": "subject", "key": "lifecycleState", "type": "string", "operator": "equals", "value": "active" },
         { "source": "resource", "key": "classification", "type": "string", "operator": "one_of", "value": ["internal", "confidential", "restricted"] }
       ]
     }

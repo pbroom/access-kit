@@ -334,20 +334,56 @@ function requireTenantAndClassificationBoundaries(model: PolicyModel, path: stri
 }
 
 function requireAdvancedPolicyBoundary(model: PolicyModel, policyVersion: string): void {
-  const caveatNames = new Set((model.caveats ?? []).map((caveat) => caveat.name));
-  const conditionalRelations = new Set((model.conditionalRelationships ?? []).map((entry) => entry.relation));
-  const contextKeys = new Set(model.contextConstraints.map((constraint) => constraint.key));
+  const caveatsByName = new Map((model.caveats ?? []).map((caveat) => [caveat.name, caveat]));
+  const relationsByName = new Map(model.relations.map((relation) => [relation.name, relation]));
+  const conditionalCaveatNames = new Set<string>();
+  let conditionalGrantRelations = 0;
 
-  for (const required of ["riskScore", "deviceTrustLevel", "accessTime"]) {
-    if (!contextKeys.has(required)) {
-      throw new Error(`${policyVersion} must include ${required} as an advanced policy context input.`);
+  for (const conditional of model.conditionalRelationships ?? []) {
+    if (relationsByName.get(conditional.relation)?.kind !== "grant") {
+      continue;
+    }
+    conditionalGrantRelations += 1;
+    for (const caveatName of conditional.caveats) {
+      if (caveatsByName.has(caveatName)) {
+        conditionalCaveatNames.add(caveatName);
+      }
     }
   }
-  if (!conditionalRelations.has("reader_of") || caveatNames.size === 0) {
-    throw new Error(`${policyVersion} must demonstrate conditional reader relationships with fail-closed caveats.`);
+
+  if (conditionalGrantRelations === 0 || conditionalCaveatNames.size === 0) {
+    throw new Error(`${policyVersion} must demonstrate conditional grant relationships with fail-closed caveats.`);
   }
-  if (model.explanation?.deterministic !== true || model.explanation.includeCaveatNames.length === 0) {
+
+  const contextConditionKeys = new Set<string>();
+  for (const caveatName of conditionalCaveatNames) {
+    const caveat = caveatsByName.get(caveatName);
+    if (!caveat || caveat.failClosed !== true || caveat.conditions.length === 0) {
+      throw new Error(`${policyVersion} conditional caveat ${caveatName} must fail closed with typed conditions.`);
+    }
+    for (const condition of caveat.conditions) {
+      if (condition.source === "context") {
+        contextConditionKeys.add(condition.key);
+      }
+    }
+  }
+
+  if (contextConditionKeys.size === 0) {
+    throw new Error(`${policyVersion} must demonstrate conditional caveats with auditable context inputs.`);
+  }
+
+  if (model.explanation?.deterministic !== true) {
     throw new Error(`${policyVersion} must declare deterministic advanced policy explanation output.`);
+  }
+  for (const caveatName of conditionalCaveatNames) {
+    if (!model.explanation.includeCaveatNames.includes(caveatName)) {
+      throw new Error(`${policyVersion} explanation output must include conditional caveat ${caveatName}.`);
+    }
+  }
+  for (const contextKey of contextConditionKeys) {
+    if (!model.explanation.includeContextKeys.includes(contextKey)) {
+      throw new Error(`${policyVersion} explanation output must include context input ${contextKey}.`);
+    }
   }
 }
 

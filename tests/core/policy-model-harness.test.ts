@@ -292,6 +292,37 @@ describe("policy model test harness", () => {
       }
     });
 
+    const repeatedRelation = new RebacDecisionEngine(
+      tenantStore([
+        tuple("relationship:alice-case-team-reader", "user:alice", "reader_of", "group:case-team", "tenant:a"),
+        tuple("relationship:case-team-document-reader", "group:case-team", "reader_of", "document:case-plan", "tenant:a")
+      ]),
+      {
+        now: () => now,
+        policyModel: model
+      }
+    ).explain({
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      context: {
+        riskScore: 22,
+        deviceTrustLevel: "managed",
+        accessTime: now
+      }
+    });
+    const repeatedCaveats = repeatedRelation.constraints.policyCaveats as { results: unknown[] };
+
+    expect(repeatedRelation.relationshipPath.map((step) => step.relation)).toEqual(["reader_of", "reader_of"]);
+    expect(repeatedCaveats.results).toHaveLength(1);
+    expect(repeatedCaveats.results).toEqual([
+      expect.objectContaining({
+        caveat: "low-risk-managed-device",
+        relation: "reader_of",
+        status: "pass"
+      })
+    ]);
+
     const missingDevice = new RebacDecisionEngine(store, {
       now: () => now,
       policyModel: model

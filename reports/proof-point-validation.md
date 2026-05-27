@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-27T13:07:46.573Z
+Generated at: 2026-05-27T13:18:27.955Z
 
-Branch: 
+Branch: codex/rebac-policy-migration-examples
 
 Node: v24.4.1
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  09:07:38
-   Duration  485ms (transform 210ms, setup 0ms, import 343ms, tests 35ms, environment 0ms)
+   Start at  09:18:19
+   Duration  516ms (transform 226ms, setup 0ms, import 377ms, tests 39ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -186,9 +186,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  8 passed (8)
-      Tests  126 passed (126)
-   Start at  09:07:42
-   Duration  455ms (transform 1.19s, setup 0ms, import 1.64s, tests 128ms, environment 0ms)
+      Tests  127 passed (127)
+   Start at  09:18:23
+   Duration  549ms (transform 1.41s, setup 0ms, import 1.92s, tests 122ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -203,8 +203,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  4 passed (4)
       Tests  97 passed (97)
-   Start at  09:07:43
-   Duration  856ms (transform 767ms, setup 0ms, import 1.15s, tests 408ms, environment 0ms)
+   Start at  09:18:24
+   Duration  839ms (transform 742ms, setup 0ms, import 1.16s, tests 415ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -215,8 +215,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-migration-examples
 
  Test Files  1 passed (1)
       Tests  11 passed (11)
-   Start at  09:07:44
-   Duration  337ms (transform 160ms, setup 0ms, import 199ms, tests 23ms, environment 0ms)
+   Start at  09:18:25
+   Duration  364ms (transform 188ms, setup 0ms, import 235ms, tests 31ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-migration-examples
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  09:07:45
-   Duration  545ms (transform 584ms, setup 0ms, import 1.00s, tests 188ms, environment 0ms)
+   Start at  09:18:26
+   Duration  710ms (transform 823ms, setup 0ms, import 1.36s, tests 231ms, environment 0ms)
 ```
 
 

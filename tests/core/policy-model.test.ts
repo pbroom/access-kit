@@ -184,6 +184,62 @@ describe("policy model validation", () => {
     );
   });
 
+  it("rejects equality caveats for datetime inputs", () => {
+    const model = cloneDefaultModel();
+    model.contextConstraints = [
+      { key: "accessTime", type: "datetime", required: true, auditable: true }
+    ];
+    model.caveats = [
+      {
+        name: "exact-access-time",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "context", key: "accessTime", type: "datetime", operator: "equals", value: "2026-05-26T12:00:00.000Z" },
+          { source: "environment", key: "evaluatedAt", type: "datetime", operator: "one_of", value: ["2026-05-26T12:00:00.000Z"] }
+        ]
+      }
+    ];
+
+    const result = validatePolicyModel(model);
+
+    expect(result.valid).toBe(false);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "policy_caveat_conditions_typed",
+          status: "fail",
+          message: "Policy caveat exact-access-time operator equals is not supported for datetime."
+        })
+      ])
+    );
+
+    const environmentModel = cloneDefaultModel();
+    environmentModel.caveats = [
+      {
+        name: "exact-evaluated-at",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "environment", key: "evaluatedAt", type: "datetime", operator: "one_of", value: ["2026-05-26T12:00:00.000Z"] }
+        ]
+      }
+    ];
+
+    const environmentResult = validatePolicyModel(environmentModel);
+
+    expect(environmentResult.valid).toBe(false);
+    expect(environmentResult.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "policy_caveat_conditions_typed",
+          status: "fail",
+          message: "Policy caveat exact-evaluated-at operator one_of is not supported for datetime."
+        })
+      ])
+    );
+  });
+
   it("rejects unbounded or unauditable caveat context inputs", () => {
     const model = cloneDefaultModel();
     model.contextConstraints = [
