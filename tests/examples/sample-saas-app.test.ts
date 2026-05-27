@@ -141,6 +141,38 @@ describe("sample SaaS application", () => {
     ]);
   });
 
+  it("returns 403 when Access Kit explicitly denies an in-boundary route", async () => {
+    const app = createSampleSaasApplication({
+      client: createMockClient({
+        check: async () => decision({ decision: "deny" })
+      })
+    });
+    const response = createResponse();
+
+    await app.handleCaseRead({
+      headers: {
+        "x-correlation-id": "corr:sample-saas-deny",
+        "x-subject-id": "user:unassigned"
+      },
+      path: "/tenants/tenant%3Aalpha/cases/case-plan"
+    }, response);
+
+    expect(response.statusCode).toBe(403);
+    expect(response.body).toEqual({
+      code: "ACCESS_DENIED",
+      correlationId: "corr:sample-saas-deny",
+      reasonCode: "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+    });
+    expect(app.decisionEvents).toEqual([
+      expect.objectContaining({
+        correlationId: "corr:sample-saas-deny",
+        decision: "deny",
+        outcome: "deny",
+        reasonCode: "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+      })
+    ]);
+  });
+
   it("keeps explain behind a diagnostic path and redacts raw relationship paths", async () => {
     const app = createSampleSaasApplication({
       client: createAccessKitClient({ apiKey, baseUrl })

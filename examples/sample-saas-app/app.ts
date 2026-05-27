@@ -130,7 +130,7 @@ export class SampleSaasApplication {
     await this.#middleware(request, response, () => {
       const authorization = (request as MutableSampleSaasRequest).accessKit;
 
-      if (!authorization || authorization.decision !== "allow") {
+      if (!authorization) {
         denyRoute(response, 503, "ACCESS_KIT_UNAVAILABLE", correlationId);
         return;
       }
