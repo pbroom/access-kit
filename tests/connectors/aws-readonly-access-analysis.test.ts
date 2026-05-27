@@ -302,6 +302,72 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
     expect(JSON.stringify({ grants, reconciliation })).not.toContain(rawRoleArn);
   });
 
+  it("preserves previous AWS native grants when assignment readback is incomplete", async () => {
+    const app = createRebacLocalApp({ now: () => now });
+    app.connectors.set(AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID, new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(createFixturePages()),
+      organizationId,
+      now: () => now,
+      sleep: noSleep
+    }));
+
+    await syncConnector(app, AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID, "read_only");
+    const accountId = runNativeAccessResourceId(app);
+    expect(readNativeAccess(app, accountId)).toEqual([
+      expect.objectContaining({ nativePermission: "sso:CaseReadOnly" })
+    ]);
+
+    app.connectors.set(AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID, new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(createFixturePagesWithActiveAssignments([
+        { value: [], status: 503 }
+      ])),
+      organizationId,
+      now: () => now,
+      maxRetries: 0,
+      sleep: noSleep
+    }));
+
+    const second = await syncConnector(app, AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID, "read_only");
+    expect(second.status).toBe("completed_with_warnings");
+    expect(second.warnings).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        code: "AWS_THROTTLE_RETRIED",
+        scope: "native_grants",
+        retryable: false
+      })
+    ]));
+    expect(readNativeAccess(app, accountId)).toEqual([
+      expect.objectContaining({ nativePermission: "sso:CaseReadOnly" })
+    ]);
+  });
+
+  it("replaces AWS native grants when complete readback returns no active assignments", async () => {
+    const app = createRebacLocalApp({ now: () => now });
+    app.connectors.set(AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID, new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(createFixturePages()),
+      organizationId,
+      now: () => now,
+      sleep: noSleep
+    }));
+
+    await syncConnector(app, AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID, "read_only");
+    const accountId = runNativeAccessResourceId(app);
+    expect(readNativeAccess(app, accountId)).toHaveLength(1);
+
+    app.connectors.set(AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID, new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(createFixturePagesWithActiveAssignments([
+        { value: [], status: 200 }
+      ])),
+      organizationId,
+      now: () => now,
+      sleep: noSleep
+    }));
+
+    const second = await syncConnector(app, AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID, "read_only");
+    expect(second.status).toBe("completed_with_warnings");
+    expect(readNativeAccess(app, accountId)).toEqual([]);
+  });
+
   it("registers the AWS connector only when redacted sandbox fixture configuration is present", () => {
     expect(createRuntimeConnectors({ env: {} }).has(AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID)).toBe(false);
 
@@ -486,6 +552,16 @@ function createFixturePages(): AwsReadClientPages {
         status: 200
       }
     ]
+  };
+}
+
+function createFixturePagesWithActiveAssignments(assignmentPages: AwsReadClientPages[string]): AwsReadClientPages {
+  return {
+    ...createFixturePages(),
+    [awsReadClientKey("ssoAdmin.listAccountAssignments", {
+      accountId: rawAccountId,
+      permissionSetArn: rawPermissionSetArn
+    })]: assignmentPages
   };
 }
 

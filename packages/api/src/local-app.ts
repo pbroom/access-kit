@@ -456,10 +456,13 @@ export async function syncConnector(
     const grants = await connector.readCurrentAccess(resource.id);
     nativeGrants.push(...grants);
   }
-  app.store.replaceNativeGrantsForConnector(connectorId, nativeGrants);
+  const readbackMetadata = connector.getDiscoveryMetadata?.() ?? initialMetadata;
+  if (readbackMetadata?.nativeAccessReadbackComplete !== false) {
+    app.store.replaceNativeGrantsForConnector(connectorId, nativeGrants);
+  }
 
   const completedAt = app.now();
-  const metadata = connector.getDiscoveryMetadata?.() ?? initialMetadata;
+  const metadata = connector.getDiscoveryMetadata?.() ?? readbackMetadata;
   const warnings = metadata?.warnings ?? [];
   const run: DiscoveryRun = {
     id: `discovery:${runKey}`,

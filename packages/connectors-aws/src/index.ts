@@ -69,6 +69,11 @@ export interface AwsReadClient {
   list<T>(operation: AwsReadOperation, input?: JsonRecord): Promise<AwsReadCollectionPage<T>>;
 }
 
+interface AwsCollectionRead<T> {
+  values: T[];
+  completed: boolean;
+}
+
 export type AwsReadClientPages = Record<string, Array<AwsReadCollectionPage<unknown>>>;
 
 export class JsonAwsReadClient implements AwsReadClient {
@@ -247,6 +252,7 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
   readonly #sleep: (milliseconds: number) => Promise<void>;
   #snapshot?: AwsSnapshot;
   #warnings: DiscoveryRunWarning[] = [];
+  #nativeAccessReadbackComplete = true;
 
   constructor(options: AwsReadOnlyAccessAnalysisConnectorOptions) {
     this.id = options.id ?? AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID;
@@ -328,6 +334,7 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
       requiredReadScopes: this.requiredReadScopes,
       synthetic: false,
       warnings: [...this.#baseWarnings(), ...this.#warnings],
+      nativeAccessReadbackComplete: this.#nativeAccessReadbackComplete,
       cursor: this.#snapshot?.cursor ?? this.#buildPreDiscoveryCursor()
     };
   }
@@ -420,6 +427,7 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
     }
 
     this.#warnings = [];
+    this.#nativeAccessReadbackComplete = true;
     const organization = (await this.#readCollection<AwsOrganization>(
       "organizations.describeOrganization",
       {},
@@ -502,13 +510,28 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
     input: JsonRecord,
     scope: DiscoveryRunWarning["scope"]
   ): Promise<T[]> {
+    const read = await this.#readCollectionResult<T>(operation, input, scope);
+    if (scope === "native_grants" && !read.completed) {
+      this.#nativeAccessReadbackComplete = false;
+    }
+
+    return read.values;
+  }
+
+  async #readCollectionResult<T>(
+    operation: AwsReadOperation,
+    input: JsonRecord,
+    scope: DiscoveryRunWarning["scope"]
+  ): Promise<AwsCollectionRead<T>> {
     const values: T[] = [];
     let nextInput: JsonRecord | undefined = input;
     let pageCount = 0;
     let retryCount = 0;
+    let completed = true;
 
     while (nextInput) {
       if (pageCount >= this.#maxPages) {
+        completed = false;
         this.#pushWarning({
           code: "AWS_PAGE_LIMIT_REACHED",
           message: `AWS ${operation} pagination reached the configured page limit; remaining pages were skipped.`,
@@ -540,10 +563,12 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
           continue;
         }
 
+        completed = false;
         break;
       }
 
       if (status >= 400) {
+        completed = false;
         this.#pushWarning({
           code: "AWS_COLLECTION_SKIPPED",
           message: `AWS ${operation} readback returned HTTP ${status}; unsupported provider behavior was skipped instead of becoming canonical facts.`,
@@ -572,7 +597,7 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
       }
     }
 
-    return values;
+    return { values, completed };
   }
 
   #buildEntityMaps(
@@ -869,17 +894,41 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
         continue;
       }
 
+      const detectedAt = finding.updatedAt ?? finding.createdAt ?? this.#now();
+      const severity = accessAnalyzerSeverity(finding);
+      const recommendedAction = finding.isPublic ? "revoke" : "review";
+
       driftFindings.push({
         id: `drift:${this.id}:${redactValue(finding.id)}`,
         resourceId: resource.id,
         subjectId: subject.id,
         nativeAccess: accessAnalyzerNativeAccess(finding),
         intendedAccess: "no-approved-rebac-intent",
-        severity: accessAnalyzerSeverity(finding),
-        detectedAt: finding.updatedAt ?? finding.createdAt ?? this.#now(),
+        severity,
+        lifecycleState: "open",
+        ownerId: "role:security-operations",
+        assigneeId: "role:security-engineer",
+        detectedAt,
         sourceConnectorId: this.id,
-        recommendedAction: finding.isPublic ? "revoke" : "review",
+        recommendedAction,
         status: "open",
+        scheduledReconciliation: {
+          cadence: "manual",
+          scheduledAt: detectedAt,
+          gracePeriodHours: 0,
+          overdue: false
+        },
+        hookEvidence: [],
+        remediation: {},
+        autoRepairPolicy: {
+          enabled: false,
+          allowedActions: [recommendedAction],
+          maxSeverity: severity,
+          requireApproval: true,
+          requireConnectorReadiness: true,
+          liveProviderWrites: false,
+          reason: "AWS Access Analyzer drift findings require approval and read-only verification before any remediation plan."
+        },
         version: "drift-finding:v1",
         createdAt: this.#now()
       });
