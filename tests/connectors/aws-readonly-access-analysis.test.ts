@@ -433,6 +433,46 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
     ]));
   });
 
+  it("preserves anomalous EventBridge delivery timestamps as low-confidence activity evidence", async () => {
+    const pages = createFixturePages();
+    pages["cloudTrail.lookupEvents"] = [
+      {
+        value: [{
+          eventId: "raw-event-delivery-before-event",
+          eventTime: "2026-05-26T11:45:00.000Z",
+          eventName: "AssumeRoleWithSAML",
+          username: "case-operator@example.test",
+          recipientAccountId: rawAccountId,
+          readOnly: false,
+          eventBridgeDeliveredAt: "2026-05-26T11:40:00.000Z",
+          eventBridgeAttemptCount: 1,
+          eventBridgeRetryState: "SUCCESS",
+          resources: [
+            { resourceName: rawRoleArn, resourceType: "AWS::IAM::Role" },
+            { resourceName: rawPermissionSetArn, resourceType: "AWS::SSO::PermissionSet" }
+          ]
+        }],
+        status: 200
+      }
+    ];
+    const connector = new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(pages),
+      organizationId,
+      now: () => now,
+      sleep: noSleep
+    });
+
+    const resources = await connector.discoverResources();
+    const account = resources.find((resource) => resource.type === "aws_account" && resource.lifecycleState === "active");
+    const grants = await connector.readCurrentAccess(account!.id);
+
+    expect(grants[0]?.attributes?.cloudTrailActivity).toMatchObject({
+      eventBridgeLatencyMinutes: -5,
+      reconciliationConfidence: "low",
+      confidenceReasons: expect.arrayContaining(["eventbridge_delivery_precedes_event"])
+    });
+  });
+
   it("registers the AWS connector only when redacted sandbox fixture configuration is present", () => {
     expect(createRuntimeConnectors({ env: {} }).has(AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID)).toBe(false);
 

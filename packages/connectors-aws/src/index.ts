@@ -1441,6 +1441,7 @@ function buildActivityIndex(
     const eventBridgeLatencyMinutes = event.eventBridgeDeliveredAt
       ? minutesBetween(event.eventTime, event.eventBridgeDeliveredAt)
       : undefined;
+    const eventBridgeDeliveryPrecedesEvent = eventBridgeLatencyMinutes !== undefined && eventBridgeLatencyMinutes < 0;
     const eventBridgeAttempts = positiveIntegerOrUndefined(event.eventBridgeAttemptCount);
     const eventBridgeRetryState = event.eventBridgeRetryState
       ? safePermissionLabel(event.eventBridgeRetryState)
@@ -1455,6 +1456,7 @@ function buildActivityIndex(
     const confidenceReasons = [
       ...(staleActivity ? ["cloudtrail_activity_stale"] : []),
       ...(latencyWindowExceeded ? ["eventbridge_latency_window_exceeded"] : []),
+      ...(eventBridgeDeliveryPrecedesEvent ? ["eventbridge_delivery_precedes_event"] : []),
       ...(retryObserved ? ["eventbridge_retry_observed"] : []),
       ...(partialOrderingObserved ? ["partial_ordering_observed"] : [])
     ];
@@ -1530,8 +1532,7 @@ function latestActivityForAssignment(assignment: AwsAccountAssignment, maps: Aws
 
 function latestActivityForFinding(finding: AwsAccessAnalyzerFinding, maps: AwsEntityMaps): AwsActivity | undefined {
   return [
-    finding.resource,
-    finding.analyzerArn
+    finding.resource
   ].flatMap((key) => key ? [maps.latestActivityByRawKey.get(key)] : [])
     .filter((activity): activity is AwsActivity => Boolean(activity))
     .sort((a, b) => b.eventTime.localeCompare(a.eventTime))
@@ -1583,7 +1584,7 @@ function accessAnalyzerSeverity(
     return confidence.level === "low" ? "critical" : "high";
   }
 
-  return confidence.level === "high" ? "medium" : "high";
+  return confidence.level === "low" ? "high" : "medium";
 }
 
 function accessAnalyzerReconciliationConfidence(
@@ -1618,7 +1619,12 @@ function safePermissionLabel(value: string): string {
 }
 
 function confidenceLevelForReasons(reasons: string[]): AwsReconciliationConfidenceLevel {
-  if (reasons.some((reason) => reason.includes("stale") || reason.includes("missing") || reason.includes("failed"))) {
+  if (reasons.some((reason) => (
+    reason.includes("stale") ||
+    reason.includes("missing") ||
+    reason.includes("failed") ||
+    reason.includes("precedes")
+  ))) {
     return "low";
   }
 
@@ -1645,7 +1651,7 @@ function minutesBetween(start: string, end: string): number | undefined {
     return undefined;
   }
 
-  return Math.max(0, Math.round(((endMilliseconds - startMilliseconds) / MILLISECONDS_PER_MINUTE) * 100) / 100);
+  return Math.round(((endMilliseconds - startMilliseconds) / MILLISECONDS_PER_MINUTE) * 100) / 100;
 }
 
 function maxDefined(values: Array<number | undefined>): number | undefined {

@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-26T16:06:03.744Z
+Generated at: 2026-05-28T01:46:09.461Z
 
-Branch: 
+Branch: codex/rebac-aws-eventbridge-latency
 
 Node: v24.4.1
 
@@ -26,7 +26,7 @@ All proof-point validation commands passed.
 | persistence deployment evidence validation | `corepack pnpm validate:persistence-deployment` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
-| provider connector tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
+| connector package tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
 
 ## Command Output
@@ -34,14 +34,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-schemas.ts
 
 Validated 17 schemas and 17 example fixtures.
@@ -67,11 +67,11 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-stack-ops/openapi/rebac-control-plane.yaml.
-PASS 28 required API path groups are present.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-aws-eventbridge-latency/openapi/rebac-control-plane.yaml.
+PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
 PASS API examples validate against OpenAPI request and response schemas.
@@ -82,7 +82,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -105,7 +105,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -118,23 +118,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  12:05:54
-   Duration  533ms (transform 244ms, setup 0ms, import 392ms, tests 39ms, environment 0ms)
+   Start at  21:46:04
+   Duration  301ms (transform 136ms, setup 0ms, import 221ms, tests 22ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -145,7 +145,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -156,7 +156,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -167,7 +167,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -178,61 +178,61 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
- Test Files  8 passed (8)
-      Tests  123 passed (123)
-   Start at  12:05:58
-   Duration  503ms (transform 1.20s, setup 0ms, import 1.77s, tests 140ms, environment 1ms)
+ Test Files  10 passed (10)
+      Tests  128 passed (128)
+   Start at  21:46:06
+   Duration  241ms (transform 754ms, setup 0ms, import 1.11s, tests 94ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
  Test Files  4 passed (4)
-      Tests  97 passed (97)
-   Start at  12:05:59
-   Duration  1.06s (transform 1.02s, setup 0ms, import 1.64s, tests 490ms, environment 0ms)
+      Tests  102 passed (102)
+   Start at  21:46:07
+   Duration  521ms (transform 543ms, setup 0ms, import 828ms, tests 237ms, environment 0ms)
 ```
 
-### provider connector tests
+### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
- Test Files  2 passed (2)
-      Tests  22 passed (22)
-   Start at  12:06:00
-   Duration  418ms (transform 435ms, setup 0ms, import 533ms, tests 63ms, environment 0ms)
+ Test Files  3 passed (3)
+      Tests  33 passed (33)
+   Start at  21:46:08
+   Duration  227ms (transform 309ms, setup 0ms, import 427ms, tests 42ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-stack-ops
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
  Test Files  3 passed (3)
-      Tests  33 passed (33)
-   Start at  12:06:02
-   Duration  1.09s (transform 941ms, setup 0ms, import 1.95s, tests 289ms, environment 0ms)
+      Tests  34 passed (34)
+   Start at  21:46:08
+   Duration  341ms (transform 369ms, setup 0ms, import 657ms, tests 118ms, environment 0ms)
 ```
 
 
@@ -250,7 +250,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
-- Provider connector tests for Microsoft Graph Entra and AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior.
+- Connector package tests for Microsoft Graph Entra and AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
 
