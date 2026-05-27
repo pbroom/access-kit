@@ -1,5 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { isAbsolute, join, resolve, sep } from "node:path";
 import type { AnySchema } from "ajv";
 import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
@@ -18,9 +19,10 @@ interface WorkflowDocument {
 }
 
 const root = process.cwd();
+const releaseManifestDirectory = process.env.REBAC_RELEASE_MANIFEST_DIR ?? "releases";
 const releaseWorkflow = await readWorkflow(".github/workflows/container-release.yml");
 const releaseManifestSchema = await readJsonFile<AnySchema>("schemas/product-release-manifest.schema.json");
-const releaseManifestPaths = await listReleaseManifestPaths("releases");
+const releaseManifestPaths = await listReleaseManifestPaths(releaseManifestDirectory);
 const releaseManifests = await Promise.all(
   releaseManifestPaths.map(async (path) => ({
     path,
@@ -132,10 +134,11 @@ async function readRequiredFile(path: string): Promise<string> {
 }
 
 async function listReleaseManifestPaths(directory: string): Promise<string[]> {
-  const entries = await readdir(join(root, directory), { withFileTypes: true });
+  const releaseRoot = resolveFromRoot(directory);
+  const entries = await readdir(releaseRoot, { withFileTypes: true });
   const paths = entries
     .filter((entry) => entry.isDirectory())
-    .map((entry) => join(directory, entry.name, "manifest.json"))
+    .map((entry) => join(releaseRoot, entry.name, "manifest.json"))
     .sort();
 
   if (paths.length === 0) {
@@ -143,6 +146,10 @@ async function listReleaseManifestPaths(directory: string): Promise<string[]> {
   }
 
   return paths;
+}
+
+function resolveFromRoot(path: string): string {
+  return isAbsolute(path) ? path : join(root, path);
 }
 
 function validateReleaseManifest(schema: AnySchema, manifest: ProductReleaseManifest, path: string): void {
@@ -169,9 +176,9 @@ function validateReleaseManifest(schema: AnySchema, manifest: ProductReleaseMani
     }
 
     requireEquals(artifact.productionReady, manifest.productionReady, `${path} ${kind} artifact productionReady`);
-    requireNonEmpty(artifact.sbom, `${path} ${kind} artifact SBOM`);
-    requireNonEmpty(artifact.provenance, `${path} ${kind} artifact provenance`);
-    requireNonEmpty(artifact.signature, `${path} ${kind} artifact signature`);
+    requireReleaseEvidenceRef(artifact.sbom, `${path} ${kind} artifact SBOM`);
+    requireReleaseEvidenceRef(artifact.provenance, `${path} ${kind} artifact provenance`);
+    requireReleaseEvidenceRef(artifact.signature, `${path} ${kind} artifact signature`);
     requireNonEmpty(artifact.vulnerabilityDisclosure, `${path} ${kind} artifact vulnerability disclosure`);
   }
 
@@ -188,6 +195,9 @@ function validateReleaseManifest(schema: AnySchema, manifest: ProductReleaseMani
   requireIncludes(manifest.validation.requiredCommands.join("\n"), "corepack pnpm ci:check", `${path} release validation commands`);
   requireIncludes(manifest.validation.requiredCommands.join("\n"), "git diff --check", `${path} release validation commands`);
   requireIncludes(manifest.validation.evidenceRefs.join("\n"), "reports/proof-point-validation.md", `${path} release evidence refs`);
+  for (const evidenceRef of manifest.validation.evidenceRefs) {
+    requireReleaseEvidenceRef(evidenceRef, `${path} release evidence ref`);
+  }
 }
 
 function requireReleaseLabels(manifest: ProductReleaseManifest, path: string): void {
@@ -197,6 +207,9 @@ function requireReleaseLabels(manifest: ProductReleaseManifest, path: string): v
     requireEquals(manifest.productionReady, false, `${path} proof-point release productionReady`);
     requireIncludes(labelText, "proof-point", `${path} proof-point release labels`);
     requireIncludes(labelText, "not-production-ready", `${path} proof-point release labels`);
+    if (manifest.labels.includes("production-ready")) {
+      throw new Error(`${path} proof-point release labels must not include production-ready`);
+    }
     return;
   }
 
@@ -219,6 +232,55 @@ function requireNonEmpty(value: string, label: string): void {
   if (value.trim().length === 0) {
     throw new Error(`${label} must be non-empty`);
   }
+}
+
+function requireReleaseEvidenceRef(value: string, label: string): void {
+  requireNonEmpty(value, label);
+
+  const retainedPathError = validateRepoRelativeRetainedPath(value);
+  if (!retainedPathError) {
+    return;
+  }
+
+  if (isSignedAttestationRef(value)) {
+    return;
+  }
+
+  if (isPlaceholderLikeEvidence(value)) {
+    throw new Error(`${label} must not be placeholder-like release evidence: ${value}`);
+  }
+
+  throw new Error(`${label} must be a concrete repo-relative retained path or signed attestation ref: ${value}`);
+}
+
+function validateRepoRelativeRetainedPath(repoPath: string): string | undefined {
+  if (isAbsolute(repoPath)) {
+    return "absolute";
+  }
+
+  const parts = repoPath.split("/");
+  if (repoPath.includes("\\") || parts.some((part) => part === "" || part === ".")) {
+    return "not-normalized";
+  }
+
+  if (parts.includes("..")) {
+    return "traversal";
+  }
+
+  const resolved = resolve(root, repoPath);
+  if (resolved !== root && !resolved.startsWith(`${root}${sep}`)) {
+    return "outside-repo";
+  }
+
+  return existsSync(resolved) ? undefined : "missing";
+}
+
+function isSignedAttestationRef(value: string): boolean {
+  return /^(attestation|cosign|npm-provenance|npm-integrity):[a-z0-9][a-z0-9._:/@+-]*$/u.test(value);
+}
+
+function isPlaceholderLikeEvidence(value: string): boolean {
+  return /<[^>]+>|\b(?:placeholder|tbd|todo|when configured|when .* lands|retained with release evidence|metadata from|source release provenance|documentation source paths)\b/iu.test(value);
 }
 
 function requireWorkflowDispatch(workflow: WorkflowDocument): void {

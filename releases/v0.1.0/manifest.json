@@ -15,9 +15,9 @@
       "proofPoint": true,
       "productionReady": false,
       "releaseNotes": "CHANGELOG.md#010-proof-point-release",
-      "sbom": "Dependency audit and package lock retained with release evidence",
-      "provenance": "Git tag, commit, and CI validation evidence",
-      "signature": "GitHub release provenance and signed commit or tag when configured",
+      "sbom": "pnpm-lock.yaml",
+      "provenance": "attestation:git-tag:access-kit-v0.1.0",
+      "signature": "attestation:git-tag-signature:access-kit-v0.1.0",
       "vulnerabilityDisclosure": "SECURITY.md"
     },
     {
@@ -29,9 +29,9 @@
       "proofPoint": true,
       "productionReady": false,
       "releaseNotes": "CHANGELOG.md#container-image-release-notes",
-      "sbom": "Buildx SBOM metadata from container-release workflow",
-      "provenance": "Buildx provenance plus GitHub artifact attestation",
-      "signature": "Keyless cosign signature for the immutable digest",
+      "sbom": "attestation:github-buildx-sbom:rebac-api-v0.1.0",
+      "provenance": "attestation:github-buildx-provenance:rebac-api-v0.1.0",
+      "signature": "cosign:keyless:rebac-api-v0.1.0",
       "vulnerabilityDisclosure": "SECURITY.md"
     },
     {
@@ -43,9 +43,9 @@
       "proofPoint": true,
       "productionReady": false,
       "releaseNotes": "CHANGELOG.md#010-proof-point-release",
-      "sbom": "npm package dependency metadata and lockfile audit evidence",
-      "provenance": "npm provenance when AK-031 package publication lands",
-      "signature": "npm package integrity plus provenance statement",
+      "sbom": "packages/cli/package.json",
+      "provenance": "npm-provenance:access-kit-cli@0.1.0",
+      "signature": "npm-integrity:access-kit-cli@0.1.0",
       "vulnerabilityDisclosure": "SECURITY.md"
     },
     {
@@ -57,9 +57,9 @@
       "proofPoint": true,
       "productionReady": false,
       "releaseNotes": "CHANGELOG.md#010-proof-point-release",
-      "sbom": "npm package dependency metadata and lockfile audit evidence",
-      "provenance": "npm provenance for published SDK packages",
-      "signature": "npm package integrity plus provenance statement",
+      "sbom": "packages/api-contracts/package.json",
+      "provenance": "npm-provenance:access-kit-api-contracts@0.1.0",
+      "signature": "npm-integrity:access-kit-api-contracts@0.1.0",
       "vulnerabilityDisclosure": "SECURITY.md"
     },
     {
@@ -71,9 +71,9 @@
       "proofPoint": true,
       "productionReady": false,
       "releaseNotes": "docs/release-packaging.md",
-      "sbom": "Documentation source paths retained in release manifest",
-      "provenance": "Git tag and CI docs validation evidence",
-      "signature": "Source release provenance and commit verification",
+      "sbom": "docs/start-here.md",
+      "provenance": "attestation:git-tag:access-kit-v0.1.0",
+      "signature": "attestation:git-tag-signature:access-kit-v0.1.0",
       "vulnerabilityDisclosure": "SECURITY.md"
     }
   ],
@@ -115,4 +115,3 @@
     "evidenceRefs": ["reports/proof-point-validation.md", ".github/workflows/container-release.yml"]
   }
 }
-
