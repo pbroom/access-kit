@@ -1,6 +1,6 @@
 import Ajv2020 from "ajv/dist/2020.js";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   InMemoryRebacStore,
   RebacDecisionEngine,
@@ -85,9 +85,19 @@ interface RegressionSnapshot {
 interface RegressionCase {
   name: string;
   evaluatedAt?: string;
+  coverage?: RegressionCoverage[];
   request: DecisionRequest;
   expected: ExpectedDecision;
 }
+
+interface ClassificationBoundaryCoverage {
+  kind: "classification-boundary";
+  classification: string;
+  control: "classification.allowedActions";
+  expectation: "positive" | "negative";
+}
+
+type RegressionCoverage = ClassificationBoundaryCoverage;
 
 interface ExpectedDecision {
   decision: DecisionValue;
@@ -98,7 +108,9 @@ interface ExpectedDecision {
 }
 
 const root = process.cwd();
-const sampleRoot = join(root, "examples", "sample-policy-repository");
+const sampleRoot = process.env.ACCESS_KIT_SAMPLE_POLICY_ROOT
+  ? resolve(root, process.env.ACCESS_KIT_SAMPLE_POLICY_ROOT)
+  : join(root, "examples", "sample-policy-repository");
 const forbiddenIdentifierPattern = /(?:@|secret|token|password|prod(?:uction)?|tenant-[0-9a-f]{6,})/i;
 const ajv = new Ajv2020({ allErrors: true, strict: false });
 
@@ -174,6 +186,7 @@ const casesByName = new Map<string, RegressionCase>();
 let denyDefaultCases = 0;
 let tenantBoundaryCases = 0;
 let explicitDenyCases = 0;
+const classificationBoundaryCoverage = new Map<string, ClassificationBoundaryCoverageState>();
 
 for (const artifact of manifest.regressionSnapshots) {
   const snapshot = await readSampleJson<RegressionSnapshot>(artifact.path);
@@ -181,10 +194,16 @@ for (const artifact of manifest.regressionSnapshots) {
     throw new Error(`${artifact.path} does not match manifest policy or relationship version.`);
   }
 
+  const model = models.get(snapshot.policyVersion);
+  if (!model) {
+    throw new Error(`${artifact.path} references missing policy model ${snapshot.policyVersion}.`);
+  }
+
   const fixture = fixturesByRelationshipVersion.get(snapshot.relationshipVersion);
   if (!fixture) {
     throw new Error(`${artifact.path} references missing tuple fixture ${snapshot.relationshipVersion}.`);
   }
+  const resourcesById = new Map(fixture.resources.map((resource) => [resource.id, resource]));
 
   const storeSeed = {
     subjects: fixture.subjects,
@@ -216,12 +235,21 @@ for (const artifact of manifest.regressionSnapshots) {
     if (testCase.expected.reasonCode === "DENY_EXPLICIT_OVERRIDE") {
       explicitDenyCases += 1;
     }
+
+    recordClassificationBoundaryCoverage(
+      artifact.path,
+      testCase,
+      model,
+      resourcesById,
+      classificationBoundaryCoverage
+    );
   }
 }
 
 if (denyDefaultCases === 0 || tenantBoundaryCases === 0 || explicitDenyCases === 0) {
   throw new Error("Sample policy snapshots must cover deny-default, tenant-boundary, and explicit-deny behavior.");
 }
+requireClassificationBoundaryRegressionCoverage(models, classificationBoundaryCoverage);
 
 for (const example of manifest.generatedExamples) {
   const testCase = casesByName.get(example.caseName);
@@ -238,7 +266,7 @@ for (const example of manifest.generatedExamples) {
 scanForForbiddenIdentifiers(manifest, "policy-repository.json");
 
 console.log("Validated sample policy repository.");
-console.log(`PASS ${models.size} model versions, ${manifest.migrations.length} migration(s), ${fixturesByRelationshipVersion.size} tuple fixture set(s), ${casesByName.size} regression case(s), and ${manifest.generatedExamples.length} generated API example(s).`);
+console.log(`PASS ${models.size} model versions, ${manifest.migrations.length} migration(s), ${fixturesByRelationshipVersion.size} tuple fixture set(s), ${casesByName.size} regression case(s), ${countClassificationBoundaryCases(classificationBoundaryCoverage)} classification-boundary coverage case(s), and ${manifest.generatedExamples.length} generated API example(s).`);
 
 async function readSampleJson<T>(path: string): Promise<T> {
   return readJson<T>(join(sampleRoot, path));
@@ -296,6 +324,104 @@ function requireSyntheticFixtureBoundary(fixture: TupleFixture, path: string): v
       throw new Error(`${path} relationship ${relationship.id} must declare attributes.tenantId.`);
     }
   }
+}
+
+interface ClassificationBoundaryCoverageState {
+  positiveCase?: string;
+  negativeCase?: string;
+}
+
+function recordClassificationBoundaryCoverage(
+  path: string,
+  testCase: RegressionCase,
+  model: PolicyModel,
+  resourcesById: Map<string, Resource>,
+  coverageByPolicyAndClassification: Map<string, ClassificationBoundaryCoverageState>
+): void {
+  for (const coverage of testCase.coverage ?? []) {
+    if (coverage.kind !== "classification-boundary") {
+      throw new Error(`${path} case ${testCase.name} declares unsupported coverage kind ${String(coverage.kind)}.`);
+    }
+    if (coverage.control !== "classification.allowedActions") {
+      throw new Error(`${path} case ${testCase.name} classification-boundary coverage must target classification.allowedActions.`);
+    }
+    if (coverage.expectation !== "positive" && coverage.expectation !== "negative") {
+      throw new Error(`${path} case ${testCase.name} classification-boundary coverage must be positive or negative.`);
+    }
+
+    const resource = resourcesById.get(testCase.request.resourceId);
+    if (!resource) {
+      throw new Error(`${path} case ${testCase.name} references missing resource ${testCase.request.resourceId}.`);
+    }
+    if (resource.classification !== coverage.classification) {
+      throw new Error(`${path} case ${testCase.name} claims ${coverage.classification} coverage but targets ${resource.classification}.`);
+    }
+
+    const constraint = model.classificationConstraints.find((item) => item.classification === coverage.classification);
+    if (!constraint) {
+      throw new Error(`${path} case ${testCase.name} claims unknown ${coverage.classification} classification-boundary coverage.`);
+    }
+
+    const actionAllowedByControl = constraint.allowedActions.includes(testCase.request.action);
+    if (coverage.expectation === "positive") {
+      if (!actionAllowedByControl) {
+        throw new Error(`${path} case ${testCase.name} positive classification-boundary coverage must request an action allowed by ${coverage.classification} classification.allowedActions.`);
+      }
+      if (testCase.expected.decision !== "allow") {
+        throw new Error(`${path} case ${testCase.name} positive classification-boundary coverage must expect allow.`);
+      }
+    } else {
+      if (actionAllowedByControl) {
+        throw new Error(`${path} case ${testCase.name} negative classification-boundary coverage must request an action blocked by ${coverage.classification} classification.allowedActions.`);
+      }
+      if (testCase.expected.decision !== "deny") {
+        throw new Error(`${path} case ${testCase.name} negative classification-boundary coverage must expect deny.`);
+      }
+    }
+
+    const key = classificationCoverageKey(model.version, coverage.classification);
+    const state = coverageByPolicyAndClassification.get(key) ?? {};
+    if (coverage.expectation === "positive") {
+      state.positiveCase = testCase.name;
+    } else {
+      state.negativeCase = testCase.name;
+    }
+    coverageByPolicyAndClassification.set(key, state);
+  }
+}
+
+function requireClassificationBoundaryRegressionCoverage(
+  models: Map<string, PolicyModel>,
+  coverageByPolicyAndClassification: Map<string, ClassificationBoundaryCoverageState>
+): void {
+  for (const model of models.values()) {
+    const modelActions = new Set(model.actions.map((action) => action.name));
+    for (const constraint of model.classificationConstraints) {
+      const disallowedActions = [...modelActions].filter((action) => !constraint.allowedActions.includes(action));
+      if (disallowedActions.length === 0) {
+        continue;
+      }
+
+      const coverage = coverageByPolicyAndClassification.get(classificationCoverageKey(model.version, constraint.classification));
+      if (!coverage?.positiveCase || !coverage.negativeCase) {
+        throw new Error(
+          `${model.version} must include explicit classification-boundary positive and negative regression coverage for ${constraint.classification} classification.allowedActions.`
+        );
+      }
+    }
+  }
+}
+
+function countClassificationBoundaryCases(
+  coverageByPolicyAndClassification: Map<string, ClassificationBoundaryCoverageState>
+): number {
+  return [...coverageByPolicyAndClassification.values()].reduce((count, coverage) => {
+    return count + (coverage.positiveCase ? 1 : 0) + (coverage.negativeCase ? 1 : 0);
+  }, 0);
+}
+
+function classificationCoverageKey(policyVersion: string, classification: string): string {
+  return `${policyVersion}:${classification}`;
 }
 
 function toExpectedDecision(result: {

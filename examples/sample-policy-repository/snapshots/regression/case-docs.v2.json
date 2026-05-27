@@ -38,6 +38,53 @@
       }
     },
     {
+      "name": "case team reads restricted summary within classification boundary",
+      "coverage": [
+        {
+          "kind": "classification-boundary",
+          "classification": "restricted",
+          "control": "classification.allowedActions",
+          "expectation": "positive"
+        }
+      ],
+      "request": {
+        "subjectId": "user:alice",
+        "action": "read",
+        "resourceId": "document:restricted-summary",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "context": {
+          "purpose": "case-work",
+          "riskScore": 18,
+          "businessJustification": "case review",
+          "supportEscalationApproved": false
+        }
+      },
+      "expected": {
+        "decision": "allow",
+        "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+        "policyVersion": "policy:case-docs-v2",
+        "relationshipVersion": "tuple-set:case-docs-v2",
+        "relationshipPath": [
+          {
+            "subjectId": "user:alice",
+            "relation": "member_of",
+            "objectId": "group:case-team"
+          },
+          {
+            "subjectId": "group:case-team",
+            "relation": "reader_of",
+            "objectId": "workspace:case"
+          },
+          {
+            "subjectId": "workspace:case",
+            "relation": "contains",
+            "objectId": "document:restricted-summary"
+          }
+        ]
+      }
+    },
+    {
       "name": "support escalation expires closed",
       "evaluatedAt": "2026-05-28T12:00:00.000Z",
       "request": {
@@ -65,6 +112,14 @@
     },
     {
       "name": "reader cannot write restricted summary",
+      "coverage": [
+        {
+          "kind": "classification-boundary",
+          "classification": "restricted",
+          "control": "classification.allowedActions",
+          "expectation": "negative"
+        }
+      ],
       "request": {
         "subjectId": "user:alice",
         "action": "write",
