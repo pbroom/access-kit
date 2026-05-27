@@ -106,10 +106,28 @@ async function spawnPython(args: string[]): Promise<{ status: number | null; out
       }
     });
     let output = "";
+    let settled = false;
     const timeout = setTimeout(() => {
-      child.kill("SIGKILL");
-      output += "\nPython subprocess timed out.";
+      if (!settled) {
+        settled = true;
+        child.kill("SIGKILL");
+        resolve({ status: 1, output: `${output}\nPython subprocess timed out.` });
+      }
     }, 15000);
+    const finish = (result: { status: number | null; output: string }) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeout);
+        resolve(result);
+      }
+    };
+    const fail = (error: Error) => {
+      if (!settled) {
+        settled = true;
+        clearTimeout(timeout);
+        reject(error);
+      }
+    };
 
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
@@ -119,10 +137,19 @@ async function spawnPython(args: string[]): Promise<{ status: number | null; out
     child.stderr.on("data", (chunk: string) => {
       output += chunk;
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        finish({
+          status: 1,
+          output: "Python 3 is required for validate:pep-conformance; install python3 and retry."
+        });
+        return;
+      }
+
+      fail(error);
+    });
     child.on("close", (status) => {
-      clearTimeout(timeout);
-      resolve({ status, output });
+      finish({ status, output });
     });
   });
 }

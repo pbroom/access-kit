@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T05:12:27.768Z
+Generated at: 2026-05-28T05:12:57.054Z
 
 Branch: 
 
@@ -175,8 +175,8 @@ Node.js v24.4.1
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  01:12:20
-   Duration  293ms (transform 136ms, setup 0ms, import 213ms, tests 20ms, environment 0ms)
+   Start at  01:12:50
+   Duration  280ms (transform 135ms, setup 0ms, import 209ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -269,8 +269,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  01:12:23
-   Duration  247ms (transform 1.06s, setup 0ms, import 1.49s, tests 127ms, environment 1ms)
+   Start at  01:12:53
+   Duration  241ms (transform 1.04s, setup 0ms, import 1.49s, tests 123ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -285,8 +285,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  01:12:24
-   Duration  516ms (transform 859ms, setup 0ms, import 1.47s, tests 434ms, environment 0ms)
+   Start at  01:12:54
+   Duration  515ms (transform 901ms, setup 0ms, import 1.44s, tests 440ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -301,8 +301,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  3 passed (3)
       Tests  18 passed (18)
-   Start at  01:12:25
-   Duration  895ms (transform 296ms, setup 0ms, import 455ms, tests 657ms, environment 0ms)
+   Start at  01:12:55
+   Duration  449ms (transform 278ms, setup 0ms, import 430ms, tests 223ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -313,8 +313,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-python-fastapi-pep
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  01:12:26
-   Duration  229ms (transform 344ms, setup 0ms, import 448ms, tests 49ms, environment 0ms)
+   Start at  01:12:55
+   Duration  230ms (transform 345ms, setup 0ms, import 448ms, tests 48ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -329,8 +329,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-python-fastapi-pep
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  01:12:27
-   Duration  327ms (transform 371ms, setup 0ms, import 639ms, tests 114ms, environment 0ms)
+   Start at  01:12:56
+   Duration  328ms (transform 396ms, setup 0ms, import 639ms, tests 113ms, environment 0ms)
 ```
 
 

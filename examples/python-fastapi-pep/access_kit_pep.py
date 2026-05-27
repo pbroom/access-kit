@@ -1,17 +1,17 @@
 """Dependency-light Python client and FastAPI PEP helpers for Access Kit."""
 
 import json
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, MutableMapping, Optional
+from typing import Any, Callable, Mapping, MutableMapping, NoReturn, Optional
 
 try:
     from fastapi import Request as FastApiRequest
     from fastapi import Response as FastApiResponse
-except Exception:
+except ImportError:
     FastApiRequest = Any
     FastApiResponse = Any
 
@@ -170,7 +170,7 @@ def register_access_kit_exception_handler(app: Any) -> None:
         return JSONResponse(status_code=error.status_code, content=error.body, headers=error.headers)
 
 
-def _deny(status_code: int, reason_code: str, correlation_id: str) -> None:
+def _deny(status_code: int, reason_code: str, correlation_id: str) -> NoReturn:
     body = {
         "code": "ACCESS_DENIED",
         "correlationId": correlation_id,
@@ -207,7 +207,7 @@ def _resolve_correlation_id(
     if header:
         return str(header)
 
-    return "corr:python-pep:%s" % int(time.time() * 1000)
+    return "corr:python-pep:%s" % uuid.uuid4()
 
 
 def _get_header(request: Any, name: str) -> Optional[Any]:

@@ -144,6 +144,19 @@ class FastApiPepDependencyTests(unittest.TestCase):
         self.assertEqual(events[0].decision["decisionId"], "decision:python-correlation")
         self.assertEqual(events[0].decision["reasonCode"], "ALLOW_VIA_RELATIONSHIP_PATH")
 
+    def test_generates_unique_correlation_ids_when_callers_do_not_supply_one(self):
+        client = MockClient(check_result=decision(decisionId="decision:python-generated-correlation"))
+        dependency = create_fastapi_pep_dependency(client, build_decision_request=lambda _request: PROTECTED_REQUEST)
+
+        dependency({"headers": {}}, FakeResponse())
+        dependency({"headers": {}}, FakeResponse())
+
+        first_correlation_id = client.check_calls[0][1]
+        second_correlation_id = client.check_calls[1][1]
+        self.assertTrue(first_correlation_id.startswith("corr:python-pep:"))
+        self.assertTrue(second_correlation_id.startswith("corr:python-pep:"))
+        self.assertNotEqual(first_correlation_id, second_correlation_id)
+
     def test_logs_denied_decisions_with_reason_codes(self):
         client = MockClient(
             check_result=decision(

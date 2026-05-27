@@ -24,6 +24,8 @@ pnpm validate:pep-conformance
 
 The suite exercises the TypeScript Express starter in `tests/sdk-pep/pep-conformance.test.ts` and the Python FastAPI starter in `tests/sdk-pep/python-fastapi-pep.test.ts`. Future SDKs and middleware examples should add their own adapter tests against the same behavior contract before they are marked reviewable in the backlog.
 
+Because the Python FastAPI starter is part of this gate, `pnpm validate:pep-conformance` requires Python 3 to be available as `python3`.
+
 The conformance tests intentionally use protected requests with local role-like headers and sensitive relationship-path fixtures. Those inputs prove that the PEP does not authorize locally, does not call explain for protected route denials, and does not leak relationship paths in end-user responses.
 
 ## Implementation Notes
