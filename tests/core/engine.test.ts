@@ -165,6 +165,17 @@ describe("RebacDecisionEngine", () => {
       `context:${first.contextVersion}`,
       "classification:confidential"
     ]));
+    expect(firstCache.audit.requiredFields).toEqual(expect.arrayContaining([
+      "key",
+      "tenantId",
+      "resourceClassification",
+      "maxTtlSeconds",
+      "expiresAt",
+      "invalidationSignals",
+      "failClosed",
+      "localFallbackAllowed",
+      "staleDecisionBehavior"
+    ]));
     expect(secondCache.key).not.toBe(firstCache.key);
     expect(secondCache.invalidationSignals).toContain(`context:${second.contextVersion}`);
   });

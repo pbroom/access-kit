@@ -305,8 +305,6 @@ function toDecisionResult(
   const relationshipPath = explain ? context.relationshipPath : [];
   const cache = createDecisionCacheMetadata({
     request: context.request,
-    decision: context.decision,
-    reasonCode: context.reasonCode,
     versionPins: context.versionPins,
     tenantId: context.tenantId,
     resourceClassification: context.resourceClassification,

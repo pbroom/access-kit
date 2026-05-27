@@ -1,5 +1,5 @@
 import { sha256 } from "./audit.js";
-import type { DecisionRequest, DecisionValue, JsonRecord, RelationshipTuple, Resource, Subject } from "./domain.js";
+import type { DecisionRequest, JsonRecord, RelationshipTuple, Resource, Subject } from "./domain.js";
 import type { RebacSeedData } from "./store.js";
 
 export interface DecisionRuntimeVersionPins {
@@ -57,8 +57,6 @@ export interface DecisionRuntimePerformanceReport {
 
 export interface DecisionCacheMetadataInput {
   request: DecisionRequest;
-  decision: DecisionValue;
-  reasonCode: string;
   versionPins: DecisionRuntimeVersionPins;
   evaluatedAt: string;
   tenantId?: string;
@@ -300,7 +298,8 @@ export function createDecisionCacheMetadata(input: DecisionCacheMetadataInput): 
         "expiresAt",
         "invalidationSignals",
         "failClosed",
-        "localFallbackAllowed"
+        "localFallbackAllowed",
+        "staleDecisionBehavior"
       ]
     }
   };
