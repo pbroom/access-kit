@@ -116,6 +116,29 @@ describe("TypeScript client and Express PEP starter", () => {
     });
   });
 
+  it("passes caller buildDecisionRequest errors to Express error handling", async () => {
+    const buildError = new Error("missing request user");
+    const events: Array<{ outcome: string }> = [];
+    const middleware = createAccessKitExpressPepMiddleware({
+      client: createAccessKitClient({ apiKey, baseUrl }),
+      buildDecisionRequest: () => {
+        throw buildError;
+      },
+      onDecision: (event) => events.push({ outcome: event.outcome })
+    });
+    const response = createResponse();
+    let nextError: unknown;
+
+    await middleware({}, response, (error) => {
+      nextError = error;
+    });
+
+    expect(nextError).toBe(buildError);
+    expect(response.statusCode).toBeUndefined();
+    expect(response.body).toBeUndefined();
+    expect(events).toEqual([]);
+  });
+
   it("allows protected route handlers only after an allow decision", async () => {
     const middleware = createAccessKitExpressPepMiddleware({
       client: createAccessKitClient({ apiKey, baseUrl }),

@@ -102,9 +102,17 @@ export function createAccessKitExpressPepMiddleware<Request extends ExpressPepRe
     const correlationId = resolveCorrelationId(request, options.buildCorrelationId?.(request));
     response.setHeader("x-correlation-id", correlationId);
 
+    let decisionRequest: DecisionRequest;
+    try {
+      decisionRequest = options.buildDecisionRequest(request);
+    } catch (error) {
+      next(error);
+      return;
+    }
+
     let decision: DecisionResult;
     try {
-      decision = await options.client.check(options.buildDecisionRequest(request), { correlationId });
+      decision = await options.client.check(decisionRequest, { correlationId });
     } catch (error) {
       options.onDecision?.({ request, correlationId, error, outcome: "error" });
       deny(response, 503, "ACCESS_KIT_UNAVAILABLE", correlationId);

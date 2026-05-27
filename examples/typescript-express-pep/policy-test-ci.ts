@@ -14,7 +14,7 @@ if (!policyId) {
 
 const client = createAccessKitClient({ apiKey, baseUrl });
 const result = await client.testPolicy(policyId, { correlationId: "corr:policy-test-ci" });
-const failingChecks = result.checks.filter((check) => check.status === "fail");
+const failingChecks = (result.checks ?? []).filter((check) => check.status === "fail");
 
 if (!result.valid || failingChecks.length > 0) {
   throw new Error(`Policy ${policyId} failed ${failingChecks.length} policy-test checks.`);
