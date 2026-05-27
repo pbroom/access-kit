@@ -420,11 +420,11 @@
         "packageHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
         "hashAlgorithm": { "type": "string", "const": "sha256" },
         "canonicalization": { "type": "string", "const": "stable-json" },
-        "signatureAlgorithm": { "type": "string", "const": "sha256-local-proof-signature" },
+        "signatureAlgorithm": { "type": "string", "const": "ed25519-local-proof-signature" },
         "keyId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
         "signedAt": { "type": "string", "format": "date-time" },
         "signerRole": { "type": "string", "minLength": 1 },
-        "signature": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "signature": { "type": "string", "pattern": "^ed25519-local-proof-signature:[A-Za-z0-9_-]+$" },
         "deploymentScope": { "$ref": "#/$defs/deploymentScope" },
         "sourceEventIds": {
           "type": "array",

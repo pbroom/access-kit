@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import {
-  attachEvidenceIntegrityManifest,
+  finalizeEvidenceExport,
   sha256,
   verifyAuditChain,
   type AuditEvent,
@@ -1802,7 +1802,7 @@ function createEvidence(
 ): EvidenceExport {
   const auditIntegrity = verifyAuditChain(events, now);
   const evidencePeriod = deriveEvidencePeriod(events, now);
-  return attachEvidenceIntegrityManifest({
+  return finalizeEvidenceExport({
     exportId: `evidence:${connectorId}`,
     framework: "nist-800-53",
     controls: ["AC-2", "AC-3", "AC-6", "AU-2"],

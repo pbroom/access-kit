@@ -622,7 +622,7 @@ export interface SignedEvidencePackage {
   packageHash: string;
   hashAlgorithm: "sha256";
   canonicalization: "stable-json";
-  signatureAlgorithm: "sha256-local-proof-signature";
+  signatureAlgorithm: "ed25519-local-proof-signature";
   keyId: CanonicalId;
   signedAt: IsoDateTime;
   signerRole: string;

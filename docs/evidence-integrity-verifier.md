@@ -10,7 +10,7 @@ Evidence exports include an `integrityManifest`, signed package metadata, and ve
 4. Canonicalize the package content with the same stable JSON key ordering used by Access Kit.
 5. Compute SHA-256 over the canonical package content and compare it with `integrityManifest.packageHash`.
 6. For every entry in `integrityManifest.sections`, canonicalize the named evidence section, compute SHA-256, and compare it with the recorded `hash`.
-7. Verify `signedPackage.packageHash` matches `integrityManifest.packageHash`, recompute the local proof signature over the signed metadata, and confirm each control trace points to the signed package, reviewed statement metadata, source events, and deployment scope.
+7. Verify `signedPackage.packageHash` matches `integrityManifest.packageHash`, verify `signedPackage.signature` over the signed metadata with the trusted public key for `signedPackage.keyId`, and confirm each control trace points to the signed package, reviewed statement metadata, source events, and deployment scope.
 
 The CLI exposes the same checks:
 
@@ -18,4 +18,4 @@ The CLI exposes the same checks:
 rebac evidence verify --package evidence-export.json
 ```
 
-The manifest and local proof signature record hashes, counts, trace references, and deployment scope only. They must not introduce secrets, bearer tokens, provider credentials, or raw tenant payloads. The local proof signature is deterministic verification metadata for the proof-point package; production deployments still need environment-managed signing keys and approved evidence retention.
+The manifest and local proof signature record hashes, counts, trace references, and deployment scope only. They must not introduce secrets, bearer tokens, provider credentials, or raw tenant payloads. The local proof signature is verified against a trusted key record for the proof-point package; production deployments still need environment-managed signing keys and approved evidence retention.

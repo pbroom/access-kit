@@ -193,10 +193,14 @@
           "approverRole": "Data Owner",
           "decision": "approved",
           "decidedAt": "2026-05-21T17:00:00.000Z",
-          "evidenceRefs": ["evidence:access-review-campaign"]
+          "evidenceRefs": [
+            "evidence:access-review-campaign"
+          ]
         }
       ],
-      "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+      "sourceEventIds": [
+        "evt:decision-allow-alice-read-case-plan"
+      ],
       "version": "access-review:v2"
     }
   ],
@@ -398,7 +402,7 @@
       },
       "signatureRef": {
         "packageId": "signed-package:evidence:may-2026-ac-au",
-        "keyId": "key:local-proof-point-evidence"
+        "keyId": "key:local-proof-point-evidence-ed25519"
       },
       "deploymentScope": {
         "boundaryId": "boundary:local-rebac-control-plane",
@@ -431,7 +435,7 @@
     }
   ],
   "integrityManifest": {
-    "packageHash": "sha256:97a3954a4f97b3cc0748961e7951e2d2c36d414a33aeead9cd8a551b68bd91e3",
+    "packageHash": "sha256:dc7a0cd56623c3ff3e8f4cfdc8c2c550ace4786988ffcddb9d264e1e4e347470",
     "hashAlgorithm": "sha256",
     "canonicalization": "stable-json",
     "generatedAt": "2026-05-21T17:00:00.000Z",
@@ -484,7 +488,7 @@
       },
       {
         "name": "accessReviews",
-        "hash": "sha256:a7c990173aa5a433ca6b9e7300a9f9757ee70a8217d1a1c81426fc44f635476a",
+        "hash": "sha256:30df0018c845a33cfb1280338d9bb85e9c8ab87e55448a8147df586fb8161e30",
         "itemCount": 1
       },
       {
@@ -503,7 +507,7 @@
       },
       {
         "name": "controlTraceViews",
-        "hash": "sha256:9f66086e2e8d1038e83344ac9110a290ee524252d0ffd428346bf60ce90376b3",
+        "hash": "sha256:da06a865a2b4e716b3449984b19beb7573cf489f57be891d82a2ff76f898dfbb",
         "itemCount": 1
       }
     ],
@@ -516,18 +520,19 @@
         "Remove signedPackage and verifierChecks from the evidence package.",
         "Canonicalize the remaining package content with stable JSON key ordering.",
         "Compute sha256 over the canonical package and compare it with integrityManifest.packageHash.",
-        "Canonicalize each named section and compare sha256 values with integrityManifest.sections."
+        "Canonicalize each named section and compare sha256 values with integrityManifest.sections.",
+        "Verify signedPackage.signature over the signed metadata using the trusted public key for signedPackage.keyId."
       ]
     },
     "version": "evidence-integrity-manifest:v1"
   },
   "signedPackage": {
     "packageId": "signed-package:evidence:may-2026-ac-au",
-    "packageHash": "sha256:97a3954a4f97b3cc0748961e7951e2d2c36d414a33aeead9cd8a551b68bd91e3",
+    "packageHash": "sha256:dc7a0cd56623c3ff3e8f4cfdc8c2c550ace4786988ffcddb9d264e1e4e347470",
     "hashAlgorithm": "sha256",
     "canonicalization": "stable-json",
-    "signatureAlgorithm": "sha256-local-proof-signature",
-    "keyId": "key:local-proof-point-evidence",
+    "signatureAlgorithm": "ed25519-local-proof-signature",
+    "keyId": "key:local-proof-point-evidence-ed25519",
     "signedAt": "2026-05-21T17:00:00.000Z",
     "signerRole": "ISSO",
     "deploymentScope": {
@@ -560,7 +565,7 @@
       "control-trace:evidence:may-2026-ac-au:ac-3"
     ],
     "version": "signed-evidence-package:v1",
-    "signature": "sha256:ea64be697729c335e3d3563043ab5d9597e364eb174231a34e8c0721b2e455d4"
+    "signature": "ed25519-local-proof-signature:KkVEbfG1NRlqDol3ua1tyGm3ll3Kj8PIqdFnAt4dHvAr_jjRG-06cKuOiVEbef04ExtapiLNvcjn59Z4uPfQCA"
   },
   "verifierChecks": [
     {
@@ -651,7 +656,7 @@
     {
       "name": "signed_package_signature",
       "status": "pass",
-      "message": "Signed package proof signature verifies."
+      "message": "Signed package proof signature verifies with a trusted key."
     },
     {
       "name": "deployment_scope",

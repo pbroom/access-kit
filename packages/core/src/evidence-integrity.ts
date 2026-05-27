@@ -1,4 +1,5 @@
-import { sha256 } from "./audit.js";
+import { createPublicKey, generateKeyPairSync, sign as signPayload, verify as verifyPayload } from "node:crypto";
+import { sha256, stableStringify } from "./audit.js";
 import type {
   ControlImplementationStatement,
   EvidenceControlTraceView,
@@ -21,8 +22,25 @@ export type EvidenceExportDraft = Omit<EvidenceExportPackageContent, "poamExport
 type EvidenceExportWithIntegrity = EvidenceExportPackageContent & Pick<EvidenceExport, "integrityManifest">;
 type EvidenceExportWithSignature = EvidenceExportWithIntegrity & Pick<EvidenceExport, "signedPackage">;
 
-const defaultSignatureKeyId = "key:local-proof-point-evidence";
+const runtimeSignatureKeyId = "key:local-proof-point-evidence-runtime-ed25519";
+const checkedInFixtureSignatureKeyId = "key:local-proof-point-evidence-ed25519";
+const defaultSignatureAlgorithm = "ed25519-local-proof-signature";
 const defaultSignerRole = "ISSO";
+const runtimeEvidenceSigningKey = generateKeyPairSync("ed25519");
+const trustedEvidenceSigningKeys: Record<string, { algorithm: SignedEvidencePackage["signatureAlgorithm"]; publicKey: Parameters<typeof verifyPayload>[2] }> = {
+  [runtimeSignatureKeyId]: {
+    algorithm: defaultSignatureAlgorithm,
+    publicKey: runtimeEvidenceSigningKey.publicKey
+  },
+  [checkedInFixtureSignatureKeyId]: {
+    algorithm: defaultSignatureAlgorithm,
+    publicKey: [
+      "-----BEGIN PUBLIC KEY-----",
+      "MCowBQYDK2VwAyEAJ7SpvBRUTsRbE+kFLruIT17vej9Z3ofIBMV8ODHGarI=",
+      "-----END PUBLIC KEY-----"
+    ].join("\n")
+  }
+};
 
 export function finalizeEvidenceExport(draft: EvidenceExportDraft): EvidenceExport {
   const deploymentScope = buildDeploymentScope(draft);
@@ -80,7 +98,8 @@ export function attachEvidenceIntegrityManifest(evidence: EvidenceExportWithoutI
           "Remove signedPackage and verifierChecks from the evidence package.",
           "Canonicalize the remaining package content with stable JSON key ordering.",
           "Compute sha256 over the canonical package and compare it with integrityManifest.packageHash.",
-          "Canonicalize each named section and compare sha256 values with integrityManifest.sections."
+          "Canonicalize each named section and compare sha256 values with integrityManifest.sections.",
+          "Verify signedPackage.signature over the signed metadata using the trusted public key for signedPackage.keyId."
         ]
       },
       version: "evidence-integrity-manifest:v1"
@@ -90,7 +109,7 @@ export function attachEvidenceIntegrityManifest(evidence: EvidenceExportWithoutI
 
 export function attachSignedEvidencePackage(evidence: EvidenceExportWithIntegrity): EvidenceExportWithSignature {
   const packageId = signedPackageId(evidence.exportId);
-  const keyId = defaultSignatureKeyId;
+  const keyId = runtimeSignatureKeyId;
   const deploymentScope = evidence.oscal.systemSecurityPlan.deploymentScope;
   const reviewedStatementRefs = evidence.controlStatements.map((statement) => controlStatementRef(statement.controlId));
   const controlTraceIds = evidence.controlTraceViews.map((trace) => trace.traceId);
@@ -99,7 +118,7 @@ export function attachSignedEvidencePackage(evidence: EvidenceExportWithIntegrit
     packageHash: evidence.integrityManifest.packageHash,
     hashAlgorithm: "sha256",
     canonicalization: "stable-json",
-    signatureAlgorithm: "sha256-local-proof-signature",
+    signatureAlgorithm: defaultSignatureAlgorithm,
     keyId,
     signedAt: evidence.generatedAt,
     signerRole: defaultSignerRole,
@@ -183,15 +202,34 @@ export function verifyEvidenceExport(value: unknown, verifiedAt?: string): Evide
     if (!evidence.signedPackage) {
       return fail("signed_package_signature", "Signed package metadata is missing.");
     }
-    const { signature: _signature, ...unsignedPackage } = evidence.signedPackage;
-    void _signature;
-    const expected = signedPackageSignature(unsignedPackage);
-    return evidence.signedPackage.signature === expected ? pass("signed_package_signature", "Signed package proof signature verifies.") : fail(
-      "signed_package_signature",
-      "Signed package proof signature does not verify.",
-      expected,
-      evidence.signedPackage.signature
-    );
+    const trustedKey = trustedEvidenceSigningKeys[evidence.signedPackage.keyId];
+
+    if (!trustedKey) {
+      return fail(
+        "signed_package_signature",
+        "Signed package key is not trusted by this verifier.",
+        Object.keys(trustedEvidenceSigningKeys).join(","),
+        evidence.signedPackage.keyId
+      );
+    }
+
+    if (trustedKey.algorithm !== evidence.signedPackage.signatureAlgorithm) {
+      return fail(
+        "signed_package_signature",
+        "Signed package algorithm does not match the trusted key.",
+        trustedKey.algorithm,
+        evidence.signedPackage.signatureAlgorithm
+      );
+    }
+
+    return verifySignedPackageSignature(evidence.signedPackage, trustedKey.publicKey)
+      ? pass("signed_package_signature", "Signed package proof signature verifies with a trusted key.")
+      : fail(
+          "signed_package_signature",
+          "Signed package proof signature does not verify with a trusted key.",
+          `${trustedKey.algorithm}:<trusted-signature>`,
+          evidence.signedPackage.signature
+        );
   }));
 
   checks.push(runCheck("deployment_scope", "Signed deployment scope matches the exported system boundary and period.", () => {
@@ -357,7 +395,7 @@ function buildControlTraceViews(
       },
       signatureRef: {
         packageId,
-        keyId: defaultSignatureKeyId
+        keyId: runtimeSignatureKeyId
       },
       deploymentScope,
       oscalRefs: {
@@ -385,7 +423,32 @@ function hashReference(value: unknown): string {
 }
 
 function signedPackageSignature(unsignedPackage: Omit<SignedEvidencePackage, "signature">): string {
-  return hashReference(unsignedPackage);
+  const signature = signPayload(
+    null,
+    Buffer.from(stableStringify(unsignedPackage)),
+    runtimeEvidenceSigningKey.privateKey
+  );
+  return `${unsignedPackage.signatureAlgorithm}:${signature.toString("base64url")}`;
+}
+
+function verifySignedPackageSignature(signedPackage: SignedEvidencePackage, publicKey: Parameters<typeof verifyPayload>[2]): boolean {
+  const { signature, ...unsignedPackage } = signedPackage;
+  const signaturePrefix = `${signedPackage.signatureAlgorithm}:`;
+
+  if (!signature.startsWith(signaturePrefix)) {
+    return false;
+  }
+
+  try {
+    return verifyPayload(
+      null,
+      Buffer.from(stableStringify(unsignedPackage)),
+      typeof publicKey === "string" ? createPublicKey(publicKey) : publicKey,
+      Buffer.from(signature.slice(signaturePrefix.length), "base64url")
+    );
+  } catch {
+    return false;
+  }
 }
 
 function controlStatementRef(controlId: string): string {

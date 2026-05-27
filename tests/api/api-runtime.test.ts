@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
@@ -7,8 +7,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  AuditRecorder,
-  canonicalEvidenceContent,
+	  AuditRecorder,
+	  attachEvidenceIntegrityManifest,
+	  canonicalEvidenceContent,
   createDefaultPolicyModel,
   createLocalEngineSeed,
   LocalAppendOnlyAuditRepository,
@@ -1108,7 +1109,7 @@ describe("ReBAC API runtime", () => {
     });
     expect(evidence.signedPackage).toMatchObject({
       packageHash: evidence.integrityManifest.packageHash,
-      signatureAlgorithm: "sha256-local-proof-signature",
+      signatureAlgorithm: "ed25519-local-proof-signature",
       deploymentScope: {
         boundaryId: evidence.systemBoundary.boundaryId,
         liveTenantData: false,
@@ -1218,6 +1219,64 @@ describe("ReBAC API runtime", () => {
           checkCount: report.checks.length
         })
       })
+    ]));
+  });
+
+  it("rejects modified evidence packages with recomputed legacy hash signatures", async () => {
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const evidence = await get<JsonObject>("/v1/evidence/export?controls=AC-3,AU-6") as unknown as EvidenceExport;
+    expect(verifyEvidenceExport(evidence).status).toBe("verified");
+
+    const tamperedContent = canonicalEvidenceContent(evidence);
+    const forgedWithManifest = attachEvidenceIntegrityManifest({
+      ...tamperedContent,
+      conmonMetrics: [
+        ...tamperedContent.conmonMetrics,
+        {
+          name: "forged_metric",
+          value: 1,
+          unit: "count",
+          source: "attacker"
+        }
+      ]
+    });
+    const forgedPackage = {
+      ...evidence.signedPackage,
+      packageHash: forgedWithManifest.integrityManifest.packageHash
+    };
+    const { signature: _legacySignature, ...unsignedForgedPackage } = forgedPackage;
+    void _legacySignature;
+    const forgedEvidence: EvidenceExport = {
+      ...evidence,
+      ...forgedWithManifest,
+      signedPackage: {
+        ...forgedPackage,
+        signature: `sha256:${sha256(unsignedForgedPackage)}`
+      },
+      verifierChecks: []
+    };
+    const report = verifyEvidenceExport(forgedEvidence);
+
+    expect(report.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "package_hash", status: "pass" }),
+      expect.objectContaining({ name: "signed_package_hash", status: "pass" }),
+      expect.objectContaining({ name: "signed_package_signature", status: "fail" })
+    ]));
+    expect(report.status).toBe("failed");
+  });
+
+  it("verifies the checked-in signed evidence fixture with the trusted key", () => {
+    const evidence = JSON.parse(readFileSync("tests/fixtures/schema-examples/evidence-export.json", "utf8")) as EvidenceExport;
+    const report = verifyEvidenceExport(evidence);
+
+    expect(report.status).toBe("verified");
+    expect(report.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "signed_package_signature", status: "pass" })
     ]));
   });
 

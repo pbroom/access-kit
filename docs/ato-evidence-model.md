@@ -97,7 +97,7 @@ The generated OSCAL sections are fragments, not an assessor-approved authorizati
 - `oscal.assessmentResults` maps reviewed controls, observations, source events, and gaps.
 - `oscal.planOfActionAndMilestones` mirrors the package POA&M items.
 
-The package also includes `signedPackage`, `verifierChecks`, and `controlTraceViews`. These bind the canonical package hash to source events, reviewed statement references, deployment scope, and per-control trace records. The local proof signature is deterministic verifier metadata for the proof-point runtime; production deployments still need environment-managed signing keys, immutable retention, and assessor-approved control statements.
+The package also includes `signedPackage`, `verifierChecks`, and `controlTraceViews`. These bind the canonical package hash to source events, reviewed statement references, deployment scope, and per-control trace records. The local proof signature is verified with trusted key metadata for the proof-point runtime; production deployments still need environment-managed signing keys, immutable retention, and assessor-approved control statements.
 
 ## Related Documentation
 
