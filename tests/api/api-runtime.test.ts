@@ -3165,6 +3165,63 @@ describe("ReBAC API runtime", () => {
     ]));
   });
 
+  it("replays emergency revocation plans when only approval timestamps change", async () => {
+    const control = controlledEnforcement();
+    const readiness = await createReadyReadinessReport("mock", control);
+    const approval = {
+      ...controlledApproval(),
+      approverId: "user:incident-commander",
+      changeTicket: "chg:emergency-revoke-001",
+      reason: "Approved emergency revocation exercise."
+    };
+    const requestBody = {
+      grantId: "native-grant:mock:document:case-plan:user:alice:read:direct",
+      connectorId: "mock",
+      action: "revoke",
+      mode: "enforcement",
+      dryRun: false,
+      approval,
+      readinessReportId: readiness.id,
+      control
+    };
+
+    const first = await postWithIdempotency<{ id: string; approval: { approvedAt: string } }>(
+      "/v1/provisioning/plans",
+      "idem-emergency-revoke-replay",
+      requestBody
+    );
+    const replay = await postWithIdempotency<{ id: string; approval: { approvedAt: string } }>(
+      "/v1/provisioning/plans",
+      "idem-emergency-revoke-replay",
+      {
+        ...requestBody,
+        approval: {
+          ...approval,
+          approvedAt: "2026-05-21T17:00:01.000Z"
+        }
+      }
+    );
+    const conflict = await fetch(`${baseUrl}/v1/provisioning/plans`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-emergency-revoke-replay" },
+      body: JSON.stringify({
+        ...requestBody,
+        approval: {
+          ...approval,
+          approverId: "user:secondary-approver",
+          approvedAt: "2026-05-21T17:00:02.000Z"
+        }
+      })
+    });
+    const body = (await conflict.json()) as { code: string };
+
+    expect(first.id).toBe(replay.id);
+    expect(first.approval.approvedAt).toBe("2026-05-21T17:00:00.000Z");
+    expect(replay.approval.approvedAt).toBe("2026-05-21T17:00:00.000Z");
+    expect(conflict.status).toBe(409);
+    expect(body.code).toBe("IDEMPOTENCY_KEY_REUSED");
+  });
+
   it("rejects idempotent provisioning job replay for a different plan", async () => {
     const firstPlan = await postWithIdempotency<{ id: string }>("/v1/provisioning/plans", "idem-phase3-plan-one", {
       subjectId: "user:alice",

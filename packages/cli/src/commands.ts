@@ -775,15 +775,21 @@ function addEmergencyCommands(program: Command, context: CliContext): void {
     };
 
     return client.post("/v1/provisioning/plans", requestBody, {
-      idempotencyBody: {
-        ...requestBody,
-        approval: {
-          ...approval,
-          approvedAt: "cli-generated"
-        }
-      }
+      idempotencyBody: normalizeEmergencyRevokeForIdempotency(requestBody)
     });
   }));
+}
+
+function normalizeEmergencyRevokeForIdempotency(
+  requestBody: Record<string, unknown> & { approval: Record<string, unknown> }
+): Record<string, unknown> {
+  return {
+    ...requestBody,
+    approval: {
+      ...requestBody.approval,
+      approvedAt: "cli-generated"
+    }
+  };
 }
 
 function addCompletionCommand(program: Command, context: CliContext): void {

@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T04:29:45.516Z
+Generated at: 2026-05-28T04:30:21.092Z
 
-Branch: 
+Branch: codex/rebac-operator-workflow-commands
 
 Node: v24.4.1
 
@@ -134,8 +134,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  00:29:39
-   Duration  285ms (transform 136ms, setup 0ms, import 213ms, tests 21ms, environment 0ms)
+   Start at  00:30:15
+   Duration  281ms (transform 134ms, setup 0ms, import 209ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -228,8 +228,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  00:29:42
-   Duration  243ms (transform 998ms, setup 0ms, import 1.48s, tests 124ms, environment 0ms)
+   Start at  00:30:18
+   Duration  242ms (transform 986ms, setup 0ms, import 1.44s, tests 125ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -243,9 +243,9 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
 
  Test Files  6 passed (6)
-      Tests  112 passed (112)
-   Start at  00:29:43
-   Duration  519ms (transform 803ms, setup 0ms, import 1.26s, tests 399ms, environment 0ms)
+      Tests  113 passed (113)
+   Start at  00:30:19
+   Duration  508ms (transform 745ms, setup 0ms, import 1.22s, tests 405ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -256,8 +256,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-operator-workflow-commands
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  00:29:44
-   Duration  228ms (transform 336ms, setup 0ms, import 447ms, tests 49ms, environment 0ms)
+   Start at  00:30:19
+   Duration  228ms (transform 334ms, setup 0ms, import 445ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -271,9 +271,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-operator-workflow-commands
 
 
  Test Files  3 passed (3)
-      Tests  49 passed (49)
-   Start at  00:29:44
-   Duration  325ms (transform 378ms, setup 0ms, import 633ms, tests 114ms, environment 0ms)
+      Tests  50 passed (50)
+   Start at  00:30:20
+   Duration  326ms (transform 371ms, setup 0ms, import 635ms, tests 115ms, environment 0ms)
 ```
 
 

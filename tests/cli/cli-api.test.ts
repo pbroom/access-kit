@@ -495,6 +495,45 @@ describe("CLI API wrapper", () => {
     expect(requests[0]?.headers["idempotency-key"]).toBe(requests[1]?.headers["idempotency-key"]);
   });
 
+  it("changes emergency revoke idempotency when non-volatile approval evidence changes", async () => {
+    const requests: CapturedRequest[] = [];
+    const baseArgs = [
+      "emergency",
+      "revoke",
+      "native-grant:document:case-plan:alice",
+      "--connector",
+      "mock",
+      "--readiness-report",
+      "readiness:mock:phase4",
+      "--reason",
+      "Approved emergency revocation exercise",
+      "--confirm-revoke"
+    ];
+
+    await runCliWithFetch(
+      requests,
+      { now: () => "2026-05-21T17:00:00.000Z" },
+      ...baseArgs,
+      "--approver",
+      "user:incident-commander",
+      "--change-ticket",
+      "inc:2026-05-21:001"
+    );
+    await runCliWithFetch(
+      requests,
+      { now: () => "2026-05-21T17:00:01.000Z" },
+      ...baseArgs,
+      "--approver",
+      "user:secondary-approver",
+      "--change-ticket",
+      "inc:2026-05-21:001"
+    );
+
+    expect(requests[0]?.body).toMatchObject({ approval: { approverId: "user:incident-commander" } });
+    expect(requests[1]?.body).toMatchObject({ approval: { approverId: "user:secondary-approver" } });
+    expect(requests[0]?.headers["idempotency-key"]).not.toBe(requests[1]?.headers["idempotency-key"]);
+  });
+
   it("fails closed before API calls when emergency revoke is not confirmed", async () => {
     const previousExitCode = process.exitCode;
     const errorSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);

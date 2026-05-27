@@ -2410,17 +2410,36 @@ function planMatchesRevocationRequest(
   return (
     plan.connectorId === connectorId &&
     plan.actions.some((action) => action.operation === "revoke" && action.requestedState.nativeGrantId === nativeGrantId) &&
-    planMatchesExecutionOptions(plan, options)
+    planMatchesExecutionOptions(plan, options, { ignoreApprovalApprovedAt: true })
   );
 }
 
-function planMatchesExecutionOptions(plan: ProvisioningPlan, options: ProvisioningExecutionOptions): boolean {
+function planMatchesExecutionOptions(
+  plan: ProvisioningPlan,
+  options: ProvisioningExecutionOptions,
+  replayOptions: { ignoreApprovalApprovedAt?: boolean } = {}
+): boolean {
   return (
     plan.mode === (options.mode ?? "dry_run") &&
-    JSON.stringify(plan.approval ?? null) === JSON.stringify(options.approval ?? null) &&
+    JSON.stringify(normalizeApprovalForReplay(plan.approval, replayOptions) ?? null) ===
+      JSON.stringify(normalizeApprovalForReplay(options.approval, replayOptions) ?? null) &&
     JSON.stringify(plan.control ?? null) === JSON.stringify(options.control ?? null) &&
     (plan.readinessReportId ?? null) === (options.readinessReportId ?? null)
   );
+}
+
+function normalizeApprovalForReplay(
+  approval: ProvisioningApproval | undefined,
+  options: { ignoreApprovalApprovedAt?: boolean }
+): ProvisioningApproval | undefined {
+  if (!approval || options.ignoreApprovalApprovedAt !== true) {
+    return approval;
+  }
+
+  return {
+    ...approval,
+    approvedAt: "idempotency-replay-normalized"
+  };
 }
 
 function prepareProvisioningPlan(
