@@ -1136,19 +1136,21 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       await this.#addSiteDrives(site, siteResource, resources);
     }
 
-    for (const user of users) {
-      if (!user.id) {
-        continue;
-      }
-
+    if (users.some((user) => user.id)) {
       this.#pushWarning({
         code: "GRAPH_ONEDRIVE_USER_ENUMERATION_SEQUENTIAL",
         message: "Microsoft Graph OneDrive inventory enumerates user drives per imported user; large tenants should monitor throttling and coverage before treating OneDrive inventory as complete.",
         severity: "info",
         scope: "resources",
-        retryable: true,
-        objectId: maps.subjectsByGraphId.get(user.id)?.id
+        retryable: true
       });
+    }
+
+    for (const user of users) {
+      if (!user.id) {
+        continue;
+      }
+
       await this.#addUserDrives(user, maps.subjectsByGraphId.get(user.id), resources);
     }
 

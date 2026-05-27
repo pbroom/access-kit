@@ -321,6 +321,10 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
     ).toEqual(expect.arrayContaining(resources
       .filter((resource) => resource.attributes?.inheritanceAmbiguous === true)
       .map((resource) => resource.id)));
+    const oneDriveEnumerationWarnings = metadata.warnings
+      .filter((warning) => warning.code === "GRAPH_ONEDRIVE_USER_ENUMERATION_SEQUENTIAL");
+    expect(oneDriveEnumerationWarnings).toHaveLength(1);
+    expect(oneDriveEnumerationWarnings[0]).not.toHaveProperty("objectId");
     expect(relationships.map((relationship) => relationship.relation)).not.toEqual(expect.arrayContaining([
       "sharepoint_reader",
       "onedrive_reader",

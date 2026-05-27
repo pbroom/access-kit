@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:04:12.441Z
+Generated at: 2026-05-28T03:04:53.233Z
 
 Branch: 
 
@@ -160,8 +160,8 @@ Node.js v24.4.1
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:04:07
-   Duration  287ms (transform 133ms, setup 0ms, import 208ms, tests 20ms, environment 0ms)
+   Start at  23:04:47
+   Duration  276ms (transform 133ms, setup 0ms, import 205ms, tests 19ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -242,8 +242,8 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 
  Test Files  10 passed (10)
       Tests  148 passed (148)
-   Start at  23:04:09
-   Duration  223ms (transform 758ms, setup 0ms, import 1.07s, tests 100ms, environment 0ms)
+   Start at  23:04:50
+   Duration  224ms (transform 760ms, setup 0ms, import 1.09s, tests 102ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -258,8 +258,8 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 
  Test Files  4 passed (4)
       Tests  107 passed (107)
-   Start at  23:04:10
-   Duration  481ms (transform 470ms, setup 0ms, import 702ms, tests 252ms, environment 0ms)
+   Start at  23:04:51
+   Duration  480ms (transform 494ms, setup 0ms, import 726ms, tests 245ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -267,13 +267,13 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ```text
 RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 
- ❯ tests/connectors/microsoft-graph-entra.test.ts (17 tests | 1 failed) 22ms
+ ❯ tests/connectors/microsoft-graph-entra.test.ts (17 tests | 1 failed) 23ms
      × preserves previous Microsoft Graph native grants when app-role readback is incomplete 4ms
 
  Test Files  1 failed | 2 passed (3)
       Tests  1 failed | 38 passed (39)
-   Start at  23:04:11
-   Duration  228ms (transform 327ms, setup 0ms, import 432ms, tests 50ms, environment 0ms)
+   Start at  23:04:52
+   Duration  221ms (transform 298ms, setup 0ms, import 414ms, tests 50ms, environment 0ms)
 
 
 ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
@@ -293,7 +293,7 @@ Error: No fixture page for /sites?$select=id,name,displayName,webUrl,isPersonalS
  ❯ MicrosoftGraphEntraReadOnlyConnector.#loadSnapshot packages/connectors-microsoft-graph/src/index.ts:570:55
  ❯ MicrosoftGraphEntraReadOnlyConnector.discoverSubjects packages/connectors-microsoft-graph/src/index.ts:396:13
  ❯ syncConnector packages/api/src/local-app.ts:448:20
- ❯ tests/connectors/microsoft-graph-entra.test.ts:510:5
+ ❯ tests/connectors/microsoft-graph-entra.test.ts:514:5
 
 ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 ```
@@ -310,8 +310,8 @@ Error: No fixture page for /sites?$select=id,name,displayName,webUrl,isPersonalS
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:04:11
-   Duration  311ms (transform 351ms, setup 0ms, import 606ms, tests 109ms, environment 0ms)
+   Start at  23:04:52
+   Duration  308ms (transform 337ms, setup 0ms, import 601ms, tests 104ms, environment 0ms)
 ```
 
 
