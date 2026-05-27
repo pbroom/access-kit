@@ -1,13 +1,11 @@
 import {
   AuditRecorder,
   assertAdminAuthorizationDescriptorSafe,
-  attachEvidenceIntegrityManifest,
-  attachEvidenceVerifierChecks,
-  attachSignedEvidencePackage,
   buildAccessReviewGovernance,
   buildReconciliationSchedule,
   createLocalEngineSeed,
   createLocalBearerTokenAdminAuthorizationDescriptor,
+  finalizeEvidenceExport,
   driftSeverityAllowed,
   enrichDriftFindingLifecycle,
   sourceEventIdsForAccessReview,
@@ -16,6 +14,7 @@ import {
   sha256,
   stableStringify,
   validatePolicyModel,
+  verifyEvidenceExport,
   verifyAuditChain,
   type AccessReviewCampaign,
   type AccessReviewEvidence,
@@ -49,6 +48,7 @@ import {
   type EvidenceFramework,
   type EvidencePackageRepository,
   type EvidenceStorageReceipt,
+  type EvidenceVerificationReport,
   type ExceptionRequest,
   type ExceptionRecord,
   type GovernanceFinding,
@@ -1257,28 +1257,7 @@ export function exportEvidencePackage(
   const artifacts = buildEvidenceArtifacts(format, events.length);
   const exportId = `evidence:${generatedAt.replaceAll(/[^0-9a-z]/gi, "").toLowerCase()}`;
   const controlStatements = buildControlStatements(controlMappings, artifacts, generatedAt);
-  const deploymentScope = buildEvidenceDeploymentScope(systemBoundary, controls, periodStart, periodEnd);
-  const poamExport = buildOscalPoamExport(exportId, poamItems, controls, generatedAt);
-  const oscal = buildOscalEvidenceArtifacts(
-    exportId,
-    options.framework ?? "nist-800-53",
-    generatedAt,
-    systemBoundary,
-    dataFlows,
-    controlMappings,
-    controlStatements,
-    deploymentScope,
-    poamExport
-  );
-  const controlTraceViews = buildControlTraceViews(
-    exportId,
-    controlMappings,
-    controlStatements,
-    deploymentScope,
-    oscal,
-    signedPackageId(exportId)
-  );
-  const exportMetadata = attachEvidenceVerifierChecks(attachSignedEvidencePackage(attachEvidenceIntegrityManifest({
+  const exportMetadata = finalizeEvidenceExport({
     exportId,
     framework: options.framework ?? "nist-800-53",
     controls,
@@ -1317,7 +1296,6 @@ export function exportEvidencePackage(
     artifacts,
     conmonMetrics,
     poamItems,
-    poamExport,
     siemExport: {
       format: "jsonl",
       eventCount: events.length,
@@ -1330,10 +1308,8 @@ export function exportEvidencePackage(
     controlStatements,
     accessReviews,
     exceptionRegister,
-    operationalEvidence,
-    oscal,
-    controlTraceViews
-  })));
+    operationalEvidence
+  });
 
   const evidenceEvent = recordAudit(app, {
     eventType: "evidence.generated",
@@ -1350,6 +1326,30 @@ export function exportEvidencePackage(
   );
   commitRuntimePersistence(app, evidenceEvent.occurredAt, []);
   return storageReceipt ? { ...exportMetadata, storageReceipt } : exportMetadata;
+}
+
+export function verifyEvidencePackage(
+  app: RebacLocalApp,
+  evidencePackage: unknown,
+  options: { idempotencyKey: string }
+): EvidenceVerificationReport {
+  const report = verifyEvidenceExport(evidencePackage, app.now());
+  recordAudit(app, {
+    eventType: "evidence.verified",
+    actor: app.actor,
+    correlationId: `corr:evidence-verify:${compactTimestamp(report.verifiedAt)}`,
+    payload: asJsonRecord({
+      status: report.status,
+      packageHash: report.packageHash,
+      verifiedAt: report.verifiedAt,
+      idempotencyKey: options.idempotencyKey,
+      checkCount: report.checks.length,
+      failedChecks: report.checks
+        .filter((check) => check.status !== "pass")
+        .map((check) => check.name)
+    })
+  });
+  return report;
 }
 
 export function verifyAuditIntegrity(app: RebacLocalApp): AuditIntegrityReport {

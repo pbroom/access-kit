@@ -1207,6 +1207,31 @@ describe("ReBAC API runtime", () => {
       expect.objectContaining({ name: "signed_package_signature", status: "pass" }),
       expect.objectContaining({ name: "control_trace_views", status: "pass" })
     ]));
+
+    const audit = await get<{ items: Array<{ eventType: string; payload: JsonObject }> }>("/v1/audit/events");
+    expect(audit.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        eventType: "evidence.verified",
+        payload: expect.objectContaining({
+          status: "verified",
+          packageHash: evidence.integrityManifest.packageHash,
+          checkCount: report.checks.length
+        })
+      })
+    ]));
+  });
+
+  it("requires an idempotency key for evidence verification", async () => {
+    const evidence = await get<JsonObject>("/v1/evidence/export?controls=AC-3");
+    const response = await fetch(`${baseUrl}/v1/evidence/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(evidence)
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("MISSING_IDEMPOTENCY_KEY");
   });
 
   it("verifies audit integrity and emits verification evidence", async () => {

@@ -39,6 +39,7 @@ import {
   testConnector,
   validatePolicy,
   verifyAuditIntegrity,
+  verifyEvidencePackage,
   RebacLocalAppError,
   type PolicyDraft,
   type RebacLocalApp,
@@ -46,7 +47,6 @@ import {
 } from "./local-app.js";
 import { validateRuntimeRequestSchema, type RuntimeRequestSchemaName } from "./request-schemas.js";
 import {
-  verifyEvidenceExport,
   type DecisionRequest,
   type DiscoveryRunStatus,
   type DriftAutoRepairPolicy,
@@ -295,7 +295,8 @@ async function routeRequest(
   }
 
   if (segments[1] === "evidence" && segments[2] === "verify" && method === "POST") {
-    sendJson(response, 200, verifyEvidenceExport(await readJson<unknown>(request)));
+    const idempotencyKey = readIdempotencyKey(request);
+    sendJson(response, 200, verifyEvidencePackage(app, await readJson<unknown>(request), { idempotencyKey }));
     return;
   }
 

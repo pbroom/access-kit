@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-27T16:36:58.731Z
+Generated at: 2026-05-27T16:38:34.153Z
 
 Branch: 
 
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  12:36:51
-   Duration  469ms (transform 204ms, setup 0ms, import 332ms, tests 36ms, environment 0ms)
+   Start at  12:38:26
+   Duration  491ms (transform 214ms, setup 0ms, import 350ms, tests 37ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -187,8 +187,8 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  8 passed (8)
       Tests  123 passed (123)
-   Start at  12:36:54
-   Duration  487ms (transform 1.25s, setup 0ms, import 1.79s, tests 144ms, environment 0ms)
+   Start at  12:38:30
+   Duration  447ms (transform 1.15s, setup 0ms, import 1.58s, tests 134ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -202,9 +202,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  4 passed (4)
-      Tests  98 passed (98)
-   Start at  12:36:55
-   Duration  823ms (transform 751ms, setup 0ms, import 1.13s, tests 422ms, environment 0ms)
+      Tests  99 passed (99)
+   Start at  12:38:31
+   Duration  879ms (transform 817ms, setup 0ms, import 1.22s, tests 447ms, environment 0ms)
 ```
 
 ### Microsoft Graph connector tests
@@ -215,8 +215,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-oscal-signed-evidence
 
  Test Files  1 passed (1)
       Tests  11 passed (11)
-   Start at  12:36:56
-   Duration  323ms (transform 161ms, setup 0ms, import 197ms, tests 25ms, environment 0ms)
+   Start at  12:38:32
+   Duration  331ms (transform 168ms, setup 0ms, import 211ms, tests 25ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-oscal-signed-evidence
 
  Test Files  3 passed (3)
       Tests  34 passed (34)
-   Start at  12:36:57
-   Duration  541ms (transform 601ms, setup 0ms, import 1.01s, tests 187ms, environment 0ms)
+   Start at  12:38:33
+   Duration  534ms (transform 552ms, setup 0ms, import 987ms, tests 189ms, environment 0ms)
 ```
 
 
