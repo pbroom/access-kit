@@ -100,12 +100,23 @@ export interface InternalAdminActionResult {
   readonly auditEventIds: readonly CanonicalId[];
 }
 
+interface ApprovalValidationResult {
+  readonly valid: boolean;
+  readonly reasonCode: string;
+  readonly approval?: ApprovalEvidence;
+}
+
 interface AdminActionConfig {
   readonly action: DecisionRequest["action"];
   readonly resourceId: CanonicalId;
   readonly requiresAccessReview: boolean;
   readonly requiresApproval: boolean;
   readonly requiresBreakGlass: boolean;
+}
+
+interface ValidatedAdminArtifacts {
+  readonly approval?: ApprovalEvidence;
+  readonly breakGlassApproval?: ApprovalEvidence;
 }
 
 const timestamp = "2026-05-26T14:00:00.000Z";
@@ -153,18 +164,21 @@ export class SampleInternalAdminApplication {
   readonly #applicationEngine: RebacDecisionEngine;
   readonly #applicationStore: InMemoryRebacStore;
   readonly #now: () => string;
+  readonly #trustedApprovals: ReadonlyMap<CanonicalId, ApprovalEvidence>;
 
   constructor(options: {
     readonly adminDescriptor?: AdminAuthorizationDescriptor;
     readonly adminSeed?: RebacSeedData;
     readonly applicationSeed?: RebacSeedData;
     readonly now?: () => string;
+    readonly trustedApprovals?: readonly ApprovalEvidence[];
   } = {}) {
     this.#now = options.now ?? (() => timestamp);
     this.#adminDescriptor = options.adminDescriptor ?? createSampleAdminAuthorizationDescriptor();
     this.#adminReadiness = assessAdminAuthorizationReadiness(this.#adminDescriptor, this.#now());
     this.#adminStore = new InMemoryRebacStore(options.adminSeed ?? createSampleAdminSeed());
     this.#applicationStore = new InMemoryRebacStore(options.applicationSeed ?? createLocalEngineSeed());
+    this.#trustedApprovals = createTrustedApprovalStore(options.trustedApprovals ?? createSampleTrustedApprovals());
     this.#adminAudit = new AuditRecorder(this.#adminStore.listAuditEvents());
     this.#adminEngine = new RebacDecisionEngine(this.#adminStore, {
       actor: "service:sample-internal-admin-app",
@@ -192,6 +206,8 @@ export class SampleInternalAdminApplication {
   handle(request: InternalAdminActionRequest): InternalAdminActionResult {
     const config = actionConfigs[request.action];
     const actionAuditEventIds: CanonicalId[] = [];
+    let validatedApproval: ApprovalEvidence | undefined;
+    let validatedBreakGlassApproval: ApprovalEvidence | undefined;
 
     if (this.#adminReadiness.status !== "ready") {
       const event = this.#recordAdminEvent("admin.action_denied", request.session, {
@@ -222,7 +238,12 @@ export class SampleInternalAdminApplication {
     }
 
     if (config.requiresApproval) {
-      const approvalStatus = validateApprovalEvidence(request.approval, request.accessReview, this.#now());
+      const approvalStatus = validateApprovalEvidence(
+        request.approval,
+        request.accessReview,
+        this.#now(),
+        this.#trustedApprovals
+      );
       if (!approvalStatus.valid) {
         const event = this.#recordAdminEvent("admin.approval_required", request.session, {
           action: request.action,
@@ -231,6 +252,7 @@ export class SampleInternalAdminApplication {
         });
         return needsApproval(approvalStatus.reasonCode, request, adminDecision, [...actionAuditEventIds, event.eventId]);
       }
+      validatedApproval = approvalStatus.approval;
     }
 
     if (config.requiresBreakGlass) {
@@ -251,15 +273,20 @@ export class SampleInternalAdminApplication {
           ? needsApproval(breakGlassStatus.reasonCode, request, adminDecision, auditEventIds)
           : denied(breakGlassStatus.reasonCode, request, adminDecision, auditEventIds);
       }
+      validatedBreakGlassApproval = breakGlassStatus.approval;
     }
 
-    return this.#completeAllowedAction(request, adminDecision, actionAuditEventIds);
+    return this.#completeAllowedAction(request, adminDecision, actionAuditEventIds, {
+      approval: validatedApproval,
+      breakGlassApproval: validatedBreakGlassApproval
+    });
   }
 
   #completeAllowedAction(
     request: InternalAdminActionRequest,
     adminDecision: DecisionResult,
-    actionAuditEventIds: CanonicalId[]
+    actionAuditEventIds: CanonicalId[],
+    validated: ValidatedAdminArtifacts
   ): InternalAdminActionResult {
     if (request.action === "explain_subject_access") {
       if (!request.explainRequest) {
@@ -272,9 +299,10 @@ export class SampleInternalAdminApplication {
 
       const [explainDecision, explainAuditEventIds] = this.#evaluateApplicationExplain(request.explainRequest);
       const safeExplain = summarizeExplain(explainDecision);
+      const approval = validated.approval;
       const event = this.#recordAdminEvent("admin.action", request.session, {
         action: request.action,
-        approvalId: request.approval?.approvalId,
+        approvalId: approval?.approvalId,
         accessReviewId: request.accessReview?.reviewId,
         targetDecisionId: explainDecision.decisionId,
         safeExplain
@@ -282,13 +310,13 @@ export class SampleInternalAdminApplication {
 
       return allowed(request, adminDecision, [...actionAuditEventIds, ...explainAuditEventIds, event.eventId], {
         accessReview: request.accessReview,
-        approval: request.approval,
+        approval,
         safeExplain
       });
     }
 
     if (request.action === "request_break_glass") {
-      const approval = request.breakGlass?.approval;
+      const approval = validated.breakGlassApproval;
       const event = this.#recordAdminEvent("admin.action", request.session, {
         action: request.action,
         approvalId: approval?.approvalId,
@@ -315,13 +343,13 @@ export class SampleInternalAdminApplication {
 
     const event = this.#recordAdminEvent("admin.action", request.session, {
       action: request.action,
-      approvalId: request.approval?.approvalId,
+      approvalId: validated.approval?.approvalId,
       accessReviewId: request.accessReview?.reviewId
     });
 
     return allowed(request, adminDecision, [...actionAuditEventIds, event.eventId], {
       accessReview: request.accessReview,
-      approval: request.approval
+      approval: validated.approval
     });
   }
 
@@ -372,14 +400,21 @@ export class SampleInternalAdminApplication {
     readonly valid: boolean;
     readonly needsApproval: boolean;
     readonly reasonCode: string;
+    readonly approval?: ApprovalEvidence;
   } {
     if (!request) {
       return { valid: false, needsApproval: true, reasonCode: "BREAK_GLASS_REQUEST_REQUIRED" };
     }
 
-    const approvalStatus = validateApprovalEvidence(request.approval, undefined, this.#now(), {
-      requiredApproverRoles: this.#adminDescriptor.emergency.breakGlassApproverRoles
-    });
+    const approvalStatus = validateApprovalEvidence(
+      request.approval,
+      undefined,
+      this.#now(),
+      this.#trustedApprovals,
+      {
+        requiredApproverRoles: this.#adminDescriptor.emergency.breakGlassApproverRoles
+      }
+    );
     if (!approvalStatus.valid) {
       return { valid: false, needsApproval: true, reasonCode: approvalStatus.reasonCode };
     }
@@ -400,7 +435,12 @@ export class SampleInternalAdminApplication {
       return { valid: false, needsApproval: true, reasonCode: "BREAK_GLASS_JUSTIFICATION_REQUIRED" };
     }
 
-    return { valid: true, needsApproval: false, reasonCode: "BREAK_GLASS_APPROVED_WITH_REVIEW" };
+    return {
+      valid: true,
+      needsApproval: false,
+      reasonCode: "BREAK_GLASS_APPROVED_WITH_REVIEW",
+      approval: approvalStatus.approval
+    };
   }
 }
 
@@ -525,6 +565,13 @@ export const sampleApprovalEvidence: ApprovalEvidence = {
   accessReviewId: sampleAccessReviewContext.reviewId
 };
 
+export const sampleBreakGlassApprovalEvidence: ApprovalEvidence = {
+  ...sampleApprovalEvidence,
+  approvalId: "approval:break-glass-066",
+  accessReviewId: "break-glass:incident-review",
+  reason: "Approve emergency break-glass access for incident response under post-action review."
+};
+
 export const sampleExplainRequest: DecisionRequest = {
   subjectId: sampleAccessReviewContext.reviewedSubjectId,
   action: "read",
@@ -535,34 +582,69 @@ export const sampleExplainRequest: DecisionRequest = {
   }
 };
 
+function createSampleTrustedApprovals(): readonly ApprovalEvidence[] {
+  return [sampleApprovalEvidence, sampleBreakGlassApprovalEvidence];
+}
+
+function createTrustedApprovalStore(approvals: readonly ApprovalEvidence[]): ReadonlyMap<CanonicalId, ApprovalEvidence> {
+  return new Map(approvals.map((approval) => [approval.approvalId, approval]));
+}
+
 function validateApprovalEvidence(
   approval: ApprovalEvidence | undefined,
   accessReview: AccessReviewContext | undefined,
   now: string,
+  trustedApprovals: ReadonlyMap<CanonicalId, ApprovalEvidence>,
   options: { readonly requiredApproverRoles?: readonly string[] } = {}
-): { readonly valid: boolean; readonly reasonCode: string } {
+): ApprovalValidationResult {
   if (!approval) {
     return { valid: false, reasonCode: "APPROVAL_EVIDENCE_REQUIRED" };
   }
 
-  if (!approval.changeTicket.startsWith("CHG-")) {
+  const trustedApproval = trustedApprovals.get(approval.approvalId);
+  if (!trustedApproval) {
+    return { valid: false, reasonCode: "APPROVAL_NOT_TRUSTED" };
+  }
+
+  if (!approvalMatchesTrustedRecord(approval, trustedApproval)) {
+    return { valid: false, reasonCode: "APPROVAL_TRUSTED_RECORD_MISMATCH" };
+  }
+
+  if (!trustedApproval.changeTicket.startsWith("CHG-")) {
     return { valid: false, reasonCode: "APPROVAL_CHANGE_TICKET_REQUIRED" };
   }
 
-  if (Date.parse(approval.expiresAt) <= Date.parse(now)) {
+  if (Date.parse(trustedApproval.expiresAt) <= Date.parse(now)) {
     return { valid: false, reasonCode: "APPROVAL_EXPIRED" };
   }
 
-  if (accessReview && approval.accessReviewId !== accessReview.reviewId) {
+  if (accessReview && trustedApproval.accessReviewId !== accessReview.reviewId) {
     return { valid: false, reasonCode: "APPROVAL_ACCESS_REVIEW_MISMATCH" };
   }
 
   const requiredApproverRoles = options.requiredApproverRoles ?? [];
-  if (requiredApproverRoles.some((role) => !approval.approverRoles.includes(role))) {
+  if (requiredApproverRoles.some((role) => !trustedApproval.approverRoles.includes(role))) {
     return { valid: false, reasonCode: "BREAK_GLASS_MULTI_ROLE_APPROVAL_REQUIRED" };
   }
 
-  return { valid: true, reasonCode: "APPROVAL_VALID" };
+  return { valid: true, reasonCode: "APPROVAL_VALID", approval: trustedApproval };
+}
+
+function approvalMatchesTrustedRecord(approval: ApprovalEvidence, trustedApproval: ApprovalEvidence): boolean {
+  return (
+    approval.approvalId === trustedApproval.approvalId &&
+    approval.approverId === trustedApproval.approverId &&
+    approval.changeTicket === trustedApproval.changeTicket &&
+    approval.approvedAt === trustedApproval.approvedAt &&
+    approval.expiresAt === trustedApproval.expiresAt &&
+    approval.reason === trustedApproval.reason &&
+    approval.accessReviewId === trustedApproval.accessReviewId &&
+    arraysEqual(approval.approverRoles, trustedApproval.approverRoles)
+  );
+}
+
+function arraysEqual(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function allowed(

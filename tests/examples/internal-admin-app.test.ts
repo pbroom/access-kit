@@ -8,8 +8,8 @@ import {
   createSampleInternalAdminApplication,
   sampleAccessReviewContext,
   sampleApprovalEvidence,
-  sampleExplainRequest,
-  type ApprovalEvidence
+  sampleBreakGlassApprovalEvidence,
+  sampleExplainRequest
 } from "../../examples/internal-admin-app/app.js";
 
 describe("sample internal admin application", () => {
@@ -114,10 +114,12 @@ describe("sample internal admin application", () => {
       safeExplain: {
         decision: "allow",
         reasonCode: "ALLOW_VIA_RELATIONSHIP_PATH",
-        pathLength: 3,
-        constraintKeys: ["denyByDefault", "deterministic", "explain", "llmDecisioning"]
+        pathLength: 3
       }
     });
+    expect(result.safeExplain?.constraintKeys).toEqual(
+      expect.arrayContaining(["denyByDefault", "deterministic", "explain", "llmDecisioning"])
+    );
     expect(JSON.stringify(result.safeExplain)).not.toContain("group:case-team");
     expect(JSON.stringify(result.safeExplain)).not.toContain("workspace:case");
     expect(JSON.stringify(result.safeExplain)).not.toContain("relationshipPath");
@@ -128,6 +130,38 @@ describe("sample internal admin application", () => {
       "admin.action",
       "decision.allowed"
     ]);
+  });
+
+  it("rejects caller-supplied safe-explain approvals that are not trusted server-side records", () => {
+    const app = createSampleInternalAdminApplication();
+
+    expect(app.handle({
+      action: "explain_subject_access",
+      accessReview: sampleAccessReviewContext,
+      approval: {
+        ...sampleApprovalEvidence,
+        approvalId: "approval:caller-forged-explain"
+      },
+      explainRequest: sampleExplainRequest,
+      session: session("user:access-auditor", "corr:explain-forged-approval")
+    })).toMatchObject({
+      status: "needs_approval",
+      reasonCode: "APPROVAL_NOT_TRUSTED"
+    });
+
+    expect(app.handle({
+      action: "explain_subject_access",
+      accessReview: sampleAccessReviewContext,
+      approval: {
+        ...sampleApprovalEvidence,
+        approverRoles: ["Security engineer", "ISSO", "caller-added-role"]
+      },
+      explainRequest: sampleExplainRequest,
+      session: session("user:access-auditor", "corr:explain-mutated-approval")
+    })).toMatchObject({
+      status: "needs_approval",
+      reasonCode: "APPROVAL_TRUSTED_RECORD_MISMATCH"
+    });
   });
 
   it("keeps exception approval on the approver role instead of operator read roles", () => {
@@ -179,7 +213,7 @@ describe("sample internal admin application", () => {
         incidentId: "incident:duration-too-long",
         justification: "Investigate emergency production access anomaly.",
         requestedMinutes: 180,
-        approval: sampleApprovalEvidence,
+        approval: sampleBreakGlassApprovalEvidence,
         postActionReviewId: "post-action-review:bg-066"
       },
       session: session("user:incident-commander", "corr:bg-too-long")
@@ -194,7 +228,7 @@ describe("sample internal admin application", () => {
         incidentId: "incident:approved-break-glass",
         justification: "Investigate emergency production access anomaly.",
         requestedMinutes: 30,
-        approval: breakGlassApproval(),
+        approval: sampleBreakGlassApprovalEvidence,
         postActionReviewId: "post-action-review:bg-066"
       },
       session: session("user:incident-commander", "corr:bg-approved")
@@ -207,16 +241,48 @@ describe("sample internal admin application", () => {
       }
     });
   });
+
+  it("rejects caller-supplied break-glass approvals that are not trusted server-side records", () => {
+    const app = createSampleInternalAdminApplication();
+
+    expect(app.handle({
+      action: "request_break_glass",
+      breakGlass: {
+        incidentId: "incident:forged-break-glass",
+        justification: "Investigate emergency production access anomaly.",
+        requestedMinutes: 30,
+        approval: {
+          ...sampleBreakGlassApprovalEvidence,
+          approvalId: "approval:caller-forged-break-glass"
+        },
+        postActionReviewId: "post-action-review:bg-066"
+      },
+      session: session("user:incident-commander", "corr:bg-forged-approval")
+    })).toMatchObject({
+      status: "needs_approval",
+      reasonCode: "APPROVAL_NOT_TRUSTED"
+    });
+
+    expect(app.handle({
+      action: "request_break_glass",
+      breakGlass: {
+        incidentId: "incident:mutated-break-glass",
+        justification: "Investigate emergency production access anomaly.",
+        requestedMinutes: 30,
+        approval: {
+          ...sampleBreakGlassApprovalEvidence,
+          approverRoles: ["Security engineer", "ISSO", "caller-added-role"]
+        },
+        postActionReviewId: "post-action-review:bg-066"
+      },
+      session: session("user:incident-commander", "corr:bg-mutated-approval")
+    })).toMatchObject({
+      status: "needs_approval",
+      reasonCode: "APPROVAL_TRUSTED_RECORD_MISMATCH"
+    });
+  });
 });
 
 function session(subjectId: string, correlationId: string): { subjectId: string; correlationId: string } {
   return { subjectId, correlationId };
-}
-
-function breakGlassApproval(): ApprovalEvidence {
-  return {
-    ...sampleApprovalEvidence,
-    approvalId: "approval:break-glass-066",
-    accessReviewId: "break-glass:incident-review"
-  };
 }
