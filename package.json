@@ -48,6 +48,7 @@
     "validate:live-enforcement-pilot": "tsx scripts/validate-live-enforcement-pilot.ts",
     "evidence:generate": "tsx scripts/generate-evidence-report.ts",
     "evidence:check": "tsx scripts/generate-evidence-report.ts --check",
+    "benchmark:decision-engine": "tsx scripts/generate-decision-engine-benchmark-report.ts",
     "ci:check": "pnpm validate:contracts && pnpm validate:sample-policy && pnpm validate:docs && pnpm validate:automation && pnpm validate:ci && pnpm validate:packaging && pnpm validate:release-packaging && pnpm validate:deployment-manifests && pnpm validate:persistence-deployment && pnpm validate:runbook-exercises && pnpm validate:secure-sdlc && pnpm validate:live-enforcement-pilot && pnpm validate:sample-admin-app && pnpm typecheck && pnpm lint && pnpm test && pnpm build && pnpm evidence:check",
     "pr:status": "node --import tsx scripts/pr-steward.ts --dry-run",
     "steward:check": "node --import tsx scripts/pr-steward.ts --dry-run",
