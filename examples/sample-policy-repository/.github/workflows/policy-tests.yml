@@ -35,4 +35,3 @@ jobs:
 
       - name: Validate sample policy repository
         run: pnpm validate:sample-policy
-

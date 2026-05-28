@@ -79,4 +79,3 @@ Do not promote an artifact when its release notes omit proof-point limitations, 
 Support windows, channel expectations, and end-of-support handling live in [Support Policy](support-policy.md). Vulnerability reporting, embargo handling, security advisories, and CVE disclosure live in [Security Policy](../SECURITY.md).
 
 Security fixes should include a patched release tag, a changelog entry, updated release notes, and retained validation evidence. A CVE is requested through GitHub Security Advisories when the issue meets the disclosure threshold and the fix is ready to publish.
-

@@ -34,4 +34,3 @@ Security advisories must clearly state whether the affected behavior is local pr
 ## Release Security Evidence
 
 Release artifacts should retain or link to the evidence required by [Product Release Packaging](docs/release-packaging.md): SBOM, provenance, signature, vulnerability disclosure path, compatibility matrix, changelog, and proof-point versus production-ready labels.
-
