@@ -632,10 +632,30 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         nativeAccess: warning.code,
         intendedAccess: "complete_provider_coverage",
         severity: warning.severity === "error" ? "high" : "medium",
+        lifecycleState: "open",
+        ownerId: "role:security-operations",
+        assigneeId: "role:security-engineer",
         detectedAt,
         sourceConnectorId: this.id,
         recommendedAction: "review",
         status: "open",
+        scheduledReconciliation: {
+          cadence: "manual",
+          scheduledAt: detectedAt,
+          gracePeriodHours: 0,
+          overdue: false
+        },
+        hookEvidence: [],
+        remediation: {},
+        autoRepairPolicy: {
+          enabled: false,
+          allowedActions: ["review"],
+          maxSeverity: warning.severity === "error" ? "high" : "medium",
+          requireApproval: true,
+          requireConnectorReadiness: true,
+          liveProviderWrites: false,
+          reason: "Microsoft Graph coverage drift requires provider review and read-only verification before remediation."
+        },
         version: "drift-finding:v1",
         createdAt: detectedAt,
         updatedAt: detectedAt
@@ -1346,7 +1366,9 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       await this.#addSiteDrives(site, siteResource, resources, grantTargets);
     }
 
-    const enumerableUsers = users.filter((user) => user.id && !graphRecordDeleted(user));
+    const enumerableUsers = users.filter(
+      (user): user is GraphUser & { id: string } => Boolean(user.id) && !graphRecordDeleted(user)
+    );
     if (enumerableUsers.length > 0) {
       this.#pushWarning({
         code: "GRAPH_ONEDRIVE_USER_ENUMERATION_SEQUENTIAL",
@@ -1358,7 +1380,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     }
 
     for (const user of enumerableUsers) {
-      await this.#addUserDrives(user, maps.subjectsByGraphId.get(user.id!), resources, grantTargets);
+      await this.#addUserDrives(user, maps.subjectsByGraphId.get(user.id), resources, grantTargets);
     }
 
     return { resources: [...resources.values()], grantTargets };
