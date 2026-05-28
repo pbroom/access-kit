@@ -1,0 +1,24 @@
+{
+  "decision": "allow",
+  "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+  "policyVersion": "policy:case-docs-v1",
+  "relationshipVersion": "tuple-set:case-docs-v1",
+  "relationshipPath": [
+    {
+      "subjectId": "user:alice",
+      "relation": "member_of",
+      "objectId": "group:case-team"
+    },
+    {
+      "subjectId": "group:case-team",
+      "relation": "reader_of",
+      "objectId": "workspace:case"
+    },
+    {
+      "subjectId": "workspace:case",
+      "relation": "contains",
+      "objectId": "document:case-plan"
+    }
+  ]
+}
+

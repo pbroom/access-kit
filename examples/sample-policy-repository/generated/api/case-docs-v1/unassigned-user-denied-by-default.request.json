@@ -1,0 +1,12 @@
+{
+  "subjectId": "user:bob",
+  "action": "read",
+  "resourceId": "document:case-plan",
+  "policyVersion": "policy:case-docs-v1",
+  "relationshipVersion": "tuple-set:case-docs-v1",
+  "context": {
+    "purpose": "case-work",
+    "riskScore": 8
+  }
+}
+

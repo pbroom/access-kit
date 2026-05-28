@@ -87,6 +87,7 @@ export const automationContract = {
       requiredScripts: [
         "typecheck",
         "validate:contracts",
+        "validate:sample-policy",
         "validate:automation",
         "validate:ci",
         "validate:packaging",
@@ -101,6 +102,7 @@ export const automationContract = {
       script: "ci:check",
       requiredScripts: [
         "validate:contracts",
+        "validate:sample-policy",
         "validate:docs",
         "validate:automation",
         "validate:ci",
@@ -123,6 +125,7 @@ export const automationContract = {
   ],
   packageScripts: [
     { name: "validate:automation", command: "tsx scripts/validate-automation-contracts.ts" },
+    { name: "validate:sample-policy", command: "tsx scripts/validate-sample-policy-repository.ts" },
     { name: "pr:status", command: "node --import tsx scripts/pr-steward.ts --dry-run" },
     { name: "steward:check", command: "node --import tsx scripts/pr-steward.ts --dry-run" },
     { name: "backlog:batch", command: "node --import tsx scripts/backlog-batch.ts" },
@@ -228,6 +231,10 @@ export const automationContract = {
           {
             name: "quality",
             requiredRuns: ["pnpm typecheck", "pnpm lint", "pnpm test", "pnpm build"]
+          },
+          {
+            name: "policy-tests",
+            requiredRuns: ["pnpm validate:sample-policy"]
           },
           {
             name: "evidence",

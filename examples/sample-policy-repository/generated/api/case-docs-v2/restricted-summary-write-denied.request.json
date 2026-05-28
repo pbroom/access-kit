@@ -1,0 +1,14 @@
+{
+  "subjectId": "user:alice",
+  "action": "write",
+  "resourceId": "document:restricted-summary",
+  "policyVersion": "policy:case-docs-v2",
+  "relationshipVersion": "tuple-set:case-docs-v2",
+  "context": {
+    "purpose": "case-work",
+    "riskScore": 30,
+    "businessJustification": "case update",
+    "supportEscalationApproved": false
+  }
+}
+
