@@ -53,6 +53,11 @@ describe("API collection examples", () => {
       { key: "Idempotency-Key", value: "example0" }
     ]);
     expect(createPolicy.capture).toEqual([{ variable: "demo_policy_id", responsePath: ["id"] }]);
+    expect(collection.environmentVariables.map((variable) => variable.key)).toEqual([
+      collection.baseUrlVariable,
+      collection.tokenVariable,
+      collection.invalidTokenVariable
+    ]);
 
     const auditExport = requiredCollectionRequest("Export Audit Events");
     expect(auditExport.url).toContain("/v1/audit/export?");

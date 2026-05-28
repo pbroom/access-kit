@@ -70,6 +70,11 @@ export function createApiCollectionModel(definitions: ApiCollectionDefinitionSet
     { key: "demo_policy_id", value: "" },
     { key: "provisioning_plan_id", value: "" }
   ];
+  const environmentVariableKeys = new Set([
+    definitions.baseUrlVariable,
+    definitions.tokenVariable,
+    definitions.invalidTokenVariable
+  ]);
   const requests = definitions.requests.map((request) => normalizeRequest(request));
 
   return {
@@ -82,7 +87,7 @@ export function createApiCollectionModel(definitions: ApiCollectionDefinitionSet
     invalidTokenValue: definitions.invalidTokenValue,
     requiredCoverage: definitions.requiredCoverage,
     collectionVariables,
-    environmentVariables: collectionVariables.slice(0, 3),
+    environmentVariables: collectionVariables.filter((variable) => environmentVariableKeys.has(variable.key)),
     requests,
     folders: groupFolders(requests)
   };
