@@ -114,6 +114,7 @@ export const automationContract = {
         "validate:persistence-deployment",
         "validate:secure-sdlc",
         "validate:live-enforcement-pilot",
+        "validate:sample-admin-app",
         "typecheck",
         "lint",
         "test",
@@ -130,6 +131,7 @@ export const automationContract = {
   packageScripts: [
     { name: "validate:automation", command: "tsx scripts/validate-automation-contracts.ts" },
     { name: "validate:sample-policy", command: "tsx scripts/validate-sample-policy-repository.ts" },
+    { name: "validate:sample-admin-app", command: "vitest run tests/examples/internal-admin-app.test.ts" },
     { name: "pr:status", command: "node --import tsx scripts/pr-steward.ts --dry-run" },
     { name: "steward:check", command: "node --import tsx scripts/pr-steward.ts --dry-run" },
     { name: "backlog:batch", command: "node --import tsx scripts/backlog-batch.ts" },
@@ -239,7 +241,8 @@ export const automationContract = {
               "pnpm validate:deployment-manifests",
               "pnpm validate:persistence-deployment",
               "pnpm validate:secure-sdlc",
-              "pnpm validate:live-enforcement-pilot"
+              "pnpm validate:live-enforcement-pilot",
+              "pnpm validate:sample-admin-app"
             ]
           },
           {
@@ -313,6 +316,7 @@ export const automationContract = {
       { name: "core engine tests", args: ["test:core"] },
       { name: "API runtime tests", args: ["test:api"] },
       { name: "SDK PEP conformance tests", args: ["test:sdk-pep"] },
+      { name: "sample internal admin app tests", args: ["validate:sample-admin-app"] },
       { name: "connector package tests", args: ["exec", "vitest", "run", "tests/connectors"] },
       { name: "CLI API smoke tests", args: ["test:cli"] }
     ],
@@ -334,6 +338,7 @@ export const automationContract = {
       "Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.",
       "API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.",
       "SDK PEP conformance tests for deny-on-API-failure behavior, correlation ID propagation, decision ID logging, local fallback avoidance, reason-code handling, explain/debug safety, sensitive-path redaction, and the Go Envoy ext-authz example contract.",
+      "Sample internal admin app tests for least-privilege admin/operator authorization, approval evidence, access-review context, break-glass boundaries, audit traceability, and safe explain summaries.",
       "Connector package tests for Microsoft Graph Entra, Microsoft 365 group and Teams coupling, SharePoint and OneDrive inventory, inheritance markers, coverage warnings, ownership, AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.",
       "CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.",
       "Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation."
