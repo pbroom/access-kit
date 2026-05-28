@@ -126,7 +126,6 @@ export function finalizeEvidenceExport(draft: EvidenceExportDraft, options: Evid
   assertTrustedKeysCoverCustomSigner(signer, options);
   const content = buildEvidencePackageContent(draft, {
     signatureRef: {
-      packageId: signedEvidencePackageId(draft.exportId),
       keyId: signer.keyId
     }
   });

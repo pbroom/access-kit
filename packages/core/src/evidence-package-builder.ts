@@ -23,7 +23,7 @@ export interface EvidencePackageSignatureRef {
 }
 
 export interface EvidencePackageBuilderOptions {
-  signatureRef?: Partial<EvidencePackageSignatureRef>;
+  signatureRef?: Partial<Pick<EvidencePackageSignatureRef, "keyId">>;
 }
 
 export function buildEvidencePackageContent(
@@ -34,7 +34,7 @@ export function buildEvidencePackageContent(
   const poamExport = draft.poamExport ?? buildPoamExport(draft.exportId, draft.poamItems, draft.controls, draft.generatedAt);
   const oscal = draft.oscal ?? buildOscalArtifacts(draft, deploymentScope, poamExport);
   const signatureRef: EvidencePackageSignatureRef = {
-    packageId: options.signatureRef?.packageId ?? signedEvidencePackageId(draft.exportId),
+    packageId: signedEvidencePackageId(draft.exportId),
     keyId: options.signatureRef?.keyId ?? defaultEvidenceSignatureKeyId
   };
   const controlTraceViews = draft.controlTraceViews ?? buildControlTraceViews(

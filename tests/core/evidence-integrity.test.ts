@@ -1,10 +1,14 @@
 import { generateKeyPairSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  attachEvidenceIntegrityManifest,
+  attachSignedEvidencePackage,
   buildExpectedDeploymentScope,
   buildEvidencePackageContent,
   createEd25519EvidenceSigner,
+  defaultEvidenceSignatureKeyId,
   finalizeEvidenceExport,
+  signedEvidencePackageId,
   verifyEvidenceExport,
   type EvidenceExport,
   type EvidenceExportDraft,
@@ -15,9 +19,9 @@ const TEST_NOW = "2026-05-21T00:00:00.000Z";
 
 describe("evidence integrity package construction", () => {
   it("builds OSCAL, POA&M, deployment scope, and control traces before integrity metadata", () => {
-    const packageContent = buildEvidencePackageContent(buildEvidenceDraft(), {
+    const draft = buildEvidenceDraft();
+    const packageContent = buildEvidencePackageContent(draft, {
       signatureRef: {
-        packageId: "signed-package:test-evidence",
         keyId: "key:test-evidence"
       }
     });
@@ -37,11 +41,26 @@ describe("evidence integrity package construction", () => {
       expect.objectContaining({
         controlId: "AC-3",
         signatureRef: {
-          packageId: "signed-package:test-evidence",
+          packageId: signedEvidencePackageId(draft.exportId),
           keyId: "key:test-evidence"
         }
       })
     ]);
+  });
+
+  it("derives manual-composition control trace package IDs from the export ID", () => {
+    const packageContent = buildEvidencePackageContent(buildEvidenceDraft(), {
+      signatureRef: {
+        packageId: "signed-package:divergent",
+        keyId: defaultEvidenceSignatureKeyId
+      } as unknown as { keyId?: string }
+    });
+    const signedEvidence = attachSignedEvidencePackage(attachEvidenceIntegrityManifest(packageContent));
+
+    expect(packageContent.controlTraceViews[0]?.signatureRef).toEqual({
+      packageId: signedEvidence.signedPackage.packageId,
+      keyId: signedEvidence.signedPackage.keyId
+    });
   });
 
   it("finalizes evidence with an injected signer and trusted-key registry", () => {
