@@ -1,0 +1,13 @@
+{
+  "version": "live-enforcement-pilot-approval-workflow:v1",
+  "pilotId": "live-pilot:microsoft-graph-direct-grant-revocation",
+  "environment": "pilot_candidate",
+  "requiredApproverRoles": ["resource-owner", "security-engineer"],
+  "minApprovers": 2,
+  "separationOfDuties": true,
+  "changeTicketPattern": "^chg:live-pilot:[a-z0-9_:-]+$",
+  "approvalExpiresMinutes": 30,
+  "breakGlassProhibited": true,
+  "incidentModeBlocksEnforcement": true,
+  "evidenceRefs": ["docs/security-model.md", "docs/provisioning-lifecycle.md"]
+}

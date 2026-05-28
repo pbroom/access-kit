@@ -68,6 +68,9 @@ jobs:
       - name: Validate secure SDLC evidence
         run: pnpm validate:secure-sdlc
 
+      - name: Validate live enforcement pilot gates
+        run: pnpm validate:live-enforcement-pilot
+
   quality:
     name: Quality (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest

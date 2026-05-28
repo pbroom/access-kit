@@ -1,0 +1,21 @@
+{
+  "version": "live-enforcement-pilot-runtime-gates:v1",
+  "pilotId": "live-pilot:microsoft-graph-direct-grant-revocation",
+  "environment": "pilot_candidate",
+  "connectorHealth": "healthy",
+  "auditHealth": "healthy",
+  "durableQueueRequired": true,
+  "immutableAuditRequired": true,
+  "adminAuthorizationRequired": true,
+  "healthSignalsRequired": true,
+  "degradedConnectorBlocksEnforcement": true,
+  "degradedAuditBlocksEnforcement": true,
+  "revocationsPrioritized": true,
+  "idempotencyRequired": true,
+  "readinessReportRequired": true,
+  "evidenceRefs": [
+    "deploy/persistence/readiness-report.example.json",
+    "docs/security-model.md",
+    "runbooks/connector-outage.md"
+  ]
+}

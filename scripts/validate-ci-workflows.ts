@@ -36,7 +36,7 @@ for (const contract of workflows) {
 
 console.log("Validated CI workflow contract.");
 console.log(
-  "PASS CI contract, docs, automation, quality, evidence, container packaging, release packaging, deployment manifest, persistence deployment evidence, dependency audit, secret scan, and CodeQL jobs are present."
+  "PASS CI contract, docs, automation, quality, evidence, container packaging, release packaging, deployment manifest, persistence deployment evidence, live enforcement pilot gate, dependency audit, secret scan, and CodeQL jobs are present."
 );
 
 async function readWorkflow(path: string): Promise<WorkflowDocument> {

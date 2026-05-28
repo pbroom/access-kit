@@ -14,6 +14,7 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - `pnpm validate:deployment-manifests` validates the Kubernetes manifests, probe wiring, secret references, restricted runtime security, network policy, and signed-image admission policy example.
 - `pnpm validate:persistence-deployment` validates the schema-backed synthetic production persistence manifest, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - `pnpm validate:secure-sdlc` validates release-retained SAST, DAST, dependency scan, SBOM, fuzzing, tenant-isolation abuse, threat-model, vulnerability triage, and NIST SSDF evidence.
+- `pnpm validate:live-enforcement-pilot` validates the schema-backed controlled live enforcement pilot manifest, retained readiness report artifact, read-only confidence evidence, least-privilege write-scope review, approval workflow, degraded-runtime blocking, verification and rollback hooks, emergency revocation runbooks, and release gate.
 - `pnpm test:core` includes shared repository conformance coverage for in-memory proof-point repositories, local JSON graph/job stores, and the production graph, connector-state, and queue adapters.
 - `pnpm exec vitest run tests/connectors` covers connector package behavior, including Microsoft Graph Entra, app-role mapping, guest and external users, Microsoft 365/Teams coupling, SharePoint and OneDrive inventory, native grant readback, Graph change-notification and Power Platform/Dataverse unsupported-coverage warnings, delta cursor redaction, tombstones, stale-delta recovery, drift findings, AWS read-only inventory, AWS EventBridge and CloudTrail latency confidence, and the sample read-only connector template with fixture-backed pagination, throttling, redaction, no-write behavior, stale-grant replacement, security-gate behavior, and optional runtime registration.
 - `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm build` verify TypeScript quality across supported Node versions.
@@ -37,7 +38,7 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - Publish to GHCR only for release tags or explicit `publish=true` manual dispatches.
 - Emit SBOM/provenance metadata, push GitHub artifact attestations, and sign the published digest with keyless cosign.
 
-`deploy/kubernetes/`, `deploy/policies/kyverno/`, and `deploy/persistence/` are validated in the contract-validation job so probe, admission-policy, and persistence deployment evidence drift fails before review.
+`deploy/kubernetes/`, `deploy/policies/kyverno/`, `deploy/persistence/`, and `deploy/live-enforcement-pilot/` are validated in the contract-validation job so probe, admission-policy, persistence deployment evidence, and live-pilot gate drift fails before review.
 
 `.github/workflows/security.yml` runs:
 

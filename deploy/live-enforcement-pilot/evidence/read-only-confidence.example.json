@@ -1,0 +1,16 @@
+{
+  "version": "live-enforcement-pilot-read-only-confidence:v1",
+  "pilotId": "live-pilot:microsoft-graph-direct-grant-revocation",
+  "environment": "pilot_candidate",
+  "connectorId": "microsoft-graph-live-revocation",
+  "successfulRuns": 3,
+  "nativeReadbackVerified": true,
+  "driftFindingsReviewed": true,
+  "latestRunCompletedAt": "2026-05-25T20:00:00.000Z",
+  "evidenceAgeHours": 4,
+  "evidenceRefs": [
+    "reports/proof-point-validation.md",
+    "tests/connectors/microsoft-graph-entra.test.ts",
+    "docs/connector-contract.md"
+  ]
+}

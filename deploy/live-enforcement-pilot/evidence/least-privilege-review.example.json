@@ -1,0 +1,18 @@
+{
+  "version": "live-enforcement-pilot-least-privilege-review:v1",
+  "pilotId": "live-pilot:microsoft-graph-direct-grant-revocation",
+  "environment": "pilot_candidate",
+  "connectorId": "microsoft-graph-live-revocation",
+  "provider": "microsoft-graph",
+  "approvedWriteScopes": ["GroupMember.ReadWrite.All"],
+  "forbiddenWriteScopes": [
+    "Directory.ReadWrite.All",
+    "Files.ReadWrite.All",
+    "RoleManagement.ReadWrite.Directory",
+    "Sites.FullControl.All",
+    "User.ReadWrite.All"
+  ],
+  "scopeJustification": "The pilot may revoke one direct Microsoft 365 group membership grant after read-only evidence and approval. Broad directory, role-management, file, and SharePoint write scopes remain prohibited.",
+  "reviewedBy": ["security-engineer", "connector-owner"],
+  "reviewedAt": "2026-05-26T00:00:00.000Z"
+}

@@ -8,6 +8,7 @@ export * from "./engine.js";
 export * from "./evidence-integrity.js";
 export * from "./fixtures.js";
 export * from "./governance.js";
+export * from "./live-enforcement-pilot.js";
 export * from "./persistence.js";
 export * from "./policy-model.js";
 export * from "./policy-proof-points.js";

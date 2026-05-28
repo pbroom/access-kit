@@ -10,7 +10,7 @@ Platform engineers, security engineers, ISSOs, resource owners, connector develo
 
 ## What This Is
 
-Provisioning is the controlled path from intended access to provider-facing actions. The current implementation supports dry-run provisioning and synthetic mock-only controlled enforcement.
+Provisioning is the controlled path from intended access to provider-facing actions. The current implementation supports dry-run provisioning and synthetic mock-only controlled enforcement. The first live provider write remains behind a schema-backed pilot release gate rather than a default runtime behavior.
 
 ## What This Is Not
 
@@ -29,6 +29,8 @@ Provisioning is not the decision itself, not a ticketing system, and not live Mi
 9. Jobs emit audit events and return stable job evidence.
 10. Reconciliation compares intended and observed native state after provisioning.
 
+The controlled live pilot candidate is narrower than general provisioning: one Microsoft Graph direct-grant revocation, one action per approved change, read-only confidence first, two-role approval, degraded connector and audit blocking, dry-run-first verification, rollback hooks, emergency revocation runbooks, and retained release-gated readiness evidence.
+
 ## Concrete Example
 
 ```sh
@@ -43,7 +45,7 @@ For non-synthetic connectors, use dry-run only. The plan and job evidence show w
 
 - Use idempotency keys for every write path.
 - Require readiness evidence before enforcement.
-- Keep live provider writes blocked until connector least-privilege review, rollback, emergency revocation, and audit retention are complete.
+- Keep live provider writes blocked until connector least-privilege review, rollback, emergency revocation, audit retention, degraded-runtime blocking, and release-gate evidence are complete.
 - Prioritize revoke, expire, quarantine, and deny repair over new grants.
 - Treat missing verification as failure or incomplete evidence.
 
@@ -62,6 +64,8 @@ AC-2, AC-3, AC-6, AU-2, AU-6, CM-3, CM-6, CA-7, and IR-4 depend on provisioning 
 - [Emergency Revocation Runbook](../runbooks/emergency-revocation.md)
 - [Policy Rollback Runbook](../runbooks/policy-rollback.md)
 - `schemas/provisioning-plan.schema.json`
+- `schemas/live-enforcement-pilot-manifest.schema.json`
+- `schemas/live-enforcement-pilot-readiness.schema.json`
 - `tests/fixtures/schema-examples/provisioning-plan.json`
 - [ADR 0007: Provisioning idempotency](../adrs/0007-provisioning-idempotency.md)
 - [ADR 0010: Fail behavior](../adrs/0010-fail-behavior.md)

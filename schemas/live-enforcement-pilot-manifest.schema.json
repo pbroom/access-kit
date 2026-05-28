@@ -1,0 +1,229 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://access-kit.example/schemas/live-enforcement-pilot-manifest.schema.json",
+  "title": "LiveEnforcementPilotManifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pilotId",
+    "environment",
+    "generatedAt",
+    "connector",
+    "writePath",
+    "readOnlyConfidence",
+    "approvalWorkflow",
+    "runtimeGates",
+    "verification",
+    "runbookRefs",
+    "releaseGate",
+    "evidenceRefs",
+    "version"
+  ],
+  "properties": {
+    "pilotId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "environment": { "type": "string", "enum": ["pilot_candidate", "production"] },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "connector": { "$ref": "#/$defs/connector" },
+    "writePath": { "$ref": "#/$defs/writePath" },
+    "readOnlyConfidence": { "$ref": "#/$defs/readOnlyConfidence" },
+    "approvalWorkflow": { "$ref": "#/$defs/approvalWorkflow" },
+    "runtimeGates": { "$ref": "#/$defs/runtimeGates" },
+    "verification": { "$ref": "#/$defs/verification" },
+    "runbookRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "releaseGate": { "$ref": "#/$defs/releaseGate" },
+    "evidenceRefs": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "version": { "type": "string", "const": "live-enforcement-pilot-manifest:v1" }
+  },
+  "$defs": {
+    "connector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connectorId",
+        "provider",
+        "tenantBoundary",
+        "mode",
+        "liveWritesOptIn",
+        "allowedWriteScopes",
+        "forbiddenWriteScopes",
+        "leastPrivilegeReviewRef"
+      ],
+      "properties": {
+        "connectorId": { "type": "string", "minLength": 1 },
+        "provider": { "type": "string", "minLength": 1 },
+        "tenantBoundary": { "type": "string", "minLength": 1 },
+        "mode": { "type": "string", "const": "enforcement" },
+        "liveWritesOptIn": { "type": "boolean" },
+        "allowedWriteScopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["GroupMember.ReadWrite.All"] }
+        },
+        "forbiddenWriteScopes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "leastPrivilegeReviewRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "writePath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "scope", "resourceRisk", "maxActionsPerChange", "revocationPriority"],
+      "properties": {
+        "operation": { "type": "string", "const": "revoke_native_grant" },
+        "scope": { "type": "string", "const": "single_resource_direct_grant" },
+        "resourceRisk": { "type": "string", "enum": ["low", "moderate", "high"] },
+        "maxActionsPerChange": { "type": "integer", "minimum": 1 },
+        "revocationPriority": { "type": "string", "const": "emergency" }
+      }
+    },
+    "readOnlyConfidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "minSuccessfulRuns",
+        "successfulRuns",
+        "maxEvidenceAgeHours",
+        "evidenceAgeHours",
+        "nativeReadbackVerified",
+        "driftFindingsReviewed",
+        "evidenceRefs"
+      ],
+      "properties": {
+        "minSuccessfulRuns": { "type": "integer", "minimum": 1 },
+        "successfulRuns": { "type": "integer", "minimum": 0 },
+        "maxEvidenceAgeHours": { "type": "integer", "minimum": 1 },
+        "evidenceAgeHours": { "type": "integer", "minimum": 0 },
+        "nativeReadbackVerified": { "type": "boolean" },
+        "driftFindingsReviewed": { "type": "boolean" },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "approvalWorkflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requiredApproverRoles",
+        "minApprovers",
+        "separationOfDuties",
+        "changeTicketPattern",
+        "approvalExpiresMinutes",
+        "breakGlassProhibited",
+        "incidentModeBlocksEnforcement",
+        "evidenceRef"
+      ],
+      "properties": {
+        "requiredApproverRoles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "minApprovers": { "type": "integer", "minimum": 1 },
+        "separationOfDuties": { "type": "boolean" },
+        "changeTicketPattern": { "type": "string", "minLength": 1 },
+        "approvalExpiresMinutes": { "type": "integer", "minimum": 1 },
+        "breakGlassProhibited": { "type": "boolean" },
+        "incidentModeBlocksEnforcement": { "type": "boolean" },
+        "evidenceRef": { "type": "string", "minLength": 1 }
+      }
+    },
+    "runtimeGates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "connectorHealth",
+        "auditHealth",
+        "durableQueueRequired",
+        "immutableAuditRequired",
+        "adminAuthorizationRequired",
+        "healthSignalsRequired",
+        "degradedConnectorBlocksEnforcement",
+        "degradedAuditBlocksEnforcement",
+        "revocationsPrioritized",
+        "idempotencyRequired",
+        "readinessReportRequired",
+        "evidenceRefs"
+      ],
+      "properties": {
+        "connectorHealth": { "type": "string", "enum": ["healthy", "degraded", "unknown"] },
+        "auditHealth": { "type": "string", "enum": ["healthy", "degraded", "unknown"] },
+        "durableQueueRequired": { "type": "boolean" },
+        "immutableAuditRequired": { "type": "boolean" },
+        "adminAuthorizationRequired": { "type": "boolean" },
+        "healthSignalsRequired": { "type": "boolean" },
+        "degradedConnectorBlocksEnforcement": { "type": "boolean" },
+        "degradedAuditBlocksEnforcement": { "type": "boolean" },
+        "revocationsPrioritized": { "type": "boolean" },
+        "idempotencyRequired": { "type": "boolean" },
+        "readinessReportRequired": { "type": "boolean" },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dryRunFirst",
+        "preWriteReadback",
+        "postWriteReadback",
+        "compensationRequired",
+        "rollbackPlanRef",
+        "driftReconciliationRequired",
+        "auditEventTypes",
+        "evidenceRefs"
+      ],
+      "properties": {
+        "dryRunFirst": { "type": "boolean" },
+        "preWriteReadback": { "type": "boolean" },
+        "postWriteReadback": { "type": "boolean" },
+        "compensationRequired": { "type": "boolean" },
+        "rollbackPlanRef": { "type": "string", "minLength": 1 },
+        "driftReconciliationRequired": { "type": "boolean" },
+        "auditEventTypes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "releaseGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "readinessReportRef", "releaseApprovalRef", "outstandingBlockers"],
+      "properties": {
+        "status": { "type": "string", "enum": ["ready", "blocked"] },
+        "readinessReportRef": { "type": "string", "minLength": 1 },
+        "releaseApprovalRef": { "type": "string", "minLength": 1 },
+        "outstandingBlockers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

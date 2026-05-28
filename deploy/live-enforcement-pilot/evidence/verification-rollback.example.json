@@ -1,0 +1,23 @@
+{
+  "version": "live-enforcement-pilot-verification-rollback:v1",
+  "pilotId": "live-pilot:microsoft-graph-direct-grant-revocation",
+  "environment": "pilot_candidate",
+  "dryRunFirst": true,
+  "preWriteReadback": true,
+  "postWriteReadback": true,
+  "compensationRequired": true,
+  "rollbackPlanRef": "runbooks/policy-rollback.md",
+  "driftReconciliationRequired": true,
+  "auditEventTypes": [
+    "connector.enforcement_readiness_checked",
+    "provisioning.approved",
+    "connector.permission_changed",
+    "provisioning.rollback_available",
+    "drift.finding_reviewed"
+  ],
+  "evidenceRefs": [
+    "runbooks/emergency-revocation.md",
+    "runbooks/policy-rollback.md",
+    "docs/provisioning-lifecycle.md"
+  ]
+}

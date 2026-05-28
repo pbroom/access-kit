@@ -38,12 +38,15 @@ Phase 3 provisioning jobs default to `dry_run`. They record skipped provider wri
 
 Phase 4 controlled enforcement is restricted to the synthetic `mock` connector. It requires a ready connector enforcement-readiness report, an approved change ticket, matching approver, synthetic-only controls, no live provider writes, no break-glass flag, and incident mode set to false. The readiness report records provider boundary, readback capability, provisioning capability, rollback/compensation expectation, incident-mode clearance, break-glass clearance, least-privilege review status, and change-ticket policy. Plan creation requires that the report match the current connector boundary, submitted controls, and approval change-ticket pattern. Synthetic provider read-only connectors cannot enforce even when callers provide approval fields.
 
+The first controlled live enforcement pilot is defined as a separate release gate, not as a default connector capability. `deploy/live-enforcement-pilot/manifest.example.json` limits the candidate to one Microsoft Graph direct-grant revocation per approved change and requires fresh read-only confidence, least-privilege write-scope review, two-role approval, durable queue and immutable audit readiness, degraded connector/audit blocking, dry-run-first verification, rollback hooks, emergency revocation runbooks, and retained release approval. The synthetic pilot-candidate artifacts prove the gate shape only; environment-specific approvals, credentials, health signals, sandbox evidence, and audit retention must replace them before live provider writes are enabled.
+
 ## Fail Behavior
 
 - Sensitive resources fail closed when the decision service is unavailable.
 - Low-risk cached reads may use short-lived cached decisions only when policy explicitly permits it.
 - Provisioning never assumes success and must verify target state after every write.
 - Enforcement planning fails closed when the caller omits readiness evidence or presents a blocked, missing, mismatched, or live-write-enabled readiness report.
+- Live enforcement pilot release gates fail closed when read-only confidence is stale, approval evidence is missing, connector or audit health is degraded, rollback hooks are absent, emergency revocation runbooks are missing, or the release gate has outstanding blockers.
 - Connector outages queue work, mark the connector degraded, and must not silently skip revocations. The production queue adapter keeps emergency revocations reservable even when normal connector work is degraded, records dead-lettered failures for operator replay, and preserves idempotency hashes so duplicate deliveries cannot silently turn into different work.
 - Degraded production modes must preserve fail-closed authorization, audit append, and emergency revocation priority. Queue backpressure pauses new grants and non-urgent discovery; audit-forwarder outage creates a high-severity integrity finding until replay succeeds; read-only fallback never authorizes local decisions or live provider writes.
 - Revocation and quarantine actions have priority over new grants.
