@@ -12,7 +12,7 @@ Access Kit is a foundation for an ATO-ready ReBAC authorization control plane. T
 
 ## What This Is Not
 
-Access Kit is not an identity provider, authentication system, SIEM, ticketing system, generic workflow platform, UI-first admin portal, live Microsoft/AWS connector, or production authorization to operate. It supports ATO inspection; it does not claim an ATO.
+Access Kit is not an identity provider, authentication system, SIEM, ticketing system, generic workflow platform, UI-first admin portal, production Microsoft/AWS write connector, or production authorization to operate. It supports ATO inspection; it does not claim an ATO.
 
 ## First Reading Path
 
@@ -41,7 +41,7 @@ pnpm validate
 pnpm ci:check
 ```
 
-`pnpm validate` runs type checking, contract validation, CI workflow validation, and tests. `pnpm ci:check` adds lint, build, and evidence freshness checks.
+`pnpm validate` runs type checking, contract and sample-policy validation, automation/CI/package/deployment gates, runbook exercise validation, secure SDLC evidence validation, live-enforcement pilot validation, PEP conformance, sample app validation, and tests. `pnpm ci:check` adds docs validation, lint, build, and evidence freshness checks.
 
 ## Canonical Sources
 
@@ -69,7 +69,7 @@ pnpm ci:check
 | Policy proof points | `tests/fixtures/policy/proof-points.json` | Deterministic authorization behaviors under test. |
 | Decision cache semantics | `docs/decision-cache-semantics.md`, `packages/core/src/decision-runtime.ts` | PEP cache key, TTL, invalidation, fail-closed, and auditability contract. |
 | Schema examples | `tests/fixtures/schema-examples/*.json` | Validated synthetic examples for core objects, including the policy model example. |
-| Architecture decisions | `adrs/0001-*.md` through `adrs/0010-*.md` | Canonical ADR naming and design decisions. |
+| Architecture decisions | `adrs/*.md` using zero-padded numeric filenames | Canonical ADR naming and design decisions. |
 | Evidence report | `reports/proof-point-validation.md` | Generated validation proof point. |
 | Secure SDLC evidence | `release/security-evidence/ak-044-secure-sdlc.example.json`, `docs/secure-sdlc-evidence.md` | Release-retained security evidence and validation gate. |
 | Product release manifest | `releases/v0.1.0/manifest.json`, [Product Release Packaging](release-packaging.md), [Support Policy](support-policy.md), [Security Policy](../SECURITY.md), [Changelog](../CHANGELOG.md) | Versioned source, container, CLI, SDK, docs-site, support, security, compatibility, SBOM, provenance, signature, and disclosure channel contract. |

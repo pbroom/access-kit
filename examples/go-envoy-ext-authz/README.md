@@ -7,7 +7,7 @@ This example provides a dependency-free Go client and an Envoy HTTP `ext_authz` 
 Start the local API with a development key:
 
 ```sh
-REBAC_API_KEYS=local-dev-key pnpm --filter @access-kit/api build
+pnpm --filter @access-kit/api build
 REBAC_API_KEYS=local-dev-key node packages/api/dist/bin.js
 ```
 

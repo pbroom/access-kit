@@ -6,10 +6,11 @@ The example is intentionally dependency-light. `access_kit_pep.py` uses the Pyth
 
 ## Local API
 
-Start the local API with a development key in your shell or CI environment:
+Build and start the local API with a development key in your shell or CI environment:
 
 ```sh
-REBAC_API_KEYS=local-dev-key pnpm --filter @access-kit/api build
+pnpm --filter @access-kit/api build
+REBAC_API_KEYS=local-dev-key node packages/api/dist/bin.js
 ```
 
 The example reads the key from `ACCESS_KIT_API_KEY`. Do not commit real tokens or put production credentials in example source.
