@@ -32,6 +32,7 @@ This is not a complete system security plan, production evidence vault, WORM arc
 | Persistence deployment manifest | `schemas/persistence-deployment-manifest.schema.json` | Production persistence backend and deployment-control gate. |
 | Persistence deployment readiness | `schemas/persistence-deployment-readiness.schema.json` | Deterministic deployment-readiness report contract. |
 | Persistence deployment evidence | `deploy/persistence/production-manifest.example.json` | Synthetic IaC, release, backup/restore, and operator-control references. |
+| Secure SDLC release evidence | `release/security-evidence/ak-044-secure-sdlc.example.json` | Release-retained SAST, DAST, dependency, SBOM, fuzzing, abuse-test, threat-model, triage, and SSDF references. |
 | Admin authorization readiness | `packages/core/src/admin-authorization.ts` and `/v1/ready` | IdP or mTLS gateway, admin ReBAC, secrets-manager, break-glass, incident notification, and post-action review evidence contract. |
 | Governance workflow evidence | `packages/core/src/governance.ts` and [Access Review And Exception Governance](../runbooks/access-review-exceptions.md) | Durable campaigns, findings, exception requests, owner approvals, risk acceptance, expiry, remediation, ConMon, and POA&M-ready records. |
 | HA and degraded-mode evidence | `docs/ha-degraded-mode-operations.md` and [Degraded Mode Operations Runbook](../runbooks/degraded-mode-operations.md) | Queue backpressure, audit-forwarder outage, read-only fallback, emergency revocation priority, health signals, and recovery criteria. |

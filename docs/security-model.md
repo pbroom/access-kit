@@ -54,6 +54,8 @@ Every decision, denial, grant, revoke, policy change, connector action, admin ac
 
 Phase 5 evidence exports include local system-boundary, data-flow, access-review, exception, incident, break-glass, backup/restore, dependency, vulnerability, configuration-baseline, OSCAL fragment, signed package, verifier, and control-to-event trace proof points. These are synthetic evidence contracts for assessor review; production workflows still require deployment-specific approvals, signing keys, retention, recovery testing, and security tooling.
 
+The secure SDLC release evidence manifest keeps SAST, DAST, dependency scanning, SBOM/provenance, fuzzing, tenant-isolation abuse tests, threat-model refresh, vulnerability triage, and NIST SSDF mapping tied to a release reference. It maps evidence to authorization, connector, persistence, cross-tenant isolation, and evidence-abuse mitigations without storing live vulnerability exports, scanner credentials, tenant identifiers, or assessor-approved risk acceptances.
+
 Production graph, connector-state, queue, and audit/evidence adapters reject malformed hash envelopes and secret-bearing records before serving data. Graph and connector-state adapters also enforce tenant boundaries on persisted entities, while the audit adapter preserves event order, rejects unredacted secrets, and surfaces SIEM delivery failures as high-severity integrity findings until replay succeeds. The connector-state adapter remains separate from the durable queue boundary, so storing discovery and reconciliation history does not authorize live writes or imply job-execution readiness. Queue workers still execute through runtime approval and readiness gates before controlled enforcement can complete.
 
 ## Privacy

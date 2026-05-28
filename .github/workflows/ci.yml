@@ -65,6 +65,9 @@ jobs:
       - name: Validate persistence deployment evidence
         run: pnpm validate:persistence-deployment
 
+      - name: Validate secure SDLC evidence
+        run: pnpm validate:secure-sdlc
+
   quality:
     name: Quality (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest

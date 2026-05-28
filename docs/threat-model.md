@@ -52,6 +52,7 @@ This is not a penetration test report, live deployment threat model, or final ri
 | Silent drift | Drift findings and reconciliation endpoints. | Durable reconciliation schedule and alerting. |
 | Audit tampering | Payload hashes and hash-chain integrity report. | WORM or tamper-evident storage and retention. |
 | Evidence overclaiming | Docs mark proof-point versus production gaps. | Assessor-reviewed statements and deployment-specific evidence. |
+| Secure SDLC evidence gaps | Release evidence validation requires retained SAST, DAST, dependency, SBOM, fuzzing, tenant-isolation abuse, threat-model, vulnerability triage, and SSDF records mapped to mitigations. | Deployment-specific scanner exports, DAST reports, triage tickets, and approved risk acceptances. |
 
 ## Concrete Example
 
