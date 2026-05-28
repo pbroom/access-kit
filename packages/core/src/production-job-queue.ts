@@ -29,13 +29,23 @@ import {
   assertObjectArrayFields,
   assertStoredPayloadHash,
   countJobEntities,
-  normalizeJobSnapshot,
   stableHash
 } from "./repository-envelopes.js";
+import {
+  ProductionJobSnapshotStore,
+  emptyProductionJobSnapshot,
+  type ProductionJobSnapshotStoreRecord
+} from "./production-job-snapshot-store.js";
 import type { RebacJobStorageReceipt } from "./repositories.js";
 import type { ExternalSnapshotStore, ProductionRepositoryBackupMetadata } from "./production-repositories.js";
 import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
-import { isProductionSensitiveKey } from "./production-secret-material.js";
+import {
+  assertEvidenceTenantBoundary,
+  assertNoSecretMaterial,
+  assertReportTenantBoundary,
+  clone,
+  cloneOptional
+} from "./production-repository-security-utils.js";
 
 export type ProductionQueuedJobKind = "discovery" | "reconciliation" | "provisioning" | "evidence" | "revocation";
 export type ProductionQueuedJobPriority = "emergency" | "high" | "normal" | "low";
@@ -146,7 +156,7 @@ export type ProductionJobQueueEntityCounts = RebacJobStorageReceipt["entityCount
   idempotencyRecords: number;
 };
 
-export interface ProductionJobQueueStoreRecord {
+export interface ProductionJobQueueStoreRecord extends ProductionJobSnapshotStoreRecord {
   version: "production-job-queue-store:v1";
   storedAt: string;
   tenantBoundary: string;
@@ -194,7 +204,7 @@ export interface ProductionJobReplayRequest {
 }
 
 export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedPersistenceRepository {
-  readonly #store: ExternalSnapshotStore<ProductionJobQueueStoreRecord>;
+  readonly #jobSnapshots: ProductionJobSnapshotStore<ProductionJobQueueStoreRecord>;
   readonly #tenantBoundary: string;
   readonly #location: string;
   readonly #now: () => string;
@@ -205,12 +215,23 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
   constructor(options: ProductionJobQueueAdapterOptions) {
     assertTenantBoundary(options.tenantBoundary);
     assertNoSecretMaterial(options.location, "production job queue location");
-    this.#store = options.store;
     this.#tenantBoundary = options.tenantBoundary;
     this.#location = options.location;
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#jobSnapshots = new ProductionJobSnapshotStore({
+      store: options.store,
+      tenantBoundary: options.tenantBoundary,
+      component: "job",
+      location: options.location,
+      recordVersion: "production-job-queue-store:v1",
+      recordLabel: "Production job queue store",
+      payloadLabel: "Production job queue job payload",
+      snapshotLabel: "Production job queue job snapshot",
+      backupMissingLabel: "Production job queue backup",
+      validateRecord: validateQueueState
+    });
     const stored = this.#readQueueRecord();
-    this.#jobs = stored?.jobs ?? emptyJobSnapshot();
+    this.#jobs = stored?.jobs ?? emptyProductionJobSnapshot();
     this.#queue = stored?.queue ?? emptyQueueSnapshot();
     this.#backupMetadata = stored?.backupMetadata ?? [];
   }
@@ -722,20 +743,17 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
 
   createBackup(id: CanonicalId, createdAt: string = this.#now()): ProductionRepositoryBackupMetadata {
     this.#refreshFromStore();
-    const jobs = normalizeJobSnapshot(this.#jobs);
+    const jobs = this.#jobSnapshots.createSnapshotFields(createdAt, this.#jobs, this.#backupMetadata).jobs;
     const queue = normalizeQueueSnapshot(this.#queue);
-    const metadata = createBackupMetadata({
+    const metadata = this.#jobSnapshots.createBackupMetadata({
       id,
-      component: "job",
       createdAt,
-      location: `${this.#location}#backup:${id}`,
       snapshotHash: `sha256:${stableHash({ jobs, queue })}`,
-      tenantBoundary: this.#tenantBoundary,
       entityCounts: countQueueEntities(jobs, queue)
     });
     const record = this.#createRecord(createdAt, jobs, queue, [...this.#backupMetadata, metadata]);
-    this.#store.writeCurrent(record);
-    this.#store.writeBackup(id, record);
+    this.#jobSnapshots.writeCurrent(record);
+    this.#jobSnapshots.writeBackup(id, record);
     this.#jobs = record.jobs;
     this.#queue = record.queue;
     this.#backupMetadata = record.backupMetadata;
@@ -807,18 +825,18 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
   ): T {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const expected = this.#readQueueRecord();
-      const jobs = expected?.jobs ?? emptyJobSnapshot();
+      const jobs = expected?.jobs ?? emptyProductionJobSnapshot();
       const queue = expected?.queue ?? emptyQueueSnapshot();
       const backupMetadata = expected?.backupMetadata ?? [];
       const mutation = mutate(clone(jobs), clone(queue), clone(backupMetadata));
       const record = this.#createRecord(
         storedAt,
-        normalizeJobSnapshot(mutation.jobs),
-        normalizeQueueSnapshot(mutation.queue),
+        mutation.jobs,
+        mutation.queue,
         mutation.backupMetadata ?? backupMetadata
       );
 
-      if (this.#store.compareExchangeCurrent(expected, record)) {
+      if (this.#jobSnapshots.compareExchangeCurrent(expected, record)) {
         this.#jobs = record.jobs;
         this.#queue = record.queue;
         this.#backupMetadata = record.backupMetadata;
@@ -832,7 +850,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
 
   #refreshFromStore(): void {
     const stored = this.#readQueueRecord();
-    this.#jobs = stored?.jobs ?? emptyJobSnapshot();
+    this.#jobs = stored?.jobs ?? emptyProductionJobSnapshot();
     this.#queue = stored?.queue ?? emptyQueueSnapshot();
     this.#backupMetadata = stored?.backupMetadata ?? [];
   }
@@ -892,33 +910,21 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
   }
 
   #readQueueRecord(): ProductionJobQueueStoreRecord | undefined {
-    const stored = this.#store.readCurrent();
-
-    if (!stored) {
-      return undefined;
-    }
-
-    return validateQueueRecord(stored, this.#tenantBoundary);
+    return this.#jobSnapshots.readCurrent();
   }
 
   #readQueueBackup(id: CanonicalId): ProductionJobQueueStoreRecord {
-    const backup = this.#store.readBackup(id);
-
-    if (!backup) {
-      throw new Error(`Production job queue backup ${id} does not exist.`);
-    }
-
-    return validateQueueRecord(backup, this.#tenantBoundary);
+    return this.#jobSnapshots.readBackup(id);
   }
 
   #persist(storedAt: string): RebacJobStorageReceipt {
     const record = this.#createRecord(
       storedAt,
-      normalizeJobSnapshot(this.#jobs),
-      normalizeQueueSnapshot(this.#queue),
+      this.#jobs,
+      this.#queue,
       this.#backupMetadata
     );
-    this.#store.writeCurrent(record);
+    this.#jobSnapshots.writeCurrent(record);
     this.#jobs = record.jobs;
     this.#queue = record.queue;
     this.#backupMetadata = record.backupMetadata;
@@ -939,19 +945,19 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     queue: ProductionJobQueueSnapshot,
     backupMetadata: ProductionRepositoryBackupMetadata[]
   ): ProductionJobQueueStoreRecord {
-    assertJobTenantBoundary(jobs, this.#tenantBoundary);
-    assertNoSecretMaterial(jobs, "Production job queue job snapshot");
-    assertNoSecretMaterial(queue, "Production job queue snapshot");
+    const jobSnapshot = this.#jobSnapshots.createSnapshotFields(storedAt, jobs, backupMetadata);
+    const queueSnapshot = normalizeQueueSnapshot(queue);
+    assertNoSecretMaterial(queueSnapshot, "Production job queue snapshot");
     return {
       version: "production-job-queue-store:v1",
-      storedAt,
-      tenantBoundary: this.#tenantBoundary,
-      jobsHash: `sha256:${stableHash(jobs)}`,
-      queueHash: `sha256:${stableHash(queue)}`,
-      jobs,
-      queue,
-      entityCounts: countQueueEntities(jobs, queue),
-      backupMetadata: clone(backupMetadata)
+      storedAt: jobSnapshot.storedAt,
+      tenantBoundary: jobSnapshot.tenantBoundary,
+      jobsHash: jobSnapshot.jobsHash,
+      queueHash: `sha256:${stableHash(queueSnapshot)}`,
+      jobs: jobSnapshot.jobs,
+      queue: queueSnapshot,
+      entityCounts: countQueueEntities(jobSnapshot.jobs, queueSnapshot),
+      backupMetadata: jobSnapshot.backupMetadata
     };
   }
 }
@@ -1032,38 +1038,16 @@ function recoverExpiredRunningJobs(queue: ProductionJobQueueSnapshot, recoveredA
   return recovered ? { ...queue, queuedJobs } : queue;
 }
 
-function validateQueueRecord(record: ProductionJobQueueStoreRecord, tenantBoundary: string): ProductionJobQueueStoreRecord {
-  if (record.version !== "production-job-queue-store:v1") {
-    throw new Error("Production job queue store must use the production-job-queue-store:v1 envelope.");
-  }
-  if (record.tenantBoundary !== tenantBoundary) {
-    throw new Error("Production job queue store tenant boundary does not match the configured tenant boundary.");
-  }
-  assertObjectArrayFields(record.jobs, "Production job queue job payload", [
-    "discoveryRuns",
-    "enforcementReadinessReports",
-    "provisioningPlans",
-    "provisioningJobs",
-    "driftFindings",
-    "accessReviewCampaigns",
-    "governanceFindings",
-    "exceptionRequests",
-    "reconciliationRuns",
-    "decisions"
-  ]);
+function validateQueueState(record: ProductionJobQueueStoreRecord): ProductionJobQueueStoreRecord {
   assertObjectArrayFields(record.queue, "Production job queue payload", [
     "queuedJobs",
     "connectorHealth",
     "idempotencyRecords"
   ]);
-  assertStoredPayloadHash(record.jobs, record.jobsHash, "Production job queue store hash does not match the stored job payload.");
   assertStoredPayloadHash(record.queue, record.queueHash, "Production job queue store hash does not match the stored queue payload.");
-  assertJobTenantBoundary(record.jobs, tenantBoundary);
-  assertNoSecretMaterial(record.jobs, "Production job queue job snapshot");
   assertNoSecretMaterial(record.queue, "Production job queue snapshot");
   return {
     ...record,
-    jobs: normalizeJobSnapshot(record.jobs),
     queue: normalizeQueueSnapshot(record.queue),
     backupMetadata: clone(record.backupMetadata ?? [])
   };
@@ -1085,48 +1069,9 @@ function assertEnforcementEvidence(request: RequiredQueueRequest): void {
   }
 }
 
-function assertJobTenantBoundary(jobs: RebacJobSnapshot, tenantBoundary: string): void {
-  for (const run of jobs.discoveryRuns) {
-    assertEvidenceTenantBoundary(run.evidence as unknown as JsonRecord, tenantBoundary, `Discovery run ${run.id}`);
-  }
-  for (const report of jobs.enforcementReadinessReports) {
-    assertReportTenantBoundary(report, tenantBoundary);
-  }
-}
-
-function assertReportTenantBoundary(report: EnforcementReadinessReport, tenantBoundary: string): void {
-  if (report.tenantBoundary !== tenantBoundary) {
-    throw new Error(`Enforcement readiness report ${report.id} crosses the configured tenant boundary.`);
-  }
-}
-
-function assertEvidenceTenantBoundary(evidence: JsonRecord, tenantBoundary: string, label: string): void {
-  if (evidence.tenantBoundary !== tenantBoundary) {
-    throw new Error(`${label} must include matching evidence.tenantBoundary for production persistence.`);
-  }
-}
-
 function assertTenantBoundary(tenantBoundary: string): void {
   if (tenantBoundary.length === 0) {
     throw new Error("Production job queue adapters require a tenant boundary.");
-  }
-}
-
-function assertNoSecretMaterial(value: unknown, path: string): void {
-  if (Array.isArray(value)) {
-    value.forEach((entry, index) => assertNoSecretMaterial(entry, `${path}[${index}]`));
-    return;
-  }
-
-  if (!value || typeof value !== "object") {
-    return;
-  }
-
-  for (const [key, entry] of Object.entries(value)) {
-    if (isProductionSensitiveKey(key)) {
-      throw new Error(`${path}.${key} contains secret material and cannot be persisted by a production adapter.`);
-    }
-    assertNoSecretMaterial(entry, `${path}.${key}`);
   }
 }
 
@@ -1199,13 +1144,6 @@ function jobHasRevocation(job: ProvisioningJob): boolean {
   return job.actionResults.some((result) => result.operation === "revoke");
 }
 
-function createBackupMetadata(metadata: Omit<ProductionRepositoryBackupMetadata, "version">): ProductionRepositoryBackupMetadata {
-  return {
-    ...metadata,
-    version: "production-repository-backup:v1"
-  };
-}
-
 function countQueueEntities(jobs: RebacJobSnapshot, queue: ProductionJobQueueSnapshot): ProductionJobQueueEntityCounts {
   return {
     ...countJobEntities(jobs),
@@ -1213,21 +1151,6 @@ function countQueueEntities(jobs: RebacJobSnapshot, queue: ProductionJobQueueSna
     deadLetteredJobs: queue.queuedJobs.filter((job) => job.status === "dead_lettered").length,
     connectorHealth: queue.connectorHealth.length,
     idempotencyRecords: queue.idempotencyRecords.length
-  };
-}
-
-function emptyJobSnapshot(): RebacJobSnapshot {
-  return {
-    discoveryRuns: [],
-    enforcementReadinessReports: [],
-    provisioningPlans: [],
-    provisioningJobs: [],
-    driftFindings: [],
-    accessReviewCampaigns: [],
-    governanceFindings: [],
-    exceptionRequests: [],
-    reconciliationRuns: [],
-    decisions: []
   };
 }
 
@@ -1283,12 +1206,4 @@ function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {
   }
 
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
-}
-
-function cloneOptional<T>(value: T | undefined): T | undefined {
-  return value === undefined ? undefined : clone(value);
-}
-
-function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
 }

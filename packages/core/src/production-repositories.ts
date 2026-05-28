@@ -35,13 +35,23 @@ import {
   assertObjectArrayFields,
   assertStoredPayloadHash,
   countGraphEntities,
-  countJobEntities,
   normalizeGraphSnapshot,
-  normalizeJobSnapshot,
   stableHash
 } from "./repository-envelopes.js";
+import {
+  ProductionJobSnapshotStore,
+  emptyProductionJobSnapshot,
+  type ProductionJobSnapshotStoreFields,
+  type ProductionJobSnapshotStoreRecord
+} from "./production-job-snapshot-store.js";
 import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
-import { isProductionSensitiveKey } from "./production-secret-material.js";
+import {
+  assertEvidenceTenantBoundary,
+  assertNoSecretMaterial,
+  assertReportTenantBoundary,
+  clone,
+  cloneOptional
+} from "./production-repository-security-utils.js";
 import type { RebacGraphStorageReceipt, RebacJobStorageReceipt } from "./repositories.js";
 
 export type ProductionRepositoryStoreComponent = "graph" | "connector_state" | "job" | "audit";
@@ -95,7 +105,7 @@ export interface ProductionGraphStoreRecord {
   backupMetadata: ProductionRepositoryBackupMetadata[];
 }
 
-export interface ProductionConnectorStateStoreRecord {
+export interface ProductionConnectorStateStoreRecord extends ProductionJobSnapshotStoreRecord {
   version: "production-connector-state-store:v1";
   storedAt: string;
   tenantBoundary: string;
@@ -403,7 +413,7 @@ export class ProductionGraphStoreAdapter implements RebacGraphRepository, Descri
 }
 
 export class ProductionConnectorStateStoreAdapter implements RebacJobRepository {
-  readonly #store: ExternalSnapshotStore<ProductionConnectorStateStoreRecord>;
+  readonly #jobSnapshots: ProductionJobSnapshotStore<ProductionConnectorStateStoreRecord>;
   readonly #tenantBoundary: string;
   readonly #location: string;
   readonly #now: () => string;
@@ -413,12 +423,22 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
   constructor(options: ProductionConnectorStateStoreAdapterOptions) {
     assertTenantBoundary(options.tenantBoundary);
     assertNoSecretMaterial(options.location, "production connector-state store location");
-    this.#store = options.store;
     this.#tenantBoundary = options.tenantBoundary;
     this.#location = options.location;
     this.#now = options.now ?? (() => new Date().toISOString());
+    this.#jobSnapshots = new ProductionJobSnapshotStore({
+      store: options.store,
+      tenantBoundary: options.tenantBoundary,
+      component: "connector_state",
+      location: options.location,
+      recordVersion: "production-connector-state-store:v1",
+      recordLabel: "Production connector-state store",
+      payloadLabel: "Production connector-state store payload",
+      snapshotLabel: "Production connector-state snapshot",
+      backupMissingLabel: "Production connector-state backup"
+    });
     const stored = this.#readJobsRecord();
-    this.#jobs = stored?.jobs ?? emptyJobSnapshot();
+    this.#jobs = stored?.jobs ?? emptyProductionJobSnapshot();
     this.#backupMetadata = stored?.backupMetadata ?? [];
   }
 
@@ -618,21 +638,19 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
   }
 
   createBackup(id: CanonicalId, createdAt: string = this.#now()): ProductionRepositoryBackupMetadata {
-    const jobs = normalizeJobSnapshot(this.#jobs);
-    const entityCounts = countJobEntities(jobs);
-    const jobsHash = `sha256:${stableHash(jobs)}`;
-    const metadata = createBackupMetadata({
+    const snapshot = this.#jobSnapshots.createSnapshotFields(createdAt, this.#jobs, this.#backupMetadata);
+    const metadata = this.#jobSnapshots.createBackupMetadata({
       id,
-      component: "connector_state",
       createdAt,
-      location: `${this.#location}#backup:${id}`,
-      snapshotHash: jobsHash,
-      tenantBoundary: this.#tenantBoundary,
-      entityCounts
+      snapshotHash: snapshot.jobsHash,
+      entityCounts: snapshot.entityCounts
     });
-    const record = this.#createRecord(createdAt, jobs, [...this.#backupMetadata, metadata]);
-    this.#store.writeCurrent(record);
-    this.#store.writeBackup(id, record);
+    const record = this.#createRecord({
+      ...snapshot,
+      backupMetadata: [...snapshot.backupMetadata, metadata]
+    });
+    this.#jobSnapshots.writeCurrent(record);
+    this.#jobSnapshots.writeBackup(id, record);
     this.#jobs = record.jobs;
     this.#backupMetadata = record.backupMetadata;
     return clone(metadata);
@@ -650,28 +668,18 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
   }
 
   #readJobsRecord(): ProductionConnectorStateStoreRecord | undefined {
-    const stored = this.#store.readCurrent();
-
-    if (!stored) {
-      return undefined;
-    }
-
-    return validateConnectorStateRecord(stored, this.#tenantBoundary);
+    return this.#jobSnapshots.readCurrent();
   }
 
   #readJobsBackup(id: CanonicalId): ProductionConnectorStateStoreRecord {
-    const backup = this.#store.readBackup(id);
-
-    if (!backup) {
-      throw new Error(`Production connector-state backup ${id} does not exist.`);
-    }
-
-    return validateConnectorStateRecord(backup, this.#tenantBoundary);
+    return this.#jobSnapshots.readBackup(id);
   }
 
   #persist(storedAt: string): RebacJobStorageReceipt {
-    const record = this.#createRecord(storedAt, normalizeJobSnapshot(this.#jobs), this.#backupMetadata);
-    this.#store.writeCurrent(record);
+    const record = this.#createRecord(
+      this.#jobSnapshots.createSnapshotFields(storedAt, this.#jobs, this.#backupMetadata)
+    );
+    this.#jobSnapshots.writeCurrent(record);
     this.#jobs = record.jobs;
     this.#backupMetadata = record.backupMetadata;
 
@@ -685,22 +693,15 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
     };
   }
 
-  #createRecord(
-    storedAt: string,
-    jobs: RebacJobSnapshot,
-    backupMetadata: ProductionRepositoryBackupMetadata[]
-  ): ProductionConnectorStateStoreRecord {
-    assertConnectorStateTenantBoundary(jobs, this.#tenantBoundary);
-    assertNoSecretMaterial(jobs, "Production connector-state snapshot");
-    const jobsHash = `sha256:${stableHash(jobs)}`;
+  #createRecord(snapshot: ProductionJobSnapshotStoreFields): ProductionConnectorStateStoreRecord {
     return {
       version: "production-connector-state-store:v1",
-      storedAt,
-      tenantBoundary: this.#tenantBoundary,
-      jobsHash,
-      jobs,
-      entityCounts: countJobEntities(jobs),
-      backupMetadata: clone(backupMetadata)
+      storedAt: snapshot.storedAt,
+      tenantBoundary: snapshot.tenantBoundary,
+      jobsHash: snapshot.jobsHash,
+      jobs: snapshot.jobs,
+      entityCounts: snapshot.entityCounts,
+      backupMetadata: snapshot.backupMetadata
     };
   }
 }
@@ -723,38 +724,6 @@ function validateGraphRecord(record: ProductionGraphStoreRecord, tenantBoundary:
   };
 }
 
-function validateConnectorStateRecord(
-  record: ProductionConnectorStateStoreRecord,
-  tenantBoundary: string
-): ProductionConnectorStateStoreRecord {
-  if (record.version !== "production-connector-state-store:v1") {
-    throw new Error("Production connector-state store must use the production-connector-state-store:v1 envelope.");
-  }
-  if (record.tenantBoundary !== tenantBoundary) {
-    throw new Error("Production connector-state store tenant boundary does not match the configured tenant boundary.");
-  }
-  assertObjectArrayFields(record.jobs, "Production connector-state store payload", [
-    "discoveryRuns",
-    "enforcementReadinessReports",
-    "provisioningPlans",
-    "provisioningJobs",
-    "driftFindings",
-    "accessReviewCampaigns",
-    "governanceFindings",
-    "exceptionRequests",
-    "reconciliationRuns",
-    "decisions"
-  ]);
-  assertStoredPayloadHash(record.jobs, record.jobsHash, "Production connector-state store hash does not match the stored job payload.");
-  assertConnectorStateTenantBoundary(record.jobs, tenantBoundary);
-  assertNoSecretMaterial(record.jobs, "Production connector-state snapshot");
-  return {
-    ...record,
-    jobs: normalizeJobSnapshot(record.jobs),
-    backupMetadata: clone(record.backupMetadata ?? [])
-  };
-}
-
 function assertGraphTenantBoundary(graph: RebacGraphSnapshot, tenantBoundary: string): void {
   for (const subject of graph.subjects) {
     assertEntityTenant(subject, tenantBoundary, `Subject ${subject.id}`);
@@ -764,27 +733,6 @@ function assertGraphTenantBoundary(graph: RebacGraphSnapshot, tenantBoundary: st
   }
   for (const relationship of graph.relationships) {
     assertOptionalTenantAttribute(relationship.attributes, tenantBoundary, `Relationship ${relationship.id}`);
-  }
-}
-
-function assertConnectorStateTenantBoundary(jobs: RebacJobSnapshot, tenantBoundary: string): void {
-  for (const run of jobs.discoveryRuns) {
-    assertEvidenceTenantBoundary(run.evidence as unknown as JsonRecord, tenantBoundary, `Discovery run ${run.id}`);
-  }
-  for (const report of jobs.enforcementReadinessReports) {
-    assertReportTenantBoundary(report, tenantBoundary);
-  }
-}
-
-function assertReportTenantBoundary(report: EnforcementReadinessReport, tenantBoundary: string): void {
-  if (report.tenantBoundary !== tenantBoundary) {
-    throw new Error(`Enforcement readiness report ${report.id} crosses the configured tenant boundary.`);
-  }
-}
-
-function assertEvidenceTenantBoundary(evidence: JsonRecord, tenantBoundary: string, label: string): void {
-  if (evidence.tenantBoundary !== tenantBoundary) {
-    throw new Error(`${label} must include matching evidence.tenantBoundary for production persistence.`);
   }
 }
 
@@ -813,24 +761,6 @@ function assertTenantBoundary(tenantBoundary: string): void {
   }
 }
 
-function assertNoSecretMaterial(value: unknown, path: string): void {
-  if (Array.isArray(value)) {
-    value.forEach((entry, index) => assertNoSecretMaterial(entry, `${path}[${index}]`));
-    return;
-  }
-
-  if (!value || typeof value !== "object") {
-    return;
-  }
-
-  for (const [key, entry] of Object.entries(value)) {
-    if (isProductionSensitiveKey(key)) {
-      throw new Error(`${path}.${key} contains secret material and cannot be persisted by a production adapter.`);
-    }
-    assertNoSecretMaterial(entry, `${path}.${key}`);
-  }
-}
-
 function createBackupMetadata(
   metadata: Omit<ProductionRepositoryBackupMetadata, "version">
 ): ProductionRepositoryBackupMetadata {
@@ -846,21 +776,6 @@ function emptyGraphSnapshot(): RebacGraphSnapshot {
     resources: [],
     relationships: [],
     nativeGrants: []
-  };
-}
-
-function emptyJobSnapshot(): RebacJobSnapshot {
-  return {
-    discoveryRuns: [],
-    enforcementReadinessReports: [],
-    provisioningPlans: [],
-    provisioningJobs: [],
-    driftFindings: [],
-    accessReviewCampaigns: [],
-    governanceFindings: [],
-    exceptionRequests: [],
-    reconciliationRuns: [],
-    decisions: []
   };
 }
 
@@ -890,12 +805,4 @@ function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {
   }
 
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
-}
-
-function cloneOptional<T>(value: T | undefined): T | undefined {
-  return value === undefined ? undefined : clone(value);
-}
-
-function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
 }
