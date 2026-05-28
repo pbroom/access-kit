@@ -56,6 +56,7 @@ const DEFAULT_MAX_DRIVE_ITEM_DEPTH = 8;
 const REDACTION_HASH_LENGTH = 16;
 const DRIVE_ITEM_SELECT = "id,name,webUrl,parentReference,folder,file,package,deleted,size,createdDateTime,lastModifiedDateTime";
 const PERMISSION_SELECT = "id,roles,grantedTo,grantedToV2,grantedToIdentities,grantedToIdentitiesV2,link,invitation,inheritedFrom,shareId,hasPassword,expirationDateTime";
+const DELTA_CURSOR_HASH_LENGTH = 20;
 
 export interface MicrosoftGraphCollectionPage<T> {
   value: T[];
@@ -81,11 +82,6 @@ interface MicrosoftGraphCollectionRead<T> {
 export interface MicrosoftGraphReadClient {
   list<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphCollectionPage<T>>;
   get<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphRecordResponse<T>>;
-}
-
-interface MicrosoftGraphCollectionRead<T> {
-  values: T[];
-  completed: boolean;
 }
 
 export interface FetchMicrosoftGraphClientOptions {
@@ -207,6 +203,7 @@ interface MicrosoftGraphConnectorEnv {
 
 interface GraphUser {
   id?: string;
+  "@removed"?: GraphRemovedMarker | null;
   displayName?: string | null;
   userPrincipalName?: string | null;
   accountEnabled?: boolean | null;
@@ -217,6 +214,7 @@ interface GraphUser {
 
 interface GraphGroup {
   id?: string;
+  "@removed"?: GraphRemovedMarker | null;
   displayName?: string | null;
   securityEnabled?: boolean | null;
   mailEnabled?: boolean | null;
@@ -237,6 +235,7 @@ interface GraphTeam {
 
 interface GraphServicePrincipal {
   id?: string;
+  "@removed"?: GraphRemovedMarker | null;
   displayName?: string | null;
   appId?: string | null;
   servicePrincipalType?: string | null;
@@ -272,6 +271,7 @@ interface GraphAppRoleAssignment {
 
 interface GraphSite {
   id?: string;
+  "@removed"?: GraphRemovedMarker | null;
   name?: string | null;
   displayName?: string | null;
   webUrl?: string | null;
@@ -287,6 +287,7 @@ interface GraphSite {
 
 interface GraphDrive {
   id?: string;
+  "@removed"?: GraphRemovedMarker | null;
   name?: string | null;
   driveType?: string | null;
   webUrl?: string | null;
@@ -309,6 +310,7 @@ interface GraphDrive {
 
 interface GraphDriveItem {
   id?: string;
+  "@removed"?: GraphRemovedMarker | null;
   name?: string | null;
   webUrl?: string | null;
   folder?: { childCount?: number | null } | null;
@@ -343,6 +345,7 @@ interface GraphPermissionIdentitySet {
 
 interface GraphPermission {
   id?: string;
+  "@removed"?: GraphRemovedMarker | null;
   roles?: string[] | null;
   grantedTo?: GraphPermissionIdentitySet | null;
   grantedToV2?: GraphPermissionIdentitySet | null;
@@ -374,6 +377,21 @@ interface EntraSnapshot {
   relationships: RelationshipTuple[];
   grantsByResource: Map<string, NativeGrant[]>;
   cursor: DiscoveryCursor;
+}
+
+interface GraphRemovedMarker {
+  reason?: string | null;
+}
+
+interface GraphDeltaCapableRecord {
+  id?: string;
+  "@removed"?: GraphRemovedMarker | null;
+}
+
+interface MicrosoftGraphDeltaState {
+  token: string;
+  capturedAt: string;
+  scope: DiscoveryRunWarning["scope"];
 }
 
 interface EntraEntityMaps {
@@ -433,6 +451,8 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   readonly #maxDriveItemDepth: number;
   readonly #sleep: (milliseconds: number) => Promise<void>;
   #snapshot?: EntraSnapshot;
+  readonly #deltaStates = new Map<string, MicrosoftGraphDeltaState>();
+  readonly #collectionCaches = new Map<string, GraphDeltaCapableRecord[]>();
   #warnings: DiscoveryRunWarning[] = [];
   #nativeAccessReadbackComplete = true;
 
@@ -600,7 +620,46 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   }
 
   async detectDrift(): Promise<DriftFinding[]> {
-    return [];
+    await this.#loadSnapshot();
+    const detectedAt = this.#now();
+    return this.getDiscoveryMetadata()
+      .warnings
+      .filter(isSecurityRelevantCoverageWarning)
+      .map((warning) => ({
+        id: `drift:${this.id}:${redactValue(`${warning.code}:${warning.scope}:${warning.objectId ?? "connector"}`, 24)}`,
+        resourceId: warning.objectId ?? `connector:${this.id}:${redactValue(this.#tenantId)}`,
+        subjectId: `connector:${this.id}`,
+        nativeAccess: warning.code,
+        intendedAccess: "complete_provider_coverage",
+        severity: warning.severity === "error" ? "high" : "medium",
+        lifecycleState: "open",
+        ownerId: "role:security-operations",
+        assigneeId: "role:security-engineer",
+        detectedAt,
+        sourceConnectorId: this.id,
+        recommendedAction: "review",
+        status: "open",
+        scheduledReconciliation: {
+          cadence: "manual",
+          scheduledAt: detectedAt,
+          gracePeriodHours: 0,
+          overdue: false
+        },
+        hookEvidence: [],
+        remediation: {},
+        autoRepairPolicy: {
+          enabled: false,
+          allowedActions: ["review"],
+          maxSeverity: warning.severity === "error" ? "high" : "medium",
+          requireApproval: true,
+          requireConnectorReadiness: true,
+          liveProviderWrites: false,
+          reason: "Microsoft Graph coverage drift requires provider review and read-only verification before remediation."
+        },
+        version: "drift-finding:v1",
+        createdAt: detectedAt,
+        updatedAt: detectedAt
+      }));
   }
 
   async emitEvidence(events: AuditEvent[]): Promise<EvidenceExport> {
@@ -613,6 +672,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     }
 
     this.#warnings = [];
+    const startedFrom = this.#buildDeltaCursor() ?? "cursor:microsoft-graph:initial";
     const users = await this.#readCollection<GraphUser>(
       "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime",
       "subjects"
@@ -639,7 +699,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     for (const [resourceId, grants] of sharePointAndOneDriveGrants.entries()) {
       grantsByResource.set(resourceId, [...(grantsByResource.get(resourceId) ?? []), ...grants]);
     }
-    const cursor = this.#buildCursor();
+    const cursor = this.#buildCursor(startedFrom);
 
     this.#snapshot = {
       subjects: [...maps.subjectsByGraphId.values()],
@@ -657,16 +717,51 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     return this.#snapshot;
   }
 
-  async #readCollection<T>(path: string, label: DiscoveryRunWarning["scope"]): Promise<T[]> {
+  async #readCollection<T extends GraphDeltaCapableRecord>(
+    path: string,
+    label: DiscoveryRunWarning["scope"]
+  ): Promise<T[]> {
     return (await this.#readCollectionResult<T>(path, label)).values;
   }
 
-  async #readCollectionResult<T>(path: string, label: DiscoveryRunWarning["scope"]): Promise<MicrosoftGraphCollectionRead<T>> {
+  async #readCollectionResult<T extends GraphDeltaCapableRecord>(
+    path: string,
+    label: DiscoveryRunWarning["scope"]
+  ): Promise<MicrosoftGraphCollectionRead<T>> {
+    const deltaState = this.#deltaStates.get(path);
+    const cachedValues = this.#collectionCaches.get(path) as T[] | undefined;
+    if (deltaState && cachedValues) {
+      const incremental = await this.#readCollectionPages(path, deltaState.token, label, cachedValues);
+      if (incremental) {
+        return incremental;
+      }
+
+      this.#deltaStates.delete(path);
+      this.#pushWarning({
+        code: "GRAPH_INCREMENTAL_SYNC_FULL_RESYNC",
+        message: "Microsoft Graph incremental sync state was ambiguous; Access Kit discarded the delta token and recovered with a full read-only resync.",
+        severity: "warning",
+        scope: label,
+        retryable: true
+      });
+    }
+
+    return await this.#readCollectionPages(path, path, label) ?? { values: [], completed: false };
+  }
+
+  async #readCollectionPages<T extends GraphDeltaCapableRecord>(
+    cacheKey: string,
+    startPath: string,
+    label: DiscoveryRunWarning["scope"],
+    cachedValues?: T[]
+  ): Promise<MicrosoftGraphCollectionRead<T> | undefined> {
     const values: T[] = [];
-    let nextPath: string | undefined = path;
+    let nextPath: string | undefined = startPath;
     let pageCount = 0;
     let retryCount = 0;
     let completed = true;
+    let deltaLink: string | undefined;
+    const incremental = Boolean(cachedValues);
 
     while (nextPath) {
       if (pageCount >= this.#maxPages) {
@@ -678,11 +773,22 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
           scope: label,
           retryable: true
         });
-        break;
+        return incremental ? undefined : this.#cacheCollection(cacheKey, values, completed);
       }
 
       const page: MicrosoftGraphCollectionPage<T> = await this.#client.list<T>(nextPath, { headers: { ConsistencyLevel: "eventual" } });
       const status = page.status ?? 200;
+
+      if (incremental && status === 410) {
+        this.#pushWarning({
+          code: "GRAPH_DELTA_TOKEN_STALE",
+          message: "Microsoft Graph rejected a stored delta token; the token was discarded without retaining raw cursor material.",
+          severity: "warning",
+          scope: label,
+          retryable: true
+        });
+        return undefined;
+      }
 
       if (status === 429) {
         retryCount += 1;
@@ -703,7 +809,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         }
 
         completed = false;
-        break;
+        return incremental ? undefined : this.#cacheCollection(cacheKey, values, completed);
       }
 
       if (status >= 400) {
@@ -715,11 +821,23 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
           scope: label,
           retryable: status >= 500
         });
-        break;
+        return incremental ? undefined : this.#cacheCollection(cacheKey, values, completed);
       }
 
       retryCount = 0;
       pageCount += 1;
+      deltaLink = page.deltaLink ?? deltaLink;
+      for (const item of page.value) {
+        if (isGraphTombstone(item)) {
+          this.#pushWarning({
+            code: "GRAPH_DELTA_TOMBSTONE_OBSERVED",
+            message: "Microsoft Graph returned a delta tombstone; Access Kit marked the redacted object deleted instead of dropping deletion evidence.",
+            severity: "warning",
+            scope: label,
+            retryable: false
+          });
+        }
+      }
       values.push(...page.value);
 
       if (page.nextLink) {
@@ -735,6 +853,42 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       nextPath = page.nextLink;
     }
 
+    if (deltaLink) {
+      this.#deltaStates.set(cacheKey, {
+        token: deltaLink,
+        capturedAt: this.#now(),
+        scope: label
+      });
+      this.#pushWarning({
+        code: incremental ? "GRAPH_DELTA_SYNC_APPLIED" : "GRAPH_DELTA_TOKEN_CAPTURED",
+        message: incremental
+          ? "Microsoft Graph incremental sync applied a redacted delta cursor and retained tenant-scoped state."
+          : "Microsoft Graph returned a delta cursor; Access Kit stored only redacted cursor evidence for future incremental reads.",
+        severity: "info",
+        scope: label,
+        retryable: false
+      });
+    } else if (incremental) {
+      this.#pushWarning({
+        code: "GRAPH_DELTA_TOKEN_MISSING",
+        message: "Microsoft Graph incremental response did not include a replacement delta token; Access Kit discarded the ambiguous incremental state.",
+        severity: "warning",
+        scope: label,
+        retryable: true
+      });
+      return undefined;
+    }
+
+    const mergedValues = cachedValues ? applyGraphDeltaChanges(cachedValues, values) : values;
+    return this.#cacheCollection(cacheKey, mergedValues, completed);
+  }
+
+  #cacheCollection<T extends GraphDeltaCapableRecord>(
+    cacheKey: string,
+    values: T[],
+    completed: boolean
+  ): MicrosoftGraphCollectionRead<T> {
+    this.#collectionCaches.set(cacheKey, values);
     return { values, completed };
   }
 
@@ -810,8 +964,9 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         tenantId: this.tenantBoundary,
         accountEnabled: user.accountEnabled ?? undefined,
         external: user.userType === "Guest" || Boolean(user.externalUserState),
+        ...tombstoneAttributes(user),
         redacted: true
-      }, user.deletedDateTime ? "deleted" : "active");
+      }, graphRecordDeleted(user) ? "deleted" : "active");
       subjectsByGraphId.set(user.id, subject);
       subjectPrincipalTypes.set(user.id, user.userType === "Guest" ? "external_user" : "user");
     }
@@ -828,8 +983,9 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       }, {
         tenantId: this.tenantBoundary,
         securityEnabled: group.securityEnabled ?? undefined,
+        ...tombstoneAttributes(group),
         redacted: true
-      }, group.deletedDateTime ? "deleted" : "active"));
+      }, graphRecordDeleted(group) ? "deleted" : "active"));
       subjectPrincipalTypes.set(group.id, "group");
 
       if (isM365Group(group)) {
@@ -855,9 +1011,10 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         {
           tenantId: this.tenantBoundary,
           servicePrincipalType: servicePrincipal.servicePrincipalType ?? undefined,
+          ...tombstoneAttributes(servicePrincipal),
           redacted: true
         },
-        servicePrincipal.deletedDateTime ? "deleted" : "active"
+        graphRecordDeleted(servicePrincipal) ? "deleted" : "active"
       );
       subjectsByGraphId.set(servicePrincipal.id, subject);
       subjectPrincipalTypes.set(servicePrincipal.id, "service_principal");
@@ -1209,7 +1366,10 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       await this.#addSiteDrives(site, siteResource, resources, grantTargets);
     }
 
-    if (users.some((user) => user.id)) {
+    const enumerableUsers = users.filter(
+      (user): user is GraphUser & { id: string } => Boolean(user.id) && !graphRecordDeleted(user)
+    );
+    if (enumerableUsers.length > 0) {
       this.#pushWarning({
         code: "GRAPH_ONEDRIVE_USER_ENUMERATION_SEQUENTIAL",
         message: "Microsoft Graph OneDrive inventory enumerates user drives per imported user; large tenants should monitor throttling and coverage before treating OneDrive inventory as complete.",
@@ -1219,11 +1379,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       });
     }
 
-    for (const user of users) {
-      if (!user.id) {
-        continue;
-      }
-
+    for (const user of enumerableUsers) {
       await this.#addUserDrives(user, maps.subjectsByGraphId.get(user.id), resources, grantTargets);
     }
 
@@ -1606,9 +1762,11 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     grantsByResource.set(grant.targetObjectId, [...(grantsByResource.get(grant.targetObjectId) ?? []), grant]);
   }
 
-  #buildCursor(): DiscoveryCursor {
+  #buildCursor(startedFrom: string): DiscoveryCursor {
+    const deltaCursor = this.#buildDeltaCursor();
     return {
-      startedFrom: "cursor:microsoft-graph:initial",
+      startedFrom,
+      next: deltaCursor,
       highWatermark: `cursor:microsoft-graph:${compactTimestamp(this.#now())}`,
       deletedObjectBehavior: "mark_deleted"
     };
@@ -1620,6 +1778,18 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       highWatermark: "cursor:microsoft-graph:pre-discovery",
       deletedObjectBehavior: "mark_deleted"
     };
+  }
+
+  #buildDeltaCursor(): string | undefined {
+    if (this.#deltaStates.size === 0) {
+      return undefined;
+    }
+
+    const cursorMaterial = [...this.#deltaStates.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([path, state]) => `${path}:${state.token}:${state.capturedAt}:${state.scope}`)
+      .join("|");
+    return `cursor:microsoft-graph:delta:${redactValue(cursorMaterial, DELTA_CURSOR_HASH_LENGTH)}`;
   }
 
   #subject(
@@ -1655,12 +1825,13 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       dataStewardId: "user:access-kit-steward",
       technicalOwnerId: "user:access-kit-operator",
       classification: "internal",
-      lifecycleState: servicePrincipal.deletedDateTime ? "deleted" : "active",
+      lifecycleState: graphRecordDeleted(servicePrincipal) ? "deleted" : "active",
       attributes: {
         tenantId: this.tenantBoundary,
         graphObjectHash: redactValue(graphId),
         appIdHash: servicePrincipal.appId ? redactValue(servicePrincipal.appId) : "unknown",
         servicePrincipalType: servicePrincipal.servicePrincipalType ?? undefined,
+        ...tombstoneAttributes(servicePrincipal),
         redacted: true
       },
       version: "resource:v1",
@@ -1680,7 +1851,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       dataStewardId: "user:access-kit-steward",
       technicalOwnerId: "user:access-kit-operator",
       classification: group.visibility === "Private" ? "confidential" : "internal",
-      lifecycleState: group.deletedDateTime ? "deleted" : "active",
+      lifecycleState: graphRecordDeleted(group) ? "deleted" : "active",
       attributes: {
         tenantId: this.tenantBoundary,
         graphObjectHash: redactValue(graphId),
@@ -1689,6 +1860,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         mailEnabled: group.mailEnabled ?? undefined,
         visibility: group.visibility ?? undefined,
         teamBacked: isTeamsBackedGroup(group),
+        ...tombstoneAttributes(group),
         redacted: true
       },
       version: "resource:v1",
@@ -1709,7 +1881,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       dataStewardId: "user:access-kit-steward",
       technicalOwnerId: "user:access-kit-operator",
       classification: personalSite ? "confidential" : "internal",
-      lifecycleState: site.deletedDateTime ? "deleted" : "active",
+      lifecycleState: graphRecordDeleted(site) ? "deleted" : "active",
       attributes: {
         tenantId: this.tenantBoundary,
         graphObjectHash: redactValue(graphId),
@@ -1719,6 +1891,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         dataLocationCode: site.siteCollection?.dataLocationCode ?? undefined,
         rootSite: Boolean(site.root || site.siteCollection?.root),
         webUrlHash: site.webUrl ? redactValue(site.webUrl) : undefined,
+        ...tombstoneAttributes(site),
         redacted: true
       },
       version: "resource:v1",
@@ -1750,7 +1923,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       dataStewardId: "user:access-kit-steward",
       technicalOwnerId: "user:access-kit-operator",
       classification: source.kind === "onedrive" ? "confidential" : "internal",
-      lifecycleState: "active",
+      lifecycleState: graphRecordDeleted(drive) ? "deleted" : "active",
       parentId: source.kind === "sharepoint" ? source.siteResource.id : undefined,
       attributes: {
         tenantId: this.tenantBoundary,
@@ -1770,6 +1943,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         inheritanceMarker: "provider_permissions_deferred_to_native_grant_readback",
         canonicalAccessGranted: false,
         ...sourceAttributes,
+        ...tombstoneAttributes(drive),
         redacted: true
       },
       version: "resource:v1",
@@ -1795,7 +1969,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       dataStewardId: "user:access-kit-steward",
       technicalOwnerId: "user:access-kit-operator",
       classification: parentResource.classification,
-      lifecycleState: item.deleted ? "deleted" : "active",
+      lifecycleState: graphRecordDeleted(item) ? "deleted" : "active",
       parentId: parentResource.id,
       attributes: {
         tenantId: this.tenantBoundary,
@@ -1814,6 +1988,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         inheritanceAmbiguous: true,
         inheritanceMarker: "provider_permissions_deferred_to_native_grant_readback",
         canonicalAccessGranted: false,
+        ...tombstoneAttributes(item),
         redacted: true
       },
       version: "resource:v1",
@@ -1833,7 +2008,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
       dataStewardId: "user:access-kit-steward",
       technicalOwnerId: "user:access-kit-operator",
       classification: (team?.visibility ?? group.visibility) === "Private" ? "confidential" : "internal",
-      lifecycleState: group.deletedDateTime ? "deleted" : "active",
+      lifecycleState: graphRecordDeleted(group) ? "deleted" : "active",
       parentId,
       attributes: {
         tenantId: this.tenantBoundary,
@@ -1843,6 +2018,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
         archived: team?.isArchived ?? undefined,
         visibility: team?.visibility ?? group.visibility ?? undefined,
         couplingSource: team ? "microsoft_graph_team" : "microsoft_graph_group_marker",
+        ...tombstoneAttributes(group),
         redacted: true
       },
       version: "resource:v1",
@@ -2041,6 +2217,66 @@ function isDriveItemContainer(item: GraphDriveItem): boolean {
 
 function uniqueResources(resources: Resource[]): Resource[] {
   return [...new Map(resources.map((resource) => [resource.id, resource])).values()];
+}
+
+function applyGraphDeltaChanges<T extends GraphDeltaCapableRecord>(cachedValues: T[], changes: T[]): T[] {
+  const byId = new Map(cachedValues.flatMap((value) => value.id ? [[value.id, value] as const] : []));
+  const anonymousValues = cachedValues.filter((value) => !value.id);
+
+  for (const change of changes) {
+    if (!change.id) {
+      anonymousValues.push(change);
+      continue;
+    }
+
+    const previous = byId.get(change.id);
+    byId.set(change.id, isGraphTombstone(change) && previous ? { ...previous, ...change } : change);
+  }
+
+  return [...anonymousValues, ...byId.values()];
+}
+
+function graphRecordDeleted(record: GraphDeltaCapableRecord & { deletedDateTime?: string | null; deleted?: JsonRecord | null }): boolean {
+  return Boolean(record.deletedDateTime || record.deleted || isGraphTombstone(record));
+}
+
+function isGraphTombstone(record: GraphDeltaCapableRecord): boolean {
+  return Boolean(record["@removed"]);
+}
+
+function tombstoneAttributes(record: GraphDeltaCapableRecord): JsonRecord {
+  if (!isGraphTombstone(record)) {
+    return {};
+  }
+
+  return {
+    providerTombstone: true,
+    tombstoneReason: record["@removed"]?.reason ?? "unknown"
+  };
+}
+
+const SECURITY_RELEVANT_COVERAGE_WARNING_CODES = new Set([
+  "GRAPH_COLLECTION_SKIPPED",
+  "GRAPH_DELTA_TOKEN_MISSING",
+  "GRAPH_DELTA_TOKEN_STALE",
+  "GRAPH_DELTA_TOMBSTONE_OBSERVED",
+  "GRAPH_DRIVE_ITEM_DEPTH_LIMIT_REACHED",
+  "GRAPH_INCREMENTAL_SYNC_FULL_RESYNC",
+  "GRAPH_NATIVE_GRANT_COVERAGE_EMPTY",
+  "GRAPH_NATIVE_GRANT_LINK_SEMANTICS_UNSUPPORTED",
+  "GRAPH_NATIVE_GRANT_PRINCIPAL_SKIPPED",
+  "GRAPH_NATIVE_GRANT_PRINCIPAL_UNSUPPORTED",
+  "GRAPH_NATIVE_GRANT_ROLE_UNSUPPORTED",
+  "GRAPH_NATIVE_GRANT_SITE_USER_UNSUPPORTED",
+  "GRAPH_NATIVE_GRANT_TARGET_UNSUPPORTED",
+  "GRAPH_PAGE_LIMIT_REACHED",
+  "GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS",
+  "GRAPH_TEAM_CHANNEL_COVERAGE_UNSUPPORTED",
+  "GRAPH_THROTTLE_RETRIED"
+]);
+
+function isSecurityRelevantCoverageWarning(warning: DiscoveryRunWarning): boolean {
+  return warning.severity !== "info" && SECURITY_RELEVANT_COVERAGE_WARNING_CODES.has(warning.code);
 }
 
 function nativeGrantTypeForPrincipal(principalType: NativePrincipalType): NativeGrant["grantType"] {
