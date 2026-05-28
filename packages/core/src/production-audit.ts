@@ -52,11 +52,13 @@ export * from "./production-audit-log-storage.js";
 export * from "./production-audit-memory-store.js";
 export * from "./production-audit-models.js";
 export * from "./production-audit-siem.js";
-export * from "./production-audit-signed-windows.js";
+export { ProductionSignedAuditWindowRegistry } from "./production-audit-signed-windows.js";
+export type { ProductionSignedAuditWindowRegistryOptions } from "./production-audit-signed-windows.js";
 
 export class ProductionAuditEvidenceAdapter implements DescribedAuditEventRepository, EvidencePackageRepository {
   readonly #location: string;
   readonly #retentionPolicy: ProductionAuditRetentionPolicy;
+  readonly #now: () => string;
   readonly #auditLog: ProductionAuditLogStorage;
   readonly #evidenceRetention: ProductionEvidencePackageRetention;
   readonly #integrity: ProductionAuditIntegrityValidator;
@@ -80,6 +82,7 @@ export class ProductionAuditEvidenceAdapter implements DescribedAuditEventReposi
 
     this.#location = options.location;
     this.#retentionPolicy = retentionPolicy;
+    this.#now = now;
     this.#integrity = new ProductionAuditIntegrityValidator(options.store, options.tenantBoundary, windowSigner);
     this.#auditLog = new ProductionAuditLogStorage({
       store: options.store,
@@ -173,11 +176,11 @@ export class ProductionAuditEvidenceAdapter implements DescribedAuditEventReposi
     return this.#siemDeliveries.listSiemDeliveries();
   }
 
-  createBackup(id: CanonicalId, createdAt?: string): ProductionRepositoryBackupMetadata {
+  createBackup(id: CanonicalId, createdAt: string = this.#now()): ProductionRepositoryBackupMetadata {
     return this.#backups.createBackup(id, createdAt);
   }
 
-  restoreBackup(id: CanonicalId, restoredAt?: string): ProductionAuditRestoreReceipt {
+  restoreBackup(id: CanonicalId, restoredAt: string = this.#now()): ProductionAuditRestoreReceipt {
     return this.#backups.restoreBackup(id, restoredAt);
   }
 
