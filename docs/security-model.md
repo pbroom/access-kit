@@ -45,6 +45,7 @@ Phase 4 controlled enforcement is restricted to the synthetic `mock` connector. 
 - Provisioning never assumes success and must verify target state after every write.
 - Enforcement planning fails closed when the caller omits readiness evidence or presents a blocked, missing, mismatched, or live-write-enabled readiness report.
 - Connector outages queue work, mark the connector degraded, and must not silently skip revocations. The production queue adapter keeps emergency revocations reservable even when normal connector work is degraded, records dead-lettered failures for operator replay, and preserves idempotency hashes so duplicate deliveries cannot silently turn into different work.
+- Degraded production modes must preserve fail-closed authorization, audit append, and emergency revocation priority. Queue backpressure pauses new grants and non-urgent discovery; audit-forwarder outage creates a high-severity integrity finding until replay succeeds; read-only fallback never authorizes local decisions or live provider writes.
 - Revocation and quarantine actions have priority over new grants.
 
 ## Audit

@@ -31,6 +31,7 @@ Access Kit does not authenticate users, operate an identity provider, replace na
 11. Drift findings, decisions, connector actions, audit exports, and evidence exports emit audit events.
 12. Evidence exports assemble audit, control, boundary, data-flow, access-review, exception, ConMon, POA&M, operational, and SIEM metadata.
 13. Runtime readiness reports whether admin access is still local bearer-token proof-point mode or is described by an evidenced IdP or mTLS gateway, separate admin ReBAC policy, secrets-manager references, break-glass approval, incident-mode notifications, and post-action review evidence.
+14. Production operations monitor degraded-mode signals for API, graph, queue, audit, SIEM, connector, and admin boundaries, then fail closed, preserve evidence, and prioritize emergency revocation until recovery criteria are met.
 
 ## Core Concepts
 
@@ -58,6 +59,7 @@ If a direct deny tuple is added, the same request returns `deny` with `DENY_EXPL
 - Do not treat a shared bearer token as production admin authorization; require IdP or mTLS identity, admin ReBAC, revocation, audit, and emergency-workflow evidence.
 - Do not use LLM output as an authorization input unless it has been converted into deterministic, reviewed policy or relationship data through approved governance.
 - Use idempotency keys for write operations and keep revocations higher priority than grants.
+- Treat queue backpressure, audit-forwarder outage, stale connector readback, and degraded admin readiness as security-relevant conditions with explicit recovery evidence.
 
 ## Audit And Evidence Implications
 
