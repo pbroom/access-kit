@@ -22,7 +22,9 @@ Run the focused conformance suite:
 pnpm validate:pep-conformance
 ```
 
-The suite currently exercises the TypeScript Express starter in `tests/sdk-pep/pep-conformance.test.ts`. Future SDKs and middleware examples should add their own adapter tests against the same behavior contract before they are marked reviewable in the backlog.
+The suite exercises the TypeScript Express starter in `tests/sdk-pep/pep-conformance.test.ts` and the Python FastAPI starter in `tests/sdk-pep/python-fastapi-pep.test.ts`. Future SDKs and middleware examples should add their own adapter tests against the same behavior contract before they are marked reviewable in the backlog.
+
+Because the Python FastAPI starter is part of this gate, `pnpm validate:pep-conformance` requires Python 3 to be available as `python3`.
 
 The conformance tests intentionally use protected requests with local role-like headers and sensitive relationship-path fixtures. Those inputs prove that the PEP does not authorize locally, does not call explain for protected route denials, and does not leak relationship paths in end-user responses.
 
@@ -34,3 +36,9 @@ Application PEPs should keep Access Kit decisions and user-facing responses sepa
 - End-user denial bodies should contain only a stable denial code, a correlation ID, and a safe reason code.
 - Relationship paths returned by explain are diagnostic evidence, not route error content.
 - API client errors, network failures, parse failures, and authentication failures all deny protected access.
+
+## Python FastAPI Starter
+
+The Python starter lives in `examples/python-fastapi-pep/`. It provides a stdlib `AccessKitClient`, a FastAPI-compatible dependency factory, an exception handler for safe denial responses, and a policy-test CI script. The dependency calls `check` for protected routes, propagates or generates correlation IDs, emits decision events for application logging, and raises a denial instead of authorizing locally when Access Kit denies, rejects authentication, or is unavailable.
+
+Use `client.explain()` only for operator-controlled diagnostics. The FastAPI dependency does not call explain and does not include relationship paths, private subject identifiers, group names, folder names, or decision IDs in end-user denial bodies.
