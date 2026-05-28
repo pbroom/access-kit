@@ -20,12 +20,15 @@ describe("CLI contract", () => {
   it("includes first-class operator, CI/CD, and assessor commands", () => {
     const paths = new Set(CLI_COMMANDS.map((command) => command.path));
 
+    expect(paths).toContain("ready");
     expect(paths).toContain("check");
     expect(paths).toContain("explain");
     expect(paths).toContain("resource native-access");
     expect(paths).toContain("policy validate");
     expect(paths).toContain("policy publish");
     expect(paths).toContain("provision plan");
+    expect(paths).toContain("provision apply");
+    expect(paths).toContain("emergency revoke");
     expect(paths).toContain("reconcile run");
     expect(paths).toContain("discovery runs");
     expect(paths).toContain("audit search");
@@ -46,6 +49,7 @@ describe("CLI contract", () => {
     expect(help).toContain("resource");
     expect(help).toContain("relation");
     expect(help).toContain("policy");
+    expect(help).toContain("emergency");
     expect(help).toContain("provision");
     expect(help).toContain("reconcile");
     expect(help).toContain("discovery");
@@ -53,6 +57,15 @@ describe("CLI contract", () => {
     expect(help).toContain("evidence");
     expect(help).toContain("connector");
     expect(help).toContain("completion");
+  });
+
+  it("labels emergency revoke confirmation as required in help", () => {
+    const emergency = buildCli().commands.find((command) => command.name() === "emergency");
+    const revoke = emergency?.commands.find((command) => command.name() === "revoke");
+
+    expect(revoke).toBeDefined();
+    expect(revoke?.helpInformation()).toContain("--confirm-revoke");
+    expect(revoke?.helpInformation()).toContain("Required confirmation for emergency revocation.");
   });
 
   it("keeps the command manifest aligned with registered Commander leaves", () => {

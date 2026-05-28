@@ -25,6 +25,12 @@ afterEach(async () => {
 
 describe("documentation CLI examples", () => {
   it("executes the synthetic operator and assessor walkthrough against the local API", async () => {
+    await runCli("ready");
+    expect(lastOutput()).toMatchObject({
+      status: "ready_with_warnings",
+      checks: expect.arrayContaining([expect.objectContaining({ name: "api_runtime" })])
+    });
+
     await runCli("connector", "list");
     expect(lastOutput()).toMatchObject({
       items: expect.arrayContaining([expect.objectContaining({ id: "mock" })])
@@ -138,6 +144,37 @@ describe("documentation CLI examples", () => {
       framework: "nist-800-53",
       controls: expect.arrayContaining(["AC-2", "AC-3", "AU-2", "AU-6", "CA-7"]),
       format: "json"
+    });
+
+    await runCli(
+      "--preview",
+      "--diff",
+      "emergency",
+      "revoke",
+      "native-grant:document:case-plan:alice",
+      "--connector",
+      "mock",
+      "--approver",
+      "user:incident-commander",
+      "--change-ticket",
+      "inc:2026-05-21:001",
+      "--readiness-report",
+      "readiness:mock:phase4",
+      "--reason",
+      "Approved emergency revocation exercise",
+      "--confirm-revoke"
+    );
+    expect(lastOutput()).toMatchObject({
+      mode: "preview",
+      method: "POST",
+      path: "/v1/provisioning/plans",
+      idempotencyKey: expect.stringMatching(/^idem:cli:post:/),
+      body: {
+        action: "revoke",
+        mode: "enforcement",
+        dryRun: false,
+        readinessReportId: "readiness:mock:phase4"
+      }
     });
   });
 });

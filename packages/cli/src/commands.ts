@@ -48,6 +48,7 @@ export interface CliOptions {
 }
 
 export const CLI_COMMANDS: CliCommandSpec[] = [
+  { path: "ready", description: "Check API runtime readiness.", apiSurface: "GET /v1/ready" },
   { path: "subject sync", description: "Sync subjects from a connector.", apiSurface: "POST /v1/connectors/{id}/sync" },
   { path: "subject get", description: "Inspect a canonical subject.", apiSurface: "GET /v1/subjects/{id}" },
   { path: "subject access", description: "Explain current subject access.", apiSurface: "GET /v1/subjects/{id}/access" },
@@ -67,6 +68,7 @@ export const CLI_COMMANDS: CliCommandSpec[] = [
   { path: "provision plan", description: "Create a dry-run or controlled synthetic enforcement provisioning plan.", apiSurface: "POST /v1/provisioning/plans" },
   { path: "provision apply", description: "Run a dry-run or controlled synthetic enforcement provisioning job for a plan.", apiSurface: "POST /v1/provisioning/jobs" },
   { path: "provision revoke", description: "Create a revocation plan.", apiSurface: "POST /v1/provisioning/plans" },
+  { path: "emergency revoke", description: "Create an approved emergency revocation plan.", apiSurface: "POST /v1/provisioning/plans" },
   { path: "reconcile run", description: "Run reconciliation for a connector.", apiSurface: "POST /v1/reconciliation/run" },
   { path: "reconcile findings", description: "List drift findings.", apiSurface: "GET /v1/reconciliation/findings" },
   { path: "reconcile remediate", description: "Plan approved dry-run remediation for a drift finding.", apiSurface: "POST /v1/reconciliation/findings/{id}/remediation" },
@@ -97,12 +99,14 @@ export function buildCli(options: CliOptions = {}): Command {
     .option("--diff", "Include request diff lines in preview output (requires --preview)");
 
   const context = createCliContext(options);
+  addReadinessCommand(program, context);
   addSubjectCommands(program, context);
   addResourceCommands(program, context);
   addRelationCommands(program, context);
   addPolicyCommands(program, context);
   addDecisionCommands(program, context);
   addProvisioningCommands(program, context);
+  addEmergencyCommands(program, context);
   addReconciliationCommands(program, context);
   addDiscoveryCommands(program, context);
   addAuditCommands(program, context);
@@ -186,6 +190,18 @@ interface ProvisioningOptions extends CommandWithConnector {
   readinessReport?: string;
 }
 
+interface EmergencyRevokeOptions extends CommandWithConnector {
+  approver?: string;
+  changeTicket?: string;
+  readinessReport?: string;
+  reason?: string;
+  confirmRevoke?: boolean;
+}
+
+interface RequestOptions {
+  idempotencyBody?: unknown;
+}
+
 interface ConnectorReadinessOptions {
   mode?: "enforcement";
   syntheticOnly?: boolean;
@@ -234,6 +250,11 @@ function createCliContext(options: CliOptions): CliContext {
       }),
     now: options.now ?? (() => new Date().toISOString())
   };
+}
+
+function addReadinessCommand(program: Command, context: CliContext): void {
+  const ready = program.command("ready").description("Check API runtime readiness.");
+  ready.action(withApi(context, ready, (client) => client.get("/v1/ready")));
 }
 
 function addSubjectCommands(program: Command, context: CliContext): void {
@@ -711,6 +732,66 @@ function addConnectorCommands(program: Command, context: CliContext): void {
   }));
 }
 
+function addEmergencyCommands(program: Command, context: CliContext): void {
+  const emergency = program.command("emergency").description("Emergency operator workflows.");
+  const revoke = emergency
+    .command("revoke")
+    .argument("<grant-id>")
+    .requiredOption("--connector <id>")
+    .requiredOption("--approver <id>")
+    .requiredOption("--change-ticket <id>")
+    .requiredOption("--readiness-report <id>")
+    .requiredOption("--reason <text>")
+    .option("--confirm-revoke", "Required confirmation for emergency revocation.");
+
+  revoke.action(withApi(context, revoke, (client, args) => {
+    const options = revoke.opts<EmergencyRevokeOptions>();
+
+    if (options.confirmRevoke !== true) {
+      throw new CliConfigurationError("emergency revoke requires --confirm-revoke");
+    }
+
+    const approval = {
+      decision: "approved",
+      approverId: required(options.approver, "approver"),
+      changeTicket: required(options.changeTicket, "change-ticket"),
+      approvedAt: context.now(),
+      reason: required(options.reason, "reason")
+    };
+    const requestBody = {
+      grantId: readString(args, 0, "grant-id"),
+      connectorId: required(options.connector, "connector"),
+      action: "revoke",
+      mode: "enforcement",
+      dryRun: false,
+      approval,
+      readinessReportId: required(options.readinessReport, "readiness-report"),
+      control: {
+        syntheticOnly: true,
+        liveProviderWrites: false,
+        incidentMode: false,
+        breakGlass: false
+      }
+    };
+
+    return client.post("/v1/provisioning/plans", requestBody, {
+      idempotencyBody: normalizeEmergencyRevokeForIdempotency(requestBody)
+    });
+  }));
+}
+
+function normalizeEmergencyRevokeForIdempotency(
+  requestBody: Record<string, unknown> & { approval: Record<string, unknown> }
+): Record<string, unknown> {
+  return {
+    ...requestBody,
+    approval: {
+      ...requestBody.approval,
+      approvedAt: "cli-generated"
+    }
+  };
+}
+
 function addCompletionCommand(program: Command, context: CliContext): void {
   const completion = program.command("completion").argument("<shell>").description("Print shell completion for bash, zsh, or fish.");
   completion.action((shell: string) => {
@@ -747,20 +828,20 @@ class ApiClient {
     return this.request("GET", path);
   }
 
-  post(path: string, body: unknown): Promise<unknown> {
-    return this.request("POST", path, body);
+  post(path: string, body: unknown, options?: RequestOptions): Promise<unknown> {
+    return this.request("POST", path, body, options);
   }
 
-  put(path: string, body: unknown): Promise<unknown> {
-    return this.request("PUT", path, body);
+  put(path: string, body: unknown, options?: RequestOptions): Promise<unknown> {
+    return this.request("PUT", path, body, options);
   }
 
   delete(path: string): Promise<unknown> {
     return this.request("DELETE", path);
   }
 
-  async request(method: string, path: string, body?: unknown): Promise<unknown> {
-    const idempotencyKey = createIdempotencyKey(method, path, body);
+  async request(method: string, path: string, body?: unknown, options: RequestOptions = {}): Promise<unknown> {
+    const idempotencyKey = createIdempotencyKey(method, path, options.idempotencyBody ?? body);
 
     if (this.options.preview) {
       return buildRequestPreview(this.options, method, path, body, idempotencyKey);
