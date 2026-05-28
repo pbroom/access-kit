@@ -1,7 +1,7 @@
 {
   "schemaVersion": "access-kit.generated-policy-tests.v1",
   "generatedAt": "2026-05-26T12:00:00.000Z",
-  "reviewNotice": "Generated starter policy tests are review aids only and cannot replace explicit deny, boundary, and abuse-case coverage.",
+  "reviewNotice": "Generated starter policy tests supplement explicit abuse and boundary tests; they are review aids only and cannot replace hand-authored deny, tenant-boundary, classification, revocation, or abuse coverage.",
   "reviewOnly": true,
   "migration": {
     "fromVersion": "policy:case-docs-v2",

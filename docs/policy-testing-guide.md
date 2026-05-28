@@ -52,9 +52,9 @@ Current harness coverage adds:
 
 The reusable sample policy repository in [examples/sample-policy-repository](../examples/sample-policy-repository/README.md) shows the policy-as-code layout expected from adopters: model versions, migration files, tuple fixtures, regression snapshots, conditional relationship caveats, generated request/response examples, generated starter policy-test artifacts, and copyable CI policy-test wiring.
 
-Generated starter policy tests come from model definitions via `pnpm generate:policy-tests`. The generator writes tuple fixtures, starter authorization cases, example requests, expected results, and migration regression review snapshots under `examples/sample-policy-repository/generated/policy-tests`. `pnpm validate:generated-policy-tests` fails when those artifacts drift.
+Generated starter policy tests come from model definitions via `pnpm generate:policy-tests`. The generator commits compact tuple fixtures, starter authorization suites, and migration regression review snapshots under `examples/sample-policy-repository/generated/policy-tests`. `pnpm validate:generated-policy-tests` fails when committed artifacts drift and materializes derivative request and expected-result files in temporary output so redundant goldens stay out of the committed tree.
 
-Generated tests are review aids only. They can lower the cost of initial coverage, but they cannot replace explicit deny, tenant-boundary, classification-boundary, revocation, expiration, and abuse-case tests that are written and reviewed by policy owners.
+Generated tests supplement explicit abuse and boundary tests. They can lower the cost of initial coverage, but they cannot replace explicit deny, tenant-boundary, classification-boundary, revocation, expiration, and abuse-case tests that are written and reviewed by policy owners.
 
 ## Concrete Example
 

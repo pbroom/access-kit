@@ -1,4 +1,5 @@
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import {
   InMemoryRebacStore,
@@ -20,7 +21,7 @@ import {
 
 export const GENERATED_POLICY_TEST_SCHEMA_VERSION = "access-kit.generated-policy-tests.v1";
 export const GENERATED_POLICY_REVIEW_NOTICE =
-  "Generated starter policy tests are review aids only and cannot replace explicit deny, boundary, and abuse-case coverage.";
+  "Generated starter policy tests supplement explicit abuse and boundary tests; they are review aids only and cannot replace hand-authored deny, tenant-boundary, classification, revocation, or abuse coverage.";
 
 export interface SamplePolicyManifestForGeneration {
   repositoryId: string;
@@ -57,6 +58,7 @@ export interface GeneratedPolicyTestResult {
   suites: GeneratedPolicyTestSuite[];
   migrationSnapshots: GeneratedMigrationRegressionSnapshot[];
   files: GeneratedPolicyTestFile[];
+  derivativeFiles: GeneratedPolicyTestFile[];
 }
 
 export interface GeneratedPolicyTestManifest {
@@ -75,6 +77,11 @@ export interface GeneratedPolicyTestManifestSuite {
   modelPath: string;
   tupleFixturePath: string;
   authorizationTestsPath: string;
+  derivativeArtifacts: GeneratedPolicyTestManifestDerivativeArtifacts;
+}
+
+export interface GeneratedPolicyTestManifestDerivativeArtifacts {
+  materializedDuringValidation: true;
   exampleRequestPaths: string[];
   expectedResultPaths: string[];
 }
@@ -183,6 +190,15 @@ interface CompareGeneratedPolicyTestOptions extends GeneratePolicyTestOptions {
   write?: boolean;
 }
 
+interface MaterializeGeneratedPolicyTestDerivativeOptions extends GeneratePolicyTestOptions {
+  outputRoot?: string;
+}
+
+export interface GeneratedPolicyTestDerivativeMaterialization {
+  outputRoot: string;
+  files: GeneratedPolicyTestFile[];
+}
+
 interface SelectedModelSurface {
   subjectType: SubjectType;
   groupType?: SubjectType;
@@ -270,8 +286,23 @@ export async function generatePolicyTestArtifacts(
     manifest: fileInputs.manifest,
     suites,
     migrationSnapshots,
-    files: fileInputs.files
+    files: fileInputs.files,
+    derivativeFiles: fileInputs.derivativeFiles
   };
+}
+
+export async function materializeGeneratedPolicyTestDerivativeArtifacts(
+  options: MaterializeGeneratedPolicyTestDerivativeOptions = {}
+): Promise<GeneratedPolicyTestDerivativeMaterialization> {
+  const root = options.root ?? process.cwd();
+  const sampleRoot = options.sampleRoot ?? join(root, "examples", "sample-policy-repository");
+  const generated = await generatePolicyTestArtifacts({
+    root,
+    sampleRoot,
+    generatedAt: options.generatedAt
+  });
+
+  return materializeGeneratedPolicyTestDerivativeFiles(generated.derivativeFiles, options.outputRoot);
 }
 
 export async function compareGeneratedPolicyTestArtifacts(
@@ -284,35 +315,40 @@ export async function compareGeneratedPolicyTestArtifacts(
     sampleRoot,
     generatedAt: options.generatedAt
   });
+  const materialized = await materializeGeneratedPolicyTestDerivativeFiles(generated.derivativeFiles);
   const drift: string[] = [];
   const expectedPaths = new Set(generated.files.map((file) => file.path));
 
-  for (const file of generated.files) {
-    const absolutePath = join(sampleRoot, file.path);
-    let existing: string | undefined;
-    try {
-      existing = await readFile(absolutePath, "utf8");
-    } catch {
-      existing = undefined;
-    }
+  try {
+    for (const file of generated.files) {
+      const absolutePath = join(sampleRoot, file.path);
+      let existing: string | undefined;
+      try {
+        existing = await readFile(absolutePath, "utf8");
+      } catch {
+        existing = undefined;
+      }
 
-    if (existing !== file.contents) {
-      drift.push(file.path);
-      if (options.write) {
-        await mkdir(dirname(absolutePath), { recursive: true });
-        await writeFile(absolutePath, file.contents);
+      if (existing !== file.contents) {
+        drift.push(file.path);
+        if (options.write) {
+          await mkdir(dirname(absolutePath), { recursive: true });
+          await writeFile(absolutePath, file.contents);
+        }
       }
     }
-  }
 
-  for (const path of await listGeneratedPolicyTestFiles(sampleRoot)) {
-    if (expectedPaths.has(path)) {
-      continue;
+    for (const path of await listGeneratedPolicyTestFiles(sampleRoot)) {
+      if (expectedPaths.has(path)) {
+        continue;
+      }
+      drift.push(path);
+      if (options.write) {
+        await rm(join(sampleRoot, path), { force: true });
+      }
     }
-    drift.push(path);
-    if (options.write) {
-      await rm(join(sampleRoot, path), { force: true });
-    }
+  } finally {
+    await rm(materialized.outputRoot, { recursive: true, force: true });
   }
 
   return drift;
@@ -754,8 +790,9 @@ function buildFiles(input: {
   generatedAt: string;
   suites: GeneratedPolicyTestSuite[];
   migrationSnapshots: GeneratedMigrationRegressionSnapshot[];
-}): { manifest: GeneratedPolicyTestManifest; files: GeneratedPolicyTestFile[] } {
+}): { manifest: GeneratedPolicyTestManifest; files: GeneratedPolicyTestFile[]; derivativeFiles: GeneratedPolicyTestFile[] } {
   const files: GeneratedPolicyTestFile[] = [];
+  const derivativeFiles: GeneratedPolicyTestFile[] = [];
   const manifestSuites: GeneratedPolicyTestManifestSuite[] = [];
   const manifestMigrations: GeneratedPolicyTestManifestMigration[] = [];
 
@@ -775,8 +812,8 @@ function buildFiles(input: {
       const expectedPath = `${suiteRoot}/expected-results/${test.slug}.expected.json`;
       exampleRequestPaths.push(requestPath);
       expectedResultPaths.push(expectedPath);
-      files.push({ path: requestPath, contents: toPrettyJson(test.request) });
-      files.push({ path: expectedPath, contents: toPrettyJson(test.expected) });
+      derivativeFiles.push({ path: requestPath, contents: toPrettyJson(test.request) });
+      derivativeFiles.push({ path: expectedPath, contents: toPrettyJson(test.expected) });
     }
 
     manifestSuites.push({
@@ -785,8 +822,11 @@ function buildFiles(input: {
       modelPath: suite.source.modelPath,
       tupleFixturePath,
       authorizationTestsPath,
-      exampleRequestPaths,
-      expectedResultPaths
+      derivativeArtifacts: {
+        materializedDuringValidation: true,
+        exampleRequestPaths,
+        expectedResultPaths
+      }
     });
   }
 
@@ -813,7 +853,26 @@ function buildFiles(input: {
 
   return {
     manifest,
-    files: [{ path: "generated/policy-tests/manifest.json", contents: toPrettyJson(manifest) }, ...files]
+    files: [{ path: "generated/policy-tests/manifest.json", contents: toPrettyJson(manifest) }, ...files],
+    derivativeFiles
+  };
+}
+
+async function materializeGeneratedPolicyTestDerivativeFiles(
+  files: GeneratedPolicyTestFile[],
+  outputRoot?: string
+): Promise<GeneratedPolicyTestDerivativeMaterialization> {
+  const resolvedOutputRoot = outputRoot ?? await mkdtemp(join(tmpdir(), "access-kit-generated-policy-tests-"));
+
+  for (const file of files) {
+    const absolutePath = join(resolvedOutputRoot, file.path);
+    await mkdir(dirname(absolutePath), { recursive: true });
+    await writeFile(absolutePath, file.contents);
+  }
+
+  return {
+    outputRoot: resolvedOutputRoot,
+    files
   };
 }
 
