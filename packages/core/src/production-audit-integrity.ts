@@ -33,10 +33,15 @@ export class ProductionAuditIntegrityValidator {
   }
 
   validateStoreState(): void {
-    assertNoIntegrityFindings(this.auditRecordFindings(), "Stored production audit log integrity check failed");
-    assertNoIntegrityFindings(this.evidenceRecordFindings(), "Stored production evidence integrity check failed");
-    assertNoIntegrityFindings(this.signedWindowFindings(), "Stored production signed audit window integrity check failed");
-    assertNoIntegrityFindings(this.siemDeliveryFindings(), "Stored production SIEM delivery integrity check failed");
+    const auditRecords = this.#store.readAuditRecords();
+    const evidenceRecords = this.#store.readEvidenceRecords();
+    const signedWindows = this.#store.readSignedWindows();
+    const siemDeliveries = this.#store.readSiemDeliveries();
+
+    assertNoIntegrityFindings(this.auditRecordFindings(auditRecords), "Stored production audit log integrity check failed");
+    assertNoIntegrityFindings(this.evidenceRecordFindings(evidenceRecords), "Stored production evidence integrity check failed");
+    assertNoIntegrityFindings(this.signedWindowFindings(signedWindows, auditRecords), "Stored production signed audit window integrity check failed");
+    assertNoIntegrityFindings(this.siemDeliveryFindings(siemDeliveries, signedWindows), "Stored production SIEM delivery integrity check failed");
   }
 
   trustedAuditRecords(): ProductionAuditEventStoreRecord[] {

@@ -142,7 +142,9 @@ export function cloneOptional<T>(value: T | undefined): T | undefined {
 }
 
 function isSensitiveString(value: string): boolean {
-  return /\bBearer\s+[A-Za-z0-9._~+/=-]+/i.test(value)
-    || /\b(access_token|refresh_token|id_token|api_key)=/i.test(value)
-    || /\b(sk-[A-Za-z0-9_-]{12,}|xox[baprs]-[A-Za-z0-9-]{12,})\b/i.test(value);
+  return /\b(?:Bearer\s+[A-Za-z0-9._~+/=-]{8,}|Basic\s+[A-Za-z0-9+/=]{12,})\b/i.test(value)
+    || /(?:^|[\s?&{,;"'])(?:access[_-]?token|refresh[_-]?token|id[_-]?token|api[_-]?key|api[_-]?token|auth[_-]?token|authorization|bearer[_-]?token|client[_-]?(?:key|secret)|credential|password|secret|session[_-]?token|token|x[_-]?api[_-]?key)\b["']?\s*[:=]/i.test(value)
+    || /\b(?:sk-[A-Za-z0-9_-]{12,}|xox[baprs]-[A-Za-z0-9-]{12,}|gh[pousr]_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{16,}|glpat-[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{16})\b/i.test(value)
+    || /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/.test(value)
+    || /-----BEGIN (?:[A-Z ]+)?PRIVATE KEY-----/.test(value);
 }
