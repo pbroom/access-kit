@@ -119,8 +119,25 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
           cloudTrailActivity: expect.objectContaining({
             eventName: "AssumeRoleWithSAML",
             lastActivityAt: "2026-05-26T11:45:00.000Z",
+            cloudTrailActivityAgeMinutes: 15,
+            eventBridgeDeliveredAt: "2026-05-26T11:54:30.000Z",
+            eventBridgeLatencyMinutes: 9.5,
+            eventBridgeAttempts: 2,
+            eventBridgeRetryState: "SUCCESS_AFTER_RETRY",
+            partialOrderingObserved: true,
+            reconciliationConfidence: "medium",
+            confidenceReasons: expect.arrayContaining([
+              "eventbridge_latency_window_exceeded",
+              "eventbridge_retry_observed",
+              "partial_ordering_observed"
+            ]),
+            stale: false,
+            staleWindowMinutes: 60,
             redacted: true
           }),
+          eventBridgeLatencyWindowMinutes: 5,
+          staleActivityWindowMinutes: 60,
+          reconciliationConfidence: "medium",
           redacted: true
         })
       })
@@ -143,7 +160,12 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
       "AWS_PAGINATION_OBSERVED",
       "AWS_THROTTLE_RETRIED",
       "AWS_TOMBSTONE_MARKED",
-      "AWS_ACCESS_ANALYZER_FINDINGS_OBSERVED"
+      "AWS_ACCESS_ANALYZER_FINDINGS_OBSERVED",
+      "AWS_ASYNC_ACTIVITY_WINDOWS_MODELED",
+      "AWS_EVENTBRIDGE_LATENCY_WINDOW_EXCEEDED",
+      "AWS_EVENTBRIDGE_RETRY_OBSERVED",
+      "AWS_EVENT_PARTIAL_ORDERING_OBSERVED",
+      "AWS_RECONCILIATION_CONFIDENCE_DEGRADED"
     ]));
     expect(sleeps).toEqual([2000]);
     expect(serialized).not.toContain(organizationId);
@@ -298,6 +320,10 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
       expect.objectContaining({ nativePermission: "sso:CaseReadOnly", sourceConnectorId: AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID })
     ]);
     expect(reconciliation.counts).toEqual({ findings: 1, highOrCritical: 1 });
+    expect(reconciliation.findings[0]).toMatchObject({
+      nativeAccess: expect.stringContaining("reconciliation_confidence=medium"),
+      intendedAccess: expect.stringContaining("stale_activity_window=60m")
+    });
     expect(JSON.stringify({ grants, reconciliation })).not.toContain(rawAccountId);
     expect(JSON.stringify({ grants, reconciliation })).not.toContain(rawRoleArn);
   });
@@ -368,6 +394,85 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
     expect(readNativeAccess(app, accountId)).toEqual([]);
   });
 
+  it("escalates stale AWS access-analysis confidence into drift severity and operator warnings", async () => {
+    const connector = new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(createStaleLatencyFixturePages()),
+      organizationId,
+      now: () => now,
+      sleep: noSleep
+    });
+
+    const resources = await connector.discoverResources();
+    const account = resources.find((resource) => resource.type === "aws_account" && resource.lifecycleState === "active");
+    const grants = await connector.readCurrentAccess(account!.id);
+    const findings = await connector.detectDrift();
+    const warningCodes = connector.getDiscoveryMetadata().warnings.map((warning) => warning.code);
+
+    expect(grants[0]?.attributes?.cloudTrailActivity).toMatchObject({
+      stale: true,
+      staleWindowMinutes: 60,
+      eventBridgeLatencyMinutes: 90,
+      reconciliationConfidence: "low",
+      confidenceReasons: expect.arrayContaining([
+        "cloudtrail_activity_stale",
+        "eventbridge_latency_window_exceeded",
+        "eventbridge_retry_observed"
+      ])
+    });
+    expect(findings[0]).toMatchObject({
+      severity: "critical",
+      recommendedAction: "review",
+      nativeAccess: expect.stringContaining("reconciliation_confidence=low"),
+      intendedAccess: expect.stringContaining("stale_finding_window=60m")
+    });
+    expect(warningCodes).toEqual(expect.arrayContaining([
+      "AWS_CLOUDTRAIL_ACTIVITY_STALE",
+      "AWS_EVENTBRIDGE_LATENCY_WINDOW_EXCEEDED",
+      "AWS_EVENTBRIDGE_RETRY_OBSERVED",
+      "AWS_RECONCILIATION_CONFIDENCE_DEGRADED"
+    ]));
+  });
+
+  it("preserves anomalous EventBridge delivery timestamps as low-confidence activity evidence", async () => {
+    const pages = createFixturePages();
+    pages["cloudTrail.lookupEvents"] = [
+      {
+        value: [{
+          eventId: "raw-event-delivery-before-event",
+          eventTime: "2026-05-26T11:45:00.000Z",
+          eventName: "AssumeRoleWithSAML",
+          username: "case-operator@example.test",
+          recipientAccountId: rawAccountId,
+          readOnly: false,
+          eventBridgeDeliveredAt: "2026-05-26T11:40:00.000Z",
+          eventBridgeAttemptCount: 1,
+          eventBridgeRetryState: "SUCCESS",
+          resources: [
+            { resourceName: rawRoleArn, resourceType: "AWS::IAM::Role" },
+            { resourceName: rawPermissionSetArn, resourceType: "AWS::SSO::PermissionSet" }
+          ]
+        }],
+        status: 200
+      }
+    ];
+    const connector = new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(pages),
+      organizationId,
+      now: () => now,
+      sleep: noSleep
+    });
+
+    const resources = await connector.discoverResources();
+    const account = resources.find((resource) => resource.type === "aws_account" && resource.lifecycleState === "active");
+    const grants = await connector.readCurrentAccess(account!.id);
+
+    expect(grants[0]?.attributes?.cloudTrailActivity).toMatchObject({
+      eventBridgeLatencyMinutes: -5,
+      reconciliationConfidence: "low",
+      confidenceReasons: expect.arrayContaining(["eventbridge_delivery_precedes_event"])
+    });
+  });
+
   it("registers the AWS connector only when redacted sandbox fixture configuration is present", () => {
     expect(createRuntimeConnectors({ env: {} }).has(AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID)).toBe(false);
 
@@ -411,6 +516,36 @@ describe("AwsReadOnlyAccessAnalysisConnector", () => {
       periodStart: now,
       periodEnd: now,
       sourceEventIds: []
+    });
+  });
+
+  it("includes AWS latency and stale-window semantics in connector evidence exports", async () => {
+    const connector = new AwsReadOnlyAccessAnalysisConnector({
+      client: new JsonAwsReadClient(createFixturePages()),
+      organizationId,
+      now: () => now,
+      sleep: noSleep
+    });
+
+    await expect(connector.emitEvidence([
+      createAuditEvent("evt:latency", "2026-05-26T11:45:00.000Z")
+    ])).resolves.toMatchObject({
+      evidenceTypes: expect.arrayContaining(["connector_latency_model"]),
+      artifacts: expect.arrayContaining([
+        expect.objectContaining({ name: "aws-eventbridge-cloudtrail-latency-model" })
+      ]),
+      controlStatements: expect.arrayContaining([
+        expect.objectContaining({
+          statement: expect.stringContaining("EventBridge retry or latency indicators"),
+          evidenceTypes: expect.arrayContaining(["connector_latency_model"])
+        })
+      ]),
+      operationalEvidence: expect.arrayContaining([
+        expect.objectContaining({
+          id: `operational:${AWS_READONLY_ACCESS_ANALYSIS_CONNECTOR_ID}:latency-confidence`,
+          summary: expect.stringContaining("CloudTrail 60m")
+        })
+      ])
     });
   });
 });
@@ -519,18 +654,37 @@ function createFixturePages(): AwsReadClientPages {
     ],
     "cloudTrail.lookupEvents": [
       {
-        value: [{
-          eventId: "raw-event-1",
-          eventTime: "2026-05-26T11:45:00.000Z",
-          eventName: "AssumeRoleWithSAML",
-          username: "case-operator@example.test",
-          recipientAccountId: rawAccountId,
-          readOnly: false,
-          resources: [
-            { resourceName: rawRoleArn, resourceType: "AWS::IAM::Role" },
-            { resourceName: rawPermissionSetArn, resourceType: "AWS::SSO::PermissionSet" }
-          ]
-        }],
+        value: [
+          {
+            eventId: "raw-event-1",
+            eventTime: "2026-05-26T11:45:00.000Z",
+            eventName: "AssumeRoleWithSAML",
+            username: "case-operator@example.test",
+            recipientAccountId: rawAccountId,
+            readOnly: false,
+            eventBridgeDeliveredAt: "2026-05-26T11:54:30.000Z",
+            eventBridgeAttemptCount: 2,
+            eventBridgeRetryState: "SUCCESS_AFTER_RETRY",
+            resources: [
+              { resourceName: rawRoleArn, resourceType: "AWS::IAM::Role" },
+              { resourceName: rawPermissionSetArn, resourceType: "AWS::SSO::PermissionSet" }
+            ]
+          },
+          {
+            eventId: "raw-event-2",
+            eventTime: "2026-05-26T11:30:00.000Z",
+            eventName: "ListAccountAssignments",
+            username: "case-operator@example.test",
+            recipientAccountId: rawAccountId,
+            readOnly: true,
+            eventBridgeDeliveredAt: "2026-05-26T11:58:00.000Z",
+            eventBridgeAttemptCount: 1,
+            eventBridgeRetryState: "SUCCESS",
+            resources: [
+              { resourceName: rawRoleArn, resourceType: "AWS::IAM::Role" }
+            ]
+          }
+        ],
         status: 200
       }
     ],
@@ -563,6 +717,50 @@ function createFixturePagesWithActiveAssignments(assignmentPages: AwsReadClientP
       permissionSetArn: rawPermissionSetArn
     })]: assignmentPages
   };
+}
+
+function createStaleLatencyFixturePages(): AwsReadClientPages {
+  const pages = createFixturePages();
+  pages["cloudTrail.lookupEvents"] = [
+    {
+      value: [{
+        eventId: "raw-event-stale",
+        eventTime: "2026-05-26T08:00:00.000Z",
+        eventName: "AssumeRoleWithSAML",
+        username: "case-operator@example.test",
+        recipientAccountId: rawAccountId,
+        readOnly: false,
+        eventBridgeDeliveredAt: "2026-05-26T09:30:00.000Z",
+        eventBridgeAttemptCount: 3,
+        eventBridgeRetryState: "SUCCESS_AFTER_RETRY",
+        resources: [
+          { resourceName: rawRoleArn, resourceType: "AWS::IAM::Role" },
+          { resourceName: rawPermissionSetArn, resourceType: "AWS::SSO::PermissionSet" }
+        ]
+      }],
+      status: 200
+    }
+  ];
+  pages["accessAnalyzer.listFindings"] = [
+    {
+      value: [{
+        id: "raw-finding-stale",
+        analyzerArn: "arn:aws:access-analyzer:us-east-1:123456789012:analyzer/org",
+        resource: rawRoleArn,
+        resourceType: "AWS::IAM::Role",
+        principal: { AWS: "999999999999" },
+        action: ["sts:AssumeRole"],
+        status: "ACTIVE",
+        findingType: "ExternalAccess",
+        isPublic: false,
+        createdAt: "2026-05-26T08:00:00.000Z",
+        updatedAt: "2026-05-26T08:30:00.000Z"
+      }],
+      status: 200
+    }
+  ];
+
+  return pages;
 }
 
 function createAuditEvent(eventId: string, occurredAt: string): AuditEvent {

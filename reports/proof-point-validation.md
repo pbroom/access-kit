@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T01:43:14.205Z
+Generated at: 2026-05-28T01:46:09.461Z
 
-Branch: codex/rebac-aws-readonly-access-analysis
+Branch: codex/rebac-aws-eventbridge-latency
 
 Node: v24.4.1
 
@@ -34,14 +34,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-schemas.ts
 
 Validated 17 schemas and 17 example fixtures.
@@ -67,10 +67,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-aws-readonly-access-analysis/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-aws-eventbridge-latency/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -82,7 +82,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -105,7 +105,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -118,23 +118,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  21:43:09
-   Duration  266ms (transform 121ms, setup 0ms, import 194ms, tests 19ms, environment 0ms)
+   Start at  21:46:04
+   Duration  301ms (transform 136ms, setup 0ms, import 221ms, tests 22ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -145,7 +145,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -156,7 +156,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -167,7 +167,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -178,61 +178,61 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
  Test Files  10 passed (10)
       Tests  128 passed (128)
-   Start at  21:43:11
-   Duration  225ms (transform 749ms, setup 0ms, import 1.05s, tests 88ms, environment 0ms)
+   Start at  21:46:06
+   Duration  241ms (transform 754ms, setup 0ms, import 1.11s, tests 94ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
  Test Files  4 passed (4)
       Tests  102 passed (102)
-   Start at  21:43:12
-   Duration  438ms (transform 417ms, setup 0ms, import 667ms, tests 211ms, environment 0ms)
+   Start at  21:46:07
+   Duration  521ms (transform 543ms, setup 0ms, import 828ms, tests 237ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
  Test Files  3 passed (3)
-      Tests  30 passed (30)
-   Start at  21:43:13
-   Duration  198ms (transform 280ms, setup 0ms, import 372ms, tests 37ms, environment 0ms)
+      Tests  33 passed (33)
+   Start at  21:46:08
+   Duration  227ms (transform 309ms, setup 0ms, import 427ms, tests 42ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-readonly-access-analysis
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-aws-eventbridge-latency
 
 
  Test Files  3 passed (3)
       Tests  34 passed (34)
-   Start at  21:43:13
-   Duration  302ms (transform 334ms, setup 0ms, import 584ms, tests 99ms, environment 0ms)
+   Start at  21:46:08
+   Duration  341ms (transform 369ms, setup 0ms, import 657ms, tests 118ms, environment 0ms)
 ```
 
 

@@ -97,6 +97,8 @@ The connector declares least-privilege read scopes for Organizations, IAM Identi
 
 Discovery maps AWS observations into redacted Access Kit records. Organization IDs, account IDs, account emails, ARNs, Identity Center principal IDs, CloudTrail event IDs, request IDs, tokens, and raw pagination cursors are not stored in canonical IDs, warnings, native-grant attributes, or evidence. IAM Identity Center assignments become observed native grants, CloudTrail events annotate activity recency without becoming intended access, suspended or deleted objects become tombstones, and Access Analyzer findings become reconciliation drift findings for review.
 
+AWS activity evidence is explicitly confidence-scored because CloudTrail lookup and EventBridge delivery are asynchronous. Native-grant attributes record redacted CloudTrail activity age, EventBridge delivery latency, retry attempts, partial-ordering flags, stale-window thresholds, and reconciliation confidence. The default proof-point windows are five minutes for EventBridge delivery latency, sixty minutes for CloudTrail stale activity, and sixty minutes for Access Analyzer stale finding age. If events arrive out of order, exceed a stale window, or show EventBridge retry behavior, connector warnings remain visible to operators and drift findings include the confidence level in their native-access and intended-access text.
+
 The connector does not implement AWS writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled.
 
 ## Concrete Example

@@ -45,7 +45,11 @@ export const AWS_READONLY_ACCESS_ANALYSIS_FORBIDDEN_WRITE_SCOPES = [
 
 const DEFAULT_MAX_PAGES = 100;
 const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_EVENTBRIDGE_LATENCY_WINDOW_MINUTES = 5;
+const DEFAULT_CLOUDTRAIL_STALE_ACTIVITY_WINDOW_MINUTES = 60;
+const DEFAULT_ACCESS_ANALYZER_STALE_FINDING_WINDOW_MINUTES = 60;
 const REDACTION_HASH_LENGTH = 16;
+const MILLISECONDS_PER_MINUTE = 60_000;
 
 export type AwsReadOperation =
   | "organizations.describeOrganization"
@@ -108,6 +112,9 @@ export interface AwsReadOnlyAccessAnalysisConnectorOptions {
   credentialHandling?: "managed_identity" | "vault_required";
   maxPages?: number;
   maxRetries?: number;
+  eventBridgeLatencyWindowMinutes?: number;
+  cloudTrailStaleActivityWindowMinutes?: number;
+  accessAnalyzerStaleFindingWindowMinutes?: number;
   sleep?: (milliseconds: number) => Promise<void>;
 }
 
@@ -182,6 +189,9 @@ interface AwsCloudTrailEvent {
   readOnly?: boolean | string;
   resources?: AwsCloudTrailResource[];
   errorCode?: string;
+  eventBridgeDeliveredAt?: string;
+  eventBridgeAttemptCount?: number;
+  eventBridgeRetryState?: string;
 }
 
 interface AwsAccessAnalyzerFinding {
@@ -205,6 +215,7 @@ interface AwsSnapshot {
   grantsByResource: Map<string, NativeGrant[]>;
   findings: DriftFinding[];
   cursor: DiscoveryCursor;
+  latencyModel: AwsLatencyModel;
 }
 
 interface AwsEntityMaps {
@@ -217,6 +228,39 @@ interface AwsEntityMaps {
   principalTypesBySubjectId: Map<string, NativePrincipalType>;
   resourcesByRawKey: Map<string, Resource>;
   latestActivityByRawKey: Map<string, AwsActivity>;
+  latencyModel: AwsLatencyModel;
+}
+
+type AwsReconciliationConfidenceLevel = "high" | "medium" | "low";
+
+interface AwsLatencyWindows {
+  eventBridgeLatencyWindowMinutes: number;
+  cloudTrailStaleActivityWindowMinutes: number;
+  accessAnalyzerStaleFindingWindowMinutes: number;
+}
+
+interface AwsActivityIndex {
+  activityByRawKey: Map<string, AwsActivity>;
+  latencyModel: AwsLatencyModel;
+}
+
+interface AwsLatencyModel {
+  windows: AwsLatencyWindows;
+  observedAt: string;
+  eventBridge: {
+    observed: boolean;
+    maxLatencyMinutes?: number;
+    retryObserved: boolean;
+    latencyWindowExceeded: boolean;
+    partialOrderingObserved: boolean;
+    redacted: true;
+  };
+  cloudTrail: {
+    latestEventAt?: string;
+    maxActivityAgeMinutes?: number;
+    staleActivityObserved: boolean;
+    redacted: true;
+  };
 }
 
 interface AwsActivity {
@@ -224,6 +268,23 @@ interface AwsActivity {
   eventName: string;
   eventTime: string;
   readOnly: boolean;
+  cloudTrailActivityAgeMinutes?: number;
+  eventBridgeDeliveredAt?: string;
+  eventBridgeLatencyMinutes?: number;
+  eventBridgeAttempts?: number;
+  eventBridgeRetryState?: string;
+  staleActivity: boolean;
+  staleWindowMinutes: number;
+  partialOrderingObserved: boolean;
+  reconciliationConfidence: AwsReconciliationConfidenceLevel;
+  confidenceReasons: string[];
+}
+
+interface AwsReconciliationConfidence {
+  level: AwsReconciliationConfidenceLevel;
+  reasons: string[];
+  staleFindingWindowMinutes: number;
+  staleActivityWindowMinutes: number;
 }
 
 export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
@@ -249,6 +310,7 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
   readonly #credentialHandling: "managed_identity" | "vault_required";
   readonly #maxPages: number;
   readonly #maxRetries: number;
+  readonly #latencyWindows: AwsLatencyWindows;
   readonly #sleep: (milliseconds: number) => Promise<void>;
   #snapshot?: AwsSnapshot;
   #warnings: DiscoveryRunWarning[] = [];
@@ -264,6 +326,20 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
     this.#credentialHandling = options.credentialHandling ?? "vault_required";
     this.#maxPages = options.maxPages ?? DEFAULT_MAX_PAGES;
     this.#maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.#latencyWindows = {
+      eventBridgeLatencyWindowMinutes: positiveNumberOrDefault(
+        options.eventBridgeLatencyWindowMinutes,
+        DEFAULT_EVENTBRIDGE_LATENCY_WINDOW_MINUTES
+      ),
+      cloudTrailStaleActivityWindowMinutes: positiveNumberOrDefault(
+        options.cloudTrailStaleActivityWindowMinutes,
+        DEFAULT_CLOUDTRAIL_STALE_ACTIVITY_WINDOW_MINUTES
+      ),
+      accessAnalyzerStaleFindingWindowMinutes: positiveNumberOrDefault(
+        options.accessAnalyzerStaleFindingWindowMinutes,
+        DEFAULT_ACCESS_ANALYZER_STALE_FINDING_WINDOW_MINUTES
+      )
+    };
     this.#sleep = options.sleep ?? sleep;
   }
 
@@ -312,6 +388,15 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
           : "AWS sandbox evidence is not configured; discovery will emit a coverage warning.",
         evidence: {
           configured: Boolean(this.#sandboxEvidenceRef)
+        }
+      },
+      {
+        name: "latency_and_stale_windows",
+        status: "pass",
+        message: "AWS EventBridge, CloudTrail, and Access Analyzer latency windows are explicit in connector evidence.",
+        evidence: {
+          ...this.#latencyWindows,
+          redacted: true
         }
       },
       ...this.requiredReadScopes.map((scope) => ({
@@ -418,7 +503,7 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
   }
 
   async emitEvidence(events: AuditEvent[]): Promise<EvidenceExport> {
-    return createEvidence(this.id, events, this.#now());
+    return createEvidence(this.id, events, this.#now(), this.#latencyWindows);
   }
 
   async #loadSnapshot(): Promise<AwsSnapshot> {
@@ -451,6 +536,7 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
     }
 
     const maps = this.#buildEntityMaps(organization, accounts, permissionSets, roles, cloudTrailEvents);
+    this.#pushLatencyWarnings(maps.latencyModel);
     this.#addAssignmentSubjects(assignments, maps);
     this.#addAccessAnalyzerSubjects(analyzerFindings, maps);
 
@@ -470,7 +556,8 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
       relationships,
       grantsByResource,
       findings,
-      cursor
+      cursor,
+      latencyModel: maps.latencyModel
     };
 
     return this.#snapshot;
@@ -619,7 +706,8 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
       [organizationRawId, organizationResource],
       ...rawKeyEntry(organization.arn, organizationResource)
     ]);
-    const latestActivityByRawKey = buildActivityMap(cloudTrailEvents);
+    const activityIndex = buildActivityIndex(cloudTrailEvents, this.#now(), this.#latencyWindows);
+    const latestActivityByRawKey = activityIndex.activityByRawKey;
 
     for (const account of accounts) {
       if (!account.id) {
@@ -680,7 +768,8 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
       subjectsByPrincipalKey,
       principalTypesBySubjectId,
       resourcesByRawKey,
-      latestActivityByRawKey
+      latestActivityByRawKey,
+      latencyModel: activityIndex.latencyModel
     };
   }
 
@@ -855,11 +944,27 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
             eventName: safePermissionLabel(activity.eventName),
             lastActivityAt: activity.eventTime,
             readOnly: activity.readOnly,
+            cloudTrailActivityAgeMinutes: activity.cloudTrailActivityAgeMinutes,
+            stale: activity.staleActivity,
+            staleWindowMinutes: activity.staleWindowMinutes,
+            eventBridgeDeliveredAt: activity.eventBridgeDeliveredAt,
+            eventBridgeLatencyMinutes: activity.eventBridgeLatencyMinutes,
+            eventBridgeAttempts: activity.eventBridgeAttempts,
+            eventBridgeRetryState: activity.eventBridgeRetryState,
+            partialOrderingObserved: activity.partialOrderingObserved,
+            reconciliationConfidence: activity.reconciliationConfidence,
+            confidenceReasons: activity.confidenceReasons,
             redacted: true
           } : {
             observed: false,
+            staleWindowMinutes: this.#latencyWindows.cloudTrailStaleActivityWindowMinutes,
+            reconciliationConfidence: "low",
+            confidenceReasons: ["no_cloudtrail_activity"],
             redacted: true
           },
+          reconciliationConfidence: activity?.reconciliationConfidence ?? "low",
+          staleActivityWindowMinutes: this.#latencyWindows.cloudTrailStaleActivityWindowMinutes,
+          eventBridgeLatencyWindowMinutes: this.#latencyWindows.eventBridgeLatencyWindowMinutes,
           redacted: true
         },
         version: "native-grant:v1",
@@ -895,15 +1000,25 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
       }
 
       const detectedAt = finding.updatedAt ?? finding.createdAt ?? this.#now();
-      const severity = accessAnalyzerSeverity(finding);
+      const confidence = accessAnalyzerReconciliationConfidence(finding, maps, this.#now(), this.#latencyWindows);
+      const severity = accessAnalyzerSeverity(finding, confidence);
       const recommendedAction = finding.isPublic ? "revoke" : "review";
+      if (confidence.level !== "high") {
+        this.#pushWarning({
+          code: "AWS_RECONCILIATION_CONFIDENCE_DEGRADED",
+          message: `AWS access-analysis reconciliation confidence is ${confidence.level}; stale activity window ${confidence.staleActivityWindowMinutes}m, stale finding window ${confidence.staleFindingWindowMinutes}m, reasons: ${confidence.reasons.join(", ")}.`,
+          severity: confidence.level === "low" ? "warning" : "info",
+          scope: "native_grants",
+          retryable: true
+        });
+      }
 
       driftFindings.push({
         id: `drift:${this.id}:${redactValue(finding.id)}`,
         resourceId: resource.id,
         subjectId: subject.id,
-        nativeAccess: accessAnalyzerNativeAccess(finding),
-        intendedAccess: "no-approved-rebac-intent",
+        nativeAccess: accessAnalyzerNativeAccess(finding, confidence),
+        intendedAccess: `no-approved-rebac-intent; reconciliation_confidence=${confidence.level}; stale_activity_window=${confidence.staleActivityWindowMinutes}m; stale_finding_window=${confidence.staleFindingWindowMinutes}m`,
         severity,
         lifecycleState: "open",
         ownerId: "role:security-operations",
@@ -1171,6 +1286,56 @@ export class AwsReadOnlyAccessAnalysisConnector implements ConnectorAdapter {
     });
   }
 
+  #pushLatencyWarnings(latencyModel: AwsLatencyModel): void {
+    this.#pushWarning({
+      code: "AWS_ASYNC_ACTIVITY_WINDOWS_MODELED",
+      message: `AWS readback models EventBridge delivery latency (${latencyModel.windows.eventBridgeLatencyWindowMinutes}m), CloudTrail stale activity (${latencyModel.windows.cloudTrailStaleActivityWindowMinutes}m), and Access Analyzer stale finding (${latencyModel.windows.accessAnalyzerStaleFindingWindowMinutes}m) windows before treating access-analysis evidence as high confidence.`,
+      severity: "info",
+      scope: "native_grants",
+      retryable: false
+    });
+
+    if (latencyModel.eventBridge.latencyWindowExceeded) {
+      this.#pushWarning({
+        code: "AWS_EVENTBRIDGE_LATENCY_WINDOW_EXCEEDED",
+        message: `EventBridge delivery lag exceeded the ${latencyModel.windows.eventBridgeLatencyWindowMinutes}m evidence window; reconciliation confidence is reduced until a later readback confirms ordering.`,
+        severity: "warning",
+        scope: "native_grants",
+        retryable: true
+      });
+    }
+
+    if (latencyModel.eventBridge.retryObserved) {
+      this.#pushWarning({
+        code: "AWS_EVENTBRIDGE_RETRY_OBSERVED",
+        message: "EventBridge delivery metadata showed retry behavior; retry evidence is retained as redacted activity metadata instead of canonical access intent.",
+        severity: "info",
+        scope: "native_grants",
+        retryable: true
+      });
+    }
+
+    if (latencyModel.eventBridge.partialOrderingObserved) {
+      this.#pushWarning({
+        code: "AWS_EVENT_PARTIAL_ORDERING_OBSERVED",
+        message: "CloudTrail event time and EventBridge delivery time are partially ordered; operators should treat per-grant activity recency as evidence with ordering uncertainty.",
+        severity: "warning",
+        scope: "native_grants",
+        retryable: true
+      });
+    }
+
+    if (latencyModel.cloudTrail.staleActivityObserved) {
+      this.#pushWarning({
+        code: "AWS_CLOUDTRAIL_ACTIVITY_STALE",
+        message: `CloudTrail activity exceeded the ${latencyModel.windows.cloudTrailStaleActivityWindowMinutes}m stale window; current-access readback remains authoritative but activity evidence is low confidence.`,
+        severity: "warning",
+        scope: "native_grants",
+        retryable: true
+      });
+    }
+  }
+
   #pushWarning(warning: DiscoveryRunWarning): void {
     const key = `${warning.code}:${warning.scope}:${warning.message}`;
     const existingIndex = this.#warnings.findIndex((existing) => `${existing.code}:${existing.scope}:${existing.message}` === key);
@@ -1257,8 +1422,14 @@ function isDeletedAssignment(assignment: AwsAccountAssignment): boolean {
   return Boolean(assignment.deletedDateTime) || assignment.status === "DELETED";
 }
 
-function buildActivityMap(events: AwsCloudTrailEvent[]): Map<string, AwsActivity> {
+function buildActivityIndex(
+  events: AwsCloudTrailEvent[],
+  now: string,
+  windows: AwsLatencyWindows
+): AwsActivityIndex {
   const activityByRawKey = new Map<string, AwsActivity>();
+  const activities: AwsActivity[] = [];
+  const partialOrderingObserved = hasPartialOrdering(events);
 
   for (const event of events) {
     if (!event.eventTime) {
@@ -1266,13 +1437,47 @@ function buildActivityMap(events: AwsCloudTrailEvent[]): Map<string, AwsActivity
     }
 
     const eventHash = redactValue(event.eventId ?? `${event.eventName}:${event.eventTime}`);
+    const cloudTrailActivityAgeMinutes = minutesBetween(event.eventTime, now);
+    const eventBridgeLatencyMinutes = event.eventBridgeDeliveredAt
+      ? minutesBetween(event.eventTime, event.eventBridgeDeliveredAt)
+      : undefined;
+    const eventBridgeDeliveryPrecedesEvent = eventBridgeLatencyMinutes !== undefined && eventBridgeLatencyMinutes < 0;
+    const eventBridgeAttempts = positiveIntegerOrUndefined(event.eventBridgeAttemptCount);
+    const eventBridgeRetryState = event.eventBridgeRetryState
+      ? safePermissionLabel(event.eventBridgeRetryState)
+      : undefined;
+    const retryObserved = Boolean(eventBridgeRetryState?.toLowerCase().includes("retry")) || (eventBridgeAttempts ?? 1) > 1;
+    const staleActivity = cloudTrailActivityAgeMinutes === undefined
+      ? true
+      : cloudTrailActivityAgeMinutes > windows.cloudTrailStaleActivityWindowMinutes;
+    const latencyWindowExceeded = eventBridgeLatencyMinutes === undefined
+      ? false
+      : eventBridgeLatencyMinutes > windows.eventBridgeLatencyWindowMinutes;
+    const confidenceReasons = [
+      ...(staleActivity ? ["cloudtrail_activity_stale"] : []),
+      ...(latencyWindowExceeded ? ["eventbridge_latency_window_exceeded"] : []),
+      ...(eventBridgeDeliveryPrecedesEvent ? ["eventbridge_delivery_precedes_event"] : []),
+      ...(retryObserved ? ["eventbridge_retry_observed"] : []),
+      ...(partialOrderingObserved ? ["partial_ordering_observed"] : [])
+    ];
     const activity: AwsActivity = {
       eventHash,
       eventName: event.eventName ?? "unknown",
       eventTime: event.eventTime,
-      readOnly: event.readOnly === true || event.readOnly === "true"
+      readOnly: event.readOnly === true || event.readOnly === "true",
+      cloudTrailActivityAgeMinutes,
+      eventBridgeDeliveredAt: event.eventBridgeDeliveredAt,
+      eventBridgeLatencyMinutes,
+      eventBridgeAttempts,
+      eventBridgeRetryState,
+      staleActivity,
+      staleWindowMinutes: windows.cloudTrailStaleActivityWindowMinutes,
+      partialOrderingObserved,
+      reconciliationConfidence: confidenceLevelForReasons(confidenceReasons),
+      confidenceReasons
     };
     const rawKeys = new Set<string>();
+    activities.push(activity);
 
     if (event.recipientAccountId) {
       rawKeys.add(event.recipientAccountId);
@@ -1292,13 +1497,42 @@ function buildActivityMap(events: AwsCloudTrailEvent[]): Map<string, AwsActivity
     }
   }
 
-  return activityByRawKey;
+  return {
+    activityByRawKey,
+    latencyModel: {
+      windows,
+      observedAt: now,
+      eventBridge: {
+        observed: activities.some((activity) => Boolean(activity.eventBridgeDeliveredAt)),
+        maxLatencyMinutes: maxDefined(activities.map((activity) => activity.eventBridgeLatencyMinutes)),
+        retryObserved: activities.some((activity) => activity.confidenceReasons.includes("eventbridge_retry_observed")),
+        latencyWindowExceeded: activities.some((activity) => activity.confidenceReasons.includes("eventbridge_latency_window_exceeded")),
+        partialOrderingObserved,
+        redacted: true
+      },
+      cloudTrail: {
+        latestEventAt: activities.map((activity) => activity.eventTime).sort().at(-1),
+        maxActivityAgeMinutes: maxDefined(activities.map((activity) => activity.cloudTrailActivityAgeMinutes)),
+        staleActivityObserved: activities.some((activity) => activity.staleActivity),
+        redacted: true
+      }
+    }
+  };
 }
 
 function latestActivityForAssignment(assignment: AwsAccountAssignment, maps: AwsEntityMaps): AwsActivity | undefined {
   return [
     assignment.permissionSetArn,
     assignment.accountId
+  ].flatMap((key) => key ? [maps.latestActivityByRawKey.get(key)] : [])
+    .filter((activity): activity is AwsActivity => Boolean(activity))
+    .sort((a, b) => b.eventTime.localeCompare(a.eventTime))
+    .at(0);
+}
+
+function latestActivityForFinding(finding: AwsAccessAnalyzerFinding, maps: AwsEntityMaps): AwsActivity | undefined {
+  return [
+    finding.resource
   ].flatMap((key) => key ? [maps.latestActivityByRawKey.get(key)] : [])
     .filter((activity): activity is AwsActivity => Boolean(activity))
     .sort((a, b) => b.eventTime.localeCompare(a.eventTime))
@@ -1328,26 +1562,109 @@ function resolveFindingResource(finding: AwsAccessAnalyzerFinding, maps: AwsEnti
   return undefined;
 }
 
-function accessAnalyzerNativeAccess(finding: AwsAccessAnalyzerFinding): string {
+function accessAnalyzerNativeAccess(
+  finding: AwsAccessAnalyzerFinding,
+  confidence: AwsReconciliationConfidence
+): string {
   const actions = (finding.action ?? []).map(safePermissionLabel).filter((action) => action.length > 0);
   const type = finding.findingType ? safePermissionLabel(finding.findingType) : "access-analyzer";
-  return actions.length > 0 ? `${type}:${actions.join(",")}` : type;
+  const nativeAccess = actions.length > 0 ? `${type}:${actions.join(",")}` : type;
+  return `${nativeAccess}; reconciliation_confidence=${confidence.level}; stale_activity_window=${confidence.staleActivityWindowMinutes}m; stale_finding_window=${confidence.staleFindingWindowMinutes}m`;
 }
 
-function accessAnalyzerSeverity(finding: AwsAccessAnalyzerFinding): DriftFinding["severity"] {
+function accessAnalyzerSeverity(
+  finding: AwsAccessAnalyzerFinding,
+  confidence: AwsReconciliationConfidence
+): DriftFinding["severity"] {
   if (finding.isPublic) {
     return "critical";
   }
 
   if (finding.findingType === "ExternalAccess" || finding.principal) {
-    return "high";
+    return confidence.level === "low" ? "critical" : "high";
   }
 
-  return "medium";
+  return confidence.level === "low" ? "high" : "medium";
+}
+
+function accessAnalyzerReconciliationConfidence(
+  finding: AwsAccessAnalyzerFinding,
+  maps: AwsEntityMaps,
+  now: string,
+  windows: AwsLatencyWindows
+): AwsReconciliationConfidence {
+  const findingTimestamp = finding.updatedAt ?? finding.createdAt;
+  const findingAgeMinutes = findingTimestamp ? minutesBetween(findingTimestamp, now) : undefined;
+  const activity = latestActivityForFinding(finding, maps);
+  const reasons = [
+    ...(findingAgeMinutes === undefined ? ["access_analyzer_timestamp_missing"] : []),
+    ...(findingAgeMinutes !== undefined && findingAgeMinutes > windows.accessAnalyzerStaleFindingWindowMinutes
+      ? ["access_analyzer_finding_stale"]
+      : []),
+    ...(activity ? activity.confidenceReasons : ["cloudtrail_activity_missing"]),
+    ...(maps.latencyModel.eventBridge.partialOrderingObserved ? ["partial_ordering_observed"] : [])
+  ];
+  const uniqueReasons = [...new Set(reasons)];
+
+  return {
+    level: confidenceLevelForReasons(uniqueReasons),
+    reasons: uniqueReasons.length > 0 ? uniqueReasons : ["within_latency_windows"],
+    staleFindingWindowMinutes: windows.accessAnalyzerStaleFindingWindowMinutes,
+    staleActivityWindowMinutes: windows.cloudTrailStaleActivityWindowMinutes
+  };
 }
 
 function safePermissionLabel(value: string): string {
   return value.replaceAll(/[^a-z0-9_.:,-]+/gi, "-").replaceAll(/^-|-$/g, "") || "unknown";
+}
+
+function confidenceLevelForReasons(reasons: string[]): AwsReconciliationConfidenceLevel {
+  if (reasons.some((reason) => (
+    reason.includes("stale") ||
+    reason.includes("missing") ||
+    reason.includes("failed") ||
+    reason.includes("precedes")
+  ))) {
+    return "low";
+  }
+
+  return reasons.length > 0 ? "medium" : "high";
+}
+
+function hasPartialOrdering(events: AwsCloudTrailEvent[]): boolean {
+  const deliveredEvents = events
+    .filter((event): event is AwsCloudTrailEvent & { eventTime: string; eventBridgeDeliveredAt: string } =>
+      Boolean(event.eventTime && event.eventBridgeDeliveredAt));
+
+  return deliveredEvents.some((event, index) =>
+    deliveredEvents.slice(index + 1).some((candidate) => {
+      const eventTimeOrder = event.eventTime.localeCompare(candidate.eventTime);
+      const deliveryOrder = event.eventBridgeDeliveredAt.localeCompare(candidate.eventBridgeDeliveredAt);
+      return eventTimeOrder !== 0 && deliveryOrder !== 0 && Math.sign(eventTimeOrder) !== Math.sign(deliveryOrder);
+    }));
+}
+
+function minutesBetween(start: string, end: string): number | undefined {
+  const startMilliseconds = Date.parse(start);
+  const endMilliseconds = Date.parse(end);
+  if (!Number.isFinite(startMilliseconds) || !Number.isFinite(endMilliseconds)) {
+    return undefined;
+  }
+
+  return Math.round(((endMilliseconds - startMilliseconds) / MILLISECONDS_PER_MINUTE) * 100) / 100;
+}
+
+function maxDefined(values: Array<number | undefined>): number | undefined {
+  const defined = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  return defined.length > 0 ? Math.max(...defined) : undefined;
+}
+
+function positiveIntegerOrUndefined(value: number | undefined): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
+}
+
+function positiveNumberOrDefault(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : fallback;
 }
 
 function compactTimestamp(value: string): string {
@@ -1477,7 +1794,12 @@ function createRevocationPlan(connectorId: string, nativeGrantId: string, resour
   };
 }
 
-function createEvidence(connectorId: string, events: AuditEvent[], now: string): EvidenceExport {
+function createEvidence(
+  connectorId: string,
+  events: AuditEvent[],
+  now: string,
+  latencyWindows: AwsLatencyWindows
+): EvidenceExport {
   const auditIntegrity = verifyAuditChain(events, now);
   const evidencePeriod = deriveEvidencePeriod(events, now);
   return attachEvidenceIntegrityManifest({
@@ -1487,7 +1809,7 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
     periodStart: evidencePeriod.periodStart,
     periodEnd: evidencePeriod.periodEnd,
     generatedAt: now,
-    evidenceTypes: ["audit_events", "discovery_runs", "native_grants", "drift_findings", "audit_integrity", "control_mappings"],
+    evidenceTypes: ["audit_events", "discovery_runs", "native_grants", "drift_findings", "connector_latency_model", "audit_integrity", "control_mappings"],
     sourceEventIds: events.map((event) => event.eventId),
     responsibleRole: "ISSO",
     format: "json",
@@ -1497,8 +1819,8 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
         controlId: "AC-6",
         family: "AC",
         status: events.length > 0 ? "implemented" : "partially_implemented",
-        implementationSummary: "AWS connector evidence includes redacted read-only account, role, assignment, CloudTrail, and Access Analyzer observations.",
-        evidenceTypes: ["audit_events", "native_grants", "drift_findings"],
+        implementationSummary: `AWS connector evidence includes redacted read-only account, role, assignment, CloudTrail, EventBridge latency, and Access Analyzer observations with ${latencyWindows.cloudTrailStaleActivityWindowMinutes}m CloudTrail and ${latencyWindows.accessAnalyzerStaleFindingWindowMinutes}m Access Analyzer stale windows.`,
+        evidenceTypes: ["audit_events", "native_grants", "drift_findings", "connector_latency_model"],
         sourceEventIds: events.map((event) => event.eventId),
         gaps: events.length > 0 ? [] : ["No source audit events were provided to the AWS connector evidence hook."]
       }
@@ -1509,6 +1831,12 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
         type: "audit_events",
         description: "Redacted AWS read-only access-analysis connector audit events prepared for evidence packaging.",
         eventCount: events.length,
+        format: "json"
+      },
+      {
+        name: "aws-eventbridge-cloudtrail-latency-model",
+        type: "security_evidence",
+        description: `EventBridge delivery latency ${latencyWindows.eventBridgeLatencyWindowMinutes}m, CloudTrail stale activity ${latencyWindows.cloudTrailStaleActivityWindowMinutes}m, and Access Analyzer stale finding ${latencyWindows.accessAnalyzerStaleFindingWindowMinutes}m windows used for AWS reconciliation confidence.`,
         format: "json"
       }
     ],
@@ -1545,7 +1873,10 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
         }
       ],
       externalSystems: ["aws-organizations", "aws-iam-identity-center", "aws-iam", "aws-cloudtrail", "aws-access-analyzer"],
-      assumptions: ["Connector evidence redacts organization identifiers, account IDs, ARNs, principal IDs, CloudTrail event IDs, request IDs, tokens, and cursors."],
+      assumptions: [
+        "Connector evidence redacts organization identifiers, account IDs, ARNs, principal IDs, CloudTrail event IDs, request IDs, tokens, and cursors.",
+        `AWS activity evidence is partially ordered and uses EventBridge delivery latency ${latencyWindows.eventBridgeLatencyWindowMinutes}m, CloudTrail stale activity ${latencyWindows.cloudTrailStaleActivityWindowMinutes}m, and Access Analyzer stale finding ${latencyWindows.accessAnalyzerStaleFindingWindowMinutes}m confidence windows.`
+      ],
       version: "system-boundary:v1"
     },
     dataFlows: [
@@ -1554,8 +1885,8 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
         name: `${connectorId} connector evidence emission`,
         source: `component:connector:${connectorId}`,
         destination: "component:api-runtime",
-        dataTypes: ["redacted_aws_inventory", "redacted_identity_center_assignments", "redacted_cloudtrail_activity", "redacted_access_analyzer_findings"],
-        protections: ["read_only_scopes", "redacted_identifiers", "no_provider_writes"],
+        dataTypes: ["redacted_aws_inventory", "redacted_identity_center_assignments", "redacted_cloudtrail_activity", "redacted_eventbridge_delivery_metadata", "redacted_access_analyzer_findings"],
+        protections: ["read_only_scopes", "redacted_identifiers", "latency_confidence_windows", "no_provider_writes"],
         liveTenantData: true
       }
     ],
@@ -1563,12 +1894,12 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
       {
         controlId: "AC-6",
         status: events.length > 0 ? "implemented" : "partially_implemented",
-        statement: "AWS access-analysis connector evidence includes redacted read-only discovery and drift observations emitted by the local control plane.",
+        statement: `AWS access-analysis connector evidence includes redacted read-only discovery, drift observations, EventBridge retry or latency indicators, CloudTrail stale activity windows, and reconciliation confidence emitted by the local control plane.`,
         responsibleRole: "ISSO",
         reviewerRole: "Security Control Assessor",
         reviewedAt: now,
-        evidenceTypes: ["audit_events", "native_grants", "drift_findings"],
-        sourceArtifactNames: ["aws-readonly-access-analysis-audit-events"],
+        evidenceTypes: ["audit_events", "native_grants", "drift_findings", "connector_latency_model"],
+        sourceArtifactNames: ["aws-readonly-access-analysis-audit-events", "aws-eventbridge-cloudtrail-latency-model"],
         gaps: events.length > 0 ? [] : ["No source audit events were provided to the AWS connector evidence hook."]
       }
     ],
@@ -1584,6 +1915,16 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
         summary: "AWS read-only access-analysis connector configuration is represented with redacted local proof-point evidence.",
         evidenceRefs: ["packages/connectors-aws/src/index.ts", "docs/connector-contract.md"],
         gaps: ["Retain AWS sandbox run evidence before claiming environment-specific account verification."]
+      },
+      {
+        id: `operational:${connectorId}:latency-confidence`,
+        type: "configuration_baseline",
+        status: "implemented",
+        ownerRole: "Connector Owner",
+        generatedAt: now,
+        summary: `AWS EventBridge latency, CloudTrail stale activity, partial ordering, retry behavior, and Access Analyzer confidence windows are explicit operator evidence: EventBridge ${latencyWindows.eventBridgeLatencyWindowMinutes}m, CloudTrail ${latencyWindows.cloudTrailStaleActivityWindowMinutes}m, Access Analyzer ${latencyWindows.accessAnalyzerStaleFindingWindowMinutes}m.`,
+        evidenceRefs: ["packages/connectors-aws/src/index.ts", "docs/drift-detection-model.md"],
+        gaps: []
       }
     ]
   });
