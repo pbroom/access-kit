@@ -44,6 +44,27 @@
         "generated/policy-tests/case-docs-v2/expected-results/generated-explicit-deny-overrides-allow.expected.json",
         "generated/policy-tests/case-docs-v2/expected-results/generated-restricted-write-denied.expected.json"
       ]
+    },
+    {
+      "policyVersion": "policy:case-docs-v3",
+      "relationshipVersion": "generated:tuple-set:case-docs-v3",
+      "modelPath": "models/case-docs.v3.json",
+      "tupleFixturePath": "generated/policy-tests/case-docs-v3/tuple-fixture.json",
+      "authorizationTestsPath": "generated/policy-tests/case-docs-v3/authorization-tests.json",
+      "exampleRequestPaths": [
+        "generated/policy-tests/case-docs-v3/example-requests/generated-reviewer-read-allowed.request.json",
+        "generated/policy-tests/case-docs-v3/example-requests/generated-unassigned-denied-by-default.request.json",
+        "generated/policy-tests/case-docs-v3/example-requests/generated-cross-tenant-denied.request.json",
+        "generated/policy-tests/case-docs-v3/example-requests/generated-explicit-deny-overrides-allow.request.json",
+        "generated/policy-tests/case-docs-v3/example-requests/generated-restricted-write-denied.request.json"
+      ],
+      "expectedResultPaths": [
+        "generated/policy-tests/case-docs-v3/expected-results/generated-reviewer-read-allowed.expected.json",
+        "generated/policy-tests/case-docs-v3/expected-results/generated-unassigned-denied-by-default.expected.json",
+        "generated/policy-tests/case-docs-v3/expected-results/generated-cross-tenant-denied.expected.json",
+        "generated/policy-tests/case-docs-v3/expected-results/generated-explicit-deny-overrides-allow.expected.json",
+        "generated/policy-tests/case-docs-v3/expected-results/generated-restricted-write-denied.expected.json"
+      ]
     }
   ],
   "migrationRegressionSnapshots": [
@@ -52,6 +73,12 @@
       "toVersion": "policy:case-docs-v2",
       "migrationPath": "migrations/001-case-docs-v1-to-v2.json",
       "snapshotPath": "generated/policy-tests/migrations/case-docs-v1-to-case-docs-v2.json"
+    },
+    {
+      "fromVersion": "policy:case-docs-v2",
+      "toVersion": "policy:case-docs-v3",
+      "migrationPath": "migrations/002-case-docs-v2-to-v3.json",
+      "snapshotPath": "generated/policy-tests/migrations/case-docs-v2-to-case-docs-v3.json"
     }
   ]
 }

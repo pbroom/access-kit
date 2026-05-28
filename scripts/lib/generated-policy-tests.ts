@@ -168,6 +168,8 @@ export interface GeneratedMigrationModelSurface {
   relations: string[];
   actions: string[];
   contextConstraints: string[];
+  caveats: string[];
+  conditionalRelationships: string[];
   classifications: string[];
 }
 
@@ -734,6 +736,7 @@ function generateMigrationSnapshot(input: {
       "Review generated cases against the migration intent before accepting them in CI.",
       "Keep hand-authored deny-default, tenant-boundary, explicit-deny, and abuse-case coverage in the repository.",
       "Confirm generated tuple fixtures use synthetic identifiers and do not encode production tenant data.",
+      "Review caveat, ABAC, device, risk, and time-window requirements as fail-closed policy inputs.",
       "Regenerate examples after model or migration changes, then review the diff like source code."
     ],
     starterRegressionCases: input.targetSuite?.authorizationTests.map((test) => ({
@@ -889,15 +892,19 @@ function generatedContext(model: PolicyModel): JsonRecord {
   const context: JsonRecord = {};
   for (const constraint of model.contextConstraints) {
     if (constraint.type === "string") {
-      context[constraint.key] = constraint.key.toLowerCase().includes("justification")
-        ? "generated review fixture"
-        : "generated-policy-test";
+      context[constraint.key] = constraint.allowedValues?.find((value): value is string => typeof value === "string")
+        ?? (constraint.key.toLowerCase().includes("justification")
+          ? "generated review fixture"
+          : "generated-policy-test");
     }
     if (constraint.type === "number") {
-      context[constraint.key] = 10;
+      context[constraint.key] = constraint.min !== undefined ? Math.max(constraint.min, 10) : 10;
     }
     if (constraint.type === "boolean") {
       context[constraint.key] = true;
+    }
+    if (constraint.type === "datetime") {
+      context[constraint.key] = "2026-05-26T12:00:00.000Z";
     }
   }
   return context;
@@ -919,6 +926,10 @@ function modelSurface(model: PolicyModel, modelPath: string): GeneratedMigration
     relations: model.relations.map((relation) => relation.name).sort(),
     actions: model.actions.map((action) => action.name).sort(),
     contextConstraints: model.contextConstraints.map((constraint) => constraint.key).sort(),
+    caveats: (model.caveats ?? []).map((caveat) => caveat.name).sort(),
+    conditionalRelationships: (model.conditionalRelationships ?? [])
+      .map((conditional) => conditional.relation)
+      .sort(),
     classifications: model.classificationConstraints.map((constraint) => constraint.classification).sort()
   };
 }

@@ -161,6 +161,7 @@ for (const artifact of manifest.models) {
 if (!models.has(manifest.currentPolicyVersion)) {
   throw new Error(`Current policy version ${manifest.currentPolicyVersion} is not listed in model artifacts.`);
 }
+requireAdvancedPolicyBoundary(models.get(manifest.currentPolicyVersion)!, manifest.currentPolicyVersion);
 
 for (const artifact of manifest.migrations) {
   const migration = await readSampleJson<MigrationFile>(artifact.path);
@@ -231,7 +232,8 @@ for (const artifact of manifest.regressionSnapshots) {
     const engine = new RebacDecisionEngine(new InMemoryRebacStore(storeSeed), {
       now: () => evaluatedAt,
       policyVersion: snapshot.policyVersion,
-      relationshipVersion: snapshot.relationshipVersion
+      relationshipVersion: snapshot.relationshipVersion,
+      policyModel: models.get(snapshot.policyVersion)
     });
     const actual = toExpectedDecision(engine.explain(testCase.request));
     assertJsonEqual(`${artifact.path} case ${testCase.name}`, actual, testCase.expected);
@@ -327,6 +329,60 @@ function requireTenantAndClassificationBoundaries(model: PolicyModel, path: stri
   for (const required of ["internal", "confidential"]) {
     if (!classifications.has(required)) {
       throw new Error(`${path} must include a ${required} classification constraint.`);
+    }
+  }
+}
+
+function requireAdvancedPolicyBoundary(model: PolicyModel, policyVersion: string): void {
+  const caveatsByName = new Map((model.caveats ?? []).map((caveat) => [caveat.name, caveat]));
+  const relationsByName = new Map(model.relations.map((relation) => [relation.name, relation]));
+  const conditionalCaveatNames = new Set<string>();
+  let conditionalGrantRelations = 0;
+
+  for (const conditional of model.conditionalRelationships ?? []) {
+    if (relationsByName.get(conditional.relation)?.kind !== "grant") {
+      continue;
+    }
+    conditionalGrantRelations += 1;
+    for (const caveatName of conditional.caveats) {
+      if (caveatsByName.has(caveatName)) {
+        conditionalCaveatNames.add(caveatName);
+      }
+    }
+  }
+
+  if (conditionalGrantRelations === 0 || conditionalCaveatNames.size === 0) {
+    throw new Error(`${policyVersion} must demonstrate conditional grant relationships with fail-closed caveats.`);
+  }
+
+  const contextConditionKeys = new Set<string>();
+  for (const caveatName of conditionalCaveatNames) {
+    const caveat = caveatsByName.get(caveatName);
+    if (!caveat || caveat.failClosed !== true || caveat.conditions.length === 0) {
+      throw new Error(`${policyVersion} conditional caveat ${caveatName} must fail closed with typed conditions.`);
+    }
+    for (const condition of caveat.conditions) {
+      if (condition.source === "context") {
+        contextConditionKeys.add(condition.key);
+      }
+    }
+  }
+
+  if (contextConditionKeys.size === 0) {
+    throw new Error(`${policyVersion} must demonstrate conditional caveats with auditable context inputs.`);
+  }
+
+  if (model.explanation?.deterministic !== true) {
+    throw new Error(`${policyVersion} must declare deterministic advanced policy explanation output.`);
+  }
+  for (const caveatName of conditionalCaveatNames) {
+    if (!model.explanation.includeCaveatNames.includes(caveatName)) {
+      throw new Error(`${policyVersion} explanation output must include conditional caveat ${caveatName}.`);
+    }
+  }
+  for (const contextKey of contextConditionKeys) {
+    if (!model.explanation.includeContextKeys.includes(contextKey)) {
+      throw new Error(`${policyVersion} explanation output must include context input ${contextKey}.`);
     }
   }
 }

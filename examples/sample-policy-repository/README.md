@@ -25,7 +25,7 @@ Run the sample policy repository gate from the Access Kit root:
 pnpm validate:sample-policy
 ```
 
-The validator checks schema conformance, deterministic model validation, migration linkage, tenant and classification boundaries, tuple fixture hygiene, deny-default coverage, tenant-boundary denial, explicit-deny coverage, generated example drift, and the copyable CI command.
+The validator checks schema conformance, deterministic model validation, migration linkage, tenant and classification boundaries, tuple fixture hygiene, advanced caveat and context boundaries, deny-default coverage, tenant-boundary denial, explicit-deny coverage, generated example drift, and the copyable CI command.
 
 Regenerate starter review artifacts after model or migration edits:
 
@@ -43,4 +43,5 @@ Generated starter artifacts are review aids only. They help authors bootstrap re
 3. Pin tuple fixtures and snapshots to explicit `policyVersion` and `relationshipVersion` values.
 4. Regenerate examples and starter policy tests, then review them like code.
 5. Keep deny-default, tenant-boundary, classification-boundary, expiration, and explicit-deny cases in hand-authored CI coverage.
-6. Never check in live identifiers, secrets, provider account IDs, access tokens, or tenant exports.
+6. Model caveats as typed, bounded, auditable, fail-closed context inputs before binding them to conditional relationships.
+7. Never check in live identifiers, secrets, provider account IDs, access tokens, or tenant exports.

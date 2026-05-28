@@ -86,6 +86,15 @@ const policyModelSchema = {
       type: "array",
       items: jsonObject
     },
+    caveats: {
+      type: "array",
+      items: jsonObject
+    },
+    conditionalRelationships: {
+      type: "array",
+      items: jsonObject
+    },
+    explanation: jsonObject,
     metadata: jsonObject
   }
 } as const;

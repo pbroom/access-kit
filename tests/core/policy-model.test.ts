@@ -144,6 +144,183 @@ describe("policy model validation", () => {
     );
   });
 
+  it("accepts typed policy caveats and conditional relationship metadata", () => {
+    const model = cloneDefaultModel();
+    model.contextConstraints = [
+      { key: "riskScore", type: "number", required: true, auditable: true, min: 0, max: 100 },
+      { key: "deviceTrustLevel", type: "string", required: true, auditable: true, maxLength: 32, allowedValues: ["managed", "trusted"] },
+      { key: "accessTime", type: "datetime", required: true, auditable: true }
+    ];
+    model.caveats = [
+      {
+        name: "low-risk-managed-device",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "context", key: "riskScore", type: "number", operator: "less_than_or_equal", value: 35 },
+          { source: "context", key: "deviceTrustLevel", type: "string", operator: "one_of", value: ["managed", "trusted"] },
+          { source: "context", key: "accessTime", type: "datetime", operator: "before", value: "2026-05-27T00:00:00.000Z" }
+        ]
+      }
+    ];
+    model.conditionalRelationships = [
+      { relation: "reader_of", actions: ["read", "view"], caveats: ["low-risk-managed-device"] }
+    ];
+    model.explanation = {
+      deterministic: true,
+      includeContextKeys: ["riskScore", "deviceTrustLevel", "accessTime"],
+      includeCaveatNames: ["low-risk-managed-device"]
+    };
+
+    const result = validatePolicyModel(model);
+
+    expect(result.valid).toBe(true);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "policy_caveats_fail_closed", status: "pass" }),
+        expect.objectContaining({ name: "conditional_relationships_known", status: "pass" }),
+        expect.objectContaining({ name: "deterministic_explanation_policy", status: "pass" })
+      ])
+    );
+  });
+
+  it("rejects duplicate conditional relationship relation/action bindings", () => {
+    const model = cloneDefaultModel();
+    model.contextConstraints = [
+      { key: "riskScore", type: "number", required: true, auditable: true, min: 0, max: 100 }
+    ];
+    model.caveats = [
+      {
+        name: "low-risk-context",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "context", key: "riskScore", type: "number", operator: "less_than_or_equal", value: 35 }
+        ]
+      },
+      {
+        name: "additional-review",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "context", key: "riskScore", type: "number", operator: "greater_than_or_equal", value: 0 }
+        ]
+      }
+    ];
+    model.conditionalRelationships = [
+      { relation: "reader_of", actions: ["read"], caveats: ["low-risk-context"] },
+      { relation: "reader_of", actions: ["read"], caveats: ["additional-review"] }
+    ];
+
+    const result = validatePolicyModel(model);
+
+    expect(result.valid).toBe(false);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "conditional_relationships_unique", status: "fail" })
+      ])
+    );
+
+    const wildcardModel = cloneDefaultModel();
+    wildcardModel.contextConstraints = model.contextConstraints;
+    wildcardModel.caveats = model.caveats;
+    wildcardModel.conditionalRelationships = [
+      { relation: "reader_of", caveats: ["low-risk-context"] },
+      { relation: "reader_of", actions: ["read"], caveats: ["additional-review"] }
+    ];
+
+    const wildcardResult = validatePolicyModel(wildcardModel);
+
+    expect(wildcardResult.valid).toBe(false);
+    expect(wildcardResult.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "conditional_relationships_unique", status: "fail" })
+      ])
+    );
+  });
+
+  it("rejects equality caveats for datetime inputs", () => {
+    const model = cloneDefaultModel();
+    model.contextConstraints = [
+      { key: "accessTime", type: "datetime", required: true, auditable: true }
+    ];
+    model.caveats = [
+      {
+        name: "exact-access-time",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "context", key: "accessTime", type: "datetime", operator: "equals", value: "2026-05-26T12:00:00.000Z" },
+          { source: "environment", key: "evaluatedAt", type: "datetime", operator: "one_of", value: ["2026-05-26T12:00:00.000Z"] }
+        ]
+      }
+    ];
+
+    const result = validatePolicyModel(model);
+
+    expect(result.valid).toBe(false);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "policy_caveat_conditions_typed",
+          status: "fail",
+          message: "Policy caveat exact-access-time operator equals is not supported for datetime."
+        })
+      ])
+    );
+
+    const environmentModel = cloneDefaultModel();
+    environmentModel.caveats = [
+      {
+        name: "exact-evaluated-at",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "environment", key: "evaluatedAt", type: "datetime", operator: "one_of", value: ["2026-05-26T12:00:00.000Z"] }
+        ]
+      }
+    ];
+
+    const environmentResult = validatePolicyModel(environmentModel);
+
+    expect(environmentResult.valid).toBe(false);
+    expect(environmentResult.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "policy_caveat_conditions_typed",
+          status: "fail",
+          message: "Policy caveat exact-evaluated-at operator one_of is not supported for datetime."
+        })
+      ])
+    );
+  });
+
+  it("rejects unbounded or unauditable caveat context inputs", () => {
+    const model = cloneDefaultModel();
+    model.contextConstraints = [
+      { key: "riskScore", type: "number", required: true, min: 0, max: 100 }
+    ];
+    model.caveats = [
+      {
+        name: "low-risk-context",
+        failClosed: true,
+        reasonCode: "DENY_POLICY_CAVEAT_UNSATISFIED",
+        conditions: [
+          { source: "context", key: "riskScore", type: "number", operator: "less_than_or_equal", value: 35 }
+        ]
+      }
+    ];
+
+    const result = validatePolicyModel(model);
+
+    expect(result.valid).toBe(false);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "policy_caveat_context_auditable", status: "fail" })
+      ])
+    );
+  });
+
   it("rejects migration chains that revisit a policy version", () => {
     const model = cloneDefaultModel();
     model.migrations = [

@@ -1,0 +1,7 @@
+{
+  "decision": "deny",
+  "reasonCode": "DENY_TENANT_BOUNDARY",
+  "policyVersion": "policy:case-docs-v3",
+  "relationshipVersion": "generated:tuple-set:case-docs-v3",
+  "relationshipPath": []
+}
