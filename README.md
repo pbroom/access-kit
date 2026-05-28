@@ -4,6 +4,8 @@ Access Kit is an API-first and CLI-first foundation for an ATO-ready relationshi
 
 The current repository is a local proof point. It is built for contract validation, runtime behavior checks, assessor inspection, and implementation planning. It is not a production authorization service yet.
 
+Start with the [Product Positioning And Adoption Guide](docs/product-positioning-adoption-guide.md) when deciding whether Access Kit fits an adoption path. It separates fit, non-goals, proof-point evidence, production-readiness gaps, and buyer, developer, and assessor evaluation checklists.
+
 ## What It Does
 
 - Evaluates ReBAC `check`, `explain`, and batch decision requests with deterministic deny-by-default behavior.
@@ -130,6 +132,7 @@ pnpm pr:stack
 | Path | Purpose |
 | --- | --- |
 | `docs/start-here.md` | Documentation entry point and reading path. |
+| `docs/product-positioning-adoption-guide.md` | Product positioning, adoption fit, non-goals, integration patterns, and evaluation checklists. |
 | `docs/five-minute-quickstart.md` | Docker Compose quickstart for the local API and seeded demo decisions. |
 | `docs/developer-evaluation-path.md` | Full local 30-minute evaluation path over policy tests, dry-run provisioning, reconciliation, audit export, and evidence export. |
 | `docs/implementation-backlog.md` | Durable slice backlog for Codex and human coordination. |
@@ -159,6 +162,7 @@ pnpm pr:stack
 | Source | Canonical path |
 | --- | --- |
 | Documentation entry point | [`docs/start-here.md`](docs/start-here.md) |
+| Product positioning and adoption guide | [`docs/product-positioning-adoption-guide.md`](docs/product-positioning-adoption-guide.md) |
 | Five-minute quickstart | [`docs/five-minute-quickstart.md`](docs/five-minute-quickstart.md) |
 | Developer evaluation path | [`docs/developer-evaluation-path.md`](docs/developer-evaluation-path.md) |
 | Public API | [`openapi/rebac-control-plane.yaml`](openapi/rebac-control-plane.yaml) |
