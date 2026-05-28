@@ -25,7 +25,6 @@ import {
   exportAuditEvents,
   exportEvidencePackage,
   getProvisioningJob,
-  isSafeChangeTicketPattern,
   listEnforcementReadinessReports,
   listDiscoveryRuns,
   listPolicies,
@@ -41,32 +40,36 @@ import {
   verifyAuditIntegrity,
   verifyEvidencePackage,
   RebacLocalAppError,
-  type PolicyDraft,
   type RebacLocalApp,
   type RebacLocalAppOptions
 } from "./local-app.js";
-import { validateRuntimeRequestSchema, type RuntimeRequestSchemaName } from "./request-schemas.js";
 import {
-  type DecisionRequest,
+  decodeConnectorSyncRequest,
+  decodeDecisionBatchRequest,
+  decodeDecisionRequest,
+  decodeDriftRemediationRequest,
+  decodeEnforcementReadinessRequest,
+  decodePolicyDraft,
+  decodePolicyPublishRequest,
+  decodePolicyRollbackRequest,
+  decodePolicyValidationMode,
+  decodeProvisioningJobRequest,
+  decodeProvisioningPlanRequest,
+  decodeReconciliationRunRequest,
+  decodeRelationship,
+  decodeResource,
+  decodeSubject
+} from "./request-decoders.js";
+import {
   type DiscoveryRunStatus,
-  type DriftAutoRepairPolicy,
   type DriftFindingStatus,
-  type DriftHookEvidence,
   type DriftLifecycleState,
   type DriftSeverity,
-  type EnforcementControl,
   type EnforcementReadinessReport,
   type AuditEventExportTarget,
   type EvidenceFramework,
   type NativeGrantType,
-  type NativePrincipalType,
-  type ProvisioningApproval,
-  type ProvisioningMode,
-  type ReconciliationScheduleEvidence,
-  type ReconciliationTrigger,
-  type RelationshipTuple,
-  type Resource,
-  type Subject
+  type NativePrincipalType
 } from "@access-kit/core";
 
 export { API_ROUTE_SURFACES, type ApiRouteSurface } from "./api-routes.js";
@@ -74,43 +77,6 @@ export { API_ROUTE_SURFACES, type ApiRouteSurface } from "./api-routes.js";
 export interface RebacApiServerOptions extends RebacLocalAppOptions {
   app?: RebacLocalApp;
   apiKeys?: readonly string[];
-}
-
-interface ProvisioningPlanRequest {
-  subjectId?: unknown;
-  action?: unknown;
-  resourceId?: unknown;
-  context?: unknown;
-  mode?: unknown;
-  dryRun?: unknown;
-  grantId?: unknown;
-  connectorId?: unknown;
-  approval?: unknown;
-  control?: unknown;
-  readinessReportId?: unknown;
-}
-
-interface ProvisioningJobRequest {
-  planId?: unknown;
-  approverId?: unknown;
-  mode?: unknown;
-  dryRun?: unknown;
-  approval?: unknown;
-  control?: unknown;
-}
-
-interface DriftRemediationRequest {
-  approval?: unknown;
-  autoRepairPolicy?: unknown;
-  readinessReportId?: unknown;
-  hookEvidence?: unknown;
-}
-
-interface EnforcementReadinessRequest {
-  mode?: unknown;
-  control?: unknown;
-  requiredApproverRole?: unknown;
-  changeTicketPattern?: unknown;
 }
 
 const maxRequestBodyBytes = 1024 * 1024;
@@ -296,7 +262,7 @@ async function routeRequest(
 
   if (segments[1] === "evidence" && segments[2] === "verify" && method === "POST") {
     const idempotencyKey = readIdempotencyKey(request);
-    sendJson(response, 200, verifyEvidencePackage(app, await readJson<unknown>(request), { idempotencyKey }));
+    sendJson(response, 200, verifyEvidencePackage(app, await readJson(request), { idempotencyKey }));
     return;
   }
 
@@ -320,7 +286,7 @@ async function routePolicies(
   }
 
   if (segments.length === 2 && request.method === "POST") {
-    sendJson(response, 201, createPolicy(app, readPolicyDraft(await readJson<unknown>(request)), readIdempotencyKey(request)));
+    sendJson(response, 201, createPolicy(app, decodePolicyDraft(await readJson(request)), readIdempotencyKey(request)));
     return;
   }
 
@@ -332,10 +298,10 @@ async function routePolicies(
     return;
   }
 
-  const body = await readJson<unknown>(request);
+  const body = await readJson(request);
 
   if (action === "validate") {
-    const mode = readPolicyValidationMode(body);
+    const mode = decodePolicyValidationMode(body);
     if (!mode) {
       throw new HttpError(400, "INVALID_POLICY_VALIDATION_REQUEST", "policy validation requires mode validate or test");
     }
@@ -345,12 +311,12 @@ async function routePolicies(
   }
 
   if (action === "publish") {
-    sendJson(response, 200, publishPolicy(app, policyId, readPolicyPublishRequest(body), readIdempotencyKey(request)));
+    sendJson(response, 200, publishPolicy(app, policyId, decodePolicyPublishRequest(body), readIdempotencyKey(request)));
     return;
   }
 
   if (action === "rollback") {
-    sendJson(response, 200, rollbackPolicy(app, policyId, readPolicyRollbackRequest(body), readIdempotencyKey(request)));
+    sendJson(response, 200, rollbackPolicy(app, policyId, decodePolicyRollbackRequest(body), readIdempotencyKey(request)));
     return;
   }
 
@@ -369,24 +335,17 @@ async function routeDecision(
   }
 
   if (segments[2] === "check") {
-    sendJson(response, 200, checkDecision(app, await readDecisionRequest(request)));
+    sendJson(response, 200, checkDecision(app, decodeDecisionRequest(await readJson(request))));
     return;
   }
 
   if (segments[2] === "explain") {
-    sendJson(response, 200, explainDecision(app, await readDecisionRequest(request)));
+    sendJson(response, 200, explainDecision(app, decodeDecisionRequest(await readJson(request))));
     return;
   }
 
   if (segments[2] === "batch-check") {
-    const batch = await readJson<unknown>(request);
-    const parsed = readSchemaBacked<{ requests: DecisionRequest[] }>(
-      "decisionBatch",
-      batch,
-      "INVALID_BATCH_REQUESTS",
-      "batch-check requires a requests array of decision requests"
-    );
-    const requests = parsed.requests.map((item) => normalizeDecisionRequest(item));
+    const requests = decodeDecisionBatchRequest(await readJson(request));
 
     sendJson(response, 200, { results: requests.map((item) => checkDecision(app, item)) });
     return;
@@ -407,7 +366,7 @@ async function routeSubjects(
   }
 
   if (segments.length === 2 && request.method === "POST") {
-    sendJson(response, 201, createSubject(app, readSubject(await readJson<unknown>(request))));
+    sendJson(response, 201, createSubject(app, decodeSubject(await readJson(request))));
     return;
   }
 
@@ -450,7 +409,7 @@ async function routeResources(
   }
 
   if (segments.length === 2 && request.method === "POST") {
-    sendJson(response, 201, createResource(app, readResource(await readJson<unknown>(request))));
+    sendJson(response, 201, createResource(app, decodeResource(await readJson(request))));
     return;
   }
 
@@ -517,7 +476,7 @@ async function routeRelationships(
   }
 
   if (request.method === "PUT") {
-    sendJson(response, 200, putRelationship(app, readRelationship(await readJson<unknown>(request))));
+    sendJson(response, 200, putRelationship(app, decodeRelationship(await readJson(request))));
     return;
   }
 
@@ -552,7 +511,7 @@ async function routeReconciliation(
   segments: string[]
 ): Promise<void> {
   if (segments[2] === "run" && request.method === "POST") {
-    const body = readReconciliationRunRequest(await readJson<unknown>(request));
+    const body = decodeReconciliationRunRequest(await readJson(request));
 
     sendJson(response, 202, await runReconciliation(app, body.connectorId, {
       trigger: body.trigger,
@@ -575,7 +534,7 @@ async function routeReconciliation(
   }
 
   if (segments[2] === "findings" && segments[3] && segments[4] === "remediation" && request.method === "POST") {
-    const body = readDriftRemediationRequest(await readJson<unknown>(request));
+    const body = decodeDriftRemediationRequest(await readJson(request));
     const updated = await planDriftRemediationDryRun(app, segments[3], body, readIdempotencyKey(request));
 
     if (updated) {
@@ -595,69 +554,37 @@ async function routeProvisioning(
   response: ServerResponse,
   segments: string[]
 ): Promise<void> {
-    if (segments[2] === "plans" && segments.length === 3 && request.method === "POST") {
+  if (segments[2] === "plans" && segments.length === 3 && request.method === "POST") {
     const idempotencyKey = readIdempotencyKey(request);
-    const body = readProvisioningPlanRequest(await readJson<unknown>(request));
-    const mode = readProvisioningMode(body.mode, body.dryRun);
-    const approval = readProvisioningApproval(body.approval);
-    const control = readEnforcementControl(body.control);
-    const readinessReportId = readReadinessReportId(body.readinessReportId);
+    const body = decodeProvisioningPlanRequest(await readJson(request));
 
-    if (body.connectorId !== undefined && (typeof body.connectorId !== "string" || !body.connectorId)) {
-      throw new HttpError(400, "INVALID_CONNECTOR_ID", "connectorId must be a non-empty string when provided");
-    }
-
-    const connectorId = typeof body.connectorId === "string" ? body.connectorId : undefined;
-    if (body.grantId !== undefined) {
-      if (typeof body.grantId !== "string" || !body.grantId) {
-        throw new HttpError(400, "INVALID_GRANT_ID", "grantId must be a non-empty string");
-      }
-
+    if (body.kind === "revocation") {
       sendJson(
         response,
         201,
-        await createRevocationPlan(app, body.grantId, connectorId, { mode, approval, control, readinessReportId }, idempotencyKey)
+        await createRevocationPlan(app, body.grantId, body.connectorId, body.execution, idempotencyKey)
       );
       return;
-    }
-
-    const decisionRequest = parseDecisionRequest(body);
-    if (!decisionRequest) {
-      throw new HttpError(
-        400,
-        "INVALID_PROVISIONING_REQUEST",
-        "Provisioning plans require subjectId, action, and resourceId or a grantId"
-      );
     }
 
     sendJson(
       response,
       201,
-      await createProvisioningPlan(app, decisionRequest, connectorId, { mode, approval, control, readinessReportId }, idempotencyKey)
+      await createProvisioningPlan(app, body.decisionRequest, body.connectorId, body.execution, idempotencyKey)
     );
     return;
   }
 
   if (segments[2] === "jobs" && segments.length === 3 && request.method === "POST") {
-    const body = readProvisioningJobRequest(await readJson<unknown>(request));
-
-    if (typeof body.planId !== "string" || !body.planId) {
-      throw new HttpError(400, "MISSING_PLAN_ID", "planId is required");
-    }
-
-    if (typeof body.approverId !== "string" || !body.approverId) {
-      throw new HttpError(400, "MISSING_APPROVER_ID", "approverId is required");
-    }
-
-    const mode = readProvisioningMode(body.mode, body.dryRun);
+    const body = decodeProvisioningJobRequest(await readJson(request));
 
     const job = await createProvisioningJob(app, {
       planId: body.planId,
       approverId: body.approverId,
       idempotencyKey: readIdempotencyKey(request),
-      mode,
-      approval: readProvisioningApproval(body.approval),
-      control: readEnforcementControl(body.control)
+      mode: body.mode,
+      approval: body.approval,
+      control: body.control
     });
 
     if (!job) {
@@ -743,21 +670,19 @@ async function routeConnectors(
   }
 
   if (segments[3] === "enforcement-readiness" && request.method === "POST") {
-    const body = readEnforcementReadinessBody(await readJson<unknown>(request));
-    sendJson(response, 200, await checkEnforcementReadiness(app, connectorId, readEnforcementReadinessRequest(body)));
+    sendJson(response, 200, await checkEnforcementReadiness(app, connectorId, decodeEnforcementReadinessRequest(await readJson(request))));
     return;
   }
 
   if (segments[3] === "sync" && request.method === "POST") {
-    const body = readConnectorSyncRequest(await readJson<unknown>(request));
-    sendJson(response, 202, await syncConnector(app, connectorId, readDiscoveryMode(body.mode)));
+    sendJson(response, 202, await syncConnector(app, connectorId, decodeConnectorSyncRequest(await readJson(request))));
     return;
   }
 
   notFound(response);
 }
 
-async function readJson<T>(request: IncomingMessage): Promise<T> {
+async function readJson(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   let bytesRead = 0;
 
@@ -775,417 +700,10 @@ async function readJson<T>(request: IncomingMessage): Promise<T> {
   const body = Buffer.concat(chunks).toString("utf8");
 
   try {
-    return (body ? JSON.parse(body) : {}) as T;
+    return body ? JSON.parse(body) : {};
   } catch {
     throw new HttpError(400, "INVALID_JSON", "Request body must be valid JSON");
   }
-}
-
-async function readDecisionRequest(request: IncomingMessage): Promise<DecisionRequest> {
-  return normalizeDecisionRequest(
-    readSchemaBacked<DecisionRequest>(
-      "decisionRequest",
-      await readJson<unknown>(request),
-      "INVALID_DECISION_REQUEST",
-      "Decision requests require subjectId, action, and resourceId"
-    )
-  );
-}
-
-function parseDecisionRequest(value: unknown): DecisionRequest | undefined {
-  if (
-    !isRecord(value) ||
-    typeof value.subjectId !== "string" ||
-    typeof value.action !== "string" ||
-    typeof value.resourceId !== "string"
-  ) {
-    return undefined;
-  }
-
-  if (value.context !== undefined && !isRecord(value.context)) {
-    return undefined;
-  }
-
-  return {
-    subjectId: value.subjectId,
-    action: value.action,
-    resourceId: value.resourceId,
-    context: value.context,
-    policyVersion: typeof value.policyVersion === "string" ? value.policyVersion : undefined,
-    modelVersion: typeof value.modelVersion === "string" ? value.modelVersion : undefined,
-    relationshipVersion: typeof value.relationshipVersion === "string" ? value.relationshipVersion : undefined,
-    tupleVersion: typeof value.tupleVersion === "string" ? value.tupleVersion : undefined,
-    contextVersion: typeof value.contextVersion === "string" ? value.contextVersion : undefined,
-    asOf: typeof value.asOf === "string" ? value.asOf : undefined
-  };
-}
-
-function readSubject(value: unknown): Subject {
-  return readSchemaBacked<Subject>(
-    "subject",
-    value,
-    "INVALID_SUBJECT",
-    "subjects require the canonical subject schema"
-  );
-}
-
-function readResource(value: unknown): Resource {
-  return readSchemaBacked<Resource>(
-    "resource",
-    value,
-    "INVALID_RESOURCE",
-    "resources require the canonical resource schema"
-  );
-}
-
-function readRelationship(value: unknown): RelationshipTuple {
-  return readSchemaBacked<RelationshipTuple>(
-    "relationship",
-    value,
-    "INVALID_RELATIONSHIP",
-    "relationships require the canonical relationship schema"
-  );
-}
-
-function readPolicyDraft(value: unknown): PolicyDraft {
-  return readSchemaBacked<PolicyDraft>(
-    "policyDraft",
-    value,
-    "INVALID_POLICY_DRAFT",
-    "policy drafts require name, model, and tests"
-  );
-}
-
-function readPolicyValidationMode(value: unknown): "validate" | "test" | undefined {
-  if (!isRecord(value)) {
-    return undefined;
-  }
-
-  if (value.mode === "validate" || value.mode === "test") {
-    return value.mode;
-  }
-
-  return undefined;
-}
-
-function readPolicyPublishRequest(value: unknown): { changeTicket: string; approverId: string } {
-  return readSchemaBacked<{ changeTicket: string; approverId: string }>(
-    "policyPublish",
-    value,
-    "INVALID_POLICY_PUBLISH_REQUEST",
-    "policy publish requires changeTicket and approverId"
-  );
-}
-
-function readPolicyRollbackRequest(value: unknown): { targetVersion: string; changeTicket: string; approverId: string } {
-  return readSchemaBacked<{ targetVersion: string; changeTicket: string; approverId: string }>(
-    "policyRollback",
-    value,
-    "INVALID_POLICY_ROLLBACK_REQUEST",
-    "policy rollback requires targetVersion, changeTicket, and approverId"
-  );
-}
-
-function readProvisioningPlanRequest(value: unknown): ProvisioningPlanRequest {
-  return readSchemaBacked<ProvisioningPlanRequest>(
-    "provisioningPlan",
-    value,
-    "INVALID_PROVISIONING_REQUEST",
-    "Provisioning plans require a dry-run or controlled enforcement request"
-  );
-}
-
-function readProvisioningJobRequest(value: unknown): ProvisioningJobRequest {
-  return readSchemaBacked<ProvisioningJobRequest>(
-    "provisioningJob",
-    value,
-    "INVALID_PROVISIONING_JOB_REQUEST",
-    "Provisioning jobs require planId and approverId"
-  );
-}
-
-function readReconciliationRunRequest(value: unknown): {
-  connectorId: string;
-  dryRun: true;
-  trigger?: ReconciliationTrigger;
-  schedule?: Partial<ReconciliationScheduleEvidence>;
-} {
-  return readSchemaBacked<{
-    connectorId: string;
-    dryRun: true;
-    trigger?: ReconciliationTrigger;
-    schedule?: Partial<ReconciliationScheduleEvidence>;
-  }>(
-    "reconciliationRun",
-    value,
-    "INVALID_RECONCILIATION_REQUEST",
-    "Reconciliation runs require connectorId and dryRun: true"
-  );
-}
-
-function readDriftRemediationRequest(value: unknown): {
-  approval: ProvisioningApproval;
-  autoRepairPolicy: DriftAutoRepairPolicy;
-  readinessReportId?: string;
-  hookEvidence?: DriftHookEvidence[];
-} {
-  const parsed = readSchemaBacked<DriftRemediationRequest>(
-    "driftRemediation",
-    value,
-    "INVALID_DRIFT_REMEDIATION_REQUEST",
-    "Drift remediation requires approval, autoRepairPolicy, and dry-run hook evidence"
-  );
-
-  if (!isProvisioningApproval(parsed.approval)) {
-    throw new HttpError(400, "INVALID_DRIFT_REMEDIATION_REQUEST", "approval must match the provisioning approval shape");
-  }
-
-  if (!isDriftAutoRepairPolicy(parsed.autoRepairPolicy)) {
-    throw new HttpError(400, "INVALID_DRIFT_REMEDIATION_REQUEST", "autoRepairPolicy must include safe dry-run controls");
-  }
-
-  if (parsed.hookEvidence !== undefined && !isDriftHookEvidenceArray(parsed.hookEvidence)) {
-    throw new HttpError(400, "INVALID_DRIFT_REMEDIATION_REQUEST", "hookEvidence must contain ticket or SIEM hook evidence");
-  }
-
-  return {
-    approval: parsed.approval,
-    autoRepairPolicy: parsed.autoRepairPolicy,
-    readinessReportId: readReadinessReportId(parsed.readinessReportId),
-    hookEvidence: parsed.hookEvidence
-  };
-}
-
-function readEnforcementReadinessBody(value: unknown): EnforcementReadinessRequest {
-  return readSchemaBacked<EnforcementReadinessRequest>(
-    "enforcementReadiness",
-    value,
-    "INVALID_ENFORCEMENT_READINESS_REQUEST",
-    "Enforcement readiness requires a control block"
-  );
-}
-
-function readConnectorSyncRequest(value: unknown): { mode: "read_only" } {
-  return readSchemaBacked<{ mode: "read_only" }>(
-    "connectorSync",
-    value,
-    "UNSUPPORTED_CONNECTOR_MODE",
-    "connector sync requires mode read_only"
-  );
-}
-
-function readSchemaBacked<T>(
-  schemaName: RuntimeRequestSchemaName,
-  value: unknown,
-  code: string,
-  message: string
-): T {
-  const errors = validateRuntimeRequestSchema(schemaName, value);
-
-  if (errors.length > 0) {
-    throw new HttpError(400, code, `${message}: ${errors.join("; ")}`);
-  }
-
-  return value as T;
-}
-
-function normalizeDecisionRequest(value: DecisionRequest): DecisionRequest {
-  return {
-    subjectId: value.subjectId,
-    action: value.action,
-    resourceId: value.resourceId,
-    context: value.context,
-    policyVersion: value.policyVersion,
-    modelVersion: value.modelVersion,
-    relationshipVersion: value.relationshipVersion,
-    tupleVersion: value.tupleVersion,
-    contextVersion: value.contextVersion,
-    asOf: value.asOf
-  };
-}
-
-function readDiscoveryMode(mode: unknown): "read_only" {
-  if (mode === "read_only") {
-    return "read_only";
-  }
-
-  if (mode === undefined) {
-    throw new HttpError(400, "MISSING_CONNECTOR_MODE", "connector sync mode is required and must be read_only");
-  }
-
-  throw new HttpError(400, "UNSUPPORTED_CONNECTOR_MODE", "Phase 2 connector sync supports read_only mode only");
-}
-
-function readProvisioningMode(mode: unknown, dryRun: unknown): ProvisioningMode {
-  if (mode === undefined) {
-    if (dryRun === true) {
-      return "dry_run";
-    }
-
-    throw new HttpError(
-      400,
-      "DRY_RUN_REQUIRED",
-      "Provisioning defaults to dry-run; enforcement must explicitly request mode: enforcement and dryRun: false"
-    );
-  }
-
-  if (mode === "dry_run") {
-    if (dryRun === true) {
-      return "dry_run";
-    }
-
-    throw new HttpError(400, "DRY_RUN_REQUIRED", "Dry-run provisioning requires dryRun: true");
-  }
-
-  if (mode === "enforcement") {
-    if (dryRun === false) {
-      return "enforcement";
-    }
-
-    throw new HttpError(400, "ENFORCEMENT_DRY_RUN_FALSE_REQUIRED", "Controlled enforcement requires dryRun: false");
-  }
-
-  throw new HttpError(400, "INVALID_PROVISIONING_MODE", "mode must be dry_run or enforcement");
-}
-
-function readProvisioningApproval(value: unknown): ProvisioningApproval | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (
-    !isRecord(value) ||
-    value.decision !== "approved" ||
-    typeof value.approverId !== "string" ||
-    typeof value.changeTicket !== "string" ||
-    typeof value.approvedAt !== "string" ||
-    (value.expiresAt !== undefined && typeof value.expiresAt !== "string") ||
-    (value.reason !== undefined && typeof value.reason !== "string")
-  ) {
-    throw new HttpError(
-      400,
-      "INVALID_PROVISIONING_APPROVAL",
-      "approval must include decision: approved, approverId, changeTicket, and approvedAt"
-    );
-  }
-
-  const approvedAt = readProvisioningApprovalDateTime(value.approvedAt, "approvedAt");
-  const expiresAt =
-    value.expiresAt === undefined ? undefined : readProvisioningApprovalDateTime(value.expiresAt, "expiresAt");
-
-  return {
-    decision: value.decision,
-    approverId: value.approverId,
-    changeTicket: value.changeTicket,
-    approvedAt,
-    expiresAt,
-    reason: value.reason
-  };
-}
-
-function readProvisioningApprovalDateTime(value: string, fieldName: string): string {
-  if (Number.isNaN(Date.parse(value))) {
-    throw new HttpError(
-      400,
-      "INVALID_PROVISIONING_APPROVAL",
-      `approval.${fieldName} must be a valid date-time`
-    );
-  }
-
-  return value;
-}
-
-function readEnforcementControl(value: unknown): EnforcementControl | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (
-    !isRecord(value) ||
-    typeof value.syntheticOnly !== "boolean" ||
-    typeof value.liveProviderWrites !== "boolean" ||
-    typeof value.incidentMode !== "boolean" ||
-    typeof value.breakGlass !== "boolean"
-  ) {
-    throw new HttpError(
-      400,
-      "INVALID_ENFORCEMENT_CONTROL",
-      "control must include syntheticOnly, liveProviderWrites, incidentMode, and breakGlass booleans"
-    );
-  }
-
-  return {
-    syntheticOnly: value.syntheticOnly,
-    liveProviderWrites: value.liveProviderWrites,
-    incidentMode: value.incidentMode,
-    breakGlass: value.breakGlass
-  };
-}
-
-function readRequiredEnforcementControl(value: unknown): EnforcementControl {
-  const control = readEnforcementControl(value);
-
-  if (!control) {
-    throw new HttpError(400, "INVALID_ENFORCEMENT_CONTROL", "control is required for enforcement readiness checks");
-  }
-
-  return control;
-}
-
-function readEnforcementReadinessRequest(value: unknown): {
-  mode: "enforcement";
-  control: EnforcementControl;
-  requiredApproverRole?: string;
-  changeTicketPattern?: string;
-} {
-  if (!isRecord(value)) {
-    throw new HttpError(400, "INVALID_ENFORCEMENT_READINESS_REQUEST", "enforcement readiness requests require an object body");
-  }
-
-  if (value.mode !== undefined && value.mode !== "enforcement") {
-    throw new HttpError(400, "INVALID_ENFORCEMENT_READINESS_MODE", "enforcement readiness mode must be enforcement");
-  }
-
-  if (value.requiredApproverRole !== undefined && (typeof value.requiredApproverRole !== "string" || !value.requiredApproverRole)) {
-    throw new HttpError(400, "INVALID_APPROVER_ROLE", "requiredApproverRole must be a non-empty string when provided");
-  }
-
-  if (value.changeTicketPattern !== undefined && (typeof value.changeTicketPattern !== "string" || !value.changeTicketPattern)) {
-    throw new HttpError(400, "INVALID_CHANGE_TICKET_PATTERN", "changeTicketPattern must be a non-empty string when provided");
-  }
-
-  if (typeof value.changeTicketPattern === "string") {
-    assertRegularExpression(value.changeTicketPattern);
-  }
-
-  return {
-    mode: "enforcement",
-    control: readRequiredEnforcementControl(value.control),
-    requiredApproverRole: value.requiredApproverRole,
-    changeTicketPattern: value.changeTicketPattern
-  };
-}
-
-function assertRegularExpression(pattern: string): void {
-  if (!isSafeChangeTicketPattern(pattern)) {
-    throw new HttpError(
-      400,
-      "INVALID_CHANGE_TICKET_PATTERN",
-      "changeTicketPattern must be a valid safe regular expression without groups, alternation, or backreferences"
-    );
-  }
-}
-
-function readReadinessReportId(value: unknown): string | undefined {
-  if (value === undefined) {
-    return undefined;
-  }
-
-  if (typeof value !== "string" || !value) {
-    throw new HttpError(400, "INVALID_READINESS_REPORT_ID", "readinessReportId must be a non-empty string when provided");
-  }
-
-  return value;
 }
 
 function readIdempotencyKey(request: IncomingMessage): string {
@@ -1244,46 +762,6 @@ function readNativePrincipalType(principalType: string | null): NativePrincipalT
   }
 
   throw new HttpError(400, "INVALID_NATIVE_PRINCIPAL_TYPE", "principalType is not supported");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function isProvisioningApproval(value: unknown): value is ProvisioningApproval {
-  return isRecord(value)
-    && value.decision === "approved"
-    && typeof value.approverId === "string"
-    && typeof value.changeTicket === "string"
-    && typeof value.approvedAt === "string";
-}
-
-function isDriftAutoRepairPolicy(value: unknown): value is DriftAutoRepairPolicy {
-  if (!isRecord(value)) {
-    return false;
-  }
-
-  const allowedActions = value.allowedActions;
-
-  return typeof value.enabled === "boolean"
-    && Array.isArray(allowedActions)
-    && allowedActions.every((action) => action === "revoke" || action === "repair" || action === "review")
-    && typeof value.maxSeverity === "string"
-    && driftSeverities.has(value.maxSeverity)
-    && typeof value.requireApproval === "boolean"
-    && typeof value.requireConnectorReadiness === "boolean"
-    && typeof value.liveProviderWrites === "boolean";
-}
-
-function isDriftHookEvidenceArray(value: unknown): value is DriftHookEvidence[] {
-  return Array.isArray(value)
-    && value.every((hook) =>
-      isRecord(hook)
-      && (hook.system === "ticket" || hook.system === "siem")
-      && typeof hook.referenceId === "string"
-      && (hook.status === "pending" || hook.status === "linked" || hook.status === "notified" || hook.status === "failed")
-      && typeof hook.recordedAt === "string"
-    );
 }
 
 function readEvidenceControls(value: string | null): string[] {
