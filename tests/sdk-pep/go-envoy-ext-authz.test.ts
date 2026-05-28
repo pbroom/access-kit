@@ -105,8 +105,67 @@ describe("Go Envoy ext-authz PEP example", () => {
     expect(config).not.toContain("x-access-kit-subject");
     expect(config).not.toContain("x-access-kit-resource");
   });
+
+  it("strips caller-supplied trusted-subject headers before ext_authz", async () => {
+    const config = await readExample("envoy.yaml");
+    const parsed = YAML.parse(config) as EnvoyBootstrap;
+    const filters =
+      parsed.static_resources.listeners[0]?.filter_chains[0]?.filters[0]?.typed_config.http_filters ?? [];
+    const filterNames = filters.map((filter) => filter.name);
+    const sanitizerIndex = filterNames.indexOf("envoy.filters.http.lua");
+    const extAuthzIndex = filterNames.indexOf("envoy.filters.http.ext_authz");
+    const sanitizer = filters[sanitizerIndex]?.typed_config;
+    const extAuthz = filters[extAuthzIndex]?.typed_config;
+    const allowedRequestHeaders =
+      extAuthz?.http_service?.authorization_request.allowed_headers.patterns.map((pattern) => pattern.exact) ?? [];
+    const staticRequestHeaders =
+      extAuthz?.http_service?.authorization_request.headers_to_add?.map((header) => header.header.key) ?? [];
+
+    expect(sanitizerIndex).toBeGreaterThanOrEqual(0);
+    expect(extAuthzIndex).toBeGreaterThan(sanitizerIndex);
+    expect(sanitizer?.inline_code).toContain('headers():remove("x-access-kit-trusted-subject")');
+    expect(sanitizer?.inline_code).not.toMatch(/headers\(\):(add|replace)\("x-access-kit-trusted-subject"/);
+    expect(allowedRequestHeaders).toContain("x-access-kit-trusted-subject");
+    expect(staticRequestHeaders).not.toContain("x-access-kit-trusted-subject");
+    expect(config).toContain("gateway identity can reissue the trusted subject");
+  });
 });
 
 async function readExample(path: string): Promise<string> {
   return readFile(join(exampleRoot, path), "utf8");
 }
+
+type EnvoyBootstrap = {
+  static_resources: {
+    listeners: Array<{
+      filter_chains: Array<{
+        filters: Array<{
+          typed_config: {
+            http_filters: EnvoyHttpFilter[];
+          };
+        }>;
+      }>;
+    }>;
+  };
+};
+
+type EnvoyHttpFilter = {
+  name: string;
+  typed_config: {
+    inline_code?: string;
+    http_service?: {
+      authorization_request: {
+        allowed_headers: {
+          patterns: Array<{
+            exact: string;
+          }>;
+        };
+        headers_to_add?: Array<{
+          header: {
+            key: string;
+          };
+        }>;
+      };
+    };
+  };
+};

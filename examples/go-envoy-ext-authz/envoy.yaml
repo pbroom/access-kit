@@ -22,6 +22,15 @@ static_resources:
                           route:
                             cluster: protected_app
                 http_filters:
+                  - name: envoy.filters.http.lua
+                    typed_config:
+                      "@type": type.googleapis.com/envoy.extensions.filters.http.lua.v3.Lua
+                      inline_code: |
+                        function envoy_on_request(request_handle)
+                          request_handle:headers():remove("x-access-kit-trusted-subject")
+                        end
+                  # Insert the authenticated identity filter here so only verified
+                  # JWT, mTLS, or gateway identity can reissue the trusted subject.
                   - name: envoy.filters.http.ext_authz
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz

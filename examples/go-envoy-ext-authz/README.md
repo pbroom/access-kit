@@ -30,7 +30,7 @@ ACCESS_KIT_API_KEY=local-dev-key ACCESS_KIT_BASE_URL=http://127.0.0.1:3000 \
 
 Envoy can load `envoy.yaml` as a starter gateway. The ext-authz filter sets `failure_mode_allow: false`, so protected routes deny when Access Kit is unavailable, rejects authentication, or returns a deny decision.
 
-Run an authenticated gateway, JWT filter, or mTLS identity filter before ext-authz and have that trusted component set `x-access-kit-trusted-subject`. Strip any downstream copy before reissuing the header. Do not let callers choose `subject`, `action`, or `resource` through headers such as `x-subject-id`, `x-access-kit-subject`, `x-access-kit-action`, or `x-access-kit-resource`.
+Run an authenticated gateway, JWT filter, or mTLS identity filter before ext-authz and have that trusted component set `x-access-kit-trusted-subject`. The starter Envoy config strips any downstream copy before ext-authz; add your trusted identity filter between that sanitizer and ext-authz so only verified identity can reissue the header. Do not let callers choose `subject`, `action`, or `resource` through headers such as `x-subject-id`, `x-access-kit-subject`, `x-access-kit-action`, or `x-access-kit-resource`.
 
 The default request mapper requires `x-access-kit-trusted-subject`, derives action from the HTTP method, and derives the resource from the route path. The denial response still contains only:
 
