@@ -1,5 +1,7 @@
-import type { AccessReviewEvidence, ExceptionRecord } from "./governance.js";
+import type { AccessReviewEvidence, ExceptionRecord } from "./evidence-governance.js";
 import type { CanonicalId, IsoDateTime, JsonRecord } from "./shared.js";
+
+export type { AccessReviewEvidence, ExceptionRecord } from "./evidence-governance.js";
 
 export type EvidenceFramework = "nist-800-53" | "fedramp-rev5" | "custom";
 export type EvidenceExportFormat = "json" | "zip" | "markdown";
