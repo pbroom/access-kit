@@ -22,7 +22,7 @@ Run the focused conformance suite:
 pnpm validate:pep-conformance
 ```
 
-The suite exercises the TypeScript Express starter in `tests/sdk-pep/pep-conformance.test.ts` and the Python FastAPI starter in `tests/sdk-pep/python-fastapi-pep.test.ts`. Future SDKs and middleware examples should add their own adapter tests against the same behavior contract before they are marked reviewable in the backlog.
+The suite exercises the TypeScript Express starter in `tests/sdk-pep/pep-conformance.test.ts`, the Python FastAPI starter in `tests/sdk-pep/python-fastapi-pep.test.ts`, and the Go Envoy ext-authz example contract in `tests/sdk-pep/go-envoy-ext-authz.test.ts`. Future SDKs and middleware examples should add their own adapter tests against the same behavior contract before they are marked reviewable in the backlog.
 
 Because the Python FastAPI starter is part of this gate, `pnpm validate:pep-conformance` requires Python 3 to be available as `python3`.
 
@@ -42,3 +42,9 @@ Application PEPs should keep Access Kit decisions and user-facing responses sepa
 The Python starter lives in `examples/python-fastapi-pep/`. It provides a stdlib `AccessKitClient`, a FastAPI-compatible dependency factory, an exception handler for safe denial responses, and a policy-test CI script. The dependency calls `check` for protected routes, propagates or generates correlation IDs, emits decision events for application logging, and raises a denial instead of authorizing locally when Access Kit denies, rejects authentication, or is unavailable.
 
 Use `client.explain()` only for operator-controlled diagnostics. The FastAPI dependency does not call explain and does not include relationship paths, private subject identifiers, group names, folder names, or decision IDs in end-user denial bodies.
+
+## Go Envoy Ext-Authz
+
+The Go gateway example lives in `examples/go-envoy-ext-authz/`. It provides a dependency-free Go client, an HTTP `ext_authz` service, an Envoy starter configuration with `failure_mode_allow: false`, Go tests for the shared PEP behavior, and a policy-test CI command for a local Access Kit API.
+
+The protected ext-authz handler only calls `check`. Operator-controlled diagnostics use `ExplainDiagnostics`, which retains policy version, relationship version, decision ID, safe reason code, and relationship-path length without returning relationship-path entries.
