@@ -16,14 +16,15 @@ Access Kit is not an identity provider, authentication system, SIEM, ticketing s
 
 ## First Reading Path
 
-1. Read [Concept of Operations](concept-of-operations.md) for the operating model.
-2. Read [System Context and Boundary](system-context-and-boundary.md) to understand what is inside and outside the control plane.
-3. Read [Domain Model](domain-model.md) for source-of-truth objects.
-4. Read [Decision Lifecycle](decision-lifecycle.md) and [Explain API](explain-api.md) for authorization behavior.
-5. Read [Decision Cache Semantics](decision-cache-semantics.md) before allowing PEPs to reuse decisions.
-6. Read [Provisioning Lifecycle](provisioning-lifecycle.md), [Connector Contract](connector-contract.md), [Connector Authoring Tutorial](connector-authoring-tutorial.md), and [Drift Detection Model](drift-detection-model.md) for operational change control.
-7. Read [Audit Event Model](audit-event-model.md), [Evidence Catalog](evidence-catalog.md), [Control Traceability Matrix](control-traceability-matrix.md), and [Assessor Inspection Guide](assessor-inspection-guide.md) for inspection and evidence.
-8. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [Emergency Revocation Runbook](../runbooks/emergency-revocation.md), along with the other runbooks in `runbooks/`, before operating enforcement paths.
+1. Run [Five-Minute Quickstart](five-minute-quickstart.md) for the shortest local API path.
+2. Read [Concept of Operations](concept-of-operations.md) for the operating model.
+3. Read [System Context and Boundary](system-context-and-boundary.md) to understand what is inside and outside the control plane.
+4. Read [Domain Model](domain-model.md) for source-of-truth objects.
+5. Read [Decision Lifecycle](decision-lifecycle.md) and [Explain API](explain-api.md) for authorization behavior.
+6. Read [Decision Cache Semantics](decision-cache-semantics.md) before allowing PEPs to reuse decisions.
+7. Read [Provisioning Lifecycle](provisioning-lifecycle.md), [Connector Contract](connector-contract.md), [Connector Authoring Tutorial](connector-authoring-tutorial.md), and [Drift Detection Model](drift-detection-model.md) for operational change control.
+8. Read [Audit Event Model](audit-event-model.md), [Evidence Catalog](evidence-catalog.md), [Control Traceability Matrix](control-traceability-matrix.md), and [Assessor Inspection Guide](assessor-inspection-guide.md) for inspection and evidence.
+9. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [Emergency Revocation Runbook](../runbooks/emergency-revocation.md), along with the other runbooks in `runbooks/`, before operating enforcement paths.
 
 ## Build And Validate
 
@@ -42,6 +43,7 @@ pnpm ci:check
 
 | Source | Canonical path | Use |
 | --- | --- | --- |
+| Five-minute quickstart | `docker-compose.quickstart.yml`, `scripts/quickstart-demo.ts`, [Five-Minute Quickstart](five-minute-quickstart.md) | Shortest local API flow using synthetic demo seed data and check/explain decisions. |
 | Public API | `openapi/rebac-control-plane.yaml` | API routes, operation IDs, request and response schemas. |
 | API reference | `docs/api-reference.md` | Generated reference for auth, idempotency, parameters, responses, and example artifacts. |
 | Domain contracts | `schemas/*.schema.json` | Portable JSON object contracts. |

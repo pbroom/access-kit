@@ -1,0 +1,18 @@
+services:
+  rebac-api:
+    build:
+      context: .
+      target: runtime
+    image: access-kit-rebac-api:quickstart
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      REBAC_API_KEYS: local-demo-token
+      REBAC_API_ACTOR: service:quickstart-api
+      REBAC_STATE_PATH: /var/lib/access-kit/state/quickstart-state.json
+      REBAC_EVIDENCE_ROOT: /var/lib/access-kit/evidence
+    volumes:
+      - access-kit-quickstart-data:/var/lib/access-kit
+
+volumes:
+  access-kit-quickstart-data:
