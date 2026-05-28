@@ -62,7 +62,7 @@ flowchart LR
 - Controlled enforcement is limited to the synthetic mock connector and requires a ready connector report, approval, a change ticket, synthetic-only controls, incident-mode clearance, verification, and audit evidence.
 - Audit exports provide SIEM-ready JSONL records for a bounded audit event window and emit their own audit evidence; the production audit adapter can retain signed windows plus SIEM delivery and replay receipts for those exports.
 - ATO evidence exports include source events, audit integrity status, control mappings, control statements, system boundary, data flows, access reviews, exception register, operational evidence, ConMon metrics, POA&M inputs and export, OSCAL component-definition, SSP, assessment-results and POA&M fragments, signed package metadata, verifier checks, control-to-event trace views, artifact metadata, SIEM export metadata, and optional storage receipts when a repository is configured.
-- Proof-point fixtures prove required policy behaviors before any live connector exists.
+- Proof-point fixtures prove required policy behaviors before any live provider write path is enabled.
 
 ## Required Invariants
 
