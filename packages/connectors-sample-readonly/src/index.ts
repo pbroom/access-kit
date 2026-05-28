@@ -367,6 +367,7 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
 
     return createReadOnlyConnectorEvidenceExport({
       events,
+      sourceEventIds,
       generatedAt,
       draft: {
         exportId: `evidence:${this.id}`,

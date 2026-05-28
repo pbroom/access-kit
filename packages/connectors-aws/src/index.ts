@@ -1737,6 +1737,7 @@ function createEvidence(
 
   return createReadOnlyConnectorEvidenceExport({
     events,
+    sourceEventIds,
     generatedAt: now,
     draft: {
       exportId: `evidence:${connectorId}`,

@@ -40,6 +40,7 @@ export type ReadOnlyConnectorEvidenceDraft = Omit<
 
 export interface ReadOnlyConnectorEvidenceOptions {
   readonly events: readonly AuditEvent[];
+  readonly sourceEventIds?: readonly CanonicalId[];
   readonly generatedAt: IsoDateTime;
   readonly draft: ReadOnlyConnectorEvidenceDraft;
 }
@@ -53,7 +54,7 @@ export function createReadOnlyDryRunPlan(options: ReadOnlyDryRunPlanOptions): Pr
   const compensationOperation = options.request.decision === "allow" ? "revoke" : "grant";
   const targetObjectId = options.targetObjectId ?? options.request.resourceId;
   const requestedState = { subjectId: options.request.subjectId, permission: options.request.action };
-  const expectedState = { subjectId: options.request.subjectId, permission: options.request.action };
+  const expectedState = requestedState;
 
   return {
     id: `plan:${options.connectorId}:${options.request.decisionId}`,
@@ -96,29 +97,25 @@ export function createReadOnlyNoWriteApplyFailure(
   plan: ProvisioningPlan,
   options: ReadOnlyNoWriteApplyFailureOptions = {}
 ): ProvisioningPlan {
-  const updateVerification = options.checkedAt !== undefined || options.verificationMessage !== undefined;
-
   return {
     ...plan,
     status: "failed",
     actions: plan.actions.map((action) => ({
       ...action,
       status: "failed",
-      verification: updateVerification
-        ? {
-            ...action.verification,
-            status: "failed",
-            checkedAt: options.checkedAt ?? action.verification.checkedAt,
-            message: options.verificationMessage ?? action.verification.message
-          }
-        : action.verification
+      verification: {
+        ...action.verification,
+        status: "failed",
+        ...(options.checkedAt !== undefined ? { checkedAt: options.checkedAt } : {}),
+        ...(options.verificationMessage !== undefined ? { message: options.verificationMessage } : {})
+      }
     }))
   };
 }
 
 export function createReadOnlyRevocationPlan(options: ReadOnlyRevocationPlanOptions): ProvisioningPlan {
   const requestedState = { nativeGrantId: options.nativeGrantId, status: "revoked" };
-  const expectedState = { nativeGrantId: options.nativeGrantId, status: "revoked" };
+  const expectedState = requestedState;
 
   return {
     id: `plan:revoke:${options.connectorId}:${options.nativeGrantId}`,
@@ -175,7 +172,7 @@ export function deriveReadOnlyConnectorEvidencePeriod(
 export function createReadOnlyConnectorEvidenceExport(options: ReadOnlyConnectorEvidenceOptions): EvidenceExport {
   const { siemExport, ...draft } = options.draft;
   const evidencePeriod = deriveReadOnlyConnectorEvidencePeriod(options.events, options.generatedAt);
-  const sourceEventIds = readOnlyConnectorSourceEventIds(options.events);
+  const sourceEventIds = [...(options.sourceEventIds ?? readOnlyConnectorSourceEventIds(options.events))];
 
   return finalizeEvidenceExport({
     ...draft,

@@ -2429,6 +2429,7 @@ function createEvidence(connectorId: string, events: AuditEvent[], now: string):
 
   return createReadOnlyConnectorEvidenceExport({
     events,
+    sourceEventIds,
     generatedAt: now,
     draft: {
       exportId: `evidence:${connectorId}`,
