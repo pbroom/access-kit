@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T04:56:35.914Z
+Generated at: 2026-05-28T05:00:53.974Z
 
-Branch: codex/rebac-pep-conformance-suite
+Branch: codex/rebac-sample-saas-app
 
 Node: v24.4.1
 
@@ -39,14 +39,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-sample-saas-app
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-schemas.ts
 
 Validated 21 schemas and 21 example fixtures.
@@ -76,10 +76,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-pep-conformance-suite/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-sample-saas-app/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -91,7 +91,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### API collection validation
 
 ```text
-> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/generate-api-collections.ts --check
 
 API collection artifacts are current.
@@ -100,7 +100,7 @@ API collection artifacts are current.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -123,7 +123,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-sample-saas-app
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -136,23 +136,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-sample-saas-app
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-pep-conformance-suite
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
 
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  00:56:29
-   Duration  279ms (transform 134ms, setup 0ms, import 208ms, tests 20ms, environment 0ms)
+   Start at  01:00:47
+   Duration  280ms (transform 135ms, setup 0ms, import 209ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -163,7 +163,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -176,7 +176,7 @@ PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclos
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -187,7 +187,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -198,7 +198,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -209,7 +209,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -220,7 +220,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-sample-saas-app
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -230,77 +230,77 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-sample-saas-app
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-pep-conformance-suite
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
 
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  00:56:32
-   Duration  243ms (transform 1.02s, setup 0ms, import 1.47s, tests 124ms, environment 0ms)
+   Start at  01:00:50
+   Duration  240ms (transform 1.04s, setup 0ms, import 1.47s, tests 125ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-sample-saas-app
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-pep-conformance-suite
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
 
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  00:56:33
-   Duration  546ms (transform 949ms, setup 0ms, import 1.53s, tests 453ms, environment 0ms)
+   Start at  01:00:51
+   Duration  523ms (transform 925ms, setup 0ms, import 1.50s, tests 441ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
 
 ```text
-> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-sample-saas-app
 > vitest run tests/sdk-pep
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-pep-conformance-suite
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
 
 
  Test Files  2 passed (2)
       Tests  15 passed (15)
-   Start at  00:56:34
-   Duration  277ms (transform 145ms, setup 0ms, import 216ms, tests 29ms, environment 0ms)
+   Start at  01:00:52
+   Duration  286ms (transform 151ms, setup 0ms, import 226ms, tests 29ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-pep-conformance-suite
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
 
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  00:56:34
-   Duration  233ms (transform 348ms, setup 0ms, import 456ms, tests 48ms, environment 0ms)
+   Start at  01:00:52
+   Duration  228ms (transform 332ms, setup 0ms, import 444ms, tests 48ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-pep-conformance-suite
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-sample-saas-app
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-pep-conformance-suite
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-sample-saas-app
 
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  00:56:35
-   Duration  325ms (transform 370ms, setup 0ms, import 632ms, tests 115ms, environment 0ms)
+   Start at  01:00:53
+   Duration  325ms (transform 384ms, setup 0ms, import 632ms, tests 115ms, environment 0ms)
 ```
 
 
