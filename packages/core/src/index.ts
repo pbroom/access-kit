@@ -12,6 +12,7 @@ export * from "./governance.js";
 export * from "./live-enforcement-pilot.js";
 export * from "./persistence.js";
 export * from "./policy-model.js";
+export * from "./policy-playground.js";
 export * from "./policy-proof-points.js";
 export * from "./production-audit.js";
 export * from "./production-job-queue.js";
