@@ -628,6 +628,23 @@ describe("production job queue adapter", () => {
       "Production job queue store hash does not match the stored queue payload."
     );
   });
+
+  it("validates queue job-history snapshots through the shared production snapshot store", () => {
+    const store = new InMemoryExternalSnapshotStore<ProductionJobQueueStoreRecord>();
+    const queue = createProductionJobQueueRepository(store);
+
+    queue.recordDiscoveryRun(createDiscoveryRun());
+    const stored = store.readCurrent();
+    if (!stored) {
+      throw new Error("Expected queue store to contain a snapshot.");
+    }
+    (stored.jobs as { discoveryRuns: unknown }).discoveryRuns = {};
+    store.writeCurrent(stored);
+
+    expect(() => createProductionJobQueueRepository(store)).toThrow(
+      "Production job queue job payload field discoveryRuns must be an array."
+    );
+  });
 });
 
 function createProductionGraphRepository(
