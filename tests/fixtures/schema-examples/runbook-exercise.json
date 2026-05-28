@@ -1,0 +1,172 @@
+{
+  "exerciseId": "runbook-exercise:2026-05-26-staging-synthetic",
+  "version": "runbook-exercise-evidence:v1",
+  "generatedAt": "2026-05-26T14:00:00.000Z",
+  "ownerRole": "role:incident-commander",
+  "deploymentScope": {
+    "environment": "staging",
+    "deploymentId": "deployment:access-kit-staging-20260526",
+    "tenantBoundary": "tenant:synthetic-agency",
+    "liveTenantData": false,
+    "dataSource": "synthetic",
+    "scopeStatement": "Staging rehearsal using synthetic subjects, resources, queues, audit windows, and SIEM delivery receipts."
+  },
+  "classification": {
+    "evidenceKind": "rehearsed_proof",
+    "assessorApproved": false,
+    "productionOperation": false,
+    "approvalStatement": "This record proves the exercise workflow and retained evidence shape only; it is not assessor-approved production operating evidence."
+  },
+  "exerciseWindow": {
+    "startedAt": "2026-05-26T13:00:00.000Z",
+    "endedAt": "2026-05-26T14:00:00.000Z",
+    "durationMinutes": 60
+  },
+  "redaction": {
+    "status": "redacted",
+    "syntheticData": true,
+    "sensitiveDataIncluded": false,
+    "rules": [
+      "Use synthetic tenant, subject, resource, queue, and SIEM identifiers.",
+      "Record role labels instead of named people.",
+      "Reference evidence files instead of embedding provider payloads.",
+      "Keep command output summaries bounded to status, counts, and hashes."
+    ]
+  },
+  "controls": ["AC-2", "AC-3", "AU-6", "CP-2", "CP-4", "IR-3", "IR-4", "SI-4"],
+  "runbookRefs": [
+    "runbooks/degraded-mode-operations.md",
+    "runbooks/break-glass-review.md",
+    "runbooks/emergency-revocation.md",
+    "runbooks/audit-evidence-export.md",
+    "runbooks/decision-api-outage.md"
+  ],
+  "scenarios": [
+    {
+      "type": "incident_response",
+      "title": "Classify degraded audit forwarding and open incident evidence",
+      "status": "pass",
+      "runbookRef": "runbooks/degraded-mode-operations.md",
+      "sourceEventIds": ["evt:exercise-ir-opened"],
+      "commands": ["rebac audit integrity --from 2026-05-26T13:00:00.000Z"],
+      "evidenceRefs": ["docs/ha-degraded-mode-operations.md", "runbooks/degraded-mode-operations.md"],
+      "observations": [
+        "Incident commander classified the rehearsal as high severity because SIEM delivery was unavailable.",
+        "Authorization remained fail closed while the audit-forwarder replay step was pending."
+      ],
+      "reviewRequired": true,
+      "gaps": []
+    },
+    {
+      "type": "break_glass",
+      "title": "Review synthetic emergency access and expiry evidence",
+      "status": "pass",
+      "runbookRef": "runbooks/break-glass-review.md",
+      "sourceEventIds": ["evt:exercise-break-glass-approved", "evt:exercise-break-glass-expired"],
+      "commands": ["rebac audit search --subject user:break-glass-synthetic --from 2026-05-26T13:00:00.000Z"],
+      "evidenceRefs": ["runbooks/break-glass-review.md", "docs/security-model.md"],
+      "observations": [
+        "Temporary role binding used a synthetic actor and expired inside the exercise window.",
+        "Post-action review captured residual-risk disposition without storing identity payloads."
+      ],
+      "reviewRequired": true,
+      "gaps": []
+    },
+    {
+      "type": "backup_restore",
+      "title": "Restore graph, audit, and job evidence from synthetic backup receipts",
+      "status": "pass",
+      "runbookRef": "runbooks/degraded-mode-operations.md",
+      "sourceEventIds": ["evt:exercise-backup-created", "evt:exercise-backup-restored"],
+      "commands": ["rebac evidence export --framework nist-800-53 --controls CP-4,AU-6 --format json"],
+      "evidenceRefs": ["deploy/persistence/evidence/backup-restore.example.json", "docs/deployment-runbook.md"],
+      "observations": [
+        "Graph, audit, and job restore receipts stayed inside documented RTO and RPO targets.",
+        "Restore proof used the synthetic production persistence evidence contract rather than live stores."
+      ],
+      "reviewRequired": true,
+      "gaps": []
+    },
+    {
+      "type": "contingency",
+      "title": "Exercise read-only fallback and protected-action freeze",
+      "status": "pass",
+      "runbookRef": "runbooks/degraded-mode-operations.md",
+      "sourceEventIds": ["evt:exercise-contingency-freeze"],
+      "commands": ["curl --fail --silent --show-error http://127.0.0.1:3000/v1/ready"],
+      "evidenceRefs": ["docs/ha-degraded-mode-operations.md", "docs/deployment-runbook.md"],
+      "observations": [
+        "Normal grant creation stayed paused while read-only fallback was active.",
+        "Operator recovery criteria required readiness, queue, audit, and connector evidence before thawing."
+      ],
+      "reviewRequired": true,
+      "gaps": []
+    },
+    {
+      "type": "emergency_revocation",
+      "title": "Reserve emergency revocation ahead of lower-priority queue work",
+      "status": "pass",
+      "runbookRef": "runbooks/emergency-revocation.md",
+      "sourceEventIds": ["evt:exercise-revocation-reserved", "evt:exercise-revocation-completed"],
+      "commands": ["rebac provision revoke grant:synthetic-emergency --connector mock"],
+      "evidenceRefs": ["runbooks/emergency-revocation.md", "docs/security-model.md"],
+      "observations": [
+        "Emergency revocation remained reservable while normal discovery work was degraded.",
+        "Synthetic provider readback confirmed residual access was removed before recovery sign-off."
+      ],
+      "reviewRequired": true,
+      "gaps": []
+    },
+    {
+      "type": "siem_replay",
+      "title": "Replay retained audit window after synthetic SIEM delivery failure",
+      "status": "pass",
+      "runbookRef": "runbooks/audit-evidence-export.md",
+      "sourceEventIds": ["evt:exercise-siem-delivery-failed", "evt:exercise-siem-replayed"],
+      "commands": ["rebac audit export --from 2026-05-26T13:00:00.000Z --to 2026-05-26T14:00:00.000Z --format jsonl"],
+      "evidenceRefs": ["runbooks/audit-evidence-export.md", "docs/audit-event-model.md"],
+      "observations": [
+        "Replay evidence linked the failed delivery, signed audit window, and replay receipt.",
+        "The rehearsal retained counts and payload hashes without embedding SIEM payload bodies."
+      ],
+      "reviewRequired": true,
+      "gaps": []
+    },
+    {
+      "type": "post_action_review",
+      "title": "Close review with owner, residual gaps, and retained validation proof",
+      "status": "pass",
+      "runbookRef": "runbooks/degraded-mode-operations.md",
+      "sourceEventIds": ["evt:exercise-post-action-review"],
+      "commands": ["rebac evidence export --framework nist-800-53 --controls AC-2,AU-6,CP-4,IR-4 --format json"],
+      "evidenceRefs": ["reports/proof-point-validation.md", "docs/evidence-catalog.md"],
+      "observations": [
+        "Review distinguished rehearsed proof from assessor-approved production operations.",
+        "No residual POA&M item was opened for the synthetic exercise."
+      ],
+      "reviewRequired": true,
+      "gaps": []
+    }
+  ],
+  "retention": {
+    "backend": "local_file",
+    "location": "deploy/operations/runbook-exercises/rehearsal.example.json",
+    "retentionDays": 365,
+    "immutable": false,
+    "packageHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "retainedUntil": "2027-05-26T14:00:00.000Z"
+  },
+  "validation": {
+    "status": "pass",
+    "validatedBy": "role:automation",
+    "validatedAt": "2026-05-26T14:05:00.000Z",
+    "commands": [
+      "corepack pnpm validate:schemas",
+      "corepack pnpm validate:runbook-exercises",
+      "corepack pnpm validate:docs"
+    ]
+  },
+  "gaps": [
+    "Replace this rehearsed proof with deployment-specific assessor-reviewed operations evidence before claiming production exercise completion."
+  ]
+}

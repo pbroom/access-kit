@@ -49,6 +49,7 @@ describe("automation contract manifest", () => {
       "release packaging validation",
       "deployment manifest validation",
       "persistence deployment evidence validation",
+      "runbook exercise evidence validation",
       "core engine tests",
       "API runtime tests",
       "connector package tests",
