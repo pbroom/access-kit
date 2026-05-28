@@ -1,6 +1,7 @@
 export * from "./admin-authorization.js";
 export * from "./audit.js";
 export * from "./decision-runtime.js";
+export * from "./demo-seed.js";
 export * from "./domain.js";
 export * from "./drift-finding-filter.js";
 export * from "./drift-lifecycle.js";

@@ -1,0 +1,166 @@
+{
+  "id": "demo-seed:local-rebac-v1",
+  "version": "demo-seed:v1",
+  "generatedAt": "2026-05-21T17:00:00.000Z",
+  "sourceSystem": "access-kit-demo-seed",
+  "tenantBoundary": "tenant:local-demo",
+  "localProofPoint": true,
+  "synthetic": true,
+  "liveTenantData": false,
+  "counts": {
+    "subjects": 8,
+    "resources": 5,
+    "relationships": 10,
+    "decisionRequests": 6,
+    "evidenceLabels": 4
+  },
+  "seed": {
+    "subjects": [
+      "user:alice",
+      "user:bob",
+      "user:case-owner",
+      "user:data-steward",
+      "user:tech-owner",
+      "user:external-reviewer",
+      "group:case-team",
+      "group:security-reviewers"
+    ],
+    "resources": [
+      "organization:local-demo",
+      "workspace:case",
+      "folder:case-files",
+      "document:case-plan",
+      "document:restricted-notes"
+    ],
+    "relationships": [
+      "relationship:alice-case-team",
+      "relationship:bob-case-team",
+      "relationship:data-steward-security-reviewers",
+      "relationship:case-team-workspace",
+      "relationship:case-owner-workspace",
+      "relationship:security-reviewers-restricted-notes",
+      "relationship:workspace-case-files",
+      "relationship:case-files-case-plan",
+      "relationship:case-files-restricted-notes",
+      "relationship:alice-restricted-notes-denied-read"
+    ]
+  },
+  "policy": {
+    "name": "local demo ReBAC policy",
+    "modelId": "policy-model:demo-local-rebac-v1",
+    "version": "policy:demo-local-v1",
+    "testNames": [
+      "quickstart-allow-case-plan",
+      "quickstart-deny-default",
+      "evaluation-write-case-plan",
+      "evaluation-explicit-deny-restricted-notes",
+      "evaluation-suspended-subject",
+      "evaluation-owner-admin-case-plan"
+    ]
+  },
+  "decisionRequests": [
+    {
+      "name": "quickstart-allow-case-plan",
+      "audience": "quickstart",
+      "subjectId": "user:alice",
+      "action": "read",
+      "resourceId": "document:case-plan",
+      "expectedDecision": "allow",
+      "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+      "evidenceLabels": ["quickstart-local-proof-point"]
+    },
+    {
+      "name": "quickstart-deny-default",
+      "audience": "quickstart",
+      "subjectId": "user:external-reviewer",
+      "action": "read",
+      "resourceId": "document:case-plan",
+      "expectedDecision": "deny",
+      "expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
+      "evidenceLabels": ["quickstart-local-proof-point"]
+    },
+    {
+      "name": "evaluation-write-case-plan",
+      "audience": "evaluation",
+      "subjectId": "user:alice",
+      "action": "write",
+      "resourceId": "document:case-plan",
+      "expectedDecision": "allow",
+      "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+      "evidenceLabels": ["evaluation-policy-proof-points"]
+    },
+    {
+      "name": "evaluation-explicit-deny-restricted-notes",
+      "audience": "evaluation",
+      "subjectId": "user:alice",
+      "action": "read",
+      "resourceId": "document:restricted-notes",
+      "expectedDecision": "deny",
+      "expectedReasonCode": "DENY_EXPLICIT_OVERRIDE",
+      "evidenceLabels": ["evaluation-policy-proof-points", "evaluation-ato-evidence"]
+    },
+    {
+      "name": "evaluation-suspended-subject",
+      "audience": "evaluation",
+      "subjectId": "user:bob",
+      "action": "read",
+      "resourceId": "document:case-plan",
+      "expectedDecision": "deny",
+      "expectedReasonCode": "DENY_SUBJECT_NOT_ACTIVE",
+      "evidenceLabels": ["evaluation-policy-proof-points"]
+    },
+    {
+      "name": "evaluation-owner-admin-case-plan",
+      "audience": "evaluation",
+      "subjectId": "user:case-owner",
+      "action": "admin",
+      "resourceId": "document:case-plan",
+      "expectedDecision": "allow",
+      "expectedReasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+      "evidenceLabels": ["evaluation-ato-evidence"]
+    }
+  ],
+  "evidenceLabels": [
+    {
+      "name": "quickstart-local-proof-point",
+      "audience": "quickstart",
+      "controls": ["AC-3", "AU-2"],
+      "evidenceTypes": ["decision_logs", "relationship_tuples"]
+    },
+    {
+      "name": "evaluation-policy-proof-points",
+      "audience": "evaluation",
+      "controls": ["AC-3", "CM-3"],
+      "evidenceTypes": ["decision_logs", "policy_tests", "relationship_tuples"]
+    },
+    {
+      "name": "evaluation-ato-evidence",
+      "audience": "evaluation",
+      "controls": ["AC-2", "AC-3", "AC-6", "AU-2", "AU-6"],
+      "evidenceTypes": ["audit_events", "access_review", "control_mapping", "evidence_integrity"]
+    },
+    {
+      "name": "evaluation-drift-and-reconciliation",
+      "audience": "evaluation",
+      "controls": ["AC-6", "CA-7"],
+      "evidenceTypes": ["native_access_readback", "drift_findings", "reconciliation_runs"]
+    }
+  ],
+  "quickstart": {
+    "decisionRequestNames": ["quickstart-allow-case-plan", "quickstart-deny-default"],
+    "evidenceLabelNames": ["quickstart-local-proof-point"]
+  },
+  "evaluation": {
+    "decisionRequestNames": [
+      "evaluation-write-case-plan",
+      "evaluation-explicit-deny-restricted-notes",
+      "evaluation-suspended-subject",
+      "evaluation-owner-admin-case-plan"
+    ],
+    "evidenceLabelNames": [
+      "evaluation-policy-proof-points",
+      "evaluation-ato-evidence",
+      "evaluation-drift-and-reconciliation"
+    ]
+  }
+}
