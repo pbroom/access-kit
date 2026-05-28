@@ -8,7 +8,7 @@ The work adds distinct documentation where coverage was missing, avoids duplicat
 
 ## Goal Completion Status
 
-The documentation goal is complete for the repository foundation after this follow-up hardening: documentation links, runbook structure, API examples, CLI walkthrough coverage, schemas, OpenAPI, policy proof points, tests, build, and evidence freshness are all validated by repeatable repo commands. Production ATO authorization, live provider connectors, durable WORM storage, approved SIEM forwarding, OSCAL generation, and deployment-specific runbook exercise records remain explicitly out of scope for this documentation goal and are tracked as production/runtime gaps.
+The documentation goal is complete for the repository foundation after this follow-up hardening: documentation links, runbook structure, API examples, CLI walkthrough coverage, schemas, OpenAPI, policy proof points, tests, build, and evidence freshness are all validated by repeatable repo commands. Production ATO authorization, live provider writes, approved SIEM forwarding, deployment-specific WORM storage, production OSCAL packages, and deployed runbook exercise records remain explicitly out of scope for this documentation goal and are tracked as production/runtime gaps. Staged read-only provider discovery, PEP conformance, and synthetic sample applications are represented as local proof points.
 
 ## Documentation Coverage
 
@@ -24,6 +24,8 @@ The documentation goal is complete for the repository foundation after this foll
 | Domain model | `docs/domain-model.md` |
 | API overview, Decision API, API errors, reason codes | `docs/api.md`, `docs/decision-lifecycle.md`, `docs/explain-api.md` |
 | CLI overview and commands | `docs/cli.md`, `packages/cli/src/commands.ts`, `examples/cli/profiles.example.json` |
+| PEP conformance and application starters | `docs/pep-conformance.md`, `examples/typescript-express-pep/`, `examples/python-fastapi-pep/`, `examples/go-envoy-ext-authz/`, `tests/sdk-pep/*.test.ts` |
+| Sample applications | `docs/sample-saas-app.md`, `docs/sample-internal-admin-app.md`, `examples/sample-saas-app/`, `examples/internal-admin-app/` |
 | Policy model and testing | `docs/policy-testing-guide.md`, `tests/fixtures/policy/proof-points.json` |
 | Connector contract, capability model, authoring guidance, and sample template | `docs/connector-contract.md`, `docs/connector-authoring-tutorial.md`, `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` |
 | Security model and threat model | `docs/security-model.md`, `docs/threat-model.md` |
@@ -32,7 +34,7 @@ The documentation goal is complete for the repository foundation after this foll
 | Control traceability matrix | `docs/control-traceability-matrix.md` |
 | Assessor inspection guide | `docs/assessor-inspection-guide.md` |
 | Runbooks | `runbooks/*.md` |
-| ADRs | `adrs/0001-*.md` through `adrs/0010-*.md` |
+| ADRs | `adrs/*.md` using zero-padded numeric filenames |
 | Schemas | `schemas/*.schema.json` |
 | Examples | `tests/fixtures/schema-examples/*.json`, `tests/fixtures/policy/proof-points.json`, `examples/` |
 
@@ -57,6 +59,9 @@ The documentation goal is complete for the repository foundation after this foll
 | Assessor Inspection Guide | `docs/assessor-inspection-guide.md` | Added |
 | Threat Model | `docs/threat-model.md` | Added |
 | Policy Testing Guide | `docs/policy-testing-guide.md` | Added |
+| PEP Conformance | `docs/pep-conformance.md`, `examples/typescript-express-pep/`, `examples/python-fastapi-pep/`, `examples/go-envoy-ext-authz/` | Added |
+| Sample SaaS Application | `docs/sample-saas-app.md`, `examples/sample-saas-app/` | Added |
+| Sample Internal Admin App | `docs/sample-internal-admin-app.md`, `examples/internal-admin-app/` | Added |
 | Production Reference Architecture | `docs/production-reference-architecture.md`, `deploy/overlays/production-reference/` | Added |
 | Emergency Revocation Runbook | `runbooks/emergency-revocation.md` | Added |
 
@@ -97,7 +102,7 @@ The documentation goal is complete for the repository foundation after this foll
 - `docs/ato-evidence-model.md`
 - `docs/implementation-backlog.md`
 - `docs/ci.md`
-- `adrs/0001-api-first-cli-first.md` through `adrs/0010-fail-behavior.md`
+- `adrs/*.md`
 - `openapi/rebac-control-plane.yaml`
 - `schemas/*.schema.json`
 - `tests/fixtures/schema-examples/*.json`
@@ -143,6 +148,24 @@ The documentation goal is complete for the repository foundation after this foll
 - `docker-compose.quickstart.yml`
 - `scripts/quickstart-demo.ts`
 - `examples/cli/profiles.example.json`
+- `docs/pep-conformance.md`
+- `examples/typescript-express-pep/`
+- `examples/python-fastapi-pep/`
+- `examples/go-envoy-ext-authz/`
+- `docs/sample-saas-app.md`
+- `examples/sample-saas-app/`
+- `docs/sample-internal-admin-app.md`
+- `examples/internal-admin-app/`
+- `docs/demo-seed-harness.md`
+- `examples/demo-seed-harness.json`
+- `docs/policy-playground.md`
+- `examples/policy-playground.sample.json`
+- `docs/decision-cache-semantics.md`
+- `docs/ha-degraded-mode-operations.md`
+- `runbooks/degraded-mode-operations.md`
+- `docs/runbook-exercise-evidence.md`
+- `runbooks/access-review-exceptions.md`
+- `docs/secure-sdlc-evidence.md`
 
 ## Artifacts Migrated Or Renamed
 
@@ -162,6 +185,8 @@ None. The existing flat docs layout and ADR naming convention were preserved.
 | Native grants | `schemas/native-grant.schema.json`, `tests/fixtures/schema-examples/native-grant.json` | Reused |
 | Synthetic API examples | `examples/api/*.json` | Added and validated |
 | Synthetic CLI examples | `examples/cli/operator-and-assessor.sh`, `examples/cli/profiles.example.json`, `tests/cli/docs-examples.test.ts` | Added and smoke-tested |
+| PEP conformance examples | `examples/typescript-express-pep/`, `examples/python-fastapi-pep/`, `examples/go-envoy-ext-authz/`, `tests/sdk-pep/*.test.ts` | Added and validated |
+| Synthetic sample applications | `examples/sample-saas-app/`, `examples/internal-admin-app/`, `tests/examples/*.test.ts` | Added and validated |
 | Synthetic policy tests | `tests/fixtures/policy/proof-points.json` | Reused |
 | Synthetic control/evidence mapping | `examples/control-evidence-mapping.json`, `tests/fixtures/schema-examples/evidence-export.json` | Added/reused and validated |
 
@@ -177,6 +202,8 @@ None. The existing flat docs layout and ADR naming convention were preserved.
 | Audit/evidence export | `runbooks/audit-evidence-export.md` | Added |
 | Compromised connector credential | `runbooks/compromised-connector-credential.md` | Added |
 | Decision API outage | `runbooks/decision-api-outage.md` | Added |
+| Degraded mode operations | `runbooks/degraded-mode-operations.md` | Added |
+| Access review exceptions | `runbooks/access-review-exceptions.md` | Added |
 
 Each runbook includes purpose, trigger, severity, required role, prerequisites, commands or proposed commands, expected output, verification steps, audit events emitted, evidence retained, escalation path, and rollback or compensating action.
 
@@ -213,27 +240,12 @@ The documentation connects architecture, control families, implementation behavi
 - `corepack pnpm install` completed with the existing lockfile.
 - `git diff --check` passed.
 - New standalone JSON examples parsed successfully with Node.
-- `corepack pnpm validate:docs` passed:
-  - Relative Markdown links were validated across README, docs, runbooks, and examples.
-  - All 8 runbooks were checked for the 12 required runbook sections.
-  - Documentation examples were validated against JSON Schema, OpenAPI request schema, or the local control/evidence mapping example contract.
-- `corepack pnpm validate:contracts` passed:
-  - 13 schemas and 13 schema fixtures validated.
-  - 27 required OpenAPI path groups validated.
-  - `examples/api/decision-check.request.json` and `examples/api/explain.response.json` validated against their OpenAPI request/response schemas.
-  - 11 policy proof points validated.
-  - CLI contract tests passed.
-- `corepack pnpm test:cli` passed with the synthetic docs walkthrough covered by `tests/cli/docs-examples.test.ts`.
-- `corepack pnpm validate` passed:
-  - TypeScript typecheck passed.
-  - Contract validation passed.
-  - CI workflow validation passed.
-  - 6 test files and 107 tests passed.
-- `corepack pnpm ci:check` passed:
-  - Contract validation, docs validation, CI workflow validation, typecheck, lint, tests, build, and evidence freshness all passed.
-  - `pnpm evidence:check` reported proof-point validation evidence is current.
-- Custom runbook section scan passed for all 8 runbooks.
-- Custom relative Markdown link scan passed across 35 Markdown files.
+- Current validation evidence is generated in `reports/proof-point-validation.md`. This report summarizes command families rather than pinning counts that drift as implementation slices merge.
+- `corepack pnpm validate:docs` validates relative Markdown links across README, docs, runbooks, and examples; required runbook sections; documentation examples; API reference freshness; and API collection freshness.
+- `corepack pnpm validate:contracts` validates schemas, schema fixtures, OpenAPI path groups, API examples, policy proof points, generated client metadata, and CLI contract coverage.
+- `corepack pnpm validate:pep-conformance` validates the shared TypeScript, Python FastAPI, and Go Envoy/ext-authz PEP behavior contract.
+- `corepack pnpm validate:sample-saas-app` and `corepack pnpm validate:sample-admin-app` validate the synthetic sample applications.
+- `corepack pnpm ci:check` is the pre-submit gate for contract validation, docs validation, automation and CI validation, packaging and deployment gates, typecheck, lint, tests, build, and evidence freshness.
 
 ## Validation Not Performed And Why
 
