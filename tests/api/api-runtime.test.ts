@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   AuditRecorder,
   createDefaultPolicyModel,
+  createLocalEngineSeed,
   LocalAppendOnlyAuditRepository,
   LocalFileEvidenceRepository,
   LocalJsonFileGraphRepository,
@@ -28,6 +29,7 @@ import {
   type EvidencePackageRepository,
   type ProvisioningApproval,
   type RebacSeedData,
+  type RelationshipTuple,
   type RebacStateRepository
 } from "../../packages/core/src/index.js";
 import {
@@ -567,22 +569,51 @@ describe("ReBAC API runtime", () => {
   });
 
   it("honors explicit decision provenance across decision routes", async () => {
-    const check = await post<{ policyVersion: string; relationshipVersion: string }>("/v1/decision/check", {
+    const check = await post<{
+      policyVersion: string;
+      modelVersion: string;
+      relationshipVersion: string;
+      tupleVersion: string;
+      contextVersion: string;
+      asOf: string;
+    }>("/v1/decision/check", {
       subjectId: "user:alice",
       action: "read",
       resourceId: "document:case-plan",
       policyVersion: "policy:pinned-check",
-      relationshipVersion: "tuple-set:pinned-check"
+      modelVersion: "model:pinned-check",
+      relationshipVersion: "tuple-set:pinned-check",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-check",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
-    const explain = await post<{ policyVersion: string; relationshipVersion: string }>("/v1/decision/explain", {
+    const explain = await post<{
+      policyVersion: string;
+      modelVersion: string;
+      relationshipVersion: string;
+      tupleVersion: string;
+      contextVersion: string;
+      asOf: string;
+    }>("/v1/decision/explain", {
       subjectId: "user:alice",
       action: "read",
       resourceId: "document:case-plan",
       policyVersion: "policy:pinned-explain",
-      relationshipVersion: "tuple-set:pinned-explain"
+      modelVersion: "model:pinned-explain",
+      relationshipVersion: "tuple-set:pinned-explain",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-explain",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
     const batch = await post<{
-      results: Array<{ policyVersion: string; relationshipVersion: string }>;
+      results: Array<{
+        policyVersion: string;
+        modelVersion: string;
+        relationshipVersion: string;
+        tupleVersion: string;
+        contextVersion: string;
+        asOf: string;
+      }>;
     }>("/v1/decision/batch-check", {
       requests: [
         {
@@ -590,43 +621,123 @@ describe("ReBAC API runtime", () => {
           action: "read",
           resourceId: "document:case-plan",
           policyVersion: "policy:pinned-batch",
-          relationshipVersion: "tuple-set:pinned-batch"
+          modelVersion: "model:pinned-batch",
+          relationshipVersion: "tuple-set:pinned-batch",
+          tupleVersion: "tuple:v1",
+          contextVersion: "context:pinned-batch",
+          asOf: "2026-05-21T17:00:00.000Z"
         }
       ]
     });
     const audit = await get<{
-      items: Array<{ eventType: string; policyVersion?: string; relationshipVersion?: string }>;
+      items: Array<{
+        eventType: string;
+        policyVersion?: string;
+        relationshipVersion?: string;
+        payload?: Record<string, unknown>;
+      }>;
     }>("/v1/audit/events");
 
     expect(check).toMatchObject({
       policyVersion: "policy:pinned-check",
-      relationshipVersion: "tuple-set:pinned-check"
+      modelVersion: "model:pinned-check",
+      relationshipVersion: "tuple-set:pinned-check",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-check",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
     expect(explain).toMatchObject({
       policyVersion: "policy:pinned-explain",
-      relationshipVersion: "tuple-set:pinned-explain"
+      modelVersion: "model:pinned-explain",
+      relationshipVersion: "tuple-set:pinned-explain",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-explain",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
     expect(batch.results[0]).toMatchObject({
       policyVersion: "policy:pinned-batch",
-      relationshipVersion: "tuple-set:pinned-batch"
+      modelVersion: "model:pinned-batch",
+      relationshipVersion: "tuple-set:pinned-batch",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:pinned-batch",
+      asOf: "2026-05-21T17:00:00.000Z"
     });
     expect(audit.items).toEqual(expect.arrayContaining([
       expect.objectContaining({
         eventType: "decision.allowed",
         policyVersion: "policy:pinned-check",
-        relationshipVersion: "tuple-set:pinned-check"
+        relationshipVersion: "tuple-set:pinned-check",
+        payload: expect.objectContaining({
+          modelVersion: "model:pinned-check",
+          tupleVersion: "tuple:v1",
+          contextVersion: "context:pinned-check",
+          asOf: "2026-05-21T17:00:00.000Z"
+        })
       }),
       expect.objectContaining({
         eventType: "decision.allowed",
         policyVersion: "policy:pinned-explain",
-        relationshipVersion: "tuple-set:pinned-explain"
+        relationshipVersion: "tuple-set:pinned-explain",
+        payload: expect.objectContaining({
+          modelVersion: "model:pinned-explain",
+          tupleVersion: "tuple:v1",
+          contextVersion: "context:pinned-explain",
+          asOf: "2026-05-21T17:00:00.000Z"
+        })
       }),
       expect.objectContaining({
         eventType: "decision.allowed",
         policyVersion: "policy:pinned-batch",
-        relationshipVersion: "tuple-set:pinned-batch"
+        relationshipVersion: "tuple-set:pinned-batch",
+        payload: expect.objectContaining({
+          modelVersion: "model:pinned-batch",
+          tupleVersion: "tuple:v1",
+          contextVersion: "context:pinned-batch",
+          asOf: "2026-05-21T17:00:00.000Z"
+        })
       })
     ]));
+  });
+
+  it("uses current evaluation time for enforcement checks while preserving historical explain", async () => {
+    const seed = createLocalEngineSeed();
+    const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
+    const app = createRebacLocalApp({
+      now: () => TEST_NOW,
+      seed: {
+        ...seed,
+        subjects: seed.subjects?.map((subject) => ({ ...subject, createdAt: historicalCreatedAt })),
+        resources: seed.resources?.map((resource) => ({ ...resource, createdAt: historicalCreatedAt })),
+        relationships: [
+          tuple(
+            "relationship:alice-reader-document-expiring",
+            "user:alice",
+            "reader_of",
+            "document:case-plan",
+            {
+              assertedAt: historicalCreatedAt,
+              createdAt: historicalCreatedAt,
+              expiresAt: "2026-05-21T12:00:00.000Z"
+            }
+          )
+        ]
+      }
+    });
+    await restartServer({ app });
+    const request = {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan",
+      asOf: "2026-05-21T11:59:00.000Z"
+    };
+
+    const check = await post<JsonObject & Pick<DecisionResult, "asOf" | "reasonCode">>("/v1/decision/check", request);
+    const explain = await post<JsonObject & Pick<DecisionResult, "asOf" | "reasonCode">>("/v1/decision/explain", request);
+
+    expect(check.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+    expect(check.asOf).toBe(TEST_NOW);
+    expect(explain.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
+    expect(explain.asOf).toBe("2026-05-21T11:59:00.000Z");
   });
 
   it("validates subject and resource creates before storing them", async () => {
@@ -3702,7 +3813,11 @@ function createSeedDecision(): DecisionResult {
     resourceId: "document:case-plan",
     reasonCode: "ALLOW_RELATIONSHIP_PATH",
     policyVersion: "policy:seed",
+    modelVersion: "model:seed",
     relationshipVersion: "relationship:seed",
+    tupleVersion: "tuple:seed",
+    contextVersion: "context:seed",
+    asOf: TEST_NOW,
     relationshipPath: [],
     constraints: {},
     evaluatedAt: TEST_NOW
@@ -3792,6 +3907,27 @@ function primaryRecordIdForEvent(event: AuditEvent): string {
 
   expect(typeof value).toBe("string");
   return value as string;
+}
+
+function tuple(
+  id: string,
+  subjectId: string,
+  relation: string,
+  objectId: string,
+  overrides: Partial<RelationshipTuple> = {}
+): RelationshipTuple {
+  return {
+    id,
+    subjectId,
+    relation,
+    objectId,
+    sourceSystem: "mock",
+    assertedAt: TEST_NOW,
+    status: "active",
+    version: "tuple:v1",
+    createdAt: TEST_NOW,
+    ...overrides
+  };
 }
 
 async function startServer(options: RebacApiServerOptions): Promise<void> {

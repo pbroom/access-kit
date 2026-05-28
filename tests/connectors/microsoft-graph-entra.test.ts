@@ -131,7 +131,11 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       resourceId: "application:probe",
       reasonCode: "ALLOW_PROBE",
       policyVersion: "policy:v1",
+      modelVersion: "model:v1",
       relationshipVersion: "relationships:v1",
+      tupleVersion: "tuple:v1",
+      contextVersion: "context:none",
+      asOf: now,
       relationshipPath: [],
       constraints: {},
       evaluatedAt: now

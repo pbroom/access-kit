@@ -26,7 +26,7 @@ The production audit adapter is not a selected vendor ledger, approved SIEM depl
 | `actor` | Service or principal responsible for the event. |
 | `subjectId` and `resourceId` | Canonical IDs when the event concerns a subject or resource. |
 | `correlationId` | Joins request, decision, provisioning, and evidence activity. |
-| `policyVersion` and `relationshipVersion` | Decision traceability fields. |
+| `policyVersion` and `relationshipVersion` | Decision traceability fields. Decision payloads also carry model, tuple, context, historical `asOf`, traversal, and latency SLO metadata when produced by the decision runtime. |
 | `payloadHash` | Hash of the event payload. |
 | `previousEventHash` | Hash-chain pointer for tamper-evidence. |
 | `payload` | Event-specific details, minimized to required evidence. |

@@ -142,7 +142,11 @@ const decisionRequestSchema = {
     resourceId: { type: "string", minLength: 1 },
     context: jsonObject,
     policyVersion: { type: "string", minLength: 1 },
-    relationshipVersion: { type: "string", minLength: 1 }
+    modelVersion: { type: "string", minLength: 1 },
+    relationshipVersion: { type: "string", minLength: 1 },
+    tupleVersion: { type: "string", minLength: 1 },
+    contextVersion: { type: "string", minLength: 1 },
+    asOf: { type: "string", format: "date-time" }
   }
 } as const;
 

@@ -18,17 +18,18 @@ A decision is not a native provider permission, provisioning action, ticket appr
 
 ## Lifecycle
 
-1. Caller supplies `subjectId`, `action`, `resourceId`, optional `context`, optional `policyVersion`, and optional `relationshipVersion`.
+1. Caller supplies `subjectId`, `action`, `resourceId`, optional `context`, optional `policyVersion`, `modelVersion`, `relationshipVersion`, `tupleVersion`, `contextVersion`, and optional historical `asOf`.
 2. API validates the request against the OpenAPI contract.
 3. The engine loads canonical subject and resource records.
 4. The engine rejects missing or inactive subjects and resources.
-5. The engine evaluates active relationship tuples and expiration.
+5. The engine evaluates relationship tuples visible at `asOf`, including assertion time, expiration, deletion time, tuple version pins, and active lifecycle state at that point in time.
 6. Explicit deny paths are checked before allow paths.
-7. Allow paths are evaluated for the requested action.
-8. The engine returns deny by default if no valid path exists.
-9. The response includes decision ID, allow or deny, reason code, policy version, relationship version, constraints, and evaluation time.
-10. `explain` includes the relationship path; `check` may omit it for the fast path.
-11. The decision is recorded and an audit event is emitted.
+7. Allow paths are evaluated for the requested action under bounded traversal.
+8. The engine fails closed if traversal exceeds configured depth, visited-node, or relationship-scan limits.
+9. The engine returns deny by default if no valid path exists.
+10. The response includes decision ID, allow or deny, reason code, policy, model, relationship, tuple, and context versions, `asOf`, traversal metrics, latency SLO metadata, constraints, and evaluation time.
+11. `explain` includes the relationship path; `check` may omit it for the fast path.
+12. The decision is recorded and an audit event is emitted.
 
 ## Reason Codes
 
@@ -39,8 +40,13 @@ A decision is not a native provider permission, provisioning action, ticket appr
 | `DENY_EXPLICIT_OVERRIDE` | A deny or quarantine relationship overrides an allow path. | `deny` |
 | `DENY_SUBJECT_NOT_FOUND` | The subject is unknown. | `deny` |
 | `DENY_SUBJECT_NOT_ACTIVE` | The subject is suspended, terminated, deleted, or inactive. | `deny` |
+| `DENY_SUBJECT_LIFECYCLE_UNKNOWN_AS_OF` | Historical subject lifecycle state cannot be inferred safely from available timestamps. | `deny` |
 | `DENY_RESOURCE_NOT_FOUND` | The resource is unknown. | `deny` |
 | `DENY_RESOURCE_NOT_ACTIVE` | The resource is inactive or deleted. | `deny` |
+| `DENY_RESOURCE_LIFECYCLE_UNKNOWN_AS_OF` | Historical resource lifecycle state cannot be inferred safely from available timestamps. | `deny` |
+| `DENY_INVALID_AS_OF` | The supplied historical evaluation timestamp is not parseable. | `deny` |
+| `DENY_AS_OF_IN_FUTURE` | The supplied historical evaluation timestamp is later than evaluation time. | `deny` |
+| `DENY_TRAVERSAL_BOUND_EXCEEDED` | Graph traversal exceeded configured depth, visited-node, or relationship-scan bounds. | `deny` |
 
 ## Concrete Example
 
@@ -62,7 +68,9 @@ An `explain` response can include a path from `user:alice` to `document:case-pla
 - Deny by default is required.
 - Explicit deny must override allow relationships.
 - Suspended, expired, terminated, or deleted subjects must fail closed.
-- Every decision must be reproducible from request, policy version, relationship version, context, and evaluated time.
+- Every decision must be reproducible from request, policy, model, relationship, tuple, and context versions, `asOf`, context, and evaluated time.
+- Historical decisions must evaluate tuples and lifecycle state as of the pinned `asOf` timestamp and fail closed for future or invalid timestamps.
+- Traversal must be bounded so cyclic or explosive graphs cannot turn authorization into an availability risk.
 - LLM output must not be used as the decision engine.
 
 ## Audit And Evidence Implications

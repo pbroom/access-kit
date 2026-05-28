@@ -150,8 +150,10 @@ Stable reason codes are required for audit, test, and assessor traceability.
 | `DENY_EXPLICIT_OVERRIDE` | Deny or quarantine relationship overrides any allow path. |
 | `DENY_SUBJECT_NOT_FOUND` | Requested subject does not exist in the canonical store. |
 | `DENY_SUBJECT_NOT_ACTIVE` | Subject exists but is not active. |
+| `DENY_SUBJECT_LIFECYCLE_UNKNOWN_AS_OF` | Historical subject lifecycle state cannot be inferred safely from available timestamps. |
 | `DENY_RESOURCE_NOT_FOUND` | Requested resource does not exist in the canonical store. |
 | `DENY_RESOURCE_NOT_ACTIVE` | Resource exists but is not active. |
+| `DENY_RESOURCE_LIFECYCLE_UNKNOWN_AS_OF` | Historical resource lifecycle state cannot be inferred safely from available timestamps. |
 
 ## API Errors
 
