@@ -34,6 +34,7 @@ import {
 } from "./repository-envelopes.js";
 import type { RebacJobStorageReceipt } from "./repositories.js";
 import type { ExternalSnapshotStore, ProductionRepositoryBackupMetadata } from "./production-repositories.js";
+import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
 import { isProductionSensitiveKey } from "./production-secret-material.js";
 
 export type ProductionQueuedJobKind = "discovery" | "reconciliation" | "provisioning" | "evidence" | "revocation";
@@ -601,7 +602,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
 
   listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {
     this.#refreshFromStore();
-    return clone(this.#jobs.driftFindings.filter((finding) => !filter.severity || finding.severity === filter.severity));
+    return clone(this.#jobs.driftFindings.filter((finding) => matchesDriftFindingFilter(finding, filter)));
   }
 
   upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign {

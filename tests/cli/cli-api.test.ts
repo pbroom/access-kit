@@ -104,6 +104,70 @@ describe("CLI API wrapper", () => {
     expect(requests.at(-1)?.body).toEqual({ connectorId: "mock", dryRun: true });
   });
 
+  it("forwards scheduled reconciliation and remediation dry-run evidence to the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      "reconcile",
+      "run",
+      "--connector",
+      "mock",
+      "--scheduled",
+      "--cadence",
+      "daily",
+      "--scheduled-at",
+      "2026-05-21T17:00:00.000Z"
+    );
+    await runCliWithFetch(
+      requests,
+      "reconcile",
+      "remediate",
+      "--finding",
+      "drift:001",
+      "--change-ticket",
+      "chg:drift-001",
+      "--readiness-report",
+      "readiness:mock:drift",
+      "--ticket",
+      "chg:drift-001",
+      "--siem",
+      "siem:drift-001"
+    );
+
+    expect(requests[0]?.body).toEqual({
+      connectorId: "mock",
+      dryRun: true,
+      trigger: "scheduled",
+      schedule: {
+        cadence: "daily",
+        scheduledAt: "2026-05-21T17:00:00.000Z"
+      }
+    });
+    expect(requests[1]?.url).toBe("http://api.example/v1/reconciliation/findings/drift%3A001/remediation");
+    expect(requests[1]?.body).toMatchObject({
+      approval: {
+        decision: "approved",
+        approverId: "user:cli-operator",
+        changeTicket: "chg:drift-001",
+        approvedAt: "2026-05-21T17:00:00.000Z"
+      },
+      autoRepairPolicy: {
+        enabled: false,
+        allowedActions: ["revoke", "repair", "review"],
+        maxSeverity: "high",
+        requireApproval: true,
+        requireConnectorReadiness: true,
+        liveProviderWrites: false
+      },
+      readinessReportId: "readiness:mock:drift",
+      hookEvidence: [
+        { system: "ticket", referenceId: "chg:drift-001", status: "linked", recordedAt: "2026-05-21T17:00:00.000Z" },
+        { system: "siem", referenceId: "siem:drift-001", status: "notified", recordedAt: "2026-05-21T17:00:00.000Z" }
+      ]
+    });
+  });
+
   it("creates a targeted revocation plan for a native grant", async () => {
     await runCli("provision", "revoke", "native-grant:document:case-plan:alice");
 

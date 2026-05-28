@@ -596,10 +596,36 @@ Parameters:
 
 - `severity` (query): `string`
 - `status` (query): `string`
+- `lifecycleState` (query): `string`
+- `ownerId` (query): `string`
+- `assigneeId` (query): `string`
 
 Responses:
 
 - `200`: Drift findings. Schema: `object`
+
+#### `POST /v1/reconciliation/findings/{id}/remediation`
+
+Operation ID: `planDriftRemediation`
+
+Summary: Plan approved dry-run remediation for a drift finding.
+
+Authentication: bearer token required
+
+Idempotency-Key: required
+
+Deprecated: no
+
+Parameters:
+
+- `id` (path, required): `string`
+- `Idempotency-Key` (header, required): `string`
+
+Request body: `object`
+
+Responses:
+
+- `202`: Drift finding updated with dry-run remediation evidence. Schema: `../schemas/drift-finding.schema.json`
 
 ### Audit
 

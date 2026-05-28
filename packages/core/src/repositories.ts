@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { auditEventHash, stableStringify, verifyAuditChain } from "./audit.js";
+import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
 import {
   assertObjectArrayFields,
   assertStoredPayloadHash,
@@ -660,7 +661,7 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
   }
 
   listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {
-    return clone(this.#jobs.driftFindings.filter((finding) => !filter.severity || finding.severity === filter.severity));
+    return clone(this.#jobs.driftFindings.filter((finding) => matchesDriftFindingFilter(finding, filter)));
   }
 
   upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign {

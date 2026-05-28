@@ -124,7 +124,7 @@ export type NativeGrantFilter = Partial<
 >;
 export type DiscoveryRunFilter = Partial<Pick<DiscoveryRun, "connectorId" | "status">>;
 export type EnforcementReadinessReportFilter = Partial<Pick<EnforcementReadinessReport, "connectorId" | "status">>;
-export type DriftFindingFilter = Partial<Pick<DriftFinding, "severity">>;
+export type DriftFindingFilter = Partial<Pick<DriftFinding, "severity" | "status" | "lifecycleState" | "ownerId" | "assigneeId">>;
 export type GovernanceFindingFilter = Partial<Pick<GovernanceFinding, "status" | "severity">>;
 export type ExceptionRequestFilter = Partial<Pick<ExceptionRequest, "status">>;
 

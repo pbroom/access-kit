@@ -77,7 +77,11 @@ for (const proof of proofPoints as PolicyProofPoint[]) {
     if (
       proof.expect !== "valid_drift_finding" ||
       !validDriftStatuses.has(proof.finding.status) ||
-      !validDriftRecommendedActions.has(proof.finding.recommendedAction)
+      !validDriftRecommendedActions.has(proof.finding.recommendedAction) ||
+      !proof.finding.ownerId ||
+      !proof.finding.assigneeId ||
+      !proof.finding.scheduledReconciliation ||
+      proof.finding.autoRepairPolicy.liveProviderWrites
     ) {
       throw new Error(`Drift proof point failed: ${proof.name}`);
     }

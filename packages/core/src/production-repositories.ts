@@ -40,6 +40,7 @@ import {
   normalizeJobSnapshot,
   stableHash
 } from "./repository-envelopes.js";
+import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
 import { isProductionSensitiveKey } from "./production-secret-material.js";
 import type { RebacGraphStorageReceipt, RebacJobStorageReceipt } from "./repositories.js";
 
@@ -533,7 +534,7 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
   }
 
   listDriftFindings(filter: DriftFindingFilter = {}): DriftFinding[] {
-    return clone(this.#jobs.driftFindings.filter((finding) => !filter.severity || finding.severity === filter.severity));
+    return clone(this.#jobs.driftFindings.filter((finding) => matchesDriftFindingFilter(finding, filter)));
   }
 
   upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign {

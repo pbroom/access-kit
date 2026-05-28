@@ -2,13 +2,52 @@
   "id": "drift:001",
   "resourceId": "document:case-plan",
   "subjectId": "user:external",
-  "nativeAccess": "owner",
+  "nativeGrantId": "native-grant:mock:document:case-plan:user:external:read:direct",
+  "nativeAccess": "read",
   "intendedAccess": "none",
   "severity": "high",
+  "lifecycleState": "open",
+  "ownerId": "role:security-operations",
+  "assigneeId": "role:security-engineer",
   "detectedAt": "2026-05-21T17:00:00.000Z",
+  "exceptionExpiresAt": "2026-06-21T17:00:00.000Z",
   "sourceConnectorId": "mock",
   "recommendedAction": "revoke",
   "status": "open",
+  "scheduledReconciliation": {
+    "cadence": "daily",
+    "scheduledAt": "2026-05-21T17:00:00.000Z",
+    "nextRunAt": "2026-05-22T17:00:00.000Z",
+    "gracePeriodHours": 24,
+    "overdue": false
+  },
+  "hookEvidence": [
+    {
+      "system": "ticket",
+      "referenceId": "chg:drift-001",
+      "status": "linked",
+      "recordedAt": "2026-05-21T17:05:00.000Z",
+      "evidence": {
+        "queue": "security-operations"
+      }
+    },
+    {
+      "system": "siem",
+      "referenceId": "siem:drift-001",
+      "status": "notified",
+      "recordedAt": "2026-05-21T17:06:00.000Z"
+    }
+  ],
+  "remediation": {},
+  "autoRepairPolicy": {
+    "enabled": false,
+    "allowedActions": ["revoke"],
+    "maxSeverity": "high",
+    "requireApproval": true,
+    "requireConnectorReadiness": true,
+    "liveProviderWrites": false,
+    "reason": "Dry-run repair requires approval and live provider writes remain disabled."
+  },
   "version": "drift:v1",
   "createdAt": "2026-05-21T17:00:00.000Z"
 }

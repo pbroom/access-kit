@@ -29,6 +29,7 @@ import {
   listEnforcementReadinessReports,
   listDiscoveryRuns,
   listPolicies,
+  planDriftRemediationDryRun,
   publishPolicy,
   putRelationship,
   readNativeAccess,
@@ -47,6 +48,10 @@ import { validateRuntimeRequestSchema, type RuntimeRequestSchemaName } from "./r
 import type {
   DecisionRequest,
   DiscoveryRunStatus,
+  DriftAutoRepairPolicy,
+  DriftFindingStatus,
+  DriftHookEvidence,
+  DriftLifecycleState,
   DriftSeverity,
   EnforcementControl,
   EnforcementReadinessReport,
@@ -56,6 +61,8 @@ import type {
   NativePrincipalType,
   ProvisioningApproval,
   ProvisioningMode,
+  ReconciliationScheduleEvidence,
+  ReconciliationTrigger,
   RelationshipTuple,
   Resource,
   Subject
@@ -91,6 +98,13 @@ interface ProvisioningJobRequest {
   control?: unknown;
 }
 
+interface DriftRemediationRequest {
+  approval?: unknown;
+  autoRepairPolicy?: unknown;
+  readinessReportId?: unknown;
+  hookEvidence?: unknown;
+}
+
 interface EnforcementReadinessRequest {
   mode?: unknown;
   control?: unknown;
@@ -101,6 +115,8 @@ interface EnforcementReadinessRequest {
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
 const driftSeverities = new Set(["low", "medium", "high", "critical"]);
+const driftStatuses = new Set(["open", "accepted", "repairing", "resolved"]);
+const driftLifecycleStates = new Set(["open", "triaged", "accepted", "remediation_pending", "repairing", "resolved", "expired_exception"]);
 const evidenceFrameworks = new Set(["nist-800-53", "fedramp-rev5", "custom"]);
 const evidenceControlIdPattern = /^[A-Z]{2}-[0-9]+(?:\([0-9]+\))?$/;
 const auditExportTargets = new Set(["operator_download", "siem_forwarder"]);
@@ -531,12 +547,35 @@ async function routeReconciliation(
   if (segments[2] === "run" && request.method === "POST") {
     const body = readReconciliationRunRequest(await readJson<unknown>(request));
 
-    sendJson(response, 202, await runReconciliation(app, body.connectorId));
+    sendJson(response, 202, await runReconciliation(app, body.connectorId, {
+      trigger: body.trigger,
+      schedule: body.schedule
+    }));
     return;
   }
 
-  if (segments[2] === "findings" && request.method === "GET") {
-    sendJson(response, 200, { items: app.store.listDriftFindings({ severity: readDriftSeverity(url.searchParams.get("severity")) }) });
+  if (segments[2] === "findings" && segments.length === 3 && request.method === "GET") {
+    sendJson(response, 200, {
+      items: app.store.listDriftFindings({
+        severity: readDriftSeverity(url.searchParams.get("severity")),
+        status: readDriftStatus(url.searchParams.get("status")),
+        lifecycleState: readDriftLifecycleState(url.searchParams.get("lifecycleState")),
+        ownerId: url.searchParams.get("ownerId") ?? undefined,
+        assigneeId: url.searchParams.get("assigneeId") ?? undefined
+      })
+    });
+    return;
+  }
+
+  if (segments[2] === "findings" && segments[3] && segments[4] === "remediation" && request.method === "POST") {
+    const body = readDriftRemediationRequest(await readJson<unknown>(request));
+    const updated = await planDriftRemediationDryRun(app, segments[3], body, readIdempotencyKey(request));
+
+    if (updated) {
+      sendJson(response, 202, updated);
+    } else {
+      notFound(response);
+    }
     return;
   }
 
@@ -852,13 +891,56 @@ function readProvisioningJobRequest(value: unknown): ProvisioningJobRequest {
   );
 }
 
-function readReconciliationRunRequest(value: unknown): { connectorId: string; dryRun: true } {
-  return readSchemaBacked<{ connectorId: string; dryRun: true }>(
+function readReconciliationRunRequest(value: unknown): {
+  connectorId: string;
+  dryRun: true;
+  trigger?: ReconciliationTrigger;
+  schedule?: Partial<ReconciliationScheduleEvidence>;
+} {
+  return readSchemaBacked<{
+    connectorId: string;
+    dryRun: true;
+    trigger?: ReconciliationTrigger;
+    schedule?: Partial<ReconciliationScheduleEvidence>;
+  }>(
     "reconciliationRun",
     value,
     "INVALID_RECONCILIATION_REQUEST",
     "Reconciliation runs require connectorId and dryRun: true"
   );
+}
+
+function readDriftRemediationRequest(value: unknown): {
+  approval: ProvisioningApproval;
+  autoRepairPolicy: DriftAutoRepairPolicy;
+  readinessReportId?: string;
+  hookEvidence?: DriftHookEvidence[];
+} {
+  const parsed = readSchemaBacked<DriftRemediationRequest>(
+    "driftRemediation",
+    value,
+    "INVALID_DRIFT_REMEDIATION_REQUEST",
+    "Drift remediation requires approval, autoRepairPolicy, and dry-run hook evidence"
+  );
+
+  if (!isProvisioningApproval(parsed.approval)) {
+    throw new HttpError(400, "INVALID_DRIFT_REMEDIATION_REQUEST", "approval must match the provisioning approval shape");
+  }
+
+  if (!isDriftAutoRepairPolicy(parsed.autoRepairPolicy)) {
+    throw new HttpError(400, "INVALID_DRIFT_REMEDIATION_REQUEST", "autoRepairPolicy must include safe dry-run controls");
+  }
+
+  if (parsed.hookEvidence !== undefined && !isDriftHookEvidenceArray(parsed.hookEvidence)) {
+    throw new HttpError(400, "INVALID_DRIFT_REMEDIATION_REQUEST", "hookEvidence must contain ticket or SIEM hook evidence");
+  }
+
+  return {
+    approval: parsed.approval,
+    autoRepairPolicy: parsed.autoRepairPolicy,
+    readinessReportId: readReadinessReportId(parsed.readinessReportId),
+    hookEvidence: parsed.hookEvidence
+  };
 }
 
 function readEnforcementReadinessBody(value: unknown): EnforcementReadinessRequest {
@@ -1151,6 +1233,42 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function isProvisioningApproval(value: unknown): value is ProvisioningApproval {
+  return isRecord(value)
+    && value.decision === "approved"
+    && typeof value.approverId === "string"
+    && typeof value.changeTicket === "string"
+    && typeof value.approvedAt === "string";
+}
+
+function isDriftAutoRepairPolicy(value: unknown): value is DriftAutoRepairPolicy {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const allowedActions = value.allowedActions;
+
+  return typeof value.enabled === "boolean"
+    && Array.isArray(allowedActions)
+    && allowedActions.every((action) => action === "revoke" || action === "repair" || action === "review")
+    && typeof value.maxSeverity === "string"
+    && driftSeverities.has(value.maxSeverity)
+    && typeof value.requireApproval === "boolean"
+    && typeof value.requireConnectorReadiness === "boolean"
+    && typeof value.liveProviderWrites === "boolean";
+}
+
+function isDriftHookEvidenceArray(value: unknown): value is DriftHookEvidence[] {
+  return Array.isArray(value)
+    && value.every((hook) =>
+      isRecord(hook)
+      && (hook.system === "ticket" || hook.system === "siem")
+      && typeof hook.referenceId === "string"
+      && (hook.status === "pending" || hook.status === "linked" || hook.status === "notified" || hook.status === "failed")
+      && typeof hook.recordedAt === "string"
+    );
+}
+
 function readEvidenceControls(value: string | null): string[] {
   const controls = (value ?? "AC-2,AC-3,AU-2")
     .split(",")
@@ -1218,6 +1336,30 @@ function readDriftSeverity(value: string | null): DriftSeverity | undefined {
   }
 
   return value as DriftSeverity;
+}
+
+function readDriftStatus(value: string | null): DriftFindingStatus | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (!driftStatuses.has(value)) {
+    throw new HttpError(400, "INVALID_DRIFT_STATUS", "status must be one of open, accepted, repairing, or resolved");
+  }
+
+  return value as DriftFindingStatus;
+}
+
+function readDriftLifecycleState(value: string | null): DriftLifecycleState | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (!driftLifecycleStates.has(value)) {
+    throw new HttpError(400, "INVALID_DRIFT_LIFECYCLE_STATE", "lifecycleState must be a valid drift lifecycle state");
+  }
+
+  return value as DriftLifecycleState;
 }
 
 function readAuditFilterDateTime(value: string | null, name: string): string | undefined {

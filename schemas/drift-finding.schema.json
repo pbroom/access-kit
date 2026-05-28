@@ -11,10 +11,17 @@
     "nativeAccess",
     "intendedAccess",
     "severity",
+    "lifecycleState",
+    "ownerId",
+    "assigneeId",
     "detectedAt",
     "sourceConnectorId",
     "recommendedAction",
     "status",
+    "scheduledReconciliation",
+    "hookEvidence",
+    "remediation",
+    "autoRepairPolicy",
     "version",
     "createdAt"
   ],
@@ -22,13 +29,110 @@
     "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
     "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+    "nativeGrantId": { "type": "string", "minLength": 1 },
     "nativeAccess": { "type": "string", "minLength": 1 },
     "intendedAccess": { "type": "string", "minLength": 1 },
     "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+    "lifecycleState": {
+      "type": "string",
+      "enum": ["open", "triaged", "accepted", "remediation_pending", "repairing", "resolved", "expired_exception"]
+    },
+    "ownerId": { "type": "string", "minLength": 1 },
+    "assigneeId": { "type": "string", "minLength": 1 },
     "detectedAt": { "type": "string", "format": "date-time" },
+    "exceptionExpiresAt": { "type": "string", "format": "date-time" },
     "sourceConnectorId": { "type": "string", "minLength": 1 },
     "recommendedAction": { "type": "string", "enum": ["revoke", "exception", "repair", "review"] },
     "status": { "type": "string", "enum": ["open", "accepted", "repairing", "resolved"] },
+    "scheduledReconciliation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cadence", "scheduledAt", "gracePeriodHours", "overdue"],
+      "properties": {
+        "cadence": { "type": "string", "enum": ["manual", "hourly", "daily", "weekly"] },
+        "scheduledAt": { "type": "string", "format": "date-time" },
+        "windowStart": { "type": "string", "format": "date-time" },
+        "windowEnd": { "type": "string", "format": "date-time" },
+        "nextRunAt": { "type": "string", "format": "date-time" },
+        "gracePeriodHours": { "type": "integer", "minimum": 0 },
+        "overdue": { "type": "boolean" }
+      }
+    },
+    "hookEvidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["system", "referenceId", "status", "recordedAt"],
+        "properties": {
+          "system": { "type": "string", "enum": ["ticket", "siem"] },
+          "referenceId": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "enum": ["pending", "linked", "notified", "failed"] },
+          "recordedAt": { "type": "string", "format": "date-time" },
+          "url": { "type": "string", "minLength": 1 },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "remediation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approval": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["decision", "approverId", "changeTicket", "approvedAt"],
+          "properties": {
+            "decision": { "type": "string", "const": "approved" },
+            "approverId": { "type": "string", "minLength": 1 },
+            "changeTicket": { "type": "string", "minLength": 1 },
+            "approvedAt": { "type": "string", "format": "date-time" },
+            "expiresAt": { "type": "string", "format": "date-time" },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        },
+        "approvedAt": { "type": "string", "format": "date-time" },
+        "dryRunRepair": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["planId", "mode", "action", "status", "providerWrite", "generatedAt", "idempotencyKey", "evidence"],
+          "properties": {
+            "planId": { "type": "string", "minLength": 1 },
+            "mode": { "type": "string", "const": "dry_run" },
+            "action": { "type": "string", "enum": ["revoke", "repair", "review"] },
+            "status": { "type": "string", "enum": ["planned", "blocked", "verified"] },
+            "providerWrite": { "type": "boolean", "const": false },
+            "generatedAt": { "type": "string", "format": "date-time" },
+            "idempotencyKey": { "type": "string", "minLength": 1 },
+            "evidence": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        }
+      }
+    },
+    "autoRepairPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["enabled", "allowedActions", "maxSeverity", "requireApproval", "requireConnectorReadiness", "liveProviderWrites"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "allowedActions": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["revoke", "repair", "review"] },
+          "uniqueItems": true
+        },
+        "maxSeverity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "requireApproval": { "type": "boolean" },
+        "requireConnectorReadiness": { "type": "boolean" },
+        "liveProviderWrites": { "type": "boolean" },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
     "version": { "type": "string", "minLength": 1 },
     "createdAt": { "type": "string", "format": "date-time" },
     "updatedAt": { "type": "string", "format": "date-time" }

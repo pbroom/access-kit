@@ -118,6 +118,11 @@ describe("policy proof points", () => {
       expect(proof.finding.severity).toBe("high");
       expect(validDriftStatuses.has(proof.finding.status)).toBe(true);
       expect(validDriftRecommendedActions.has(proof.finding.recommendedAction)).toBe(true);
+      expect(proof.finding.lifecycleState).toBe("open");
+      expect(proof.finding.ownerId).toBe("role:security-operations");
+      expect(proof.finding.assigneeId).toBe("role:security-engineer");
+      expect(proof.finding.scheduledReconciliation.cadence).toBe("daily");
+      expect(proof.finding.autoRepairPolicy.liveProviderWrites).toBe(false);
     }
   });
 });
