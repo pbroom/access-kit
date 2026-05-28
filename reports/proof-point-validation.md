@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-27T16:24:17.840Z
+Generated at: 2026-05-28T01:30:29.625Z
 
 Branch: codex/rebac-access-review-exceptions
 
@@ -26,7 +26,7 @@ All proof-point validation commands passed.
 | persistence deployment evidence validation | `corepack pnpm validate:persistence-deployment` | PASS |
 | core engine tests | `corepack pnpm test:core` | PASS |
 | API runtime tests | `corepack pnpm test:api` | PASS |
-| Microsoft Graph connector tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
+| connector package tests | `corepack pnpm exec vitest run tests/connectors` | PASS |
 | CLI API smoke tests | `corepack pnpm test:cli` | PASS |
 
 ## Command Output
@@ -127,8 +127,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  12:24:07
-   Duration  459ms (transform 207ms, setup 0ms, import 333ms, tests 36ms, environment 0ms)
+   Start at  21:30:25
+   Duration  245ms (transform 107ms, setup 0ms, import 174ms, tests 19ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -186,9 +186,9 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
 
  Test Files  9 passed (9)
-      Tests  125 passed (125)
-   Start at  12:24:11
-   Duration  925ms (transform 2.23s, setup 0ms, import 3.01s, tests 153ms, environment 1ms)
+      Tests  126 passed (126)
+   Start at  21:30:27
+   Duration  202ms (transform 583ms, setup 0ms, import 822ms, tests 90ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -203,20 +203,20 @@ PASS Local proof-point persistence manifests remain blocked from production read
 
  Test Files  4 passed (4)
       Tests  99 passed (99)
-   Start at  12:24:13
-   Duration  1.62s (transform 2.30s, setup 0ms, import 3.14s, tests 442ms, environment 0ms)
+   Start at  21:30:27
+   Duration  419ms (transform 425ms, setup 0ms, import 638ms, tests 199ms, environment 0ms)
 ```
 
-### Microsoft Graph connector tests
+### connector package tests
 
 ```text
 RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
 
- Test Files  1 passed (1)
-      Tests  11 passed (11)
-   Start at  12:24:15
-   Duration  343ms (transform 178ms, setup 0ms, import 213ms, tests 23ms, environment 0ms)
+ Test Files  2 passed (2)
+      Tests  18 passed (18)
+   Start at  21:30:28
+   Duration  180ms (transform 179ms, setup 0ms, import 221ms, tests 21ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -231,8 +231,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  12:24:16
-   Duration  968ms (transform 936ms, setup 0ms, import 1.64s, tests 558ms, environment 0ms)
+   Start at  21:30:29
+   Duration  279ms (transform 288ms, setup 0ms, import 520ms, tests 99ms, environment 0ms)
 ```
 
 
@@ -250,7 +250,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-access-review-exceptions
 - Persistence deployment evidence validation for the production manifest schema, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
-- Microsoft Graph connector tests for Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior.
+- Connector package tests for Microsoft Graph Entra read-only user, group, service-principal, app-role, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
 

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAccessReviewGovernance,
-  type AccessReviewCampaign
+  type AccessReviewCampaign,
+  type DriftFinding
 } from "../../packages/core/src/index.js";
 
 const now = "2026-05-21T17:00:00.000Z";
@@ -70,4 +71,50 @@ describe("access review governance", () => {
       ownerApprovals: approvedCampaign.ownerApprovals
     });
   });
+
+  it("excludes remediated findings from campaign remediation item references", () => {
+    const records = buildAccessReviewGovernance({
+      generatedAt: now,
+      subjectCount: 2,
+      resourceCount: 2,
+      sourceEventIds: ["audit:event:reconciliation"],
+      driftFindings: [
+        createDriftFinding({
+          id: "drift:open-finding",
+          resourceId: "document:case-plan"
+        }),
+        createDriftFinding({
+          id: "drift:remediated-finding",
+          resourceId: "document:closed-case-plan",
+          status: "resolved"
+        })
+      ]
+    });
+    const campaign = records.campaigns[0];
+
+    expect(campaign?.findingIds).toEqual(expect.arrayContaining([
+      "governance-finding:drift:open-finding",
+      "governance-finding:drift:remediated-finding"
+    ]));
+    expect(records.findings.find((finding) => finding.id === "governance-finding:drift:remediated-finding")?.status).toBe("remediated");
+    expect(campaign?.remediationItemIds).toEqual(["poam:governance:drift:open-finding"]);
+  });
 });
+
+function createDriftFinding(overrides: Partial<DriftFinding> = {}): DriftFinding {
+  return {
+    id: "drift:governance-finding",
+    resourceId: "document:case-plan",
+    subjectId: "user:alice",
+    nativeAccess: "owner",
+    intendedAccess: "none",
+    severity: "high",
+    detectedAt: now,
+    sourceConnectorId: "mock",
+    recommendedAction: "revoke",
+    status: "open",
+    version: "drift:v1",
+    createdAt: now,
+    ...overrides
+  };
+}

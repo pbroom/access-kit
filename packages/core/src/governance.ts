@@ -140,7 +140,10 @@ function buildAccessReviewCampaign(input: {
     resourceCount: input.resourceCount,
     findingIds: input.findings.map((finding) => finding.id).sort(),
     exceptionRequestIds: input.exceptionRequests.map((request) => request.id).sort(),
-    remediationItemIds: input.findings.map((finding) => finding.remediation.poamItemId).sort(),
+    remediationItemIds: input.findings
+      .filter((finding) => finding.status !== "remediated")
+      .map((finding) => finding.remediation.poamItemId)
+      .sort(),
     sourceEventIds: [...new Set(input.sourceEventIds)].sort(),
     ownerApprovals,
     version: ACCESS_REVIEW_VERSION,
