@@ -1,0 +1,23 @@
+{
+  "name": "@access-kit/connectors-sample-readonly",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "@access-kit/core": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  }
+}

@@ -51,7 +51,7 @@ describe("automation contract manifest", () => {
       "persistence deployment evidence validation",
       "core engine tests",
       "API runtime tests",
-      "Microsoft Graph connector tests",
+      "connector package tests",
       "CLI API smoke tests"
     ]);
   });

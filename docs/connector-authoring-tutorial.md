@@ -313,7 +313,10 @@ AC-2, AC-3, AC-6, AU-2, AU-6, CA-7, CM-3, IA-5, IR-4, RA-5, SA-9, SC-7, SI-4, an
 - [Security Model](security-model.md)
 - [Drift Detection Model](drift-detection-model.md)
 - [CI And Contract Validation](ci.md)
+- [Sample Read-Only Connector Template](../examples/connectors/sample-readonly-template.md)
 - [Compromised Connector Credential Runbook](../runbooks/compromised-connector-credential.md)
+- `packages/connectors-sample-readonly/src/index.ts`
 - `scripts/validate-connector-security-gate.ts`
 - `tests/automation/connector-security-gate.test.ts`
+- `tests/connectors/sample-readonly.test.ts`
 - `packages/connectors-microsoft-graph/src/index.ts`

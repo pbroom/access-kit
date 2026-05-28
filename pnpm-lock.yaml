@@ -81,6 +81,12 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/connectors-sample-readonly:
+    dependencies:
+      '@access-kit/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/core: {}
 
 packages:
