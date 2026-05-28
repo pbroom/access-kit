@@ -37,7 +37,6 @@ import {
   type DriftAutoRepairPolicy,
   type DriftHookEvidence,
   type EnforcementControl,
-  type EnforcementReadinessCheck,
   type EnforcementReadinessReport,
   type EvidenceArtifact,
   type EvidenceExportFormat,
@@ -89,9 +88,18 @@ import {
   buildOperationalEvidence,
   getControlImplementationDefinition
 } from "./runtime-evidence.js";
-import { changeTicketMatches } from "./runtime-provisioning.js";
+import {
+  assertEnforcementReadiness,
+  buildProvisioningPlanAuditInputs,
+  executeControlledEnforcementJob,
+  planEnforcementReadinessReport,
+  prepareProvisioningPlanForExecution,
+  type EnforcementReadinessRequest,
+  type ProvisioningExecutionOptions
+} from "./runtime-enforcement.js";
 export { RebacLocalAppError, type RebacLocalApp, type RebacLocalAppOptions, type RebacPersistenceDegradation, type RebacRuntimePersistence } from "./runtime-app.js";
 export { isSafeChangeTicketPattern } from "./runtime-provisioning.js";
+export type { EnforcementReadinessRequest } from "./runtime-enforcement.js";
 
 interface RecordAuditOptions {
   occurredAt?: string;
@@ -113,13 +121,6 @@ type NativeAccessFilter = Partial<
     principalType: NativePrincipalType;
   }
 >;
-
-interface ProvisioningExecutionOptions {
-  mode?: ProvisioningMode;
-  approval?: ProvisioningApproval;
-  control?: EnforcementControl;
-  readinessReportId?: string;
-}
 
 interface EvidenceExportOptions {
   framework?: EvidenceFramework;
@@ -179,13 +180,6 @@ interface PolicyRecord {
 interface PolicyState {
   policies: Map<string, PolicyRecord>;
   idempotency: Map<string, PolicySummary>;
-}
-
-export interface EnforcementReadinessRequest {
-  mode?: "enforcement";
-  control: EnforcementControl;
-  requiredApproverRole?: string;
-  changeTicketPattern?: string;
 }
 
 const MAX_PERSISTENCE_DEGRADATIONS = 20;
@@ -591,33 +585,10 @@ export async function checkEnforcementReadiness(
 ): Promise<EnforcementReadinessReport> {
   const connector = getConnector(app, connectorId);
   const checkedAt = app.now();
-  const control = request.control;
-  const checks = await buildEnforcementReadinessChecks(connector, control, checkedAt);
   const reportId = createEnforcementReadinessReportId(app, connectorId, checkedAt);
-  const reportWithoutAuditIds: EnforcementReadinessReport = {
-    id: reportId,
-    connectorId,
-    provider: connector.provider ?? connector.id,
-    tenantBoundary: connector.tenantBoundary ?? "synthetic:unknown",
-    mode: "enforcement",
-    status: checks.some((check) => check.status === "fail") ? "blocked" : "ready",
-    checkedAt,
-    control,
-    checks,
-    requiredApproverRole: request.requiredApproverRole ?? "access-approver",
-    changeTicketPattern: request.changeTicketPattern ?? "^chg:[a-z0-9_:-]+$",
-    liveProviderWritesAllowed: false,
-    auditEventIds: [],
-    version: "enforcement-readiness:v1",
-    createdAt: checkedAt
-  };
-  const auditEvent = recordAudit(app, {
-    eventType: "connector.enforcement_readiness_checked",
-    actor: app.actor,
-    correlationId: `corr:${reportId}`,
-    payload: asJsonRecord(reportWithoutAuditIds)
-  }, { persistState: false });
-  const report = { ...reportWithoutAuditIds, auditEventIds: [auditEvent.eventId] };
+  const planned = await planEnforcementReadinessReport(app, connector, connectorId, request, reportId, checkedAt);
+  const auditEvent = recordAudit(app, planned.auditInput, { persistState: false });
+  const report = { ...planned.report, auditEventIds: [auditEvent.eventId] };
   app.store.recordEnforcementReadinessReport(report);
   persistJobEnforcementReadinessReport(app, report, checkedAt);
   persistAppState(app, checkedAt);
@@ -701,7 +672,7 @@ async function createProvisioningPlanFlow(
   }
 
   const plan = {
-    ...prepareProvisioningPlan(app, connector, normalizePlanConnector(await prepareConnectorPlan(connector), connectorId), options),
+    ...prepareProvisioningPlanForExecution(app, connector, normalizePlanConnector(await prepareConnectorPlan(connector), connectorId), options),
     idempotencyKey
   };
   app.store.upsertProvisioningPlan(plan);
@@ -713,31 +684,9 @@ async function createProvisioningPlanFlow(
 }
 
 function recordProvisioningPlanAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
-  recordAudit(app, {
-    eventType: "provisioning.requested",
-    actor: app.actor,
-    subjectId: plan.subjectId,
-    resourceId: plan.resourceId,
-    correlationId: `corr:${plan.id}`,
-    payload: asJsonRecord(plan)
-  }, { persistState: false });
-  recordAudit(app, {
-    eventType: "provisioning.planned",
-    actor: app.actor,
-    subjectId: plan.subjectId,
-    resourceId: plan.resourceId,
-    correlationId: `corr:${plan.id}:planned`,
-    payload: {
-      planId: plan.id,
-      connectorId: plan.connectorId,
-      mode: plan.mode,
-      status: plan.status,
-      actionIds: plan.actions.map((action) => action.actionId),
-      idempotencyKeys: plan.actions.map((action) => action.idempotencyKey)
-    }
-  }, { persistState: false });
-  recordPlanApprovalAudit(app, plan);
-  recordCompensationAudit(app, plan);
+  for (const auditInput of buildProvisioningPlanAuditInputs(app, plan)) {
+    recordAudit(app, auditInput, { persistState: false });
+  }
 }
 
 export async function createProvisioningJob(
@@ -886,113 +835,17 @@ async function createControlledEnforcementJob(
     control?: EnforcementControl;
   }
 ): Promise<ProvisioningJob> {
-  assertJobControlsMatchPlan(plan, request.approval, request.control);
-  const approval = request.approval ?? plan.approval;
-  const control = request.control ?? plan.control;
-  assertControlledEnforcementAllowed(app, connector, approval, control, request.approverId);
-  assertEnforcementReadiness(app, plan.connectorId, plan.readinessReportId, approval, control);
-
-  const appliedPlan = await connector.applyProvisioningChange(plan);
-  const completedAt = app.now();
-  const verification = await buildEnforcementVerification(connector, appliedPlan, completedAt);
-  const completed = appliedPlan.status === "applied" && verification.status === "verified";
-  const actionResults = plan.actions.map((action): ProvisioningActionResult => ({
-    actionId: action.actionId,
-    operation: action.operation,
-    status: completed ? "applied" : "failed",
-    dryRun: false,
-    idempotencyKey: action.idempotencyKey,
-    message: completed
-      ? "Controlled synthetic enforcement executed through the mock connector and verified by readback."
-      : "Controlled enforcement did not verify; rollback or compensation is required.",
-    verification: {
-      ...action.verification,
-      status: verification.status,
-      readbackState: verification.readbackState,
-      checkedAt: verification.checkedAt,
-      message: verification.message
-    },
-    compensation: action.compensation
-  }));
-  const jobWithoutAuditIds: ProvisioningJob = {
-    id: request.jobId,
-    planId: plan.id,
-    connectorId: plan.connectorId,
-    mode: "enforcement",
-    dryRun: false,
-    status: completed ? "completed" : "failed",
-    approverId: request.approverId,
-    idempotencyKey: request.idempotencyKey,
-    actionResults,
-    verification,
-    auditEventIds: [],
-    approval,
-    control,
-    version: "provisioning-job:v1",
-    createdAt: request.startedAt,
-    startedAt: request.startedAt,
-    completedAt
-  };
-  app.store.upsertProvisioningPlan({ ...plan, status: completed ? "applied" : "failed", updatedAt: completedAt });
-  app.store.upsertProvisioningJob(jobWithoutAuditIds);
-  const auditEventIds = [
-    ...actionResults.map((result) =>
-      recordAudit(app, {
-        eventType: "connector.permission_changed",
-        actor: app.actor,
-        subjectId: plan.subjectId,
-        resourceId: plan.resourceId,
-        correlationId: `corr:${request.jobId}:${result.actionId}:permission-changed`,
-        payload: {
-          jobId: request.jobId,
-          planId: plan.id,
-          connectorId: plan.connectorId,
-          actionId: result.actionId,
-          operation: result.operation,
-          dryRun: false,
-          syntheticProviderWrite: true,
-          liveProviderWrite: false,
-          providerWrite: false,
-          approval,
-          control
-      }
-      }, { persistState: false }).eventId
-    ),
-    recordAudit(app, {
-      eventType: "provisioning.verified",
-      actor: app.actor,
-      subjectId: plan.subjectId,
-      resourceId: plan.resourceId,
-      correlationId: `corr:${request.jobId}:verified`,
-      payload: {
-        jobId: request.jobId,
-        planId: plan.id,
-        connectorId: plan.connectorId,
-        verification
-      }
-    }, { persistState: false }).eventId
-  ];
-
-  if (!completed) {
-    auditEventIds.push(...recordRollbackPlannedAudit(app, request.jobId, plan, { persistState: false }));
-  }
-
-  auditEventIds.push(
-    recordAudit(app, {
-      eventType: completed ? "provisioning.completed" : "provisioning.failed",
-      actor: app.actor,
-      subjectId: plan.subjectId,
-      resourceId: plan.resourceId,
-      correlationId: `corr:${request.jobId}:${completed ? "completed" : "failed"}`,
-      payload: asJsonRecord(jobWithoutAuditIds)
-    }, { persistState: false }).eventId
+  const execution = await executeControlledEnforcementJob(app, connector, plan, request);
+  app.store.upsertProvisioningPlan(execution.updatedPlan);
+  app.store.upsertProvisioningJob(execution.jobWithoutAuditIds);
+  const auditEventIds = execution.auditInputs.map((auditInput) =>
+    recordAudit(app, auditInput, { persistState: false }).eventId
   );
-
-  const job = { ...jobWithoutAuditIds, auditEventIds };
+  const job = { ...execution.jobWithoutAuditIds, auditEventIds };
   app.store.upsertProvisioningJob(job);
-  persistJobProvisioningPlan(app, { ...plan, status: completed ? "applied" : "failed", updatedAt: completedAt }, completedAt);
-  persistJobProvisioningJob(app, job, completedAt);
-  persistAppState(app, completedAt);
+  persistJobProvisioningPlan(app, execution.updatedPlan, execution.completedAt);
+  persistJobProvisioningJob(app, job, execution.completedAt);
+  persistAppState(app, execution.completedAt);
   return job;
 }
 
@@ -1088,7 +941,14 @@ export async function planDriftRemediationDryRun(
   }
 
   assertDriftRemediationControls(finding, request);
-  assertEnforcementReadiness(app, finding.sourceConnectorId, request.readinessReportId, request.approval, undefined);
+  assertEnforcementReadiness(
+    app,
+    getConnector(app, finding.sourceConnectorId),
+    finding.sourceConnectorId,
+    request.readinessReportId,
+    request.approval,
+    undefined
+  );
   const nativeGrantId = finding.nativeGrantId ?? inferNativeGrantIdForFinding(app, finding);
 
   if (!nativeGrantId && finding.recommendedAction === "revoke") {
@@ -2442,429 +2302,6 @@ function normalizeApprovalForReplay(
   };
 }
 
-function prepareProvisioningPlan(
-  app: RebacLocalApp,
-  connector: ConnectorAdapter,
-  plan: ProvisioningPlan,
-  options: ProvisioningExecutionOptions
-): ProvisioningPlan {
-  const mode = options.mode ?? "dry_run";
-
-  if (mode === "dry_run") {
-    return {
-      ...plan,
-      mode,
-      status: "planned",
-      actions: plan.actions.map((action) => ({
-        ...action,
-        dryRun: true,
-        status: "planned"
-      }))
-    };
-  }
-
-  assertControlledEnforcementAllowed(app, connector, options.approval, options.control, options.approval?.approverId);
-  assertEnforcementReadiness(app, plan.connectorId, options.readinessReportId, options.approval, options.control);
-  return {
-    ...plan,
-    mode,
-    status: "approved",
-    actions: plan.actions.map((action) => ({
-      ...action,
-      dryRun: false,
-      status: "planned"
-    })),
-    approval: options.approval,
-    control: options.control,
-    readinessReportId: options.readinessReportId
-  };
-}
-
-async function buildEnforcementReadinessChecks(
-  connector: ConnectorAdapter,
-  control: EnforcementControl,
-  checkedAt: string
-): Promise<EnforcementReadinessCheck[]> {
-  const provider = connector.provider ?? connector.id;
-  const tenantBoundary = connector.tenantBoundary ?? "synthetic:unknown";
-  const requiredReadScopes = connector.requiredReadScopes ?? [];
-
-  return [
-    {
-      name: "connector_registered",
-      status: "pass",
-      message: `${connector.id} is registered.`,
-      evidence: { connectorId: connector.id, provider, tenantBoundary }
-    },
-    {
-      name: "synthetic_only_guardrail",
-      status: control.syntheticOnly && !control.liveProviderWrites ? "pass" : "fail",
-      message: "Phase 4 readiness requires synthetic-only enforcement with live provider writes disabled.",
-      evidence: {
-        syntheticOnly: control.syntheticOnly,
-        liveProviderWrites: control.liveProviderWrites
-      }
-    },
-    {
-      name: "mock_enforcement_boundary",
-      status: provider === "mock" && tenantBoundary === "synthetic:local" ? "pass" : "fail",
-      message: "Phase 4 enforcement readiness is limited to the synthetic mock connector.",
-      evidence: { provider, tenantBoundary }
-    },
-    {
-      name: "provisioning_capability",
-      status: connector.capabilities.supportsProvisioning ? "pass" : "fail",
-      message: "Connector must declare provisioning support before enforcement can be planned.",
-      evidence: { supportsProvisioning: connector.capabilities.supportsProvisioning }
-    },
-    {
-      name: "readback_capability",
-      status: connector.capabilities.supportsDiscovery && connector.capabilities.supportsReconciliation ? "pass" : "fail",
-      message: "Connector must support discovery and reconciliation readback for enforcement verification.",
-      evidence: {
-        supportsDiscovery: connector.capabilities.supportsDiscovery,
-        supportsReconciliation: connector.capabilities.supportsReconciliation,
-        requiredReadScopes
-      }
-    },
-    {
-      name: "incident_mode_clear",
-      status: control.incidentMode ? "fail" : "pass",
-      message: "Incident mode must be clear before controlled enforcement can be planned.",
-      evidence: { incidentMode: control.incidentMode }
-    },
-    {
-      name: "break_glass_disabled",
-      status: control.breakGlass ? "fail" : "pass",
-      message: "Break-glass cannot be used for Phase 4 controlled enforcement readiness.",
-      evidence: { breakGlass: control.breakGlass }
-    },
-    await buildRollbackCompensationReadinessCheck(connector, checkedAt),
-    {
-      name: "least_privilege_review",
-      status: provider === "mock" ? "pass" : "fail",
-      message: "Live connector least-privilege review remains incomplete for Phase 4.",
-      evidence: {
-        provider,
-        requiredReadScopes,
-        liveWriteScopesReviewed: false
-      }
-    }
-  ];
-}
-
-async function buildRollbackCompensationReadinessCheck(
-  connector: ConnectorAdapter,
-  checkedAt: string
-): Promise<EnforcementReadinessCheck> {
-  try {
-    const plan = await connector.planProvisioningChange(createCompensationProbeDecision(checkedAt));
-    const actionsWithCompensation = plan.actions.filter(
-      (action) =>
-        action.compensation?.status === "planned" &&
-        typeof action.compensation.idempotencyKey === "string" &&
-        action.compensation.idempotencyKey.length > 0
-    );
-    const hasCompensation = plan.actions.length > 0 && actionsWithCompensation.length === plan.actions.length;
-
-    return {
-      name: "rollback_compensation_required",
-      status: hasCompensation ? "pass" : "fail",
-      message: "Provisioning plans must carry compensation intent before enforcement jobs can run.",
-      evidence: {
-        compensationRequired: true,
-        actionCount: plan.actions.length,
-        compensatedActionCount: actionsWithCompensation.length
-      }
-    };
-  } catch (error) {
-    return {
-      name: "rollback_compensation_required",
-      status: "fail",
-      message: "Provisioning compensation readiness could not be verified.",
-      evidence: { error: error instanceof Error ? error.message : "Unknown compensation probe failure" }
-    };
-  }
-}
-
-function createCompensationProbeDecision(evaluatedAt: string): DecisionResult {
-  return {
-    decisionId: "decision:enforcement-readiness-compensation-probe",
-    decision: "allow",
-    subjectId: "user:readiness-probe",
-    action: "read",
-    resourceId: "document:readiness-probe",
-    reasonCode: "ALLOW_READINESS_COMPENSATION_PROBE",
-    policyVersion: "readiness-probe",
-    modelVersion: "readiness-probe",
-    relationshipVersion: "readiness-probe",
-    tupleVersion: "readiness-probe",
-    contextVersion: "context:none",
-    asOf: evaluatedAt,
-    relationshipPath: [],
-    constraints: {},
-    evaluatedAt
-  };
-}
-
-function assertEnforcementReadiness(
-  app: RebacLocalApp,
-  connectorId: string,
-  readinessReportId: string | undefined,
-  approval: ProvisioningApproval | undefined,
-  control: EnforcementControl | undefined
-): asserts readinessReportId is string {
-  if (!readinessReportId) {
-    throw new RebacLocalAppError(
-      400,
-      "ENFORCEMENT_READINESS_REQUIRED",
-      "Controlled enforcement requires a ready connector readiness report."
-    );
-  }
-
-  const report = app.store.getEnforcementReadinessReport(readinessReportId);
-  const connector = getConnector(app, connectorId);
-
-  if (!report) {
-    throw new RebacLocalAppError(400, "ENFORCEMENT_READINESS_NOT_FOUND", `Readiness report ${readinessReportId} was not found.`);
-  }
-
-  if (report.connectorId !== connectorId) {
-    throw new RebacLocalAppError(
-      400,
-      "ENFORCEMENT_READINESS_CONNECTOR_MISMATCH",
-      "The readiness report connector must match the provisioning connector."
-    );
-  }
-
-  if (report.provider !== (connector.provider ?? connector.id) || report.tenantBoundary !== (connector.tenantBoundary ?? "synthetic:unknown")) {
-    throw new RebacLocalAppError(
-      400,
-      "ENFORCEMENT_READINESS_BOUNDARY_MISMATCH",
-      "The readiness report provider boundary must match the current connector registration."
-    );
-  }
-
-  if (report.status !== "ready") {
-    throw new RebacLocalAppError(
-      403,
-      "ENFORCEMENT_READINESS_BLOCKED",
-      "The connector readiness report is blocked and cannot authorize controlled enforcement."
-    );
-  }
-
-  if (report.liveProviderWritesAllowed) {
-    throw new RebacLocalAppError(
-      403,
-      "ENFORCEMENT_READINESS_LIVE_WRITES_BLOCKED",
-      "Phase 4 readiness reports must not allow live provider writes."
-    );
-  }
-
-  if (control && JSON.stringify(report.control) !== JSON.stringify(control)) {
-    throw new RebacLocalAppError(
-      400,
-      "ENFORCEMENT_READINESS_CONTROL_MISMATCH",
-      "The readiness report controls must match the provisioning controls."
-    );
-  }
-
-  if (approval && !changeTicketMatches(report.changeTicketPattern, approval.changeTicket)) {
-    throw new RebacLocalAppError(
-      400,
-      "ENFORCEMENT_READINESS_CHANGE_TICKET_MISMATCH",
-      "The approval change ticket must match the readiness report change-ticket pattern."
-    );
-  }
-}
-
-function assertControlledEnforcementAllowed(
-  app: RebacLocalApp,
-  connector: ConnectorAdapter,
-  approval: ProvisioningApproval | undefined,
-  control: EnforcementControl | undefined,
-  approverId: string | undefined
-): asserts approval is ProvisioningApproval {
-  if (!approval) {
-    throw new RebacLocalAppError(
-      400,
-      "CONTROLLED_ENFORCEMENT_APPROVAL_REQUIRED",
-      "Controlled enforcement requires an approved change ticket."
-    );
-  }
-
-  if (!control) {
-    throw new RebacLocalAppError(
-      400,
-      "CONTROLLED_ENFORCEMENT_CONTROL_REQUIRED",
-      "Controlled enforcement requires explicit synthetic-only control settings."
-    );
-  }
-
-  if (approval.decision !== "approved" || !approval.approverId || !approval.changeTicket || !approval.approvedAt) {
-    throw new RebacLocalAppError(
-      400,
-      "CONTROLLED_ENFORCEMENT_APPROVAL_INVALID",
-      "Controlled enforcement approval must include decision, approverId, changeTicket, and approvedAt."
-    );
-  }
-
-  if (approverId && approval.approverId !== approverId) {
-    throw new RebacLocalAppError(
-      400,
-      "CONTROLLED_ENFORCEMENT_APPROVER_MISMATCH",
-      "The job approverId must match the approved change ticket."
-    );
-  }
-
-  if (Number.isNaN(Date.parse(approval.approvedAt))) {
-    throw new RebacLocalAppError(
-      400,
-      "CONTROLLED_ENFORCEMENT_APPROVAL_INVALID",
-      "Controlled enforcement approval timestamps must be valid date-times."
-    );
-  }
-
-  if (approval.expiresAt !== undefined) {
-    const expiresAt = Date.parse(approval.expiresAt);
-    const now = Date.parse(app.now());
-
-    if (Number.isNaN(expiresAt) || Number.isNaN(now)) {
-      throw new RebacLocalAppError(
-        400,
-        "CONTROLLED_ENFORCEMENT_APPROVAL_INVALID",
-        "Controlled enforcement approval timestamps must be valid date-times."
-      );
-    }
-
-    if (expiresAt <= now) {
-      throw new RebacLocalAppError(
-        400,
-        "CONTROLLED_ENFORCEMENT_APPROVAL_EXPIRED",
-        "Controlled enforcement approval has expired."
-      );
-    }
-  }
-
-  if (!control.syntheticOnly || control.liveProviderWrites || control.breakGlass) {
-    throw new RebacLocalAppError(
-      403,
-      "CONTROLLED_ENFORCEMENT_GUARDRAIL_REQUIRED",
-      "Phase 4 enforcement must be synthetic-only, must not allow live provider writes, and must not use break-glass."
-    );
-  }
-
-  if (control.incidentMode) {
-    throw new RebacLocalAppError(
-      409,
-      "CONTROLLED_ENFORCEMENT_INCIDENT_MODE_BLOCKED",
-      "Controlled enforcement is blocked while incident mode is active."
-    );
-  }
-
-  if (!connector.capabilities.supportsProvisioning) {
-    throw new RebacLocalAppError(403, "CONNECTOR_ENFORCEMENT_DISABLED", `${connector.id} does not support provisioning.`);
-  }
-
-  if (connector.provider !== "mock" || connector.tenantBoundary !== "synthetic:local") {
-    throw new RebacLocalAppError(
-      403,
-      "CONNECTOR_ENFORCEMENT_NOT_ALLOWED",
-      "Phase 4 controlled enforcement is limited to the synthetic mock connector."
-    );
-  }
-}
-
-function assertJobControlsMatchPlan(
-  plan: ProvisioningPlan,
-  approval: ProvisioningApproval | undefined,
-  control: EnforcementControl | undefined
-): void {
-  if (approval && plan.approval && JSON.stringify(approval) !== JSON.stringify(plan.approval)) {
-    throw new RebacLocalAppError(
-      400,
-      "CONTROLLED_ENFORCEMENT_APPROVAL_MISMATCH",
-      "The job approval must match the approved provisioning plan."
-    );
-  }
-
-  if (control && plan.control && JSON.stringify(control) !== JSON.stringify(plan.control)) {
-    throw new RebacLocalAppError(
-      400,
-      "CONTROLLED_ENFORCEMENT_CONTROL_MISMATCH",
-      "The job control settings must match the approved provisioning plan."
-    );
-  }
-}
-
-function recordPlanApprovalAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
-  if (plan.mode !== "enforcement" || !plan.approval || !plan.control) {
-    return;
-  }
-
-  recordAudit(app, {
-    eventType: "provisioning.approved",
-    actor: app.actor,
-    subjectId: plan.subjectId,
-    resourceId: plan.resourceId,
-    correlationId: `corr:${plan.id}:approved`,
-    payload: {
-      planId: plan.id,
-      connectorId: plan.connectorId,
-      mode: plan.mode,
-      status: plan.status,
-      approval: plan.approval,
-      control: plan.control
-    }
-  }, { persistState: false });
-}
-
-function recordCompensationAudit(app: RebacLocalApp, plan: ProvisioningPlan): void {
-  for (const action of plan.actions) {
-    if (!action.compensation) {
-      continue;
-    }
-
-    recordAudit(app, {
-      eventType: "provisioning.compensation_planned",
-      actor: app.actor,
-      subjectId: plan.subjectId,
-      resourceId: plan.resourceId,
-      correlationId: `corr:${plan.id}:${action.actionId}:compensation`,
-      payload: {
-        planId: plan.id,
-        actionId: action.actionId,
-        compensation: action.compensation
-      }
-    }, { persistState: false });
-  }
-}
-
-function recordRollbackPlannedAudit(
-  app: RebacLocalApp,
-  jobId: string,
-  plan: ProvisioningPlan,
-  options: RecordAuditOptions = {}
-): string[] {
-  return plan.actions
-    .filter((action) => action.compensation)
-    .map((action) =>
-      recordAudit(app, {
-        eventType: "provisioning.rollback_planned",
-        actor: app.actor,
-        subjectId: plan.subjectId,
-        resourceId: plan.resourceId,
-        correlationId: `corr:${jobId}:${action.actionId}:rollback-planned`,
-        payload: {
-          jobId,
-          planId: plan.id,
-          actionId: action.actionId,
-          compensation: action.compensation
-        }
-      }, options).eventId
-    );
-}
-
 async function buildDryRunVerification(
   connector: ConnectorAdapter,
   plan: ProvisioningPlan,
@@ -2905,54 +2342,6 @@ async function buildDryRunVerification(
     },
     checkedAt,
     message: "Connector did not provide positive dry-run verification; provider write remains skipped."
-  };
-}
-
-async function buildEnforcementVerification(
-  connector: ConnectorAdapter,
-  plan: ProvisioningPlan,
-  checkedAt: string
-): Promise<ProvisioningVerification> {
-  const verified = await connector.verifyProvisioningChange(plan);
-
-  if (verified) {
-    return {
-      status: "verified",
-      method: "connector.verifyProvisioningChange",
-      expectedState: {
-        planId: plan.id,
-        actionCount: plan.actions.length,
-        mode: "enforcement"
-      },
-      readbackState: {
-        dryRun: false,
-        providerWrite: false,
-        syntheticProviderWrite: true,
-        liveProviderWrite: false,
-        verificationHook: true
-      },
-      checkedAt,
-      message: "Controlled synthetic enforcement verified; no live provider mutation occurred."
-    };
-  }
-
-  return {
-    status: "failed",
-    method: "connector.verifyProvisioningChange",
-    expectedState: {
-      planId: plan.id,
-      actionCount: plan.actions.length,
-      mode: "enforcement"
-    },
-    readbackState: {
-      dryRun: false,
-      providerWrite: false,
-      syntheticProviderWrite: false,
-      liveProviderWrite: false,
-      verificationHook: false
-    },
-    checkedAt,
-    message: "Controlled enforcement verification failed; compensation must be reviewed before retry."
   };
 }
 
