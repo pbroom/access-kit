@@ -54,6 +54,7 @@ interface DecisionContext {
   reasonCode: string;
   decision: DecisionValue;
   relationshipPath: RelationshipPathStep[];
+  relationshipPathRelationships: RelationshipTuple[];
   traversal: DecisionTraversalReport;
   constraints?: JsonRecord;
 }
@@ -85,12 +86,43 @@ const actionAllowRelations = new Map<string, Set<string>>([
   ["manage", new Set(["owner_of", "admin_of"])]
 ]);
 
+const MAX_ACTIVE_RELATIONSHIP_SCOPES = 32;
+const emptyActiveRelationships: readonly RelationshipTuple[] = [];
+
+interface ActiveRelationshipScope {
+  revision: number;
+  asOf: string;
+  pinnedTupleVersion?: string;
+  bySubject: Map<string, readonly RelationshipTuple[]>;
+}
+
+interface RelationshipTraversalPath {
+  steps: RelationshipPathStep[];
+  relationships: RelationshipTuple[];
+}
+
+interface AllowQueueEntry {
+  currentId: string;
+  depth: number;
+  hasActionGrant: boolean;
+  previous?: AllowQueueEntry;
+  relationship?: RelationshipTuple;
+}
+
+interface DenyQueueEntry {
+  currentId: string;
+  depth: number;
+  previous?: DenyQueueEntry;
+  relationship?: RelationshipTuple;
+}
+
 export class RebacDecisionEngine {
   readonly #auditRecorder: AuditRecorder;
   readonly #onAuditEvent?: (event: AuditEvent) => void;
   readonly #policyModel?: PolicyModel;
   readonly #store: InMemoryRebacStore;
   readonly #options: NormalizedDecisionEngineOptions;
+  readonly #activeRelationshipScopes = new Map<string, ActiveRelationshipScope>();
 
   constructor(store: InMemoryRebacStore, options: DecisionEngineOptions = {}) {
     this.#store = store;
@@ -172,9 +204,7 @@ export class RebacDecisionEngine {
     versionPins: DecisionRuntimeVersionPins
   ): DecisionContext {
     const graphSize = {
-      subjects: this.#store.listSubjects().length,
-      resources: this.#store.listResources().length,
-      relationships: this.#store.listRelationships().length
+      ...this.#store.graphSize()
     };
     const traversalGuard = new DecisionTraversalGuard(this.#options.traversalBounds, graphSize, request.subjectId);
     const asOfMs = Date.parse(versionPins.asOf);
@@ -227,19 +257,13 @@ export class RebacDecisionEngine {
       return denied("DENY_TENANT_BOUNDARY");
     }
 
-    const activeRelationships = this.#store
-      .listRelationships()
-      .filter((relationship) =>
-        isActiveRelationshipAt(
-          relationship,
-          versionPins.asOf,
-          request.tupleVersion ?? (this.#options.enforceTupleVersion ? versionPins.tupleVersion : undefined)
-        )
-      );
-    const relationshipsBySubject = indexRelationshipsBySubject(activeRelationships);
+    const activeRelationshipScope = this.#activeRelationshipScope(
+      versionPins.asOf,
+      request.tupleVersion ?? (this.#options.enforceTupleVersion ? versionPins.tupleVersion : undefined)
+    );
     const explicitDeny = findDenyPath(
       this.#store,
-      relationshipsBySubject,
+      activeRelationshipScope,
       traversalGuard,
       request.subjectId,
       request.resourceId,
@@ -247,8 +271,8 @@ export class RebacDecisionEngine {
       versionPins.asOf
     );
 
-    if (explicitDeny.length > 0) {
-      return denied("DENY_EXPLICIT_OVERRIDE", explicitDeny);
+    if (explicitDeny.steps.length > 0) {
+      return denied("DENY_EXPLICIT_OVERRIDE", explicitDeny.steps, versionPins, undefined, explicitDeny.relationships);
     }
 
     if (traversalGuard.boundsExceeded) {
@@ -257,7 +281,7 @@ export class RebacDecisionEngine {
 
     const relationshipPath = findAllowPath(
       this.#store,
-      relationshipsBySubject,
+      activeRelationshipScope,
       traversalGuard,
       request.subjectId,
       request.resourceId,
@@ -267,10 +291,10 @@ export class RebacDecisionEngine {
     );
 
     if (traversalGuard.boundsExceeded) {
-      return denied("DENY_TRAVERSAL_BOUND_EXCEEDED", relationshipPath);
+      return denied("DENY_TRAVERSAL_BOUND_EXCEEDED", relationshipPath.steps, versionPins, undefined, relationshipPath.relationships);
     }
 
-    if (relationshipPath.length === 0) {
+    if (relationshipPath.steps.length === 0) {
       return denied("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
     }
 
@@ -280,13 +304,13 @@ export class RebacDecisionEngine {
           policyModel: this.#policyModel,
           request,
           evaluatedAt,
-          relationships: activeRelationships,
-          relationshipPath
+          relationshipPath: relationshipPath.steps,
+          relationshipPathRelationships: relationshipPath.relationships
         })
       : undefined;
 
     if (caveatResult && !caveatResult.allow) {
-      return denied(caveatResult.reasonCode, relationshipPath, versionPins, caveatResult.constraints);
+      return denied(caveatResult.reasonCode, relationshipPath.steps, versionPins, caveatResult.constraints, relationshipPath.relationships);
     }
 
     return {
@@ -297,7 +321,8 @@ export class RebacDecisionEngine {
       resourceClassification: cacheScope.resourceClassification,
       decision: "allow",
       reasonCode: "ALLOW_VIA_RELATIONSHIP_PATH",
-      relationshipPath,
+      relationshipPath: relationshipPath.steps,
+      relationshipPathRelationships: relationshipPath.relationships,
       traversal: traversalGuard.report(),
       constraints: caveatResult?.constraints
     };
@@ -306,7 +331,8 @@ export class RebacDecisionEngine {
       reasonCode: string,
       relationshipPath: RelationshipPathStep[] = [],
       deniedVersionPins: DecisionRuntimeVersionPins = versionPins,
-      constraints?: JsonRecord
+      constraints?: JsonRecord,
+      relationshipPathRelationships: RelationshipTuple[] = []
     ): DecisionContext {
       return {
         request,
@@ -317,10 +343,34 @@ export class RebacDecisionEngine {
         decision: "deny",
         reasonCode,
         relationshipPath,
+        relationshipPathRelationships,
         traversal: traversalGuard.report(),
         constraints
       };
     }
+  }
+
+  #activeRelationshipScope(asOf: string, pinnedTupleVersion: string | undefined): ActiveRelationshipScope {
+    const revision = this.#store.relationshipRevision();
+    const key = `${revision}\u0000${asOf}\u0000${pinnedTupleVersion ?? ""}`;
+    const cached = this.#activeRelationshipScopes.get(key);
+
+    if (cached) {
+      return cached;
+    }
+
+    const scope: ActiveRelationshipScope = {
+      revision,
+      asOf,
+      pinnedTupleVersion,
+      bySubject: new Map()
+    };
+    this.#activeRelationshipScopes.set(key, scope);
+    if (this.#activeRelationshipScopes.size > MAX_ACTIVE_RELATIONSHIP_SCOPES) {
+      const [oldestKey] = this.#activeRelationshipScopes.keys();
+      this.#activeRelationshipScopes.delete(oldestKey);
+    }
+    return scope;
   }
 }
 
@@ -384,8 +434,8 @@ function evaluateConditionalRelationshipCaveats(input: {
   policyModel: PolicyModel;
   request: DecisionRequest;
   evaluatedAt: string;
-  relationships: RelationshipTuple[];
   relationshipPath: RelationshipPathStep[];
+  relationshipPathRelationships: RelationshipTuple[];
 }): { allow: true; constraints: JsonRecord } | { allow: false; reasonCode: string; constraints: JsonRecord } {
   const caveatsByName = new Map((input.policyModel.caveats ?? []).map((caveat) => [caveat.name, caveat]));
   const conditionalRelationships = (input.policyModel.conditionalRelationships ?? []).filter((conditional) =>
@@ -393,7 +443,7 @@ function evaluateConditionalRelationshipCaveats(input: {
   );
   const explanations: JsonRecord[] = [];
 
-  for (const step of input.relationshipPath) {
+  for (const [index, step] of input.relationshipPath.entries()) {
     const matchingConditionals = conditionalRelationships.filter((entry) => entry.relation === step.relation);
     if (matchingConditionals.length === 0) {
       continue;
@@ -408,9 +458,7 @@ function evaluateConditionalRelationshipCaveats(input: {
     }
     const [conditional] = matchingConditionals;
 
-    const relationship = input.relationships.find((entry) =>
-      entry.subjectId === step.subjectId && entry.relation === step.relation && entry.objectId === step.objectId
-    );
+    const relationship = input.relationshipPathRelationships[index];
 
     for (const caveatName of conditional.caveats) {
       const caveat = caveatsByName.get(caveatName);
@@ -621,48 +669,42 @@ function isActiveRelationshipAt(
 
 function findAllowPath(
   store: InMemoryRebacStore,
-  relationshipsBySubject: Map<string, RelationshipTuple[]>,
+  activeRelationshipScope: ActiveRelationshipScope,
   traversalGuard: DecisionTraversalGuard,
   subjectId: string,
   resourceId: string,
   action: string,
   rootTenantId: string | undefined,
   asOf: string
-): RelationshipPathStep[] {
+): RelationshipTraversalPath {
   const allowedRelations = actionAllowRelations.get(action.toLowerCase()) ?? new Set<string>();
-  const queue: Array<{ currentId: string; depth: number; hasActionGrant: boolean; path: RelationshipPathStep[] }> = [
-    { currentId: subjectId, depth: 0, hasActionGrant: false, path: [] }
+  const queue: AllowQueueEntry[] = [
+    { currentId: subjectId, depth: 0, hasActionGrant: false }
   ];
   const bestGrantByNode = new Map<string, boolean>([[subjectId, false]]);
 
-  while (queue.length > 0) {
-    const next = queue.shift();
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const next = queue[queueIndex];
 
-    if (!next) {
-      break;
-    }
-
-    for (const relationship of relationshipsBySubject.get(next.currentId) ?? []) {
+    for (const relationship of activeRelationshipsForSubject(store, activeRelationshipScope, next.currentId)) {
       if (!traversalGuard.recordRelationshipScan()) {
-        return [];
+        return emptyRelationshipTraversalPath();
       }
 
       if (!relationshipMatchesTenantBoundary(store, relationship, rootTenantId, asOf)) {
         continue;
       }
 
-      const step = toPathStep(relationship);
-      const path = [...next.path, step];
       const depth = next.depth + 1;
       if (!traversalGuard.recordDepth(depth)) {
-        return [];
+        return emptyRelationshipTraversalPath();
       }
 
       const relationGrantsAction = allowedRelations.has(relationship.relation);
       const traversable = canTraverseRelationship(relationship, relationGrantsAction, next.hasActionGrant);
 
       if (relationship.objectId === resourceId && relationGrantsAction) {
-        return path;
+        return buildAllowPath(next, relationship);
       }
 
       if (
@@ -670,7 +712,7 @@ function findAllowPath(
         relationship.objectId === resourceId &&
         next.hasActionGrant
       ) {
-        return path;
+        return buildAllowPath(next, relationship);
       }
 
       if (relationship.objectId === resourceId) {
@@ -686,61 +728,56 @@ function findAllowPath(
 
       if (previousBest !== true && previousBest !== hasActionGrant) {
         if (!traversalGuard.recordVisitedNode(relationship.objectId)) {
-          return [];
+          return emptyRelationshipTraversalPath();
         }
         bestGrantByNode.set(relationship.objectId, hasActionGrant);
         queue.push({
           currentId: relationship.objectId,
           depth,
           hasActionGrant,
-          path
+          previous: next,
+          relationship
         });
       }
     }
   }
 
-  return [];
+  return emptyRelationshipTraversalPath();
 }
 
 function findDenyPath(
   store: InMemoryRebacStore,
-  relationshipsBySubject: Map<string, RelationshipTuple[]>,
+  activeRelationshipScope: ActiveRelationshipScope,
   traversalGuard: DecisionTraversalGuard,
   subjectId: string,
   resourceId: string,
   rootTenantId: string | undefined,
   asOf: string
-): RelationshipPathStep[] {
-  const queue: Array<{ currentId: string; depth: number; path: RelationshipPathStep[] }> = [
-    { currentId: subjectId, depth: 0, path: [] }
+): RelationshipTraversalPath {
+  const queue: DenyQueueEntry[] = [
+    { currentId: subjectId, depth: 0 }
   ];
   const visited = new Set<string>([subjectId]);
 
-  while (queue.length > 0) {
-    const next = queue.shift();
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const next = queue[queueIndex];
 
-    if (!next) {
-      break;
-    }
-
-    for (const relationship of relationshipsBySubject.get(next.currentId) ?? []) {
+    for (const relationship of activeRelationshipsForSubject(store, activeRelationshipScope, next.currentId)) {
       if (!traversalGuard.recordRelationshipScan()) {
-        return [];
+        return emptyRelationshipTraversalPath();
       }
 
       if (!relationshipMatchesTenantBoundary(store, relationship, rootTenantId, asOf)) {
         continue;
       }
 
-      const step = toPathStep(relationship);
-      const path = [...next.path, step];
       const depth = next.depth + 1;
       if (!traversalGuard.recordDepth(depth)) {
-        return [];
+        return emptyRelationshipTraversalPath();
       }
 
       if (relationship.objectId === resourceId && denyRelations.has(relationship.relation)) {
-        return path;
+        return buildDenyPath(next, relationship);
       }
 
       if (
@@ -753,15 +790,61 @@ function findDenyPath(
 
       if (!visited.has(relationship.objectId)) {
         if (!traversalGuard.recordVisitedNode(relationship.objectId)) {
-          return [];
+          return emptyRelationshipTraversalPath();
         }
         visited.add(relationship.objectId);
-        queue.push({ currentId: relationship.objectId, depth, path });
+        queue.push({ currentId: relationship.objectId, depth, previous: next, relationship });
       }
     }
   }
 
-  return [];
+  return emptyRelationshipTraversalPath();
+}
+
+function activeRelationshipsForSubject(
+  store: InMemoryRebacStore,
+  scope: ActiveRelationshipScope,
+  subjectId: string
+): readonly RelationshipTuple[] {
+  const cached = scope.bySubject.get(subjectId);
+
+  if (cached) {
+    return cached;
+  }
+
+  const active = store
+    .listRelationshipsForSubject(subjectId)
+    .filter((relationship) => isActiveRelationshipAt(relationship, scope.asOf, scope.pinnedTupleVersion));
+  scope.bySubject.set(subjectId, active.length > 0 ? active : emptyActiveRelationships);
+  return active;
+}
+
+function buildAllowPath(entry: AllowQueueEntry, finalRelationship: RelationshipTuple): RelationshipTraversalPath {
+  const relationships: RelationshipTuple[] = [finalRelationship];
+  for (let cursor: AllowQueueEntry | undefined = entry; cursor?.relationship; cursor = cursor.previous) {
+    relationships.push(cursor.relationship);
+  }
+  relationships.reverse();
+  return {
+    steps: relationships.map(toPathStep),
+    relationships
+  };
+}
+
+function buildDenyPath(entry: DenyQueueEntry, finalRelationship: RelationshipTuple): RelationshipTraversalPath {
+  const relationships: RelationshipTuple[] = [finalRelationship];
+  for (let cursor: DenyQueueEntry | undefined = entry; cursor?.relationship; cursor = cursor.previous) {
+    relationships.push(cursor.relationship);
+  }
+  relationships.reverse();
+  return {
+    steps: relationships.map(toPathStep),
+    relationships
+  };
+}
+
+function emptyRelationshipTraversalPath(): RelationshipTraversalPath {
+  return { steps: [], relationships: [] };
 }
 
 function canTraverseRelationship(
@@ -830,22 +913,6 @@ function relationshipMatchesTenantBoundary(
   const objectNode = visibleSubjectAt(store, relationship.objectId, asOf) ?? visibleResourceAt(store, relationship.objectId, asOf);
 
   return tenantIdFor(objectNode) === rootTenantId;
-}
-
-function indexRelationshipsBySubject(relationships: RelationshipTuple[]): Map<string, RelationshipTuple[]> {
-  const index = new Map<string, RelationshipTuple[]>();
-
-  for (const relationship of relationships) {
-    const values = index.get(relationship.subjectId);
-
-    if (values) {
-      values.push(relationship);
-    } else {
-      index.set(relationship.subjectId, [relationship]);
-    }
-  }
-
-  return index;
 }
 
 function visibleSubjectAt(store: InMemoryRebacStore, id: string, asOf: string): Subject | undefined {

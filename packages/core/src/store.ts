@@ -40,11 +40,19 @@ export interface RebacSeedData {
 }
 
 const MAX_PERSISTENCE_DEGRADATIONS = 20;
+const emptyRelationships: readonly RelationshipTuple[] = [];
+
+export interface RebacGraphSize {
+  subjects: number;
+  resources: number;
+  relationships: number;
+}
 
 export class InMemoryRebacStore {
   readonly #subjects = new Map<CanonicalId, Subject>();
   readonly #resources = new Map<CanonicalId, Resource>();
   readonly #relationships = new Map<CanonicalId, RelationshipTuple>();
+  readonly #relationshipsBySubject = new Map<CanonicalId, RelationshipTuple[]>();
   readonly #nativeGrants = new Map<CanonicalId, NativeGrant>();
   readonly #discoveryRuns = new Map<CanonicalId, DiscoveryRun>();
   readonly #enforcementReadinessReports = new Map<CanonicalId, EnforcementReadinessReport>();
@@ -58,6 +66,7 @@ export class InMemoryRebacStore {
   readonly #decisions = new Map<CanonicalId, DecisionResult>();
   readonly #auditEvents: AuditEvent[] = [];
   readonly #persistenceDegradations: PersistenceDegradationReceipt[] = [];
+  #relationshipRevision = 0;
 
   constructor(seed: RebacSeedData = {}) {
     seed.subjects?.forEach((subject) => this.upsertSubject(subject));
@@ -99,6 +108,14 @@ export class InMemoryRebacStore {
     };
   }
 
+  graphSize(): RebacGraphSize {
+    return {
+      subjects: this.#subjects.size,
+      resources: this.#resources.size,
+      relationships: this.#relationships.size
+    };
+  }
+
   getSubject(id: CanonicalId): Subject | undefined {
     return this.#subjects.get(id);
   }
@@ -129,6 +146,14 @@ export class InMemoryRebacStore {
     return this.#relationships.get(id);
   }
 
+  relationshipRevision(): number {
+    return this.#relationshipRevision;
+  }
+
+  listRelationshipsForSubject(subjectId: CanonicalId): readonly RelationshipTuple[] {
+    return this.#relationshipsBySubject.get(subjectId) ?? emptyRelationships;
+  }
+
   listRelationships(filter: Partial<Pick<RelationshipTuple, "subjectId" | "objectId" | "relation">> = {}): RelationshipTuple[] {
     return [...this.#relationships.values()].filter((relationship) => {
       return (
@@ -140,7 +165,13 @@ export class InMemoryRebacStore {
   }
 
   upsertRelationship(relationship: RelationshipTuple): RelationshipTuple {
+    const existing = this.#relationships.get(relationship.id);
+    if (existing) {
+      this.#removeRelationshipFromSubjectIndex(existing);
+    }
     this.#relationships.set(relationship.id, relationship);
+    this.#addRelationshipToSubjectIndex(relationship);
+    this.#relationshipRevision += 1;
     return relationship;
   }
 
@@ -156,8 +187,37 @@ export class InMemoryRebacStore {
       status: "deleted",
       updatedAt: deletedAt
     };
+    this.#removeRelationshipFromSubjectIndex(relationship);
     this.#relationships.set(id, deleted);
+    this.#addRelationshipToSubjectIndex(deleted);
+    this.#relationshipRevision += 1;
     return deleted;
+  }
+
+  #addRelationshipToSubjectIndex(relationship: RelationshipTuple): void {
+    const relationships = this.#relationshipsBySubject.get(relationship.subjectId);
+
+    if (relationships) {
+      relationships.push(relationship);
+    } else {
+      this.#relationshipsBySubject.set(relationship.subjectId, [relationship]);
+    }
+  }
+
+  #removeRelationshipFromSubjectIndex(relationship: RelationshipTuple): void {
+    const relationships = this.#relationshipsBySubject.get(relationship.subjectId);
+
+    if (!relationships) {
+      return;
+    }
+
+    const index = relationships.findIndex((entry) => entry.id === relationship.id);
+    if (index !== -1) {
+      relationships.splice(index, 1);
+    }
+    if (relationships.length === 0) {
+      this.#relationshipsBySubject.delete(relationship.subjectId);
+    }
   }
 
   listNativeGrants(

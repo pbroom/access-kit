@@ -511,6 +511,35 @@ describe("RebacDecisionEngine", () => {
     });
   });
 
+  it("invalidates cached active relationship indexes when relationships mutate", () => {
+    const seed = createLocalEngineSeed();
+    const store = new InMemoryRebacStore({
+      ...seed,
+      relationships: []
+    });
+    const engine = new RebacDecisionEngine(store, { now: () => now });
+    const request = {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    };
+
+    expect(engine.explain(request).reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+
+    store.upsertRelationship(tuple(
+      "relationship:alice-reader-document-cache-invalidation",
+      "user:alice",
+      "reader_of",
+      "document:case-plan"
+    ));
+
+    expect(engine.explain(request).reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
+
+    store.deleteRelationship("relationship:alice-reader-document-cache-invalidation", now);
+
+    expect(engine.explain(request).reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
+  });
+
   it("denies future historical timestamps", () => {
     const store = new InMemoryRebacStore(createLocalEngineSeed());
     const engine = new RebacDecisionEngine(store, { now: () => now });
