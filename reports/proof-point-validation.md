@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:12:55.157Z
+Generated at: 2026-05-28T03:14:50.459Z
 
-Branch: 
+Branch: codex/rebac-microsoft-provider-semantics
 
 Node: v24.4.1
 
@@ -130,8 +130,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:12:49
-   Duration  281ms (transform 130ms, setup 0ms, import 206ms, tests 19ms, environment 0ms)
+   Start at  23:14:45
+   Duration  274ms (transform 129ms, setup 0ms, import 203ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -212,8 +212,8 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 
  Test Files  10 passed (10)
       Tests  148 passed (148)
-   Start at  23:12:52
-   Duration  227ms (transform 804ms, setup 0ms, import 1.11s, tests 103ms, environment 0ms)
+   Start at  23:14:47
+   Duration  226ms (transform 774ms, setup 0ms, import 1.12s, tests 101ms, environment 0ms)
 ```
 
 ### API runtime tests
@@ -228,8 +228,8 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 
  Test Files  4 passed (4)
       Tests  107 passed (107)
-   Start at  23:12:53
-   Duration  487ms (transform 492ms, setup 0ms, import 731ms, tests 249ms, environment 0ms)
+   Start at  23:14:48
+   Duration  483ms (transform 462ms, setup 0ms, import 730ms, tests 246ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -240,8 +240,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  23:12:54
-   Duration  221ms (transform 317ms, setup 0ms, import 424ms, tests 49ms, environment 0ms)
+   Start at  23:14:49
+   Duration  229ms (transform 335ms, setup 0ms, import 447ms, tests 50ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -256,8 +256,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-provider-semantics
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:12:54
-   Duration  309ms (transform 356ms, setup 0ms, import 608ms, tests 104ms, environment 0ms)
+   Start at  23:14:49
+   Duration  314ms (transform 363ms, setup 0ms, import 617ms, tests 105ms, environment 0ms)
 ```
 
 
