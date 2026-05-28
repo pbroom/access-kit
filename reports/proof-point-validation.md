@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T11:20:56.274Z
+Generated at: 2026-05-28T13:47:44.817Z
 
 Branch: codex/thermo-production-job-snapshot-store
 
@@ -146,8 +146,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  07:20:48
-   Duration  340ms (transform 162ms, setup 0ms, import 255ms, tests 23ms, environment 0ms)
+   Start at  09:47:36
+   Duration  400ms (transform 209ms, setup 0ms, import 316ms, tests 24ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -238,10 +238,10 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
  RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-job-snapshot
 
 
- Test Files  13 passed (13)
-      Tests  169 passed (169)
-   Start at  07:20:51
-   Duration  317ms (transform 1.39s, setup 0ms, import 1.92s, tests 169ms, environment 1ms)
+ Test Files  14 passed (14)
+      Tests  176 passed (176)
+   Start at  09:47:40
+   Duration  300ms (transform 1.52s, setup 0ms, import 2.17s, tests 140ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -255,9 +255,9 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
 
  Test Files  7 passed (7)
-      Tests  114 passed (114)
-   Start at  07:20:52
-   Duration  692ms (transform 1.17s, setup 0ms, import 1.98s, tests 566ms, environment 0ms)
+      Tests  115 passed (115)
+   Start at  09:47:41
+   Duration  683ms (transform 1.38s, setup 0ms, import 2.14s, tests 528ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -272,8 +272,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  07:20:53
-   Duration  505ms (transform 327ms, setup 0ms, import 535ms, tests 241ms, environment 0ms)
+   Start at  09:47:42
+   Duration  526ms (transform 395ms, setup 0ms, import 616ms, tests 232ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
@@ -288,8 +288,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  07:20:54
-   Duration  185ms (transform 94ms, setup 0ms, import 117ms, tests 7ms, environment 0ms)
+   Start at  09:47:42
+   Duration  193ms (transform 103ms, setup 0ms, import 129ms, tests 7ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -298,10 +298,10 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-job-snapshot
 
 
- Test Files  3 passed (3)
-      Tests  44 passed (44)
-   Start at  07:20:55
-   Duration  266ms (transform 393ms, setup 0ms, import 523ms, tests 54ms, environment 0ms)
+ Test Files  8 passed (8)
+      Tests  47 passed (47)
+   Start at  09:47:43
+   Duration  320ms (transform 1.19s, setup 0ms, import 1.64s, tests 79ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -316,8 +316,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-job-snapshot
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  07:20:55
-   Duration  378ms (transform 438ms, setup 0ms, import 742ms, tests 130ms, environment 0ms)
+   Start at  09:47:44
+   Duration  421ms (transform 546ms, setup 0ms, import 869ms, tests 131ms, environment 0ms)
 ```
 
 

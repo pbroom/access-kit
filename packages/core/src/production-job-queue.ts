@@ -39,7 +39,13 @@ import {
 import type { RebacJobStorageReceipt } from "./repositories.js";
 import type { ExternalSnapshotStore, ProductionRepositoryBackupMetadata } from "./production-repositories.js";
 import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
-import { isProductionSensitiveKey } from "./production-secret-material.js";
+import {
+  assertEvidenceTenantBoundary,
+  assertNoSecretMaterial,
+  assertReportTenantBoundary,
+  clone,
+  cloneOptional
+} from "./production-repository-security-utils.js";
 
 export type ProductionQueuedJobKind = "discovery" | "reconciliation" | "provisioning" | "evidence" | "revocation";
 export type ProductionQueuedJobPriority = "emergency" | "high" | "normal" | "low";
@@ -1063,39 +1069,9 @@ function assertEnforcementEvidence(request: RequiredQueueRequest): void {
   }
 }
 
-function assertReportTenantBoundary(report: EnforcementReadinessReport, tenantBoundary: string): void {
-  if (report.tenantBoundary !== tenantBoundary) {
-    throw new Error(`Enforcement readiness report ${report.id} crosses the configured tenant boundary.`);
-  }
-}
-
-function assertEvidenceTenantBoundary(evidence: JsonRecord, tenantBoundary: string, label: string): void {
-  if (evidence.tenantBoundary !== tenantBoundary) {
-    throw new Error(`${label} must include matching evidence.tenantBoundary for production persistence.`);
-  }
-}
-
 function assertTenantBoundary(tenantBoundary: string): void {
   if (tenantBoundary.length === 0) {
     throw new Error("Production job queue adapters require a tenant boundary.");
-  }
-}
-
-function assertNoSecretMaterial(value: unknown, path: string): void {
-  if (Array.isArray(value)) {
-    value.forEach((entry, index) => assertNoSecretMaterial(entry, `${path}[${index}]`));
-    return;
-  }
-
-  if (!value || typeof value !== "object") {
-    return;
-  }
-
-  for (const [key, entry] of Object.entries(value)) {
-    if (isProductionSensitiveKey(key)) {
-      throw new Error(`${path}.${key} contains secret material and cannot be persisted by a production adapter.`);
-    }
-    assertNoSecretMaterial(entry, `${path}.${key}`);
   }
 }
 
@@ -1230,12 +1206,4 @@ function upsertById<T extends { id: CanonicalId }>(items: T[], item: T): T[] {
   }
 
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
-}
-
-function cloneOptional<T>(value: T | undefined): T | undefined {
-  return value === undefined ? undefined : clone(value);
-}
-
-function clone<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value)) as T;
 }
