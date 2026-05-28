@@ -25,7 +25,8 @@ Access Kit is not an identity provider, authentication system, SIEM, ticketing s
 7. Read [Decision Cache Semantics](decision-cache-semantics.md) before allowing PEPs to reuse decisions.
 8. Read [Provisioning Lifecycle](provisioning-lifecycle.md), [Connector Contract](connector-contract.md), [Connector Authoring Tutorial](connector-authoring-tutorial.md), and [Drift Detection Model](drift-detection-model.md) for operational change control.
 9. Read [Audit Event Model](audit-event-model.md), [Evidence Catalog](evidence-catalog.md), [Control Traceability Matrix](control-traceability-matrix.md), and [Assessor Inspection Guide](assessor-inspection-guide.md) for inspection and evidence.
-10. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [Emergency Revocation Runbook](../runbooks/emergency-revocation.md), along with the other runbooks in `runbooks/`, before operating enforcement paths.
+10. Read [Product Release Packaging](release-packaging.md), [Support Policy](support-policy.md), and [Security Policy](../SECURITY.md) before adopting a versioned release channel.
+11. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [Emergency Revocation Runbook](../runbooks/emergency-revocation.md), along with the other runbooks in `runbooks/`, before operating enforcement paths.
 
 ## Build And Validate
 
@@ -64,6 +65,7 @@ pnpm ci:check
 | Architecture decisions | `adrs/0001-*.md` through `adrs/0010-*.md` | Canonical ADR naming and design decisions. |
 | Evidence report | `reports/proof-point-validation.md` | Generated validation proof point. |
 | Secure SDLC evidence | `release/security-evidence/ak-044-secure-sdlc.example.json`, `docs/secure-sdlc-evidence.md` | Release-retained security evidence and validation gate. |
+| Product release manifest | `releases/v0.1.0/manifest.json`, [Product Release Packaging](release-packaging.md), [Support Policy](support-policy.md), [Security Policy](../SECURITY.md), [Changelog](../CHANGELOG.md) | Versioned source, container, CLI, SDK, docs-site, support, security, compatibility, SBOM, provenance, signature, and disclosure channel contract. |
 
 ## Assumptions
 

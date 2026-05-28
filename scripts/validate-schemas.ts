@@ -28,6 +28,7 @@ const schemaByExample = new Map<string, string>([
   ["runbook-exercise.json", "schemas/runbook-exercise.schema.json"],
   ["live-enforcement-pilot-manifest.json", "schemas/live-enforcement-pilot-manifest.schema.json"],
   ["live-enforcement-pilot-readiness.json", "schemas/live-enforcement-pilot-readiness.schema.json"],
+  ["product-release-manifest.json", "schemas/product-release-manifest.schema.json"],
   ["evidence-export.json", "schemas/evidence-export.schema.json"]
 ]);
 

@@ -1,0 +1,117 @@
+{
+  "version": "product-release-manifest:v1",
+  "productVersion": "1.0.0",
+  "releaseDate": "2026-06-01",
+  "releaseType": "production_ready",
+  "productionReady": true,
+  "labels": ["production-ready"],
+  "artifacts": [
+    {
+      "name": "Access Kit source release",
+      "kind": "source",
+      "channel": "GitHub Releases",
+      "reference": "access-kit-v0.1.0",
+      "status": "published_contract",
+      "proofPoint": true,
+      "productionReady": true,
+      "releaseNotes": "CHANGELOG.md#010-proof-point-release",
+      "sbom": "pnpm-lock.yaml",
+      "provenance": "attestation:git-tag:access-kit-v0.1.0",
+      "signature": "attestation:git-tag-signature:access-kit-v0.1.0",
+      "vulnerabilityDisclosure": "SECURITY.md"
+    },
+    {
+      "name": "rebac-api container image",
+      "kind": "container",
+      "channel": "GHCR",
+      "reference": "ghcr.io/pbroom/access-kit/rebac-api@sha256:<digest>",
+      "status": "published_contract",
+      "proofPoint": true,
+      "productionReady": true,
+      "releaseNotes": "CHANGELOG.md#container-image-release-notes",
+      "sbom": "attestation:github-buildx-sbom:rebac-api-v0.1.0",
+      "provenance": "attestation:github-buildx-provenance:rebac-api-v0.1.0",
+      "signature": "cosign:keyless:rebac-api-v0.1.0",
+      "vulnerabilityDisclosure": "SECURITY.md"
+    },
+    {
+      "name": "rebac CLI binary package",
+      "kind": "cli",
+      "channel": "npm",
+      "reference": "@access-kit/cli@0.1.0",
+      "status": "dependency_gated",
+      "proofPoint": true,
+      "productionReady": true,
+      "releaseNotes": "CHANGELOG.md#010-proof-point-release",
+      "sbom": "packages/cli/package.json",
+      "provenance": "npm-provenance:access-kit-cli@0.1.0",
+      "signature": "npm-integrity:access-kit-cli@0.1.0",
+      "vulnerabilityDisclosure": "SECURITY.md"
+    },
+    {
+      "name": "API contracts SDK package",
+      "kind": "sdk",
+      "channel": "npm",
+      "reference": "@access-kit/api-contracts@0.1.0",
+      "status": "published_contract",
+      "proofPoint": true,
+      "productionReady": true,
+      "releaseNotes": "CHANGELOG.md#010-proof-point-release",
+      "sbom": "packages/api-contracts/package.json",
+      "provenance": "npm-provenance:access-kit-api-contracts@0.1.0",
+      "signature": "npm-integrity:access-kit-api-contracts@0.1.0",
+      "vulnerabilityDisclosure": "SECURITY.md"
+    },
+    {
+      "name": "Access Kit docs site",
+      "kind": "docs_site",
+      "channel": "versioned documentation",
+      "reference": "docs/start-here.md",
+      "status": "published_contract",
+      "proofPoint": true,
+      "productionReady": true,
+      "releaseNotes": "docs/release-packaging.md",
+      "sbom": "docs/start-here.md",
+      "provenance": "attestation:git-tag:access-kit-v0.1.0",
+      "signature": "attestation:git-tag-signature:access-kit-v0.1.0",
+      "vulnerabilityDisclosure": "SECURITY.md"
+    }
+  ],
+  "compatibility": [
+    {
+      "component": "Node.js",
+      "supported": "22.x and 24.x",
+      "notes": "Node 22 is the runtime baseline and both versions run in CI."
+    },
+    {
+      "component": "pnpm",
+      "supported": "10.30.3",
+      "notes": "Pinned by the root packageManager field."
+    },
+    {
+      "component": "API contract",
+      "supported": "openapi/rebac-control-plane.yaml",
+      "notes": "Backward-compatible additions are allowed in minor releases."
+    },
+    {
+      "component": "Container runtime",
+      "supported": "rebac-api image built from the runtime Dockerfile target",
+      "notes": "Non-loopback bindings require bearer tokens."
+    },
+    {
+      "component": "Release manifest",
+      "supported": "product-release-manifest:v1",
+      "notes": "Schema changes require a manifest version bump."
+    }
+  ],
+  "policies": {
+    "supportPolicy": "docs/support-policy.md",
+    "securityPolicy": "SECURITY.md",
+    "vulnerabilityDisclosure": "GitHub private vulnerability reporting",
+    "cveDisclosurePath": "GitHub Security Advisory CVE request before public disclosure"
+  },
+  "validation": {
+    "requiredCommands": ["corepack pnpm ci:check", "git diff --check"],
+    "evidenceRefs": ["reports/proof-point-validation.md", ".github/workflows/container-release.yml"]
+  }
+}
