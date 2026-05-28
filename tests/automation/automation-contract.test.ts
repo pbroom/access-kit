@@ -42,6 +42,7 @@ describe("automation contract manifest", () => {
       "typecheck",
       "schema validation",
       "OpenAPI validation",
+      "API collection validation",
       "policy fixture validation",
       "connector security gate validation",
       "CLI command contract",

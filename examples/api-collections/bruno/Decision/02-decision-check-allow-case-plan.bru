@@ -1,0 +1,45 @@
+meta {
+  name: Decision Check - Allow Case Plan
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/decision/check
+  body: json
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "subjectId": "user:alice",
+    "action": "read",
+    "resourceId": "document:case-plan",
+    "context": {
+      "purpose": "quickstart",
+      "requestSource": "access-kit-demo-seed",
+      "tenantId": "tenant:local-demo",
+      "synthetic": true,
+      "localProofPoint": true,
+      "evidenceLabels": [
+        "quickstart-local-proof-point"
+      ]
+    },
+    "policyVersion": "policy:demo-local-v1",
+    "relationshipVersion": "tuple-set:demo-v1"
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.eql(200);
+  });
+
+}
+
+docs {
+  Runs the fast allow/deny decision preset for Alice reading the synthetic case plan.
+}

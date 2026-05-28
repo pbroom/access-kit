@@ -10,6 +10,8 @@ Linear mirrors the backlog for human planning, ownership, comments, labels, and 
 
 The typed automation contract manifest in `scripts/lib/automation-contract.ts` is the canonical implementation source for validation plans, package-script requirements, PR state-label policy, stack readiness rules, CI workflow expectations, steward workflow checks, and proof-point evidence generation.
 
+Generated API collections are part of the docs validation surface. Run `pnpm validate:api-collections` to check that the Postman and Bruno demo seed collections are current, cover the required workflows, and avoid checked-in secrets.
+
 ## State Labels
 
 GitHub labels carry PR state:

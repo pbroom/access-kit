@@ -1,0 +1,33 @@
+meta {
+  name: Run Reconciliation
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/v1/reconciliation/run
+  body: json
+}
+
+headers {
+  Content-Type: application/json
+  Idempotency-Key: example3
+}
+
+body:json {
+  {
+    "connectorId": "mock",
+    "dryRun": true
+  }
+}
+
+tests {
+  test("status is 202", function() {
+    expect(res.status).to.eql(202);
+  });
+
+}
+
+docs {
+  Runs dry-run reconciliation and drift detection for the synthetic mock connector.
+}

@@ -1,0 +1,495 @@
+{
+  "info": {
+    "name": "Access Kit Demo Seed Evaluation",
+    "description": "Synthetic local Postman and Bruno workflows for the Access Kit demo seed harness. No live tenant data or secrets are included.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{rebac_api_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "rebac_api_token",
+      "value": "",
+      "type": "secret"
+    },
+    {
+      "key": "invalid_rebac_api_token",
+      "value": "intentionally-invalid",
+      "type": "secret"
+    },
+    {
+      "key": "demo_policy_id",
+      "value": ""
+    },
+    {
+      "key": "provisioning_plan_id",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Setup",
+      "item": [
+        {
+          "name": "Create Demo Policy Draft",
+          "description": "Creates a policy draft from the demo seed harness policy model so the next policy-test request can run proof points.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set(\"demo_policy_id\", body[\"id\"]);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "example0"
+              }
+            ],
+            "url": "{{base_url}}/v1/policies",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"local demo ReBAC policy\",\n  \"model\": {\n    \"schemaVersion\": \"access-kit.policy-model.v1\",\n    \"id\": \"policy-model:demo-local-rebac-v1\",\n    \"version\": \"policy:demo-local-v1\",\n    \"resourceTypes\": [\n      {\n        \"type\": \"organization\",\n        \"classifications\": [\n          \"internal\"\n        ]\n      },\n      {\n        \"type\": \"workspace\",\n        \"allowedParentTypes\": [\n          \"organization\"\n        ],\n        \"classifications\": [\n          \"internal\"\n        ]\n      },\n      {\n        \"type\": \"folder\",\n        \"allowedParentTypes\": [\n          \"workspace\",\n          \"folder\"\n        ],\n        \"classifications\": [\n          \"internal\",\n          \"confidential\"\n        ]\n      },\n      {\n        \"type\": \"document\",\n        \"allowedParentTypes\": [\n          \"workspace\",\n          \"folder\"\n        ],\n        \"classifications\": [\n          \"internal\",\n          \"confidential\"\n        ]\n      },\n      {\n        \"type\": \"application\",\n        \"allowedParentTypes\": [\n          \"organization\"\n        ],\n        \"classifications\": [\n          \"internal\"\n        ]\n      },\n      {\n        \"type\": \"dataset\",\n        \"allowedParentTypes\": [\n          \"workspace\"\n        ],\n        \"classifications\": [\n          \"internal\",\n          \"confidential\"\n        ]\n      },\n      {\n        \"type\": \"api\",\n        \"allowedParentTypes\": [\n          \"application\"\n        ],\n        \"classifications\": [\n          \"internal\"\n        ]\n      }\n    ],\n    \"relations\": [\n      {\n        \"name\": \"member_of\",\n        \"kind\": \"membership\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\"\n        ],\n        \"objectTypes\": [\n          \"group\"\n        ]\n      },\n      {\n        \"name\": \"contains\",\n        \"kind\": \"containment\",\n        \"subjectTypes\": [\n          \"organization\",\n          \"workspace\",\n          \"folder\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      },\n      {\n        \"name\": \"viewer_of\",\n        \"kind\": \"grant\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\",\n          \"service_account\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      },\n      {\n        \"name\": \"reader_of\",\n        \"kind\": \"grant\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\",\n          \"service_account\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      },\n      {\n        \"name\": \"contributor_to\",\n        \"kind\": \"grant\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\",\n          \"service_account\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      },\n      {\n        \"name\": \"owner_of\",\n        \"kind\": \"grant\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\",\n          \"service_account\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      },\n      {\n        \"name\": \"admin_of\",\n        \"kind\": \"grant\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\",\n          \"service_account\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      },\n      {\n        \"name\": \"denied\",\n        \"kind\": \"deny\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\",\n          \"service_account\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      },\n      {\n        \"name\": \"denied_read\",\n        \"kind\": \"deny\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\",\n          \"service_account\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      },\n      {\n        \"name\": \"quarantined_from\",\n        \"kind\": \"deny\",\n        \"subjectTypes\": [\n          \"user\",\n          \"group\",\n          \"service_account\"\n        ],\n        \"objectTypes\": [\n          \"workspace\",\n          \"folder\",\n          \"document\",\n          \"application\",\n          \"dataset\",\n          \"api\"\n        ]\n      }\n    ],\n    \"actions\": [\n      {\n        \"name\": \"read\",\n        \"grants\": [\n          \"viewer_of\",\n          \"reader_of\",\n          \"contributor_to\",\n          \"owner_of\",\n          \"admin_of\"\n        ]\n      },\n      {\n        \"name\": \"view\",\n        \"grants\": [\n          \"viewer_of\",\n          \"reader_of\",\n          \"contributor_to\",\n          \"owner_of\",\n          \"admin_of\"\n        ]\n      },\n      {\n        \"name\": \"write\",\n        \"grants\": [\n          \"contributor_to\",\n          \"owner_of\",\n          \"admin_of\"\n        ]\n      },\n      {\n        \"name\": \"contribute\",\n        \"grants\": [\n          \"contributor_to\",\n          \"owner_of\",\n          \"admin_of\"\n        ]\n      },\n      {\n        \"name\": \"admin\",\n        \"grants\": [\n          \"owner_of\",\n          \"admin_of\"\n        ]\n      },\n      {\n        \"name\": \"administer\",\n        \"grants\": [\n          \"owner_of\",\n          \"admin_of\"\n        ]\n      },\n      {\n        \"name\": \"manage\",\n        \"grants\": [\n          \"owner_of\",\n          \"admin_of\"\n        ]\n      }\n    ],\n    \"inheritanceRules\": [\n      {\n        \"name\": \"group-membership-grants\",\n        \"relation\": \"member_of\",\n        \"through\": \"member_of\",\n        \"actions\": [\n          \"read\",\n          \"view\",\n          \"write\",\n          \"contribute\",\n          \"admin\",\n          \"administer\",\n          \"manage\"\n        ]\n      },\n      {\n        \"name\": \"container-resource-grants\",\n        \"relation\": \"contains\",\n        \"through\": \"contains\",\n        \"actions\": [\n          \"read\",\n          \"view\",\n          \"write\",\n          \"contribute\",\n          \"admin\",\n          \"administer\",\n          \"manage\"\n        ]\n      }\n    ],\n    \"denyRules\": [\n      {\n        \"name\": \"explicit-deny\",\n        \"relation\": \"denied\",\n        \"precedence\": \"override\"\n      },\n      {\n        \"name\": \"read-deny\",\n        \"relation\": \"denied_read\",\n        \"actions\": [\n          \"read\",\n          \"view\"\n        ],\n        \"precedence\": \"override\"\n      },\n      {\n        \"name\": \"quarantine-deny\",\n        \"relation\": \"quarantined_from\",\n        \"precedence\": \"override\"\n      }\n    ],\n    \"contextConstraints\": [\n      {\n        \"key\": \"purpose\",\n        \"type\": \"string\"\n      },\n      {\n        \"key\": \"riskScore\",\n        \"type\": \"number\"\n      }\n    ],\n    \"classificationConstraints\": [\n      {\n        \"classification\": \"internal\",\n        \"allowedActions\": [\n          \"read\",\n          \"view\",\n          \"write\",\n          \"contribute\",\n          \"admin\",\n          \"administer\",\n          \"manage\"\n        ]\n      },\n      {\n        \"classification\": \"confidential\",\n        \"allowedActions\": [\n          \"read\",\n          \"view\",\n          \"write\",\n          \"contribute\",\n          \"admin\",\n          \"administer\",\n          \"manage\"\n        ]\n      }\n    ],\n    \"tenantBoundary\": {\n      \"key\": \"tenantId\",\n      \"source\": \"resource\",\n      \"crossTenantTraversal\": false\n    },\n    \"caveats\": [],\n    \"conditionalRelationships\": [],\n    \"explanation\": {\n      \"deterministic\": true,\n      \"includeContextKeys\": [],\n      \"includeCaveatNames\": []\n    },\n    \"migrations\": [],\n    \"metadata\": {\n      \"seedHarnessId\": \"demo-seed:local-rebac-v1\",\n      \"source\": \"access-kit-demo-seed\",\n      \"tenantBoundary\": \"tenant:local-demo\",\n      \"synthetic\": true,\n      \"localProofPoint\": true,\n      \"liveTenantData\": false\n    }\n  },\n  \"tests\": [\n    {\n      \"name\": \"quickstart-allow-case-plan\",\n      \"request\": {\n        \"subjectId\": \"user:alice\",\n        \"action\": \"read\",\n        \"resourceId\": \"document:case-plan\",\n        \"context\": {\n          \"purpose\": \"quickstart\",\n          \"requestSource\": \"access-kit-demo-seed\",\n          \"tenantId\": \"tenant:local-demo\",\n          \"synthetic\": true,\n          \"localProofPoint\": true,\n          \"evidenceLabels\": [\n            \"quickstart-local-proof-point\"\n          ]\n        },\n        \"policyVersion\": \"policy:demo-local-v1\",\n        \"relationshipVersion\": \"tuple-set:demo-v1\"\n      },\n      \"expectedDecision\": \"allow\",\n      \"expectedReasonCode\": \"ALLOW_VIA_RELATIONSHIP_PATH\"\n    },\n    {\n      \"name\": \"quickstart-deny-default\",\n      \"request\": {\n        \"subjectId\": \"user:external-reviewer\",\n        \"action\": \"read\",\n        \"resourceId\": \"document:case-plan\",\n        \"context\": {\n          \"purpose\": \"quickstart\",\n          \"requestSource\": \"access-kit-demo-seed\",\n          \"tenantId\": \"tenant:local-demo\",\n          \"synthetic\": true,\n          \"localProofPoint\": true,\n          \"evidenceLabels\": [\n            \"quickstart-local-proof-point\"\n          ]\n        },\n        \"policyVersion\": \"policy:demo-local-v1\",\n        \"relationshipVersion\": \"tuple-set:demo-v1\"\n      },\n      \"expectedDecision\": \"deny\",\n      \"expectedReasonCode\": \"DENY_DEFAULT_NO_RELATIONSHIP_PATH\"\n    },\n    {\n      \"name\": \"evaluation-write-case-plan\",\n      \"request\": {\n        \"subjectId\": \"user:alice\",\n        \"action\": \"write\",\n        \"resourceId\": \"document:case-plan\",\n        \"context\": {\n          \"purpose\": \"evaluation\",\n          \"requestSource\": \"access-kit-demo-seed\",\n          \"tenantId\": \"tenant:local-demo\",\n          \"synthetic\": true,\n          \"localProofPoint\": true,\n          \"evidenceLabels\": [\n            \"evaluation-policy-proof-points\"\n          ]\n        },\n        \"policyVersion\": \"policy:demo-local-v1\",\n        \"relationshipVersion\": \"tuple-set:demo-v1\"\n      },\n      \"expectedDecision\": \"allow\",\n      \"expectedReasonCode\": \"ALLOW_VIA_RELATIONSHIP_PATH\"\n    },\n    {\n      \"name\": \"evaluation-explicit-deny-restricted-notes\",\n      \"request\": {\n        \"subjectId\": \"user:alice\",\n        \"action\": \"read\",\n        \"resourceId\": \"document:restricted-notes\",\n        \"context\": {\n          \"purpose\": \"evaluation\",\n          \"requestSource\": \"access-kit-demo-seed\",\n          \"tenantId\": \"tenant:local-demo\",\n          \"synthetic\": true,\n          \"localProofPoint\": true,\n          \"evidenceLabels\": [\n            \"evaluation-policy-proof-points\",\n            \"evaluation-ato-evidence\"\n          ]\n        },\n        \"policyVersion\": \"policy:demo-local-v1\",\n        \"relationshipVersion\": \"tuple-set:demo-v1\"\n      },\n      \"expectedDecision\": \"deny\",\n      \"expectedReasonCode\": \"DENY_EXPLICIT_OVERRIDE\"\n    },\n    {\n      \"name\": \"evaluation-suspended-subject\",\n      \"request\": {\n        \"subjectId\": \"user:bob\",\n        \"action\": \"read\",\n        \"resourceId\": \"document:case-plan\",\n        \"context\": {\n          \"purpose\": \"evaluation\",\n          \"requestSource\": \"access-kit-demo-seed\",\n          \"tenantId\": \"tenant:local-demo\",\n          \"synthetic\": true,\n          \"localProofPoint\": true,\n          \"evidenceLabels\": [\n            \"evaluation-policy-proof-points\"\n          ]\n        },\n        \"policyVersion\": \"policy:demo-local-v1\",\n        \"relationshipVersion\": \"tuple-set:demo-v1\"\n      },\n      \"expectedDecision\": \"deny\",\n      \"expectedReasonCode\": \"DENY_SUBJECT_NOT_ACTIVE\"\n    },\n    {\n      \"name\": \"evaluation-owner-admin-case-plan\",\n      \"request\": {\n        \"subjectId\": \"user:case-owner\",\n        \"action\": \"admin\",\n        \"resourceId\": \"document:case-plan\",\n        \"context\": {\n          \"purpose\": \"evaluation\",\n          \"requestSource\": \"access-kit-demo-seed\",\n          \"tenantId\": \"tenant:local-demo\",\n          \"synthetic\": true,\n          \"localProofPoint\": true,\n          \"evidenceLabels\": [\n            \"evaluation-ato-evidence\"\n          ]\n        },\n        \"policyVersion\": \"policy:demo-local-v1\",\n        \"relationshipVersion\": \"tuple-set:demo-v1\"\n      },\n      \"expectedDecision\": \"allow\",\n      \"expectedReasonCode\": \"ALLOW_VIA_RELATIONSHIP_PATH\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Decision",
+      "item": [
+        {
+          "name": "Decision Check - Allow Case Plan",
+          "description": "Runs the fast allow/deny decision preset for Alice reading the synthetic case plan.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/v1/decision/check",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": \"user:alice\",\n  \"action\": \"read\",\n  \"resourceId\": \"document:case-plan\",\n  \"context\": {\n    \"purpose\": \"quickstart\",\n    \"requestSource\": \"access-kit-demo-seed\",\n    \"tenantId\": \"tenant:local-demo\",\n    \"synthetic\": true,\n    \"localProofPoint\": true,\n    \"evidenceLabels\": [\n      \"quickstart-local-proof-point\"\n    ]\n  },\n  \"policyVersion\": \"policy:demo-local-v1\",\n  \"relationshipVersion\": \"tuple-set:demo-v1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Explain Decision - Explicit Deny",
+          "description": "Runs the explain route for the restricted-notes preset and returns the explicit deny reason and relationship context.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/v1/decision/explain",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": \"user:alice\",\n  \"action\": \"read\",\n  \"resourceId\": \"document:restricted-notes\",\n  \"context\": {\n    \"purpose\": \"evaluation\",\n    \"requestSource\": \"access-kit-demo-seed\",\n    \"tenantId\": \"tenant:local-demo\",\n    \"synthetic\": true,\n    \"localProofPoint\": true,\n    \"evidenceLabels\": [\n      \"evaluation-policy-proof-points\",\n      \"evaluation-ato-evidence\"\n    ]\n  },\n  \"policyVersion\": \"policy:demo-local-v1\",\n  \"relationshipVersion\": \"tuple-set:demo-v1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Policy",
+      "item": [
+        {
+          "name": "Run Policy Proof-Point Tests",
+          "description": "Executes the policy-test validation mode after the setup request captures the generated demo policy id.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/v1/policies/{{demo_policy_id}}/validate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Provisioning",
+      "item": [
+        {
+          "name": "Create Dry-Run Provisioning Plan",
+          "description": "Creates a non-writing provisioning plan against the mock connector using the demo seed owner-admin preset.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 201\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "if (pm.response.code >= 200 && pm.response.code < 300) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set(\"provisioning_plan_id\", body[\"id\"]);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "example1"
+              }
+            ],
+            "url": "{{base_url}}/v1/provisioning/plans",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": \"user:case-owner\",\n  \"action\": \"admin\",\n  \"resourceId\": \"document:case-plan\",\n  \"connectorId\": \"mock\",\n  \"dryRun\": true,\n  \"context\": {\n    \"purpose\": \"evaluation\",\n    \"requestSource\": \"access-kit-demo-seed\",\n    \"tenantId\": \"tenant:local-demo\",\n    \"synthetic\": true,\n    \"localProofPoint\": true,\n    \"evidenceLabels\": [\n      \"evaluation-ato-evidence\"\n    ],\n    \"workflow\": \"api-collection-dry-run\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Run Dry-Run Provisioning Job",
+          "description": "Runs the captured provisioning plan as a dry-run job; provider writes remain skipped.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 202\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "example2"
+              }
+            ],
+            "url": "{{base_url}}/v1/provisioning/jobs",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"planId\": \"{{provisioning_plan_id}}\",\n  \"approverId\": \"user:case-owner\",\n  \"dryRun\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reconciliation",
+      "item": [
+        {
+          "name": "Run Reconciliation",
+          "description": "Runs dry-run reconciliation and drift detection for the synthetic mock connector.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 202\", function () {",
+                  "  pm.response.to.have.status(202);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "example3"
+              }
+            ],
+            "url": "{{base_url}}/v1/reconciliation/run",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connectorId\": \"mock\",\n  \"dryRun\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication Failures",
+      "item": [
+        {
+          "name": "Missing Bearer Token Fails Closed",
+          "description": "Demonstrates deny-on-auth-failure behavior when a protected decision route has no bearer token.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"error code is expected\", function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.code).to.eql(\"UNAUTHENTICATED\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/v1/decision/check",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": \"user:alice\",\n  \"action\": \"read\",\n  \"resourceId\": \"document:case-plan\",\n  \"context\": {\n    \"purpose\": \"quickstart\",\n    \"requestSource\": \"access-kit-demo-seed\",\n    \"tenantId\": \"tenant:local-demo\",\n    \"synthetic\": true,\n    \"localProofPoint\": true,\n    \"evidenceLabels\": [\n      \"quickstart-local-proof-point\"\n    ]\n  },\n  \"policyVersion\": \"policy:demo-local-v1\",\n  \"relationshipVersion\": \"tuple-set:demo-v1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Invalid Bearer Token Fails Closed",
+          "description": "Demonstrates deny-on-auth-failure behavior when a protected decision route has an intentionally invalid bearer token.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 401\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test(\"error code is expected\", function () {",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.code).to.eql(\"UNAUTHENTICATED\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/v1/decision/check",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{invalid_rebac_api_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectId\": \"user:alice\",\n  \"action\": \"read\",\n  \"resourceId\": \"document:case-plan\",\n  \"context\": {\n    \"purpose\": \"quickstart\",\n    \"requestSource\": \"access-kit-demo-seed\",\n    \"tenantId\": \"tenant:local-demo\",\n    \"synthetic\": true,\n    \"localProofPoint\": true,\n    \"evidenceLabels\": [\n      \"quickstart-local-proof-point\"\n    ]\n  },\n  \"policyVersion\": \"policy:demo-local-v1\",\n  \"relationshipVersion\": \"tuple-set:demo-v1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exports",
+      "item": [
+        {
+          "name": "Export Audit Events",
+          "description": "Exports SIEM-ready audit records after decision, provisioning, reconciliation, and auth-failure requests.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/audit/export?from=2026-05-21T00%3A00%3A00.000Z&to=2026-05-22T00%3A00%3A00.000Z&target=operator_download"
+          }
+        },
+        {
+          "name": "Export Evidence Package",
+          "description": "Exports local proof-point evidence for the demo seed evaluation controls.",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"status is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{base_url}}/v1/evidence/export?framework=fedramp-rev5&controls=AC-3%2CAU-6&from=2026-05-21T00%3A00%3A00.000Z&to=2026-05-22T00%3A00%3A00.000Z&format=json"
+          }
+        }
+      ]
+    }
+  ]
+}
