@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "local": {
+      "apiUrl": "http://127.0.0.1:3000",
+      "apiKeyEnv": "REBAC_API_KEY"
+    },
+    "ci-demo": {
+      "apiUrl": "http://127.0.0.1:3000",
+      "apiKeyEnv": "REBAC_CI_API_KEY"
+    }
+  }
+}

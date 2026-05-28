@@ -53,7 +53,7 @@ pnpm ci:check
 | API reference | `docs/api-reference.md` | Generated reference for auth, idempotency, parameters, responses, and example artifacts. |
 | Domain contracts | `schemas/*.schema.json` | Portable JSON object contracts. |
 | Runtime types | `packages/core/src/domain.ts` | TypeScript implementation types mirroring schema concepts. |
-| CLI contract | `packages/cli/src/commands.ts` | CLI command tree and API surface mapping. |
+| CLI contract | `packages/cli/src/commands.ts`, [CLI Contract](cli.md), `examples/cli/profiles.example.json` | CLI command tree, API surface mapping, profile config, JSON output, preview/diff, exit-code, and completion behavior. |
 | Connector contract | `docs/connector-contract.md` | Connector capability model, security review gate, and live-read boundary. |
 | Connector authoring tutorial | `docs/connector-authoring-tutorial.md` | Safe read-only connector authoring flow and release-gate evidence. |
 | Sample connector template | `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` | Copyable read-only connector implementation with synthetic fixtures and tests. |

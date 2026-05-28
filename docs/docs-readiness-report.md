@@ -23,7 +23,7 @@ The documentation goal is complete for the repository foundation after this foll
 | Production reference architecture and overlays | `docs/production-reference-architecture.md`, `deploy/overlays/production-reference/` |
 | Domain model | `docs/domain-model.md` |
 | API overview, Decision API, API errors, reason codes | `docs/api.md`, `docs/decision-lifecycle.md`, `docs/explain-api.md` |
-| CLI overview and commands | `docs/cli.md`, `packages/cli/src/commands.ts` |
+| CLI overview and commands | `docs/cli.md`, `packages/cli/src/commands.ts`, `examples/cli/profiles.example.json` |
 | Policy model and testing | `docs/policy-testing-guide.md`, `tests/fixtures/policy/proof-points.json` |
 | Connector contract, capability model, authoring guidance, and sample template | `docs/connector-contract.md`, `docs/connector-authoring-tutorial.md`, `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` |
 | Security model and threat model | `docs/security-model.md`, `docs/threat-model.md` |
@@ -142,6 +142,7 @@ The documentation goal is complete for the repository foundation after this foll
 - `examples/cli/operator-and-assessor.sh`
 - `docker-compose.quickstart.yml`
 - `scripts/quickstart-demo.ts`
+- `examples/cli/profiles.example.json`
 
 ## Artifacts Migrated Or Renamed
 
@@ -160,7 +161,7 @@ None. The existing flat docs layout and ADR naming convention were preserved.
 | Evidence export | `schemas/evidence-export.schema.json`, `tests/fixtures/schema-examples/evidence-export.json` | Reused |
 | Native grants | `schemas/native-grant.schema.json`, `tests/fixtures/schema-examples/native-grant.json` | Reused |
 | Synthetic API examples | `examples/api/*.json` | Added and validated |
-| Synthetic CLI examples | `examples/cli/operator-and-assessor.sh`, `tests/cli/docs-examples.test.ts` | Added and smoke-tested |
+| Synthetic CLI examples | `examples/cli/operator-and-assessor.sh`, `examples/cli/profiles.example.json`, `tests/cli/docs-examples.test.ts` | Added and smoke-tested |
 | Synthetic policy tests | `tests/fixtures/policy/proof-points.json` | Reused |
 | Synthetic control/evidence mapping | `examples/control-evidence-mapping.json`, `tests/fixtures/schema-examples/evidence-export.json` | Added/reused and validated |
 

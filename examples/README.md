@@ -15,6 +15,7 @@ These examples are synthetic and safe to use in documentation, demos, tests, and
 | API request/response examples | `examples/api/*.json` |
 | CLI command examples | `examples/cli/operator-and-assessor.sh` |
 | Connector template example | `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` |
+| CLI profile example | `examples/cli/profiles.example.json` |
 | Control/evidence mapping example | `examples/control-evidence-mapping.json` |
 | Product release manifest example | `tests/fixtures/schema-examples/product-release-manifest.json` |
 

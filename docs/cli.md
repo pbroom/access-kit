@@ -58,6 +58,16 @@ rebac connector sync mock --mode read_only
 
 The package exposes the command tree and calls the API over HTTP. Use `--api-url` or `REBAC_API_URL` to point the CLI at a running local or deployed control-plane API. Authorization logic stays in the API/core engine; the CLI is only an operator wrapper.
 
+For installable operator use, the package publishes the `rebac` binary from `@access-kit/cli`. Configure local and CI targets with `--profile`, `--config`, `REBAC_PROFILE`, or `REBAC_CLI_CONFIG`; the checked profile example is `examples/cli/profiles.example.json`. Profiles name the API URL and the environment variable that contains the bearer token. Token values stay in the environment and are never written to profile files, readiness output, preview output, or generated evidence.
+
+```sh
+rebac --config examples/cli/profiles.example.json --profile local connector list
+rebac --preview --diff provision plan user:alice document:case-plan read --connector mock
+rebac completion zsh
+```
+
+The CLI emits one JSON object for API-backed commands. `--preview` produces the method, path, idempotency key, and request body that would be sent without calling the API; `--diff` adds patch-style request lines for operator review. Exit code `0` means success, `70` means an API or runtime request failure, and `78` means CLI configuration failed before an API request was made.
+
 Policy commands follow the API lifecycle. `rebac policy validate` and `rebac policy test` ask the API to run deterministic model and proof-point checks; `rebac policy publish` requires a change ticket and fails closed when the target policy has not already passed validation.
 
 Read-only discovery uses `rebac connector sync <connector-id> --mode read_only`. Provider readback can then be inspected with `rebac resource native-access`, which returns observed native grants rather than intended grants or policy decisions. `rebac discovery runs` exposes run history, warning status, and cursor/evidence metadata for assessor and operator review.
@@ -72,6 +82,7 @@ Phase 5 assessor commands use the same API contract. `rebac audit integrity` req
 
 - The CLI must not evaluate authorization locally.
 - Use `--api-url` or `REBAC_API_URL` to target the intended API boundary.
+- Keep bearer tokens in environment variables referenced by `--api-key-env`, profile `apiKeyEnv`, or `REBAC_API_KEY_ENV`.
 - Treat evidence and explain output as sensitive.
 - Do not place tokens, secrets, tenant IDs, production emails, or live provider identifiers in command examples.
 
@@ -82,3 +93,4 @@ Phase 5 assessor commands use the same API contract. `rebac audit integrity` req
 - [Explain API](explain-api.md)
 - [Assessor Inspection Guide](assessor-inspection-guide.md)
 - [CLI example script](../examples/cli/operator-and-assessor.sh)
+- [CLI profile example](../examples/cli/profiles.example.json)
