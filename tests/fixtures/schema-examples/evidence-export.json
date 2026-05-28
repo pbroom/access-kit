@@ -1,7 +1,15 @@
 {
   "exportId": "evidence:may-2026-ac-au",
   "framework": "nist-800-53",
-  "controls": ["AC-2", "AC-3", "AC-6", "AU-2", "AU-6", "CM-3", "CA-7"],
+  "controls": [
+    "AC-2",
+    "AC-3",
+    "AC-6",
+    "AU-2",
+    "AU-6",
+    "CM-3",
+    "CA-7"
+  ],
   "periodStart": "2026-05-01T00:00:00.000Z",
   "periodEnd": "2026-05-31T23:59:59.000Z",
   "generatedAt": "2026-05-21T17:00:00.000Z",
@@ -20,9 +28,18 @@
     "control_statements",
     "access_reviews",
     "exception_register",
-    "operational_evidence"
+    "operational_evidence",
+    "oscal_component_definition",
+    "oscal_ssp",
+    "oscal_assessment_results",
+    "poam_export",
+    "signed_evidence_package",
+    "control_trace_views",
+    "verifier_checks"
   ],
-  "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+  "sourceEventIds": [
+    "evt:decision-allow-alice-read-case-plan"
+  ],
   "responsibleRole": "ISSO",
   "format": "json",
   "auditIntegrity": {
@@ -36,42 +53,18 @@
     "findings": [],
     "version": "audit-integrity:v1"
   },
-  "integrityManifest": {
-    "packageHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "hashAlgorithm": "sha256",
-    "canonicalization": "stable-json",
-    "generatedAt": "2026-05-21T17:00:00.000Z",
-    "sections": [
-      {
-        "name": "auditIntegrity",
-        "hash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
-      },
-      {
-        "name": "controlMappings",
-        "hash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
-        "itemCount": 1
-      }
-    ],
-    "verifier": {
-      "documentationPath": "docs/evidence-integrity-verifier.md",
-      "summary": "Recompute package and section hashes from stable JSON.",
-      "verificationSteps": [
-        "Remove storageReceipt if present.",
-        "Remove integrityManifest from the evidence package.",
-        "Canonicalize the remaining package with stable JSON key ordering.",
-        "Compute sha256 and compare it with integrityManifest.packageHash."
-      ]
-    },
-    "version": "evidence-integrity-manifest:v1"
-  },
   "controlMappings": [
     {
       "controlId": "AC-3",
       "family": "AC",
       "status": "implemented",
       "implementationSummary": "Access enforcement evidence is produced through deterministic decision events.",
-      "evidenceTypes": ["decision_logs"],
-      "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+      "evidenceTypes": [
+        "decision_logs"
+      ],
+      "sourceEventIds": [
+        "evt:decision-allow-alice-read-case-plan"
+      ],
       "gaps": []
     }
   ],
@@ -135,8 +128,12 @@
         "description": "HTTP API runtime for local proof-point evidence."
       }
     ],
-    "externalSystems": ["mock"],
-    "assumptions": ["Synthetic examples only."],
+    "externalSystems": [
+      "mock"
+    ],
+    "assumptions": [
+      "Synthetic examples only."
+    ],
     "version": "system-boundary:v1"
   },
   "dataFlows": [
@@ -145,8 +142,13 @@
       "name": "Operator CLI to API",
       "source": "component:operator-cli",
       "destination": "component:api-runtime",
-      "dataTypes": ["operator_requests"],
-      "protections": ["api_contract_validation", "audit_event_emission"],
+      "dataTypes": [
+        "operator_requests"
+      ],
+      "protections": [
+        "api_contract_validation",
+        "audit_event_emission"
+      ],
       "liveTenantData": false
     }
   ],
@@ -158,8 +160,13 @@
       "responsibleRole": "ISSO",
       "reviewerRole": "Security Control Assessor",
       "reviewedAt": "2026-05-21T17:00:00.000Z",
-      "evidenceTypes": ["decision_logs"],
-      "sourceArtifactNames": ["audit-events", "control-mapping"],
+      "evidenceTypes": [
+        "decision_logs"
+      ],
+      "sourceArtifactNames": [
+        "audit-events",
+        "control-mapping"
+      ],
       "gaps": []
     }
   ],
@@ -186,10 +193,14 @@
           "approverRole": "Data Owner",
           "decision": "approved",
           "decidedAt": "2026-05-21T17:00:00.000Z",
-          "evidenceRefs": ["evidence:access-review-campaign"]
+          "evidenceRefs": [
+            "evidence:access-review-campaign"
+          ]
         }
       ],
-      "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
+      "sourceEventIds": [
+        "evt:decision-allow-alice-read-case-plan"
+      ],
       "version": "access-review:v2"
     }
   ],
@@ -202,17 +213,470 @@
       "ownerRole": "DevSecOps",
       "generatedAt": "2026-05-21T17:00:00.000Z",
       "summary": "CI dependency audit evidence is available for pull requests.",
-      "evidenceRefs": [".github/workflows/security.yml"],
+      "evidenceRefs": [
+        ".github/workflows/security.yml"
+      ],
       "gaps": []
     }
   ],
-  "storageReceipt": {
-    "exportId": "evidence:may-2026-ac-au",
-    "packageHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
-    "storedAt": "2026-05-21T17:00:00.000Z",
-    "backend": "local_file",
-    "location": "evidence-packages/evidence_may-2026-ac-au.json",
-    "immutable": false,
-    "version": "evidence-storage-receipt:v1"
-  }
+  "poamExport": {
+    "uuid": "oscal-poam:evidence:may-2026-ac-au",
+    "title": "Access Kit evidence POA&M export",
+    "generatedAt": "2026-05-21T17:00:00.000Z",
+    "items": [],
+    "sourceControlIds": [
+      "AC-2",
+      "AC-3",
+      "AC-6",
+      "AU-2",
+      "AU-6",
+      "CM-3",
+      "CA-7"
+    ],
+    "version": "oscal-poam-export:v1"
+  },
+  "oscal": {
+    "componentDefinition": {
+      "uuid": "oscal-component-definition:evidence:may-2026-ac-au",
+      "title": "Access Kit evidence component definition",
+      "framework": "nist-800-53",
+      "generatedAt": "2026-05-21T17:00:00.000Z",
+      "components": [
+        {
+          "id": "component:api-runtime",
+          "name": "Local API runtime",
+          "type": "control_plane",
+          "trustZone": "local_runtime",
+          "dataClassification": "synthetic",
+          "description": "HTTP API runtime for local proof-point evidence."
+        }
+      ],
+      "implementedRequirements": [
+        {
+          "controlId": "AC-3",
+          "status": "implemented",
+          "statement": "Access enforcement evidence is produced through deterministic decision events.",
+          "responsibleRole": "ISSO",
+          "reviewerRole": "Security Control Assessor",
+          "reviewedAt": "2026-05-21T17:00:00.000Z",
+          "sourceEventIds": [
+            "evt:decision-allow-alice-read-case-plan"
+          ],
+          "sourceArtifactNames": [
+            "audit-events",
+            "control-mapping"
+          ],
+          "gaps": []
+        }
+      ],
+      "version": "oscal-component-definition-fragment:v1"
+    },
+    "systemSecurityPlan": {
+      "uuid": "oscal-ssp:evidence:may-2026-ac-au",
+      "title": "Access Kit evidence SSP fragment",
+      "systemName": "Local ReBAC control plane proof-point boundary",
+      "boundaryId": "boundary:local-rebac-control-plane",
+      "deploymentScope": {
+        "boundaryId": "boundary:local-rebac-control-plane",
+        "environment": "local_proof_point",
+        "liveTenantData": false,
+        "controls": [
+          "AC-2",
+          "AC-3",
+          "AC-6",
+          "AU-2",
+          "AU-6",
+          "CM-3",
+          "CA-7"
+        ],
+        "periodStart": "2026-05-01T00:00:00.000Z",
+        "periodEnd": "2026-05-31T23:59:59.000Z",
+        "componentIds": [
+          "component:api-runtime"
+        ],
+        "version": "evidence-deployment-scope:v1"
+      },
+      "dataFlows": [
+        {
+          "id": "data-flow:cli-api",
+          "name": "Operator CLI to API",
+          "source": "component:operator-cli",
+          "destination": "component:api-runtime",
+          "dataTypes": [
+            "operator_requests"
+          ],
+          "protections": [
+            "api_contract_validation",
+            "audit_event_emission"
+          ],
+          "liveTenantData": false
+        }
+      ],
+      "controlImplementationStatements": [
+        {
+          "controlId": "AC-3",
+          "status": "implemented",
+          "statement": "Access enforcement evidence is produced through deterministic decision events.",
+          "responsibleRole": "ISSO",
+          "reviewerRole": "Security Control Assessor",
+          "reviewedAt": "2026-05-21T17:00:00.000Z",
+          "sourceEventIds": [
+            "evt:decision-allow-alice-read-case-plan"
+          ],
+          "sourceArtifactNames": [
+            "audit-events",
+            "control-mapping"
+          ],
+          "gaps": []
+        }
+      ],
+      "version": "oscal-ssp-fragment:v1"
+    },
+    "assessmentResults": {
+      "uuid": "oscal-assessment-results:evidence:may-2026-ac-au",
+      "title": "Access Kit evidence assessment-results fragment",
+      "generatedAt": "2026-05-21T17:00:00.000Z",
+      "reviewedControls": [
+        {
+          "controlId": "AC-3",
+          "status": "implemented",
+          "statement": "Access enforcement evidence is produced through deterministic decision events.",
+          "responsibleRole": "ISSO",
+          "reviewerRole": "Security Control Assessor",
+          "reviewedAt": "2026-05-21T17:00:00.000Z",
+          "sourceEventIds": [
+            "evt:decision-allow-alice-read-case-plan"
+          ],
+          "sourceArtifactNames": [
+            "audit-events",
+            "control-mapping"
+          ],
+          "gaps": []
+        }
+      ],
+      "observations": [
+        {
+          "controlId": "AC-3",
+          "status": "implemented",
+          "sourceEventIds": [
+            "evt:decision-allow-alice-read-case-plan"
+          ],
+          "gaps": []
+        }
+      ],
+      "version": "oscal-assessment-results-fragment:v1"
+    },
+    "planOfActionAndMilestones": {
+      "uuid": "oscal-poam:evidence:may-2026-ac-au",
+      "title": "Access Kit evidence POA&M export",
+      "generatedAt": "2026-05-21T17:00:00.000Z",
+      "items": [],
+      "sourceControlIds": [
+        "AC-2",
+        "AC-3",
+        "AC-6",
+        "AU-2",
+        "AU-6",
+        "CM-3",
+        "CA-7"
+      ],
+      "version": "oscal-poam-export:v1"
+    },
+    "version": "oscal-evidence-artifacts:v1"
+  },
+  "controlTraceViews": [
+    {
+      "traceId": "control-trace:evidence:may-2026-ac-au:ac-3",
+      "controlId": "AC-3",
+      "status": "implemented",
+      "sourceEventIds": [
+        "evt:decision-allow-alice-read-case-plan"
+      ],
+      "reviewedStatement": {
+        "reviewerRole": "Security Control Assessor",
+        "reviewedAt": "2026-05-21T17:00:00.000Z",
+        "sourceArtifactNames": [
+          "audit-events",
+          "control-mapping"
+        ]
+      },
+      "signatureRef": {
+        "packageId": "signed-package:evidence:may-2026-ac-au",
+        "keyId": "key:local-proof-point-evidence-ed25519"
+      },
+      "deploymentScope": {
+        "boundaryId": "boundary:local-rebac-control-plane",
+        "environment": "local_proof_point",
+        "liveTenantData": false,
+        "controls": [
+          "AC-2",
+          "AC-3",
+          "AC-6",
+          "AU-2",
+          "AU-6",
+          "CM-3",
+          "CA-7"
+        ],
+        "periodStart": "2026-05-01T00:00:00.000Z",
+        "periodEnd": "2026-05-31T23:59:59.000Z",
+        "componentIds": [
+          "component:api-runtime"
+        ],
+        "version": "evidence-deployment-scope:v1"
+      },
+      "oscalRefs": {
+        "componentDefinitionUuid": "oscal-component-definition:evidence:may-2026-ac-au",
+        "sspUuid": "oscal-ssp:evidence:may-2026-ac-au",
+        "assessmentResultsUuid": "oscal-assessment-results:evidence:may-2026-ac-au",
+        "poamUuid": "oscal-poam:evidence:may-2026-ac-au"
+      },
+      "gaps": [],
+      "version": "evidence-control-trace-view:v1"
+    }
+  ],
+  "integrityManifest": {
+    "packageHash": "sha256:dc7a0cd56623c3ff3e8f4cfdc8c2c550ace4786988ffcddb9d264e1e4e347470",
+    "hashAlgorithm": "sha256",
+    "canonicalization": "stable-json",
+    "generatedAt": "2026-05-21T17:00:00.000Z",
+    "sections": [
+      {
+        "name": "auditIntegrity",
+        "hash": "sha256:78421bd746722c13cd5995ccccd39d966cfac9de6ca4a29f27b9e8f89b18ef1d"
+      },
+      {
+        "name": "controlMappings",
+        "hash": "sha256:d9c6783f632e35c400e4f61f7f08ecb5185e90dd13499d029983c4b1f1dd80bb",
+        "itemCount": 1
+      },
+      {
+        "name": "artifacts",
+        "hash": "sha256:bda5d021dc4713dba9ae1a490834b70724740187636c84bf42ddad454271008f",
+        "itemCount": 3
+      },
+      {
+        "name": "conmonMetrics",
+        "hash": "sha256:cf02ddc5101ac5841b9a2218e4a16796e957157011a2cabdbdfca98dbd2014be",
+        "itemCount": 2
+      },
+      {
+        "name": "poamItems",
+        "hash": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "itemCount": 0
+      },
+      {
+        "name": "poamExport",
+        "hash": "sha256:71b4dc009b4b2cbc3eeb8a69348125f98946a2ff8c02956d8f87aff382392a86"
+      },
+      {
+        "name": "siemExport",
+        "hash": "sha256:5db1996d6005b39d331f88d56ad52a07c37697a03a7c12492ad3a7c5a5c843ef"
+      },
+      {
+        "name": "systemBoundary",
+        "hash": "sha256:26076761e19b1bd58acad3d1d3189f03d4a1d7bcc5ae3f5b1b69298ae060b3ad"
+      },
+      {
+        "name": "dataFlows",
+        "hash": "sha256:6451f67c26db42830ce02fb27ca4869e899535c446bb70585e076129066b451f",
+        "itemCount": 1
+      },
+      {
+        "name": "controlStatements",
+        "hash": "sha256:17c066a6c9b327601580368a87ee4570771fc52b70c75e3adf5cb1b51b270b6a",
+        "itemCount": 1
+      },
+      {
+        "name": "accessReviews",
+        "hash": "sha256:30df0018c845a33cfb1280338d9bb85e9c8ab87e55448a8147df586fb8161e30",
+        "itemCount": 1
+      },
+      {
+        "name": "exceptionRegister",
+        "hash": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "itemCount": 0
+      },
+      {
+        "name": "operationalEvidence",
+        "hash": "sha256:8e28c833e4acc1d85013ade9e2d9f4d65a0a75877f0fe8fabca3577020d08377",
+        "itemCount": 1
+      },
+      {
+        "name": "oscal",
+        "hash": "sha256:6a373133356158544713fe587f252f583b3b8976e7149b9a861547f6ab78f2e3"
+      },
+      {
+        "name": "controlTraceViews",
+        "hash": "sha256:da06a865a2b4e716b3449984b19beb7573cf489f57be891d82a2ff76f898dfbb",
+        "itemCount": 1
+      }
+    ],
+    "verifier": {
+      "documentationPath": "docs/evidence-integrity-verifier.md",
+      "summary": "Recompute the stable-json package content hash before attestation metadata is added and compare section hashes.",
+      "verificationSteps": [
+        "Remove storageReceipt if present.",
+        "Remove integrityManifest from the evidence package.",
+        "Remove signedPackage and verifierChecks from the evidence package.",
+        "Canonicalize the remaining package content with stable JSON key ordering.",
+        "Compute sha256 over the canonical package and compare it with integrityManifest.packageHash.",
+        "Canonicalize each named section and compare sha256 values with integrityManifest.sections.",
+        "Verify signedPackage.signature over the signed metadata using the trusted public key for signedPackage.keyId."
+      ]
+    },
+    "version": "evidence-integrity-manifest:v1"
+  },
+  "signedPackage": {
+    "packageId": "signed-package:evidence:may-2026-ac-au",
+    "packageHash": "sha256:dc7a0cd56623c3ff3e8f4cfdc8c2c550ace4786988ffcddb9d264e1e4e347470",
+    "hashAlgorithm": "sha256",
+    "canonicalization": "stable-json",
+    "signatureAlgorithm": "ed25519-local-proof-signature",
+    "keyId": "key:local-proof-point-evidence-ed25519",
+    "signedAt": "2026-05-21T17:00:00.000Z",
+    "signerRole": "ISSO",
+    "deploymentScope": {
+      "boundaryId": "boundary:local-rebac-control-plane",
+      "environment": "local_proof_point",
+      "liveTenantData": false,
+      "controls": [
+        "AC-2",
+        "AC-3",
+        "AC-6",
+        "AU-2",
+        "AU-6",
+        "CM-3",
+        "CA-7"
+      ],
+      "periodStart": "2026-05-01T00:00:00.000Z",
+      "periodEnd": "2026-05-31T23:59:59.000Z",
+      "componentIds": [
+        "component:api-runtime"
+      ],
+      "version": "evidence-deployment-scope:v1"
+    },
+    "sourceEventIds": [
+      "evt:decision-allow-alice-read-case-plan"
+    ],
+    "reviewedStatementRefs": [
+      "control-statement:ac-3"
+    ],
+    "controlTraceIds": [
+      "control-trace:evidence:may-2026-ac-au:ac-3"
+    ],
+    "version": "signed-evidence-package:v1",
+    "signature": "ed25519-local-proof-signature:KkVEbfG1NRlqDol3ua1tyGm3ll3Kj8PIqdFnAt4dHvAr_jjRG-06cKuOiVEbef04ExtapiLNvcjn59Z4uPfQCA"
+  },
+  "verifierChecks": [
+    {
+      "name": "package_hash",
+      "status": "pass",
+      "message": "Integrity manifest package hash matches canonical content."
+    },
+    {
+      "name": "section_hash:auditIntegrity",
+      "status": "pass",
+      "message": "Section auditIntegrity hash matches canonical content."
+    },
+    {
+      "name": "section_hash:controlMappings",
+      "status": "pass",
+      "message": "Section controlMappings hash matches canonical content."
+    },
+    {
+      "name": "section_hash:artifacts",
+      "status": "pass",
+      "message": "Section artifacts hash matches canonical content."
+    },
+    {
+      "name": "section_hash:conmonMetrics",
+      "status": "pass",
+      "message": "Section conmonMetrics hash matches canonical content."
+    },
+    {
+      "name": "section_hash:poamItems",
+      "status": "pass",
+      "message": "Section poamItems hash matches canonical content."
+    },
+    {
+      "name": "section_hash:poamExport",
+      "status": "pass",
+      "message": "Section poamExport hash matches canonical content."
+    },
+    {
+      "name": "section_hash:siemExport",
+      "status": "pass",
+      "message": "Section siemExport hash matches canonical content."
+    },
+    {
+      "name": "section_hash:systemBoundary",
+      "status": "pass",
+      "message": "Section systemBoundary hash matches canonical content."
+    },
+    {
+      "name": "section_hash:dataFlows",
+      "status": "pass",
+      "message": "Section dataFlows hash matches canonical content."
+    },
+    {
+      "name": "section_hash:controlStatements",
+      "status": "pass",
+      "message": "Section controlStatements hash matches canonical content."
+    },
+    {
+      "name": "section_hash:accessReviews",
+      "status": "pass",
+      "message": "Section accessReviews hash matches canonical content."
+    },
+    {
+      "name": "section_hash:exceptionRegister",
+      "status": "pass",
+      "message": "Section exceptionRegister hash matches canonical content."
+    },
+    {
+      "name": "section_hash:operationalEvidence",
+      "status": "pass",
+      "message": "Section operationalEvidence hash matches canonical content."
+    },
+    {
+      "name": "section_hash:oscal",
+      "status": "pass",
+      "message": "Section oscal hash matches canonical content."
+    },
+    {
+      "name": "section_hash:controlTraceViews",
+      "status": "pass",
+      "message": "Section controlTraceViews hash matches canonical content."
+    },
+    {
+      "name": "signed_package_hash",
+      "status": "pass",
+      "message": "Signed package metadata references the integrity manifest hash."
+    },
+    {
+      "name": "signed_package_signature",
+      "status": "pass",
+      "message": "Signed package proof signature verifies with a trusted key."
+    },
+    {
+      "name": "deployment_scope",
+      "status": "pass",
+      "message": "Signed deployment scope matches the exported system boundary and period."
+    },
+    {
+      "name": "oscal_fragments",
+      "status": "pass",
+      "message": "OSCAL component, SSP, assessment-results, and POA&M fragments are present."
+    },
+    {
+      "name": "poam_export",
+      "status": "pass",
+      "message": "POA&M export mirrors evidence POA&M items."
+    },
+    {
+      "name": "control_trace_views",
+      "status": "pass",
+      "message": "Control trace views link controls to source events, reviewed statements, signatures, and deployment scope."
+    }
+  ]
 }

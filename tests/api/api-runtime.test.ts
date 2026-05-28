@@ -1,5 +1,5 @@
 import { once } from "node:events";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
@@ -7,7 +7,9 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  AuditRecorder,
+	  AuditRecorder,
+	  attachEvidenceIntegrityManifest,
+	  canonicalEvidenceContent,
   createDefaultPolicyModel,
   createLocalEngineSeed,
   LocalAppendOnlyAuditRepository,
@@ -17,6 +19,7 @@ import {
   LocalJsonFileStateRepository,
   sha256,
   stableStringify,
+  verifyEvidenceExport,
   type AdminAuthorizationDescriptor,
   type AuditEvent,
   type AuditEventRepository,
@@ -27,6 +30,7 @@ import {
   type EnforcementControl,
   type EnforcementReadinessReport,
   type EvidencePackageRepository,
+  type EvidenceExport,
   type ProvisioningApproval,
   type RebacSeedData,
   type RelationshipTuple,
@@ -987,48 +991,24 @@ describe("ReBAC API runtime", () => {
       })
     });
 
-    const evidence = await get<{
-      periodStart: string;
-      periodEnd: string;
-      generatedAt: string;
-      auditIntegrity: { status: string; eventCount: number };
-      integrityManifest: {
-        packageHash: string;
-        hashAlgorithm: string;
-        canonicalization: string;
-        sections: Array<{ name: string; hash: string; itemCount?: number }>;
-        verifier: { documentationPath: string; verificationSteps: string[] };
-      };
-      controlMappings: Array<{ controlId: string; status: string; sourceEventIds: string[]; gaps: string[] }>;
-      conmonMetrics: Array<{ name: string; value: number }>;
-      poamItems: Array<{ controlId: string; status: string }>;
-      siemExport: { format: string; eventCount: number; includesPayloadHashes: boolean };
-      systemBoundary: { environment: string; liveTenantData: boolean; components: Array<{ id: string; type: string }> };
-      dataFlows: Array<{ id: string; destination: string; liveTenantData: boolean }>;
-      artifacts: Array<{ name: string; type: string; format: string }>;
-      controlStatements: Array<{ controlId: string; reviewerRole: string; sourceArtifactNames: string[] }>;
-      accessReviews: Array<{ status: string; subjectCount: number; resourceCount: number; sourceEventIds: string[] }>;
-      exceptionRegister: unknown[];
-      operationalEvidence: Array<{ type: string; status: string; gaps: string[] }>;
-      storageReceipt?: unknown;
-    }>("/v1/evidence/export");
+    const evidence = await get<JsonObject>("/v1/evidence/export") as unknown as EvidenceExport;
 
     expect(evidence.periodStart).toBe("2026-05-20T01:00:00.000Z");
     expect(evidence.periodStart).not.toBe("2026-05-01T00:00:00.000Z");
     expect(evidence.periodEnd).toBe("2026-05-21T17:00:00.000Z");
     expect(evidence.generatedAt).toBe("2026-05-21T17:00:00.000Z");
     expect(evidence.auditIntegrity).toMatchObject({ status: "verified", eventCount: 1 });
-    const { integrityManifest, storageReceipt: _storageReceipt, ...evidenceWithoutManifest } = evidence;
-    void _storageReceipt;
+    const { integrityManifest } = evidence;
     const sectionsByName = new Map(integrityManifest.sections.map((section) => [section.name, section]));
     expect(integrityManifest).toMatchObject({
       hashAlgorithm: "sha256",
       canonicalization: "stable-json",
-      packageHash: `sha256:${sha256(evidenceWithoutManifest)}`,
+      packageHash: `sha256:${sha256(canonicalEvidenceContent(evidence))}`,
       verifier: {
         documentationPath: "docs/evidence-integrity-verifier.md",
         verificationSteps: expect.arrayContaining([
           "Remove integrityManifest from the evidence package.",
+          "Remove signedPackage and verifierChecks from the evidence package.",
           "Compute sha256 over the canonical package and compare it with integrityManifest.packageHash."
         ])
       }
@@ -1038,6 +1018,11 @@ describe("ReBAC API runtime", () => {
       itemCount: evidence.controlMappings.length
     });
     expect(sectionsByName.get("systemBoundary")?.hash).toBe(`sha256:${sha256(evidence.systemBoundary)}`);
+    expect(sectionsByName.get("oscal")?.hash).toBe(`sha256:${sha256(evidence.oscal)}`);
+    expect(sectionsByName.get("controlTraceViews")).toMatchObject({
+      hash: `sha256:${sha256(evidence.controlTraceViews)}`,
+      itemCount: evidence.controlTraceViews.length
+    });
     expect(stableStringify(integrityManifest)).not.toMatch(/payload|token|secret/i);
     expect(evidence.controlMappings).toEqual(expect.arrayContaining([
       expect.objectContaining({ controlId: "AC-3", status: "implemented" })
@@ -1099,6 +1084,55 @@ describe("ReBAC API runtime", () => {
       expect.objectContaining({ type: "dependency_scan", status: "implemented" }),
       expect.objectContaining({ type: "backup_restore", status: "planned", gaps: expect.any(Array) })
     ]));
+    expect(evidence.poamExport).toMatchObject({
+      version: "oscal-poam-export:v1",
+      sourceControlIds: evidence.controls
+    });
+    expect(evidence.poamExport.items.map((item) => item.id).sort()).toEqual(evidence.poamItems.map((item) => item.id).sort());
+    expect(evidence.oscal).toMatchObject({
+      version: "oscal-evidence-artifacts:v1",
+      componentDefinition: {
+        framework: "nist-800-53",
+        version: "oscal-component-definition-fragment:v1"
+      },
+      systemSecurityPlan: {
+        boundaryId: evidence.systemBoundary.boundaryId,
+        deploymentScope: evidence.signedPackage.deploymentScope,
+        version: "oscal-ssp-fragment:v1"
+      },
+      assessmentResults: {
+        version: "oscal-assessment-results-fragment:v1"
+      },
+      planOfActionAndMilestones: {
+        version: "oscal-poam-export:v1"
+      }
+    });
+    expect(evidence.signedPackage).toMatchObject({
+      packageHash: evidence.integrityManifest.packageHash,
+      signatureAlgorithm: "ed25519-local-proof-signature",
+      deploymentScope: {
+        boundaryId: evidence.systemBoundary.boundaryId,
+        liveTenantData: false,
+        controls: evidence.controls
+      }
+    });
+    expect(evidence.verifierChecks.every((check) => check.status === "pass")).toBe(true);
+    expect(evidence.controlTraceViews).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        controlId: "AC-3",
+        sourceEventIds: expect.any(Array),
+        reviewedStatement: expect.objectContaining({ reviewerRole: "Security Control Assessor" }),
+        signatureRef: {
+          packageId: evidence.signedPackage.packageId,
+          keyId: evidence.signedPackage.keyId
+        },
+        deploymentScope: evidence.signedPackage.deploymentScope
+      })
+    ]));
+    expect(verifyEvidenceExport(evidence)).toMatchObject({
+      status: "verified",
+      packageHash: evidence.integrityManifest.packageHash
+    });
   });
 
   it("exports evidence for explicit framework, controls, and time window", async () => {
@@ -1152,6 +1186,111 @@ describe("ReBAC API runtime", () => {
 
     expect(first.poamItems.find((item) => item.controlId === "AC-2")?.id).toBe("poam:ac-2");
     expect(second.poamItems.find((item) => item.controlId === "AC-2")?.id).toBe("poam:ac-2");
+  });
+
+  it("verifies signed evidence packages through the API", async () => {
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const evidence = await get<JsonObject>("/v1/evidence/export?controls=AC-3,AU-6") as unknown as EvidenceExport;
+    const report = await post<{ status: string; packageHash: string; checks: Array<{ name: string; status: string }> }>(
+      "/v1/evidence/verify",
+      evidence
+    );
+
+    expect(report.status).toBe("verified");
+    expect(report.packageHash).toBe(evidence.integrityManifest.packageHash);
+    expect(report.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "package_hash", status: "pass" }),
+      expect.objectContaining({ name: "signed_package_signature", status: "pass" }),
+      expect.objectContaining({ name: "control_trace_views", status: "pass" })
+    ]));
+
+    const audit = await get<{ items: Array<{ eventType: string; payload: JsonObject }> }>("/v1/audit/events");
+    expect(audit.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        eventType: "evidence.verified",
+        payload: expect.objectContaining({
+          status: "verified",
+          packageHash: evidence.integrityManifest.packageHash,
+          checkCount: report.checks.length
+        })
+      })
+    ]));
+  });
+
+  it("rejects modified evidence packages with recomputed legacy hash signatures", async () => {
+    await post("/v1/decision/check", {
+      subjectId: "user:alice",
+      action: "read",
+      resourceId: "document:case-plan"
+    });
+
+    const evidence = await get<JsonObject>("/v1/evidence/export?controls=AC-3,AU-6") as unknown as EvidenceExport;
+    expect(verifyEvidenceExport(evidence).status).toBe("verified");
+
+    const tamperedContent = canonicalEvidenceContent(evidence);
+    const forgedWithManifest = attachEvidenceIntegrityManifest({
+      ...tamperedContent,
+      conmonMetrics: [
+        ...tamperedContent.conmonMetrics,
+        {
+          name: "forged_metric",
+          value: 1,
+          unit: "count",
+          source: "attacker"
+        }
+      ]
+    });
+    const forgedPackage = {
+      ...evidence.signedPackage,
+      packageHash: forgedWithManifest.integrityManifest.packageHash
+    };
+    const { signature: _legacySignature, ...unsignedForgedPackage } = forgedPackage;
+    void _legacySignature;
+    const forgedEvidence: EvidenceExport = {
+      ...evidence,
+      ...forgedWithManifest,
+      signedPackage: {
+        ...forgedPackage,
+        signature: `sha256:${sha256(unsignedForgedPackage)}`
+      },
+      verifierChecks: []
+    };
+    const report = verifyEvidenceExport(forgedEvidence);
+
+    expect(report.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "package_hash", status: "pass" }),
+      expect.objectContaining({ name: "signed_package_hash", status: "pass" }),
+      expect.objectContaining({ name: "signed_package_signature", status: "fail" })
+    ]));
+    expect(report.status).toBe("failed");
+  });
+
+  it("verifies the checked-in signed evidence fixture with the trusted key", () => {
+    const evidence = JSON.parse(readFileSync("tests/fixtures/schema-examples/evidence-export.json", "utf8")) as EvidenceExport;
+    const report = verifyEvidenceExport(evidence);
+
+    expect(report.status).toBe("verified");
+    expect(report.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "signed_package_signature", status: "pass" })
+    ]));
+  });
+
+  it("requires an idempotency key for evidence verification", async () => {
+    const evidence = await get<JsonObject>("/v1/evidence/export?controls=AC-3");
+    const response = await fetch(`${baseUrl}/v1/evidence/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(evidence)
+    });
+    const body = (await response.json()) as { code: string };
+
+    expect(response.status).toBe(400);
+    expect(body.code).toBe("MISSING_IDEMPOTENCY_KEY");
   });
 
   it("verifies audit integrity and emits verification evidence", async () => {

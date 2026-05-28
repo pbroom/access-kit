@@ -29,7 +29,7 @@ Access Kit does not authenticate users, operate an identity provider, replace na
 9. Synthetic controlled enforcement is available only for the mock connector and only with readiness evidence, approval, and guardrails.
 10. Discovery and reconciliation compare observed native grants to intended access.
 11. Drift findings, decisions, connector actions, audit exports, and evidence exports emit audit events.
-12. Evidence exports assemble audit, control, boundary, data-flow, access-review, exception, ConMon, POA&M, operational, and SIEM metadata.
+12. Evidence exports assemble audit, control, boundary, data-flow, access-review, exception, ConMon, POA&M, OSCAL, signed package, verifier, control trace, operational, and SIEM metadata.
 13. Runtime readiness reports whether admin access is still local bearer-token proof-point mode or is described by an evidenced IdP or mTLS gateway, separate admin ReBAC policy, secrets-manager references, break-glass approval, incident-mode notifications, and post-action review evidence.
 14. Production operations monitor degraded-mode signals for API, graph, queue, audit, SIEM, connector, and admin boundaries, then fail closed, preserve evidence, and prioritize emergency revocation until recovery criteria are met.
 
@@ -63,7 +63,7 @@ If a direct deny tuple is added, the same request returns `deny` with `DENY_EXPL
 
 ## Audit And Evidence Implications
 
-The operating model emits audit evidence for decisions, relationship writes, connector discovery, readiness checks, provisioning jobs, reconciliation, audit integrity verification, audit exports, and evidence exports. Admin operations must additionally retain IdP or mTLS identity evidence, approval records, break-glass expiry, incident notifications, and post-action review evidence before a production deployment can claim admin readiness. Evidence packages should connect those events to control mappings and implementation statements without claiming production authorization.
+The operating model emits audit evidence for decisions, relationship writes, connector discovery, readiness checks, provisioning jobs, reconciliation, audit integrity verification, audit exports, evidence exports, and evidence verification. Admin operations must additionally retain IdP or mTLS identity evidence, approval records, break-glass expiry, incident notifications, and post-action review evidence before a production deployment can claim admin readiness. Evidence packages should connect those events to control mappings, reviewed implementation statements, signed package metadata, OSCAL fragments, and deployment-specific scope without claiming production authorization.
 
 ## Related Controls
 

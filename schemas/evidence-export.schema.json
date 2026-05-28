@@ -21,13 +21,18 @@
     "artifacts",
     "conmonMetrics",
     "poamItems",
+    "poamExport",
     "siemExport",
     "systemBoundary",
     "dataFlows",
     "controlStatements",
     "accessReviews",
     "exceptionRegister",
-    "operationalEvidence"
+    "operationalEvidence",
+    "oscal",
+    "signedPackage",
+    "verifierChecks",
+    "controlTraceViews"
   ],
   "properties": {
     "exportId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
@@ -137,6 +142,7 @@
               "control_mapping",
               "siem_export",
               "poam",
+              "poam_export",
               "conmon",
               "system_boundary",
               "data_flow",
@@ -144,6 +150,11 @@
               "access_review",
               "exception_register",
               "security_evidence",
+              "oscal_component_definition",
+              "oscal_ssp",
+              "oscal_assessment_results",
+              "signed_evidence_package",
+              "control_trace",
               "incident_response",
               "contingency_plan",
               "configuration_baseline"
@@ -171,21 +182,9 @@
     },
     "poamItems": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["id", "controlId", "weakness", "status", "ownerRole", "plannedCompletion", "source"],
-        "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
-          "controlId": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(\\([0-9]+\\))?$" },
-          "weakness": { "type": "string", "minLength": 1 },
-          "status": { "type": "string", "enum": ["open", "planned", "mitigated"] },
-          "ownerRole": { "type": "string", "minLength": 1 },
-          "plannedCompletion": { "type": "string", "format": "date-time" },
-          "source": { "type": "string", "minLength": 1 }
-        }
-      }
+      "items": { "$ref": "#/$defs/poamItem" }
     },
+    "poamExport": { "$ref": "#/$defs/oscalPoamExport" },
     "siemExport": {
       "type": "object",
       "additionalProperties": false,
@@ -221,6 +220,17 @@
       "minItems": 1,
       "items": { "$ref": "#/$defs/operationalEvidence" }
     },
+    "oscal": { "$ref": "#/$defs/oscalEvidenceArtifacts" },
+    "signedPackage": { "$ref": "#/$defs/signedPackage" },
+    "verifierChecks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/verifierCheck" }
+    },
+    "controlTraceViews": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/controlTraceView" }
+    },
     "storageReceipt": {
       "type": "object",
       "additionalProperties": false,
@@ -237,6 +247,278 @@
     }
   },
   "$defs": {
+    "poamItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "controlId", "weakness", "status", "ownerRole", "plannedCompletion", "source"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "controlId": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(\\([0-9]+\\))?$" },
+        "weakness": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["open", "planned", "mitigated"] },
+        "ownerRole": { "type": "string", "minLength": 1 },
+        "plannedCompletion": { "type": "string", "format": "date-time" },
+        "source": { "type": "string", "minLength": 1 }
+      }
+    },
+    "deploymentScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["boundaryId", "environment", "liveTenantData", "controls", "periodStart", "periodEnd", "componentIds", "version"],
+      "properties": {
+        "boundaryId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "environment": { "type": "string", "enum": ["local_proof_point", "production"] },
+        "liveTenantData": { "type": "boolean" },
+        "controls": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(\\([0-9]+\\))?$" }
+        },
+        "periodStart": { "type": "string", "format": "date-time" },
+        "periodEnd": { "type": "string", "format": "date-time" },
+        "componentIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "version": { "type": "string", "const": "evidence-deployment-scope:v1" }
+      }
+    },
+    "oscalControlImplementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controlId", "status", "statement", "responsibleRole", "reviewerRole", "reviewedAt", "sourceEventIds", "sourceArtifactNames", "gaps"],
+      "properties": {
+        "controlId": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(\\([0-9]+\\))?$" },
+        "status": { "type": "string", "enum": ["implemented", "partially_implemented", "planned"] },
+        "statement": { "type": "string", "minLength": 1 },
+        "responsibleRole": { "type": "string", "minLength": 1 },
+        "reviewerRole": { "type": "string", "minLength": 1 },
+        "reviewedAt": { "type": "string", "format": "date-time" },
+        "sourceEventIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "sourceArtifactNames": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "gaps": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "oscalPoamExport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uuid", "title", "generatedAt", "items", "sourceControlIds", "version"],
+      "properties": {
+        "uuid": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "title": { "type": "string", "minLength": 1 },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/poamItem" }
+        },
+        "sourceControlIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(\\([0-9]+\\))?$" }
+        },
+        "version": { "type": "string", "const": "oscal-poam-export:v1" }
+      }
+    },
+    "oscalEvidenceArtifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["componentDefinition", "systemSecurityPlan", "assessmentResults", "planOfActionAndMilestones", "version"],
+      "properties": {
+        "componentDefinition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["uuid", "title", "framework", "generatedAt", "components", "implementedRequirements", "version"],
+          "properties": {
+            "uuid": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+            "title": { "type": "string", "minLength": 1 },
+            "framework": { "type": "string", "enum": ["nist-800-53", "fedramp-rev5", "custom"] },
+            "generatedAt": { "type": "string", "format": "date-time" },
+            "components": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/boundaryComponent" }
+            },
+            "implementedRequirements": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/oscalControlImplementation" }
+            },
+            "version": { "type": "string", "const": "oscal-component-definition-fragment:v1" }
+          }
+        },
+        "systemSecurityPlan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["uuid", "title", "systemName", "boundaryId", "deploymentScope", "dataFlows", "controlImplementationStatements", "version"],
+          "properties": {
+            "uuid": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+            "title": { "type": "string", "minLength": 1 },
+            "systemName": { "type": "string", "minLength": 1 },
+            "boundaryId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+            "deploymentScope": { "$ref": "#/$defs/deploymentScope" },
+            "dataFlows": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/dataFlow" }
+            },
+            "controlImplementationStatements": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/oscalControlImplementation" }
+            },
+            "version": { "type": "string", "const": "oscal-ssp-fragment:v1" }
+          }
+        },
+        "assessmentResults": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["uuid", "title", "generatedAt", "reviewedControls", "observations", "version"],
+          "properties": {
+            "uuid": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+            "title": { "type": "string", "minLength": 1 },
+            "generatedAt": { "type": "string", "format": "date-time" },
+            "reviewedControls": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/oscalControlImplementation" }
+            },
+            "observations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["controlId", "status", "sourceEventIds", "gaps"],
+                "properties": {
+                  "controlId": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(\\([0-9]+\\))?$" },
+                  "status": { "type": "string", "enum": ["implemented", "partially_implemented", "planned"] },
+                  "sourceEventIds": {
+                    "type": "array",
+                    "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+                  },
+                  "gaps": {
+                    "type": "array",
+                    "items": { "type": "string", "minLength": 1 }
+                  }
+                }
+              }
+            },
+            "version": { "type": "string", "const": "oscal-assessment-results-fragment:v1" }
+          }
+        },
+        "planOfActionAndMilestones": { "$ref": "#/$defs/oscalPoamExport" },
+        "version": { "type": "string", "const": "oscal-evidence-artifacts:v1" }
+      }
+    },
+    "signedPackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packageId", "packageHash", "hashAlgorithm", "canonicalization", "signatureAlgorithm", "keyId", "signedAt", "signerRole", "signature", "deploymentScope", "sourceEventIds", "reviewedStatementRefs", "controlTraceIds", "version"],
+      "properties": {
+        "packageId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "packageHash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "hashAlgorithm": { "type": "string", "const": "sha256" },
+        "canonicalization": { "type": "string", "const": "stable-json" },
+        "signatureAlgorithm": { "type": "string", "const": "ed25519-local-proof-signature" },
+        "keyId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "signedAt": { "type": "string", "format": "date-time" },
+        "signerRole": { "type": "string", "minLength": 1 },
+        "signature": { "type": "string", "pattern": "^ed25519-local-proof-signature:[A-Za-z0-9_-]+$" },
+        "deploymentScope": { "$ref": "#/$defs/deploymentScope" },
+        "sourceEventIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "reviewedStatementRefs": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "controlTraceIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "version": { "type": "string", "const": "signed-evidence-package:v1" }
+      }
+    },
+    "verifierCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status", "message"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["pass", "fail"] },
+        "message": { "type": "string", "minLength": 1 },
+        "expected": { "type": "string", "minLength": 1 },
+        "actual": { "type": "string", "minLength": 1 }
+      }
+    },
+    "controlTraceView": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["traceId", "controlId", "status", "sourceEventIds", "reviewedStatement", "signatureRef", "deploymentScope", "oscalRefs", "gaps", "version"],
+      "properties": {
+        "traceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "controlId": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(\\([0-9]+\\))?$" },
+        "status": { "type": "string", "enum": ["implemented", "partially_implemented", "planned"] },
+        "sourceEventIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "reviewedStatement": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reviewerRole", "reviewedAt", "sourceArtifactNames"],
+          "properties": {
+            "reviewerRole": { "type": "string", "minLength": 1 },
+            "reviewedAt": { "type": "string", "format": "date-time" },
+            "sourceArtifactNames": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "signatureRef": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["packageId", "keyId"],
+          "properties": {
+            "packageId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+            "keyId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+          }
+        },
+        "deploymentScope": { "$ref": "#/$defs/deploymentScope" },
+        "oscalRefs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["componentDefinitionUuid", "sspUuid", "assessmentResultsUuid", "poamUuid"],
+          "properties": {
+            "componentDefinitionUuid": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+            "sspUuid": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+            "assessmentResultsUuid": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+            "poamUuid": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+          }
+        },
+        "gaps": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "version": { "type": "string", "const": "evidence-control-trace-view:v1" }
+      }
+    },
+    "boundaryComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "type", "trustZone", "dataClassification", "description"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "name": { "type": "string", "minLength": 1 },
+        "type": { "type": "string", "enum": ["control_plane", "connector", "data_store", "operator", "external_system"] },
+        "trustZone": { "type": "string", "enum": ["local_runtime", "synthetic_provider", "operator_boundary", "future_production"] },
+        "dataClassification": { "type": "string", "minLength": 1 },
+        "description": { "type": "string", "minLength": 1 }
+      }
+    },
     "systemBoundary": {
       "type": "object",
       "additionalProperties": false,

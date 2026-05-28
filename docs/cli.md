@@ -45,6 +45,7 @@ rebac audit search --subject user:123 --from 2026-01-01
 rebac audit integrity
 rebac audit export --from 2026-05-01T00:00:00.000Z --to 2026-05-31T23:59:59.000Z --target operator_download
 rebac evidence export --framework nist-800-53 --controls AC-2,AC-3,AU-2 --from 2026-05-01T00:00:00.000Z --to 2026-05-31T23:59:59.000Z --format json
+rebac evidence verify --package evidence-export.json
 
 rebac connector list
 rebac connector test mock
@@ -65,7 +66,7 @@ Dry-run provisioning uses `rebac provision plan` followed by `rebac provision ap
 
 Controlled enforcement is available only as a synthetic Phase 4 proof point against the `mock` connector. Operators first run `rebac connector readiness mock --mode enforcement --synthetic-only` and pass the resulting report ID into provisioning with `--readiness-report <id>`. The CLI can then send `--mode enforcement --approver <id> --change-ticket <id> --readiness-report <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.
 
-Phase 5 assessor commands use the same API contract. `rebac audit integrity` requests an audit hash-chain report, `rebac audit export` requests SIEM-ready JSONL audit records for a time window, and `rebac evidence export` can request a framework, control set, time window, and format for the complete local ATO evidence package, including boundary, data-flow, access-review, exception, operational, ConMon, POA&M, and SIEM metadata.
+Phase 5 assessor commands use the same API contract. `rebac audit integrity` requests an audit hash-chain report, `rebac audit export` requests SIEM-ready JSONL audit records for a time window, and `rebac evidence export` can request a framework, control set, time window, and format for the complete local ATO evidence package, including boundary, data-flow, access-review, exception, operational, ConMon, POA&M, OSCAL fragments, signed package metadata, verifier checks, control trace views, and SIEM metadata. `rebac evidence verify --package <path>` posts an exported package to the verifier endpoint and returns package hash, section hash, signature, deployment-scope, OSCAL, POA&M, and control trace checks.
 
 ## Security Considerations
 

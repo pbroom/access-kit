@@ -1,5 +1,5 @@
 import {
-  attachEvidenceIntegrityManifest,
+  finalizeEvidenceExport,
   sha256,
   verifyAuditChain,
   type AuditEvent,
@@ -362,7 +362,7 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
     const generatedAt = this.#now();
     const evidencePeriod = deriveEvidencePeriod(events, generatedAt);
     const auditIntegrity = verifyAuditChain(events, generatedAt);
-    return attachEvidenceIntegrityManifest({
+    return finalizeEvidenceExport({
       exportId: `evidence:${this.id}`,
       framework: "nist-800-53",
       controls: ["AC-2", "AC-3", "AC-6", "AU-2"],

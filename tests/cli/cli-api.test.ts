@@ -511,6 +511,24 @@ describe("CLI API wrapper", () => {
     );
   });
 
+  it("forwards signed evidence package verification to the API", async () => {
+    const requests: CapturedRequest[] = [];
+
+    await runCliWithFetch(
+      requests,
+      "evidence",
+      "verify",
+      "--package",
+      "tests/fixtures/schema-examples/evidence-export.json"
+    );
+
+    expect(requests.at(-1)?.url).toBe("http://api.example/v1/evidence/verify");
+    expect(requests.at(-1)?.body).toEqual(expect.objectContaining({
+      exportId: "evidence:may-2026-ac-au",
+      signedPackage: expect.objectContaining({ version: "signed-evidence-package:v1" })
+    }));
+  });
+
   it("distinguishes policy validate from policy test payloads", async () => {
     const requests: CapturedRequest[] = [];
 

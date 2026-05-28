@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  attachEvidenceIntegrityManifest,
   AuditRecorder,
   auditEventHash,
+  finalizeEvidenceExport,
   InMemoryExternalAppendOnlyAuditStore,
   ProductionAuditEvidenceAdapter,
   type AuditEvent,
@@ -377,7 +377,7 @@ function createNextEvent(
 }
 
 function createEvidenceExport(events: AuditEvent[]): EvidenceExport {
-  return attachEvidenceIntegrityManifest({
+  return finalizeEvidenceExport({
     exportId: "evidence:production-audit",
     framework: "nist-800-53",
     controls: ["AU-6"],

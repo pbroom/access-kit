@@ -37,6 +37,7 @@ export const API_ROUTE_SURFACES: ApiRouteSurface[] = [
   { method: "GET", path: "/v1/audit/integrity" },
   { method: "GET", path: "/v1/audit/export" },
   { method: "GET", path: "/v1/evidence/export" },
+  { method: "POST", path: "/v1/evidence/verify" },
   { method: "GET", path: "/v1/connectors" },
   { method: "POST", path: "/v1/connectors/{id}/test" },
   { method: "GET", path: "/v1/connectors/{id}/enforcement-readiness" },

@@ -839,6 +839,58 @@ paths:
             application/json:
               schema:
                 $ref: "../schemas/evidence-export.schema.json"
+  /v1/evidence/verify:
+    post:
+      tags: [evidence]
+      summary: Verify a signed evidence package.
+      operationId: verifyEvidencePackage
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "../schemas/evidence-export.schema.json"
+      responses:
+        "200":
+          description: Evidence verification report.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [status, verifiedAt, checks, version]
+                properties:
+                  status:
+                    type: string
+                    enum: [verified, failed]
+                  verifiedAt:
+                    type: string
+                    format: date-time
+                  packageHash:
+                    type: string
+                  checks:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: false
+                      required: [name, status, message]
+                      properties:
+                        name:
+                          type: string
+                        status:
+                          type: string
+                          enum: [pass, fail]
+                        message:
+                          type: string
+                        expected:
+                          type: string
+                        actual:
+                          type: string
+                  version:
+                    type: string
+                    const: evidence-verification-report:v1
   /v1/connectors:
     get:
       tags: [connectors]

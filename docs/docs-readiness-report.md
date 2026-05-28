@@ -83,7 +83,7 @@ The documentation goal is complete for the repository foundation after this foll
 | `docs/runbooks/*.md` | `runbooks/*.md` | Added top-level runbook family | Runbooks are operational artifacts distinct from narrative docs; README documents the location. |
 | `docs/docs-readiness-report.md` | `docs/docs-readiness-report.md` | Added | Required readiness artifact had no equivalent. |
 | `docs/connector-authoring-tutorial.md` | `docs/connector-authoring-tutorial.md` | Added | Author-facing connector guidance is distinct from the connector contract and sample connector template. |
-| OSCAL artifacts | `docs/ato-evidence-model.md` | Guidance only | OSCAL generation is not implemented; downstream OSCAL should transform canonical evidence export data. |
+| OSCAL artifacts | `docs/ato-evidence-model.md`, `schemas/evidence-export.schema.json` | Implemented proof-point fragments | Evidence export now includes OSCAL component-definition, SSP, assessment-results, POA&M fragments, signed package metadata, verifier checks, and control-to-event traces generated from canonical evidence data. |
 
 ## Existing Artifacts Reused
 
@@ -238,7 +238,7 @@ The documentation connects architecture, control families, implementation behavi
 
 - Live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, AD, and Entra ID connector behavior remains planned/draft unless explicitly implemented.
 - Environment-specific graph storage drivers, managed queue workers, selected WORM or immutable-ledger audit drivers, approved SIEM forwarding deployment, IdP or mTLS gateway deployment, admin ReBAC role-binding evidence, and production evidence retention remain future work. The production audit/evidence adapter and admin authorization readiness boundaries are implemented as contract proof points, not as approved deployments.
-- OSCAL output is guidance only; no OSCAL generator is implemented.
+- OSCAL output is implemented as proof-point evidence fragments; production OSCAL packages still require deployment-specific review, signing keys, retention, and assessor approval.
 - Production runbook exercises, post-action reviews, and assessor-approved control statements are deployment-specific and out of scope for the local documentation foundation.
 
 ## Assumptions
