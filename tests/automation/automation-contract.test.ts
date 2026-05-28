@@ -55,6 +55,7 @@ describe("automation contract manifest", () => {
       "live enforcement pilot validation",
       "core engine tests",
       "API runtime tests",
+      "SDK PEP conformance tests",
       "connector package tests",
       "CLI API smoke tests"
     ]);
