@@ -823,6 +823,7 @@ export interface ConnectorDiscoveryMetadata {
   requiredReadScopes: string[];
   synthetic: boolean;
   warnings: DiscoveryRunWarning[];
+  nativeAccessReadbackComplete?: boolean;
   cursor?: DiscoveryCursor;
 }
 

@@ -10,11 +10,11 @@ Connector developers, platform engineers, security engineers, ISSOs, assessors, 
 
 ## What This Is
 
-The connector contract defines how Access Kit interacts with provider-specific systems while preserving a portable authorization model. The current repo includes a mock connector, synthetic read-only Entra ID, SharePoint, and AWS-style fixtures that prove contract shape without live tenant access, and an optional Microsoft Graph Entra read-only foundation for sandbox tenants.
+The connector contract defines how Access Kit interacts with provider-specific systems while preserving a portable authorization model. The current repo includes a mock connector, synthetic read-only Entra ID, SharePoint, and AWS-style fixtures that prove contract shape without live tenant access, plus optional Microsoft Graph Entra and AWS read-only foundations for sandbox evidence.
 
 ## What This Is Not
 
-This is not a claim that AWS, SharePoint, Teams, Power Platform, Dataverse, or AD live connector behavior is implemented. Synthetic connectors do not call provider APIs and must not be treated as production integrations. The Microsoft Graph connector is opt-in, read-only, and must retain sandbox-run evidence before anyone claims live-tenant verification.
+This is not a claim that SharePoint, Teams, Power Platform, Dataverse, or AD live connector behavior is implemented. Synthetic connectors do not call provider APIs and must not be treated as production integrations. The Microsoft Graph and AWS connector foundations are opt-in and read-only, and must retain sandbox-run evidence before anyone claims live-tenant or live-account verification.
 
 ## Capability Model
 
@@ -83,6 +83,21 @@ The connector uses `User.Read.All`, `GroupMember.Read.All`, and `Application.Rea
 Discovery maps provider objects into redacted Access Kit records. Tenant IDs, Graph object IDs, user principal names, display names, request IDs, bearer tokens, and raw pagination cursors are not stored in canonical IDs, warnings, native-grant attributes, or evidence. Pagination and throttling are captured as warnings, and missing sandbox evidence emits `GRAPH_SANDBOX_EVIDENCE_REQUIRED` instead of silently claiming live coverage.
 
 The connector does not implement Graph writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled.
+
+## AWS Read-Only Access-Analysis Foundation
+
+`@access-kit/connectors-aws` exports `AwsReadOnlyAccessAnalysisConnector`, an injectable AWS adapter for IAM Identity Center assignments, AWS Organizations account boundaries, IAM roles, CloudTrail activity readback, and Access Analyzer-informed drift findings. It is registered by the API runtime only when sandbox fixture configuration is present:
+
+- `REBAC_AWS_READONLY_ACCESS_ANALYSIS_ENABLED=true`
+- `REBAC_AWS_ORGANIZATION_ID`
+- `REBAC_AWS_READONLY_FIXTURE_FILE`
+- `REBAC_AWS_SANDBOX_EVIDENCE`, recommended for retained sandbox evidence
+
+The connector declares least-privilege read scopes for Organizations, IAM Identity Center assignment readback, IAM role readback, CloudTrail lookup, and Access Analyzer findings. It explicitly excludes broad provider mutation through write-scope families such as `iam:Write`, `sso:Write`, `organizations:Write`, `cloudtrail:Write`, and `access-analyzer:Write`.
+
+Discovery maps AWS observations into redacted Access Kit records. Organization IDs, account IDs, account emails, ARNs, Identity Center principal IDs, CloudTrail event IDs, request IDs, tokens, and raw pagination cursors are not stored in canonical IDs, warnings, native-grant attributes, or evidence. IAM Identity Center assignments become observed native grants, CloudTrail events annotate activity recency without becoming intended access, suspended or deleted objects become tombstones, and Access Analyzer findings become reconciliation drift findings for review.
+
+The connector does not implement AWS writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled.
 
 ## Concrete Example
 

@@ -19,7 +19,15 @@ const requiredConnectorIds = ["mock", "entra-readonly", "sharepoint-readonly", "
 const approvedLiveReadScopes = new Set<string>([
   "Application.Read.All",
   "GroupMember.Read.All",
-  "User.Read.All"
+  "User.Read.All",
+  "access-analyzer:ListFindings",
+  "cloudtrail:LookupEvents",
+  "iam:ListRoles",
+  "organizations:DescribeOrganization",
+  "organizations:ListAccounts",
+  "sso:DescribePermissionSet",
+  "sso:ListAccountAssignments",
+  "sso:ListPermissionSets"
 ]);
 const safeSyntheticControl: EnforcementControl = {
   syntheticOnly: true,
