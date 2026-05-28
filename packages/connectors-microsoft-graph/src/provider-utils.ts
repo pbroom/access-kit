@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
 import {
   sha256,
@@ -203,10 +203,14 @@ export function compactTimestamp(value: string): string {
 }
 
 export function readTokenFile(path: string | undefined): string | undefined {
-  if (!path || !existsSync(path)) {
+  if (!path) {
     return undefined;
   }
 
-  const value = readFileSync(path, "utf8").trim();
-  return value.length > 0 ? value : undefined;
+  try {
+    const value = readFileSync(path, "utf8").trim();
+    return value.length > 0 ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }

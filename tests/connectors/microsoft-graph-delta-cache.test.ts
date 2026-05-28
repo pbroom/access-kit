@@ -8,6 +8,7 @@ import {
   createDeltaFixtureClient,
   createEmptySharePointOneDriveInventory,
   createStaleDeltaFixtureClient,
+  createTwoSyncFixtureClient,
   noSleep,
   now
 } from "./microsoft-graph-fixtures.js";
@@ -159,5 +160,33 @@ describe("MicrosoftGraphEntraReadOnlyConnector delta, cache, and retry behavior"
     await connector.discoverSubjects();
 
     expect(sleeps).toEqual([60_000]);
+  });
+
+  it("reuses a resource-loaded snapshot for the first subject read", async () => {
+    const client = createTwoSyncFixtureClient();
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client,
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep
+    });
+
+    const resources = await connector.discoverResources();
+    const subjects = await connector.discoverSubjects();
+    const userReadCount = () => client.calls.filter(
+      (path) => path.startsWith("/users?$select=id,displayName,userPrincipalName")
+    ).length;
+
+    expect(resources).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "application" })
+    ]));
+    expect(subjects).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: "user" })
+    ]));
+    expect(userReadCount()).toBe(1);
+
+    await connector.discoverSubjects();
+
+    expect(userReadCount()).toBe(2);
   });
 });

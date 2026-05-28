@@ -127,6 +127,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   readonly #resourceMapper: MicrosoftGraphResourceMapper;
   #warnings: DiscoveryRunWarning[] = [];
   #nativeAccessReadbackComplete = true;
+  #subjectsReadFromCurrentSnapshot = false;
 
   constructor(options: MicrosoftGraphEntraConnectorOptions) {
     this.id = options.id ?? MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID;
@@ -156,10 +157,15 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   }
 
   async discoverSubjects(): Promise<Subject[]> {
-    this.#snapshot = undefined;
-    this.#warnings = [];
-    this.#nativeAccessReadbackComplete = true;
-    return (await this.#loadSnapshot()).subjects;
+    if (this.#snapshot && !this.#subjectsReadFromCurrentSnapshot) {
+      this.#subjectsReadFromCurrentSnapshot = true;
+      return this.#snapshot.subjects;
+    }
+
+    this.#resetSnapshotState();
+    const snapshot = await this.#loadSnapshot();
+    this.#subjectsReadFromCurrentSnapshot = true;
+    return snapshot.subjects;
   }
 
   async discoverResources(): Promise<Resource[]> {
@@ -362,6 +368,7 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     }
 
     this.#warnings = [];
+    this.#subjectsReadFromCurrentSnapshot = false;
     const startedFrom = this.#collectionReader.buildDeltaCursor() ?? "cursor:microsoft-graph:initial";
     const users = await this.#collectionReader.readCollection<GraphUser>(
       "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime",
@@ -405,6 +412,13 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
     };
 
     return this.#snapshot;
+  }
+
+  #resetSnapshotState(): void {
+    this.#snapshot = undefined;
+    this.#warnings = [];
+    this.#nativeAccessReadbackComplete = true;
+    this.#subjectsReadFromCurrentSnapshot = false;
   }
 
   #buildEntityMaps(

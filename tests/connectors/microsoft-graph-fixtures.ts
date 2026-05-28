@@ -15,13 +15,20 @@ export class FixtureGraphClient implements MicrosoftGraphReadClient {
   readonly requests: Array<{ path: string; headers?: Record<string, string> }> = [];
   readonly #pages: Map<string, Array<MicrosoftGraphCollectionPage<unknown>>>;
   readonly #records: Map<string, Array<MicrosoftGraphRecordResponse<unknown>>>;
+  readonly #missingListStatus: number;
+  readonly #missingRecordStatus: number;
+  readonly #strictMissingPaths: boolean;
 
   constructor(
     pages: Record<string, Array<MicrosoftGraphCollectionPage<unknown>>>,
-    records: Record<string, Array<MicrosoftGraphRecordResponse<unknown>>> = {}
+    records: Record<string, Array<MicrosoftGraphRecordResponse<unknown>>> = {},
+    options: { missingListStatus?: number; missingRecordStatus?: number; strictMissingPaths?: boolean } = {}
   ) {
     this.#pages = new Map(Object.entries(pages));
     this.#records = new Map(Object.entries(records));
+    this.#missingListStatus = options.missingListStatus ?? 404;
+    this.#missingRecordStatus = options.missingRecordStatus ?? 404;
+    this.#strictMissingPaths = options.strictMissingPaths ?? false;
   }
 
   async list<T>(pathOrUrl: string, options?: { headers?: Record<string, string> }): Promise<MicrosoftGraphCollectionPage<T>> {
@@ -29,7 +36,10 @@ export class FixtureGraphClient implements MicrosoftGraphReadClient {
     this.requests.push({ path: pathOrUrl, headers: options?.headers });
     const pages = this.#pages.get(pathOrUrl);
     if (!pages || pages.length === 0) {
-      throw new Error(`No fixture page for ${pathOrUrl}`);
+      if (this.#strictMissingPaths) {
+        throw new Error(`No fixture page for ${pathOrUrl}`);
+      }
+      return { value: [], status: this.#missingListStatus };
     }
 
     return pages.shift() as MicrosoftGraphCollectionPage<T>;
@@ -40,7 +50,10 @@ export class FixtureGraphClient implements MicrosoftGraphReadClient {
     this.requests.push({ path: pathOrUrl, headers: options?.headers });
     const records = this.#records.get(pathOrUrl);
     if (!records || records.length === 0) {
-      throw new Error(`No fixture record for ${pathOrUrl}`);
+      if (this.#strictMissingPaths) {
+        throw new Error(`No fixture record for ${pathOrUrl}`);
+      }
+      return { status: this.#missingRecordStatus };
     }
 
     return records.shift() as MicrosoftGraphRecordResponse<T>;

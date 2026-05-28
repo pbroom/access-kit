@@ -109,7 +109,12 @@ export class FetchMicrosoftGraphClient implements MicrosoftGraphReadClient {
   }
 
   #toUrl(pathOrUrl: string): string {
-    const url = /^https:\/\//i.test(pathOrUrl)
+    const isAbsoluteUrl = /^[a-z][a-z0-9+.-]*:\/\//i.test(pathOrUrl);
+    if (isAbsoluteUrl && !/^https:\/\//i.test(pathOrUrl)) {
+      throw new Error("Microsoft Graph URL must use HTTPS; received non-HTTPS absolute URL.");
+    }
+
+    const url = isAbsoluteUrl
       ? new URL(pathOrUrl)
       : new URL(`${this.#baseUrl}${pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`}`);
 

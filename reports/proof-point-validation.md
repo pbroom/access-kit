@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T11:33:21.153Z
+Generated at: 2026-05-28T13:08:32.061Z
 
 Branch: codex/thermo-microsoft-graph-modules
 
@@ -146,8 +146,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  07:33:13
-   Duration  349ms (transform 171ms, setup 0ms, import 266ms, tests 22ms, environment 0ms)
+   Start at  09:08:24
+   Duration  318ms (transform 159ms, setup 0ms, import 243ms, tests 21ms, environment 0ms)
 ```
 
 ### container packaging validation
@@ -239,9 +239,9 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
 
  Test Files  13 passed (13)
-      Tests  168 passed (168)
-   Start at  07:33:16
-   Duration  289ms (transform 1.21s, setup 0ms, import 1.76s, tests 146ms, environment 1ms)
+      Tests  170 passed (170)
+   Start at  09:08:28
+   Duration  266ms (transform 1.25s, setup 0ms, import 1.72s, tests 128ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -256,8 +256,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  07:33:17
-   Duration  640ms (transform 1.09s, setup 0ms, import 1.82s, tests 541ms, environment 0ms)
+   Start at  09:08:28
+   Duration  575ms (transform 1.03s, setup 0ms, import 1.68s, tests 470ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -272,8 +272,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  07:33:18
-   Duration  520ms (transform 364ms, setup 0ms, import 572ms, tests 249ms, environment 0ms)
+   Start at  09:08:29
+   Duration  464ms (transform 331ms, setup 0ms, import 520ms, tests 210ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
@@ -288,8 +288,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  07:33:19
-   Duration  188ms (transform 96ms, setup 0ms, import 120ms, tests 7ms, environment 0ms)
+   Start at  09:08:30
+   Duration  182ms (transform 93ms, setup 0ms, import 115ms, tests 7ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -299,9 +299,9 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
 
  Test Files  8 passed (8)
-      Tests  44 passed (44)
-   Start at  07:33:19
-   Duration  302ms (transform 1.04s, setup 0ms, import 1.47s, tests 75ms, environment 0ms)
+      Tests  47 passed (47)
+   Start at  09:08:30
+   Duration  281ms (transform 1.04s, setup 0ms, import 1.40s, tests 70ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -316,8 +316,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  07:33:20
-   Duration  398ms (transform 471ms, setup 0ms, import 787ms, tests 136ms, environment 0ms)
+   Start at  09:08:31
+   Duration  363ms (transform 461ms, setup 0ms, import 730ms, tests 117ms, environment 0ms)
 ```
 
 
