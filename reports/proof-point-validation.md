@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T12:52:04.824Z
+Generated at: 2026-05-28T11:33:21.153Z
 
-Branch: codex/thermo-production-audit-modules
+Branch: codex/thermo-microsoft-graph-modules
 
 Node: v24.4.1
 
@@ -40,14 +40,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-schemas.ts
 
 Validated 21 schemas and 21 example fixtures.
@@ -77,10 +77,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-thermo-audit-modules/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-thermo-graph-modules/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -92,7 +92,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### API collection validation
 
 ```text
-> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/generate-api-collections.ts --check
 
 API collection artifacts are current.
@@ -101,7 +101,7 @@ API collection artifacts are current.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -124,7 +124,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-thermo-graph-modules
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -137,23 +137,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-thermo-graph-modules
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-audit-modules
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  08:51:57
-   Duration  350ms (transform 170ms, setup 0ms, import 267ms, tests 22ms, environment 0ms)
+   Start at  07:33:13
+   Duration  349ms (transform 171ms, setup 0ms, import 266ms, tests 22ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -164,7 +164,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -177,7 +177,7 @@ PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclos
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -188,7 +188,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -199,7 +199,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -210,7 +210,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -221,7 +221,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-thermo-graph-modules
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -231,93 +231,93 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-thermo-graph-modules
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-audit-modules
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
 
  Test Files  13 passed (13)
-      Tests  170 passed (170)
-   Start at  08:52:00
-   Duration  286ms (transform 1.28s, setup 0ms, import 1.85s, tests 139ms, environment 1ms)
+      Tests  168 passed (168)
+   Start at  07:33:16
+   Duration  289ms (transform 1.21s, setup 0ms, import 1.76s, tests 146ms, environment 1ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-thermo-graph-modules
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-audit-modules
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  08:52:01
-   Duration  643ms (transform 1.09s, setup 0ms, import 1.84s, tests 532ms, environment 0ms)
+   Start at  07:33:17
+   Duration  640ms (transform 1.09s, setup 0ms, import 1.82s, tests 541ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
 
 ```text
-> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-thermo-graph-modules
 > vitest run tests/sdk-pep
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-audit-modules
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  08:52:02
-   Duration  501ms (transform 355ms, setup 0ms, import 558ms, tests 235ms, environment 0ms)
+   Start at  07:33:18
+   Duration  520ms (transform 364ms, setup 0ms, import 572ms, tests 249ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
 
 ```text
-> access-kit@0.1.0 validate:sample-admin-app /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 validate:sample-admin-app /Users/peterbroomfield/access-kit-thermo-graph-modules
 > vitest run tests/examples/internal-admin-app.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-audit-modules
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  08:52:03
-   Duration  193ms (transform 102ms, setup 0ms, import 127ms, tests 7ms, environment 0ms)
+   Start at  07:33:19
+   Duration  188ms (transform 96ms, setup 0ms, import 120ms, tests 7ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-audit-modules
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
 
- Test Files  3 passed (3)
+ Test Files  8 passed (8)
       Tests  44 passed (44)
-   Start at  08:52:03
-   Duration  277ms (transform 431ms, setup 0ms, import 559ms, tests 55ms, environment 0ms)
+   Start at  07:33:19
+   Duration  302ms (transform 1.04s, setup 0ms, import 1.47s, tests 75ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-thermo-audit-modules
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-thermo-graph-modules
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-audit-modules
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-thermo-graph-modules
 
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  08:52:04
-   Duration  392ms (transform 482ms, setup 0ms, import 776ms, tests 133ms, environment 0ms)
+   Start at  07:33:20
+   Duration  398ms (transform 471ms, setup 0ms, import 787ms, tests 136ms, environment 0ms)
 ```
 
 
