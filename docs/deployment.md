@@ -109,6 +109,12 @@ kubectl apply -k deploy/kubernetes
 
 The signed-image admission policy example lives at `deploy/policies/kyverno/rebac-api-signed-image-policy.yaml`. It is a policy contract for clusters that use Kyverno and cosign keyless verification; production clusters still need environment approval before enforcing it. Production overlays must also add the approved IdP or mTLS gateway, trusted header or certificate validation, secrets-manager integration, network controls, and retained admin authorization evidence before operator traffic is allowed.
 
+## Production Reference Overlay
+
+The production-reference overlay under `deploy/overlays/production-reference/` composes the base Kubernetes proof-point manifests with placeholder references for required production controls. It documents where a target environment must bind the API service to approved graph, connector-state, queue, audit/evidence, SIEM, secrets-manager, observability, backup, RTO, RPO, and admin-authorization evidence.
+
+The overlay is intentionally not a production deployment by itself. It contains reference annotations and `ref:` placeholders only; platform teams must replace them with environment-specific IaC outputs, external secret references, signed-image evidence, IdP or mTLS gateway descriptors, SIEM delivery and replay records, and backup/restore evidence before promotion. See [Production Reference Architecture](production-reference-architecture.md).
+
 ## Persistence Deployment Evidence Gate
 
 The synthetic production persistence manifest lives at `deploy/persistence/production-manifest.example.json` and is validated by `pnpm validate:persistence-deployment`.

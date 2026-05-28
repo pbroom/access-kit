@@ -19,6 +19,7 @@ The documentation goal is complete for the repository foundation after this foll
 | Glossary | `docs/glossary.md` |
 | Non-goals | `docs/non-goals.md`, with summary in `README.md` |
 | System context, boundary, data flows, trust boundaries | `docs/system-context-and-boundary.md`, supported by `docs/architecture.md` |
+| Production reference architecture and overlays | `docs/production-reference-architecture.md`, `deploy/overlays/production-reference/` |
 | Domain model | `docs/domain-model.md` |
 | API overview, Decision API, API errors, reason codes | `docs/api.md`, `docs/decision-lifecycle.md`, `docs/explain-api.md` |
 | CLI overview and commands | `docs/cli.md`, `packages/cli/src/commands.ts` |
@@ -54,6 +55,7 @@ The documentation goal is complete for the repository foundation after this foll
 | Assessor Inspection Guide | `docs/assessor-inspection-guide.md` | Added |
 | Threat Model | `docs/threat-model.md` | Added |
 | Policy Testing Guide | `docs/policy-testing-guide.md` | Added |
+| Production Reference Architecture | `docs/production-reference-architecture.md`, `deploy/overlays/production-reference/` | Added |
 | Emergency Revocation Runbook | `runbooks/emergency-revocation.md` | Added |
 
 ## Path Equivalence Decisions
@@ -189,6 +191,12 @@ The documentation connects architecture, control families, implementation behavi
   - `corepack pnpm evidence:check` confirmed proof-point validation evidence is current.
   - `git diff --check` passed.
   - `corepack pnpm ci:check` passed after the template, tests, docs, lockfile, and evidence updates.
+- AK-041 production reference architecture validation passed:
+  - `corepack pnpm validate:docs` validated 197 relative Markdown links across 43 files, including the new production reference architecture links, overlay README, runbook sections, documentation examples, and API reference freshness.
+  - `corepack pnpm validate:deployment-manifests` validated the base Kubernetes manifest contract that the production-reference overlay composes.
+  - `corepack pnpm validate:persistence-deployment` validated production persistence evidence manifests referenced by the architecture.
+  - `corepack pnpm validate:automation` validated the AK-041 backlog status update.
+  - `corepack pnpm ci:check` passed after the reference architecture and overlay updates.
 - AK-050 connector authoring update validation passed:
   - `corepack pnpm validate:docs` validated 187 relative Markdown links across 42 files, runbook sections, documentation examples, and API reference freshness.
   - `corepack pnpm validate:automation` validated backlog state, scripts, labels, docs, and CI automation contracts.

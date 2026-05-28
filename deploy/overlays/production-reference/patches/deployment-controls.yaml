@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rebac-api
+  namespace: access-kit
+  annotations:
+    access-kit.io/admin-auth-evidence: ref:replace-with-idp-or-mtls-descriptor
+    access-kit.io/graph-store-evidence: ref:replace-with-graph-store-readiness
+    access-kit.io/queue-evidence: ref:replace-with-queue-readiness
+    access-kit.io/audit-evidence: ref:replace-with-audit-evidence-readiness
+    access-kit.io/siem-evidence: ref:replace-with-siem-delivery-and-replay
+    access-kit.io/backup-evidence: ref:replace-with-backup-restore-exercise
+    access-kit.io/rollback-evidence: ref:replace-with-release-rollback-record
+    access-kit.io/connector-state-evidence: ref:replace-with-connector-state-readiness
+    access-kit.io/secrets-manager-evidence: ref:replace-with-secrets-manager-descriptor
+    access-kit.io/observability-evidence: ref:replace-with-observability-stack-descriptor
+spec:
+  template:
+    metadata:
+      annotations:
+        access-kit.io/reference-architecture: production
+        access-kit.io/no-secret-material: "true"

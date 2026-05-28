@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rebac-api-config
+  namespace: access-kit
+  annotations:
+    access-kit.io/reference-architecture: production
+data:
+  # Set to idp_gateway or mtls_gateway depending on the admin boundary selected for this environment.
+  REBAC_ADMIN_AUTH_MODE: idp_gateway
+  REBAC_PRODUCTION_GRAPH_STORE_REF: ref:replace-with-approved-graph-store
+  REBAC_PRODUCTION_CONNECTOR_STATE_REF: ref:replace-with-approved-connector-state-store
+  REBAC_PRODUCTION_QUEUE_REF: ref:replace-with-approved-queue
+  REBAC_PRODUCTION_AUDIT_EVIDENCE_REF: ref:replace-with-approved-immutable-audit-store
+  REBAC_PRODUCTION_SIEM_FORWARDER_REF: ref:replace-with-approved-siem-forwarder
+  REBAC_PRODUCTION_SECRETS_MANAGER_REF: ref:replace-with-approved-secrets-manager
+  REBAC_PRODUCTION_OBSERVABILITY_REF: ref:replace-with-approved-observability-stack
+  REBAC_PRODUCTION_BACKUP_PLAN_REF: ref:replace-with-approved-backup-plan
+  # RTO/RPO defaults below apply to the relationship graph and native grants data class only.
+  # Queue, audit/evidence, connector-state, and configuration each have separate targets;
+  # see docs/production-reference-architecture.md#rtorpo-targets for the full table.
+  REBAC_PRODUCTION_RTO: 4h
+  REBAC_PRODUCTION_RPO: 15m
