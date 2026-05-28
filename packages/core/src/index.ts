@@ -6,6 +6,19 @@ export * from "./domain.js";
 export * from "./drift-finding-filter.js";
 export * from "./drift-lifecycle.js";
 export * from "./engine.js";
+export {
+  buildControlTraceViews,
+  buildDeploymentScope,
+  buildEvidencePackageContent,
+  buildExpectedDeploymentScope,
+  buildOscalArtifacts,
+  buildPoamExport,
+  defaultEvidenceSignatureKeyId,
+  evidenceControlStatementRef,
+  signedEvidencePackageId,
+  type EvidencePackageBuilderOptions,
+  type EvidencePackageSignatureRef
+} from "./evidence-package-builder.js";
 export * from "./evidence-integrity.js";
 export * from "./fixtures.js";
 export * from "./governance.js";

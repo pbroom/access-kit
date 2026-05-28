@@ -1,34 +1,70 @@
 import { createPublicKey, generateKeyPairSync, sign as signPayload, verify as verifyPayload } from "node:crypto";
 import { sha256, stableStringify } from "./audit.js";
+import {
+  buildEvidencePackageContent,
+  buildExpectedDeploymentScope,
+  defaultEvidenceSignatureKeyId,
+  evidenceControlStatementRef,
+  signedEvidencePackageId,
+  type EvidenceExportDraft,
+  type EvidenceExportPackageContent,
+  type EvidenceExportWithoutIntegrity
+} from "./evidence-package-builder.js";
 import type {
-  ControlImplementationStatement,
   EvidenceControlTraceView,
   EvidenceDeploymentScope,
-  EvidenceControlMapping,
   EvidenceExport,
   EvidenceVerifierCheck,
   EvidenceVerificationReport,
-  OscalControlImplementation,
-  OscalEvidenceArtifacts,
-  OscalPoamExport,
-  PoamItem,
   SignedEvidencePackage
 } from "./domain.js";
 
-export type EvidenceExportPackageContent = Omit<EvidenceExport, "integrityManifest" | "storageReceipt" | "signedPackage" | "verifierChecks">;
-export type EvidenceExportWithoutIntegrity = EvidenceExportPackageContent;
-export type EvidenceExportDraft = Omit<EvidenceExportPackageContent, "poamExport" | "oscal" | "controlTraceViews"> &
-  Partial<Pick<EvidenceExportPackageContent, "poamExport" | "oscal" | "controlTraceViews">>;
+export type {
+  EvidenceExportDraft,
+  EvidenceExportPackageContent,
+  EvidenceExportWithoutIntegrity
+} from "./evidence-package-builder.js";
+
 type EvidenceExportWithIntegrity = EvidenceExportPackageContent & Pick<EvidenceExport, "integrityManifest">;
 type EvidenceExportWithSignature = EvidenceExportWithIntegrity & Pick<EvidenceExport, "signedPackage">;
+type EvidencePrivateSigningKey = Parameters<typeof signPayload>[2];
+type EvidencePublicVerificationKey = Parameters<typeof verifyPayload>[2];
 
-const runtimeSignatureKeyId = "key:local-proof-point-evidence-runtime-ed25519";
-const checkedInFixtureSignatureKeyId = "key:local-proof-point-evidence-ed25519";
-const defaultSignatureAlgorithm = "ed25519-local-proof-signature";
-const defaultSignerRole = "ISSO";
+export interface EvidenceSigner {
+  keyId: SignedEvidencePackage["keyId"];
+  signatureAlgorithm: SignedEvidencePackage["signatureAlgorithm"];
+  signerRole: string;
+  sign(unsignedPackage: Omit<SignedEvidencePackage, "signature">): string;
+}
+
+export interface TrustedEvidenceSigningKey {
+  algorithm: SignedEvidencePackage["signatureAlgorithm"];
+  publicKey: EvidencePublicVerificationKey;
+}
+
+export type TrustedEvidenceSigningKeyRegistry = Readonly<Record<string, TrustedEvidenceSigningKey>>;
+
+export interface EvidenceSigningOptions {
+  signer?: EvidenceSigner;
+}
+
+export interface EvidenceVerificationOptions {
+  trustedKeys?: TrustedEvidenceSigningKeyRegistry;
+  verifiedAt?: string;
+}
+
+export interface EvidenceIntegrityOptions extends EvidenceSigningOptions, EvidenceVerificationOptions {}
+
+export const checkedInFixtureSignatureKeyId = "key:local-proof-point-evidence-ed25519";
+export const defaultSignatureAlgorithm = "ed25519-local-proof-signature";
+export const defaultSignerRole = "ISSO";
 const runtimeEvidenceSigningKey = generateKeyPairSync("ed25519");
-const trustedEvidenceSigningKeys: Record<string, { algorithm: SignedEvidencePackage["signatureAlgorithm"]; publicKey: Parameters<typeof verifyPayload>[2] }> = {
-  [runtimeSignatureKeyId]: {
+export const defaultEvidenceSigner = createEd25519EvidenceSigner({
+  keyId: defaultEvidenceSignatureKeyId,
+  privateKey: runtimeEvidenceSigningKey.privateKey
+});
+export const defaultTrustedEvidenceSigningKeys: TrustedEvidenceSigningKeyRegistry = Object.freeze({
+  [defaultEvidenceSignatureKeyId]: {
     algorithm: defaultSignatureAlgorithm,
     publicKey: runtimeEvidenceSigningKey.publicKey
   },
@@ -40,27 +76,70 @@ const trustedEvidenceSigningKeys: Record<string, { algorithm: SignedEvidencePack
       "-----END PUBLIC KEY-----"
     ].join("\n")
   }
-};
+});
 
-export function finalizeEvidenceExport(draft: EvidenceExportDraft): EvidenceExport {
-  const deploymentScope = buildDeploymentScope(draft);
-  const poamExport = draft.poamExport ?? buildPoamExport(draft.exportId, draft.poamItems, draft.controls, draft.generatedAt);
-  const oscal = draft.oscal ?? buildOscalArtifacts(draft, deploymentScope, poamExport);
-  const controlTraceViews = draft.controlTraceViews ?? buildControlTraceViews(
-    draft.exportId,
-    draft.controlMappings,
-    draft.controlStatements,
-    deploymentScope,
-    oscal,
-    signedPackageId(draft.exportId)
-  );
+export function createEd25519EvidenceSigner(options: {
+  keyId: SignedEvidencePackage["keyId"];
+  privateKey: EvidencePrivateSigningKey;
+  signerRole?: string;
+  signatureAlgorithm?: SignedEvidencePackage["signatureAlgorithm"];
+}): EvidenceSigner {
+  const signatureAlgorithm = options.signatureAlgorithm ?? defaultSignatureAlgorithm;
+  return {
+    keyId: options.keyId,
+    signatureAlgorithm,
+    signerRole: options.signerRole ?? defaultSignerRole,
+    sign(unsignedPackage) {
+      const signature = signPayload(
+        null,
+        Buffer.from(stableStringify(unsignedPackage)),
+        options.privateKey
+      );
+      return `${signatureAlgorithm}:${signature.toString("base64url")}`;
+    }
+  };
+}
 
-  return attachEvidenceVerifierChecks(attachSignedEvidencePackage(attachEvidenceIntegrityManifest({
-    ...draft,
-    poamExport,
-    oscal,
-    controlTraceViews
-  })));
+function resolveEvidenceSigner(options: EvidenceSigningOptions): EvidenceSigner {
+  return options.signer ?? defaultEvidenceSigner;
+}
+
+function resolveEvidenceVerificationOptions(options?: string | EvidenceVerificationOptions): {
+  trustedKeys: TrustedEvidenceSigningKeyRegistry;
+  verifiedAt?: string;
+} {
+  if (typeof options === "string") {
+    return {
+      trustedKeys: defaultTrustedEvidenceSigningKeys,
+      verifiedAt: options
+    };
+  }
+
+  return {
+    trustedKeys: options?.trustedKeys ?? defaultTrustedEvidenceSigningKeys,
+    verifiedAt: options?.verifiedAt
+  };
+}
+
+export function finalizeEvidenceExport(draft: EvidenceExportDraft, options: EvidenceIntegrityOptions = {}): EvidenceExport {
+  const signer = resolveEvidenceSigner(options);
+  assertTrustedKeysCoverCustomSigner(signer, options);
+  const content = buildEvidencePackageContent(draft, {
+    signatureRef: {
+      keyId: signer.keyId
+    }
+  });
+
+  const evidenceWithIntegrity = attachEvidenceIntegrityManifest(content);
+  const signedEvidence = attachSignedEvidencePackage(evidenceWithIntegrity, { signer });
+
+  return attachEvidenceVerifierChecks(signedEvidence, options);
+}
+
+function assertTrustedKeysCoverCustomSigner(signer: EvidenceSigner, options: EvidenceIntegrityOptions): void {
+  if (options.signer && !options.trustedKeys?.[signer.keyId]) {
+    throw new Error(`Evidence trustedKeys must include custom signer key ${signer.keyId} before verifier checks can be embedded.`);
+  }
 }
 
 export function attachEvidenceIntegrityManifest(evidence: EvidenceExportWithoutIntegrity): EvidenceExportWithIntegrity {
@@ -107,21 +186,25 @@ export function attachEvidenceIntegrityManifest(evidence: EvidenceExportWithoutI
   };
 }
 
-export function attachSignedEvidencePackage(evidence: EvidenceExportWithIntegrity): EvidenceExportWithSignature {
-  const packageId = signedPackageId(evidence.exportId);
-  const keyId = runtimeSignatureKeyId;
+export function attachSignedEvidencePackage(
+  evidence: EvidenceExportWithIntegrity,
+  options: EvidenceSigningOptions = {}
+): EvidenceExportWithSignature {
+  const signer = resolveEvidenceSigner(options);
+  const packageId = signedEvidencePackageId(evidence.exportId);
+  const keyId = signer.keyId;
   const deploymentScope = evidence.oscal.systemSecurityPlan.deploymentScope;
-  const reviewedStatementRefs = evidence.controlStatements.map((statement) => controlStatementRef(statement.controlId));
+  const reviewedStatementRefs = evidence.controlStatements.map((statement) => evidenceControlStatementRef(statement.controlId));
   const controlTraceIds = evidence.controlTraceViews.map((trace) => trace.traceId);
   const unsignedPackage: Omit<SignedEvidencePackage, "signature"> = {
     packageId,
     packageHash: evidence.integrityManifest.packageHash,
     hashAlgorithm: "sha256",
     canonicalization: "stable-json",
-    signatureAlgorithm: defaultSignatureAlgorithm,
+    signatureAlgorithm: signer.signatureAlgorithm,
     keyId,
     signedAt: evidence.generatedAt,
-    signerRole: defaultSignerRole,
+    signerRole: signer.signerRole,
     deploymentScope,
     sourceEventIds: evidence.sourceEventIds,
     reviewedStatementRefs,
@@ -133,13 +216,16 @@ export function attachSignedEvidencePackage(evidence: EvidenceExportWithIntegrit
     ...evidence,
     signedPackage: {
       ...unsignedPackage,
-      signature: signedPackageSignature(unsignedPackage)
+      signature: signer.sign(unsignedPackage)
     }
   };
 }
 
-export function attachEvidenceVerifierChecks(evidence: EvidenceExportWithSignature): EvidenceExport {
-  const report = verifyEvidenceExport({ ...evidence, verifierChecks: [] });
+export function attachEvidenceVerifierChecks(
+  evidence: EvidenceExportWithSignature,
+  options: EvidenceVerificationOptions = {}
+): EvidenceExport {
+  const report = verifyEvidenceExport({ ...evidence, verifierChecks: [] }, options);
   return {
     ...evidence,
     verifierChecks: report.checks
@@ -161,11 +247,15 @@ export function canonicalEvidenceContent(evidence: EvidenceExportPackageContent 
   return content as EvidenceExportPackageContent;
 }
 
-export function verifyEvidenceExport(value: unknown, verifiedAt?: string): EvidenceVerificationReport {
+export function verifyEvidenceExport(value: unknown, verifiedAt?: string): EvidenceVerificationReport;
+export function verifyEvidenceExport(value: unknown, options?: EvidenceVerificationOptions): EvidenceVerificationReport;
+export function verifyEvidenceExport(value: unknown, verifiedAtOrOptions?: string | EvidenceVerificationOptions): EvidenceVerificationReport {
+  const verificationOptions = resolveEvidenceVerificationOptions(verifiedAtOrOptions);
+
   if (!isRecord(value)) {
     return {
       status: "failed",
-      verifiedAt: verifiedAt ?? new Date().toISOString(),
+      verifiedAt: verificationOptions.verifiedAt ?? new Date().toISOString(),
       checks: [fail("package_shape", "Evidence package must be a JSON object.")],
       version: "evidence-verification-report:v1"
     };
@@ -173,7 +263,7 @@ export function verifyEvidenceExport(value: unknown, verifiedAt?: string): Evide
 
   const evidence = value as Partial<EvidenceExport>;
   const checks: EvidenceVerifierCheck[] = [];
-  const reportTime = verifiedAt ?? (typeof evidence.generatedAt === "string" ? evidence.generatedAt : new Date().toISOString());
+  const reportTime = verificationOptions.verifiedAt ?? (typeof evidence.generatedAt === "string" ? evidence.generatedAt : new Date().toISOString());
 
   checks.push(runCheck("package_hash", "Integrity manifest package hash matches canonical content.", () => {
     const expected = hashReference(canonicalEvidenceContent(evidence));
@@ -202,13 +292,13 @@ export function verifyEvidenceExport(value: unknown, verifiedAt?: string): Evide
     if (!evidence.signedPackage) {
       return fail("signed_package_signature", "Signed package metadata is missing.");
     }
-    const trustedKey = trustedEvidenceSigningKeys[evidence.signedPackage.keyId];
+    const trustedKey = verificationOptions.trustedKeys[evidence.signedPackage.keyId];
 
     if (!trustedKey) {
       return fail(
         "signed_package_signature",
         "Signed package key is not trusted by this verifier.",
-        Object.keys(trustedEvidenceSigningKeys).join(","),
+        Object.keys(verificationOptions.trustedKeys).join(","),
         evidence.signedPackage.keyId
       );
     }
@@ -282,134 +372,6 @@ export function verifyEvidenceExport(value: unknown, verifiedAt?: string): Evide
   };
 }
 
-function buildDeploymentScope(evidence: EvidenceExportDraft | Partial<EvidenceExport>): EvidenceDeploymentScope {
-  const boundary = evidence.systemBoundary;
-  return {
-    boundaryId: boundary?.boundaryId ?? "boundary:unknown",
-    environment: boundary?.environment ?? "local_proof_point",
-    liveTenantData: boundary?.liveTenantData ?? false,
-    controls: evidence.controls ?? [],
-    periodStart: evidence.periodStart ?? "1970-01-01T00:00:00.000Z",
-    periodEnd: evidence.periodEnd ?? "1970-01-01T00:00:00.000Z",
-    componentIds: boundary?.components.map((component) => component.id) ?? [],
-    version: "evidence-deployment-scope:v1"
-  };
-}
-
-function buildPoamExport(exportId: string, poamItems: PoamItem[], controls: string[], generatedAt: string): OscalPoamExport {
-  return {
-    uuid: `oscal-poam:${sanitizeCanonicalId(exportId)}`,
-    title: "Access Kit evidence POA&M export",
-    generatedAt,
-    items: poamItems,
-    sourceControlIds: controls,
-    version: "oscal-poam-export:v1"
-  };
-}
-
-function buildOscalArtifacts(
-  evidence: EvidenceExportDraft,
-  deploymentScope: EvidenceDeploymentScope,
-  poamExport: OscalPoamExport
-): OscalEvidenceArtifacts {
-  const implementations = buildOscalControlImplementations(evidence.controlMappings, evidence.controlStatements);
-  const exportId = sanitizeCanonicalId(evidence.exportId);
-
-  return {
-    componentDefinition: {
-      uuid: `oscal-component-definition:${exportId}`,
-      title: "Access Kit evidence component definition",
-      framework: evidence.framework,
-      generatedAt: evidence.generatedAt,
-      components: evidence.systemBoundary.components,
-      implementedRequirements: implementations,
-      version: "oscal-component-definition-fragment:v1"
-    },
-    systemSecurityPlan: {
-      uuid: `oscal-ssp:${exportId}`,
-      title: "Access Kit evidence SSP fragment",
-      systemName: evidence.systemBoundary.name,
-      boundaryId: evidence.systemBoundary.boundaryId,
-      deploymentScope,
-      dataFlows: evidence.dataFlows,
-      controlImplementationStatements: implementations,
-      version: "oscal-ssp-fragment:v1"
-    },
-    assessmentResults: {
-      uuid: `oscal-assessment-results:${exportId}`,
-      title: "Access Kit evidence assessment-results fragment",
-      generatedAt: evidence.generatedAt,
-      reviewedControls: implementations,
-      observations: implementations.map((implementation) => ({
-        controlId: implementation.controlId,
-        status: implementation.status,
-        sourceEventIds: implementation.sourceEventIds,
-        gaps: implementation.gaps
-      })),
-      version: "oscal-assessment-results-fragment:v1"
-    },
-    planOfActionAndMilestones: poamExport,
-    version: "oscal-evidence-artifacts:v1"
-  };
-}
-
-function buildOscalControlImplementations(
-  mappings: EvidenceControlMapping[],
-  statements: ControlImplementationStatement[]
-): OscalControlImplementation[] {
-  return mappings.map((mapping) => {
-    const statement = statements.find((candidate) => candidate.controlId === mapping.controlId);
-    return {
-      controlId: mapping.controlId,
-      status: statement?.status ?? mapping.status,
-      statement: statement?.statement ?? mapping.implementationSummary,
-      responsibleRole: statement?.responsibleRole ?? "ISSO",
-      reviewerRole: statement?.reviewerRole ?? "Security Control Assessor",
-      reviewedAt: statement?.reviewedAt ?? "1970-01-01T00:00:00.000Z",
-      sourceEventIds: mapping.sourceEventIds,
-      sourceArtifactNames: statement?.sourceArtifactNames ?? [],
-      gaps: statement?.gaps ?? mapping.gaps
-    };
-  });
-}
-
-function buildControlTraceViews(
-  exportId: string,
-  mappings: EvidenceControlMapping[],
-  statements: ControlImplementationStatement[],
-  deploymentScope: EvidenceDeploymentScope,
-  oscal: OscalEvidenceArtifacts,
-  packageId: string
-): EvidenceControlTraceView[] {
-  return mappings.map((mapping) => {
-    const statement = statements.find((candidate) => candidate.controlId === mapping.controlId);
-    return {
-      traceId: `control-trace:${sanitizeCanonicalId(exportId)}:${sanitizeCanonicalId(mapping.controlId)}`,
-      controlId: mapping.controlId,
-      status: mapping.status,
-      sourceEventIds: mapping.sourceEventIds,
-      reviewedStatement: {
-        reviewerRole: statement?.reviewerRole ?? "Security Control Assessor",
-        reviewedAt: statement?.reviewedAt ?? deploymentScope.periodEnd,
-        sourceArtifactNames: statement?.sourceArtifactNames ?? []
-      },
-      signatureRef: {
-        packageId,
-        keyId: runtimeSignatureKeyId
-      },
-      deploymentScope,
-      oscalRefs: {
-        componentDefinitionUuid: oscal.componentDefinition.uuid,
-        sspUuid: oscal.systemSecurityPlan.uuid,
-        assessmentResultsUuid: oscal.assessmentResults.uuid,
-        poamUuid: oscal.planOfActionAndMilestones.uuid
-      },
-      gaps: mapping.gaps,
-      version: "evidence-control-trace-view:v1"
-    };
-  });
-}
-
 function evidenceSectionHash(name: string, value: unknown): EvidenceExport["integrityManifest"]["sections"][number] {
   return {
     name,
@@ -420,15 +382,6 @@ function evidenceSectionHash(name: string, value: unknown): EvidenceExport["inte
 
 function hashReference(value: unknown): string {
   return `sha256:${sha256(value)}`;
-}
-
-function signedPackageSignature(unsignedPackage: Omit<SignedEvidencePackage, "signature">): string {
-  const signature = signPayload(
-    null,
-    Buffer.from(stableStringify(unsignedPackage)),
-    runtimeEvidenceSigningKey.privateKey
-  );
-  return `${unsignedPackage.signatureAlgorithm}:${signature.toString("base64url")}`;
 }
 
 function verifySignedPackageSignature(signedPackage: SignedEvidencePackage, publicKey: Parameters<typeof verifyPayload>[2]): boolean {
@@ -449,18 +402,6 @@ function verifySignedPackageSignature(signedPackage: SignedEvidencePackage, publ
   } catch {
     return false;
   }
-}
-
-function controlStatementRef(controlId: string): string {
-  return `control-statement:${controlId.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}`;
-}
-
-function signedPackageId(exportId: string): string {
-  return `signed-package:${sanitizeCanonicalId(exportId)}`;
-}
-
-function sanitizeCanonicalId(value: string): string {
-  return value.replaceAll(/[^a-z0-9_:-]/gi, "_").toLowerCase();
 }
 
 function verifySectionHashes(evidence: Partial<EvidenceExport>): EvidenceVerifierCheck[] {
@@ -485,24 +426,6 @@ function verifySectionHashes(evidence: Partial<EvidenceExport>): EvidenceVerifie
       section.hash
     );
   }));
-}
-
-function buildExpectedDeploymentScope(evidence: Partial<EvidenceExport>): EvidenceDeploymentScope | undefined {
-  const boundary = evidence.systemBoundary;
-  if (!boundary || !evidence.periodStart || !evidence.periodEnd) {
-    return undefined;
-  }
-
-  return {
-    boundaryId: boundary.boundaryId,
-    environment: boundary.environment,
-    liveTenantData: boundary.liveTenantData,
-    controls: evidence.controls ?? [],
-    periodStart: evidence.periodStart,
-    periodEnd: evidence.periodEnd,
-    componentIds: boundary.components.map((component) => component.id),
-    version: "evidence-deployment-scope:v1"
-  };
 }
 
 function missingControlTraceIds(evidence: Partial<EvidenceExport>): string[] {
