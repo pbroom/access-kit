@@ -850,6 +850,18 @@ describe("ReBAC API runtime", () => {
         expectedCode: "INVALID_PROVISIONING_JOB_REQUEST"
       },
       {
+        path: "/v1/provisioning/jobs",
+        idempotencyKey: "idem-missing-job-plan",
+        body: { approverId: "user:operator" },
+        expectedCode: "MISSING_PLAN_ID"
+      },
+      {
+        path: "/v1/provisioning/jobs",
+        idempotencyKey: "idem-missing-job-approver",
+        body: { planId: "plan:one" },
+        expectedCode: "MISSING_APPROVER_ID"
+      },
+      {
         path: "/v1/connectors/mock/enforcement-readiness",
         body: { control: { syntheticOnly: true, liveProviderWrites: false, incidentMode: false, breakGlass: false }, extra: true },
         expectedCode: "INVALID_ENFORCEMENT_READINESS_REQUEST"

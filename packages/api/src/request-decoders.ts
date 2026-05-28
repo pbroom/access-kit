@@ -97,7 +97,7 @@ export interface DecodedEnforcementReadinessRequest {
   changeTicketPattern?: string;
 }
 
-const driftSeverities = new Set(["low", "medium", "high", "critical"]);
+export const driftSeverities = new Set(["low", "medium", "high", "critical"]);
 
 export function decodeDecisionRequest(value: unknown): DecisionRequest {
   return normalizeDecisionRequest(
@@ -228,6 +228,16 @@ export function decodeProvisioningPlanRequest(value: unknown): DecodedProvisioni
 }
 
 export function decodeProvisioningJobRequest(value: unknown): DecodedProvisioningJobRequest {
+  if (isRecord(value)) {
+    if (typeof value.planId !== "string" || value.planId.length === 0) {
+      throw new HttpError(400, "MISSING_PLAN_ID", "planId is required");
+    }
+
+    if (typeof value.approverId !== "string" || value.approverId.length === 0) {
+      throw new HttpError(400, "MISSING_APPROVER_ID", "approverId is required");
+    }
+  }
+
   const parsed = decodeSchemaBacked<ProvisioningJobPayload>(
     "provisioningJob",
     value,

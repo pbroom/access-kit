@@ -58,7 +58,8 @@ import {
   decodeReconciliationRunRequest,
   decodeRelationship,
   decodeResource,
-  decodeSubject
+  decodeSubject,
+  driftSeverities
 } from "./request-decoders.js";
 import {
   type DiscoveryRunStatus,
@@ -81,7 +82,6 @@ export interface RebacApiServerOptions extends RebacLocalAppOptions {
 
 const maxRequestBodyBytes = 1024 * 1024;
 const evidenceFormats = new Set(["json", "zip", "markdown"]);
-const driftSeverities = new Set(["low", "medium", "high", "critical"]);
 const driftStatuses = new Set(["open", "accepted", "repairing", "resolved"]);
 const driftLifecycleStates = new Set(["open", "triaged", "accepted", "remediation_pending", "repairing", "resolved", "expired_exception"]);
 const evidenceFrameworks = new Set(["nist-800-53", "fedramp-rev5", "custom"]);
