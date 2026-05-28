@@ -1,0 +1,23 @@
+{
+  "decision": "allow",
+  "reasonCode": "ALLOW_VIA_RELATIONSHIP_PATH",
+  "policyVersion": "policy:case-docs-v2",
+  "relationshipVersion": "generated:tuple-set:case-docs-v2",
+  "relationshipPath": [
+    {
+      "subjectId": "user:generated-reviewer",
+      "relation": "member_of",
+      "objectId": "group:generated-review-team"
+    },
+    {
+      "subjectId": "group:generated-review-team",
+      "relation": "viewer_of",
+      "objectId": "workspace:generated-workspace"
+    },
+    {
+      "subjectId": "workspace:generated-workspace",
+      "relation": "contains",
+      "objectId": "document:generated-case-plan"
+    }
+  ]
+}

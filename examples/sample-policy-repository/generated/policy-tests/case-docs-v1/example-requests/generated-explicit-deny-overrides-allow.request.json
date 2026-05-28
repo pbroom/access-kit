@@ -1,0 +1,11 @@
+{
+  "subjectId": "user:generated-reviewer",
+  "action": "read",
+  "resourceId": "document:generated-denied-report",
+  "policyVersion": "policy:case-docs-v1",
+  "relationshipVersion": "generated:tuple-set:case-docs-v1",
+  "context": {
+    "purpose": "generated-policy-test",
+    "riskScore": 10
+  }
+}

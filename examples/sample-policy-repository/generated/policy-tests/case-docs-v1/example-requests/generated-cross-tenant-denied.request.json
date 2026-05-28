@@ -1,0 +1,11 @@
+{
+  "subjectId": "user:generated-outsider",
+  "action": "read",
+  "resourceId": "document:generated-case-plan",
+  "policyVersion": "policy:case-docs-v1",
+  "relationshipVersion": "generated:tuple-set:case-docs-v1",
+  "context": {
+    "purpose": "generated-policy-test",
+    "riskScore": 10
+  }
+}

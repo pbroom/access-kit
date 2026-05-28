@@ -1,0 +1,39 @@
+{
+  "decision": "deny",
+  "reasonCode": "DENY_CLASSIFICATION_BOUNDARY",
+  "policyVersion": "policy:case-docs-v2",
+  "relationshipVersion": "generated:tuple-set:case-docs-v2",
+  "relationshipPath": [
+    {
+      "subjectId": "user:generated-reviewer",
+      "relation": "member_of",
+      "objectId": "group:generated-review-team"
+    },
+    {
+      "subjectId": "group:generated-review-team",
+      "relation": "contributor_to",
+      "objectId": "workspace:generated-workspace"
+    },
+    {
+      "subjectId": "workspace:generated-workspace",
+      "relation": "contains",
+      "objectId": "document:generated-restricted-summary"
+    }
+  ],
+  "expectedControl": {
+    "kind": "classification.allowedActions",
+    "classification": "restricted",
+    "deniedAction": "write",
+    "allowedActions": [
+      "read",
+      "view"
+    ],
+    "resourceType": "document",
+    "resourceId": "document:generated-restricted-summary",
+    "wrongControlNegatives": [
+      "relationship.noGrant",
+      "tenantBoundary",
+      "explicitDeny"
+    ]
+  }
+}
