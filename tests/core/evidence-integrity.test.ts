@@ -1,10 +1,12 @@
 import { generateKeyPairSync } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {
+  buildExpectedDeploymentScope,
   buildEvidencePackageContent,
   createEd25519EvidenceSigner,
   finalizeEvidenceExport,
   verifyEvidenceExport,
+  type EvidenceExport,
   type EvidenceExportDraft,
   type TrustedEvidenceSigningKeyRegistry
 } from "../../packages/core/src/index.js";
@@ -72,6 +74,31 @@ describe("evidence integrity package construction", () => {
       status: "verified",
       packageHash: evidence.integrityManifest.packageHash
     });
+  });
+
+  it("requires trusted keys when embedding verifier checks for a custom signer", () => {
+    const keyPair = generateKeyPairSync("ed25519");
+    const signer = createEd25519EvidenceSigner({
+      keyId: "key:test-custom-untrusted",
+      privateKey: keyPair.privateKey
+    });
+
+    expect(() => finalizeEvidenceExport(buildEvidenceDraft(), { signer })).toThrow(
+      "Evidence trustedKeys must include custom signer key key:test-custom-untrusted"
+    );
+  });
+
+  it("does not infer an expected deployment scope when boundary components are missing", () => {
+    const { systemBoundary, ...draft } = buildEvidenceDraft();
+    const malformedEvidence = {
+      ...draft,
+      systemBoundary: {
+        ...systemBoundary,
+        components: undefined
+      }
+    } as unknown as Partial<EvidenceExport>;
+
+    expect(buildExpectedDeploymentScope(malformedEvidence)).toBeUndefined();
   });
 });
 

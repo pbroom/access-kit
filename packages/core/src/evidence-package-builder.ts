@@ -69,7 +69,7 @@ export function buildDeploymentScope(evidence: EvidenceDeploymentScopeInput): Ev
 }
 
 export function buildExpectedDeploymentScope(evidence: Partial<EvidenceExport>): EvidenceDeploymentScope | undefined {
-  if (!evidence.systemBoundary || !evidence.periodStart || !evidence.periodEnd) {
+  if (!evidence.systemBoundary || !evidence.periodStart || !evidence.periodEnd || !evidence.systemBoundary.components) {
     return undefined;
   }
 

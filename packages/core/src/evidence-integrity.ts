@@ -123,6 +123,7 @@ function resolveEvidenceVerificationOptions(options?: string | EvidenceVerificat
 
 export function finalizeEvidenceExport(draft: EvidenceExportDraft, options: EvidenceIntegrityOptions = {}): EvidenceExport {
   const signer = resolveEvidenceSigner(options);
+  assertTrustedKeysCoverCustomSigner(signer, options);
   const content = buildEvidencePackageContent(draft, {
     signatureRef: {
       packageId: signedEvidencePackageId(draft.exportId),
@@ -134,6 +135,12 @@ export function finalizeEvidenceExport(draft: EvidenceExportDraft, options: Evid
   const signedEvidence = attachSignedEvidencePackage(evidenceWithIntegrity, { signer });
 
   return attachEvidenceVerifierChecks(signedEvidence, options);
+}
+
+function assertTrustedKeysCoverCustomSigner(signer: EvidenceSigner, options: EvidenceIntegrityOptions): void {
+  if (options.signer && !options.trustedKeys?.[signer.keyId]) {
+    throw new Error(`Evidence trustedKeys must include custom signer key ${signer.keyId} before verifier checks can be embedded.`);
+  }
 }
 
 export function attachEvidenceIntegrityManifest(evidence: EvidenceExportWithoutIntegrity): EvidenceExportWithIntegrity {
