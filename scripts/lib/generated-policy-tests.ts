@@ -19,7 +19,7 @@ import {
   type SubjectType
 } from "../../packages/core/src/index.js";
 
-export const GENERATED_POLICY_TEST_SCHEMA_VERSION = "access-kit.generated-policy-tests.v1";
+export const GENERATED_POLICY_TEST_SCHEMA_VERSION = "access-kit.generated-policy-tests.v2";
 export const GENERATED_POLICY_REVIEW_NOTICE =
   "Generated starter policy tests supplement explicit abuse and boundary tests; they are review aids only and cannot replace hand-authored deny, tenant-boundary, classification, revocation, or abuse coverage.";
 
@@ -315,11 +315,14 @@ export async function compareGeneratedPolicyTestArtifacts(
     sampleRoot,
     generatedAt: options.generatedAt
   });
-  const materialized = await materializeGeneratedPolicyTestDerivativeFiles(generated.derivativeFiles);
+  let materialized: GeneratedPolicyTestDerivativeMaterialization | undefined;
   const drift: string[] = [];
   const expectedPaths = new Set(generated.files.map((file) => file.path));
 
   try {
+    // Compact committed artifacts are only valid if validation can still reproduce the omitted request/result derivatives.
+    materialized = await materializeGeneratedPolicyTestDerivativeFiles(generated.derivativeFiles);
+
     for (const file of generated.files) {
       const absolutePath = join(sampleRoot, file.path);
       let existing: string | undefined;
@@ -348,7 +351,9 @@ export async function compareGeneratedPolicyTestArtifacts(
       }
     }
   } finally {
-    await rm(materialized.outputRoot, { recursive: true, force: true });
+    if (materialized) {
+      await rm(materialized.outputRoot, { recursive: true, force: true });
+    }
   }
 
   return drift;
@@ -862,12 +867,20 @@ async function materializeGeneratedPolicyTestDerivativeFiles(
   files: GeneratedPolicyTestFile[],
   outputRoot?: string
 ): Promise<GeneratedPolicyTestDerivativeMaterialization> {
+  const createdTemporaryRoot = outputRoot === undefined;
   const resolvedOutputRoot = outputRoot ?? await mkdtemp(join(tmpdir(), "access-kit-generated-policy-tests-"));
 
-  for (const file of files) {
-    const absolutePath = join(resolvedOutputRoot, file.path);
-    await mkdir(dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, file.contents);
+  try {
+    for (const file of files) {
+      const absolutePath = join(resolvedOutputRoot, file.path);
+      await mkdir(dirname(absolutePath), { recursive: true });
+      await writeFile(absolutePath, file.contents);
+    }
+  } catch (error) {
+    if (createdTemporaryRoot) {
+      await rm(resolvedOutputRoot, { recursive: true, force: true });
+    }
+    throw error;
   }
 
   return {

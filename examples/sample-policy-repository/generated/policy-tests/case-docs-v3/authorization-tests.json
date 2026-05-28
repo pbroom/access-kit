@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "access-kit.generated-policy-tests.v1",
+  "schemaVersion": "access-kit.generated-policy-tests.v2",
   "source": {
     "repositoryId": "sample-policy-repository:case-docs",
     "modelPath": "models/case-docs.v3.json",
