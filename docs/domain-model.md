@@ -106,6 +106,8 @@ These objects must be versioned:
 
 A historic decision must be reconstructable from subject, action, resource, policy version, relationship tuple version, context, and connector state.
 
+Decision cache metadata records the cache key, classification-bound TTL, expiration time, invalidation signals, fail-closed behavior, and audit fields emitted with a decision. It is a PEP contract only; it does not authorize local fallback behavior or permit cached decisions to outlive policy, tuple, context, tenant, or classification changes.
+
 ## Concrete Example
 
 `user:alice` is a `Subject`. `document:case-plan` is a `Resource`. `relationship:alice-case-team` records that `user:alice member_of group:case-team`. `relationship:case-team-workspace` records that the group is a contributor to `workspace:case`. `relationship:workspace-document` records that the workspace contains the document.

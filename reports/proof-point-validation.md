@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T01:52:04.037Z
+Generated at: 2026-05-28T01:53:10.364Z
 
-Branch: codex/rebac-time-travel-slos
+Branch: codex/rebac-decision-cache-semantics
 
 Node: v24.4.1
 
@@ -34,14 +34,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-decision-cache-semantics
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-decision-cache-semantics
 > tsx scripts/validate-schemas.ts
 
 Validated 17 schemas and 17 example fixtures.
@@ -67,10 +67,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-decision-cache-semantics
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-time-travel-slos/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-decision-cache-semantics/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -82,7 +82,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-decision-cache-semantics
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -105,7 +105,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-decision-cache-semantics
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -118,23 +118,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-decision-cache-semantics
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-time-travel-slos
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-decision-cache-semantics
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  21:51:59
-   Duration  295ms (transform 136ms, setup 0ms, import 217ms, tests 21ms, environment 0ms)
+   Start at  21:53:05
+   Duration  310ms (transform 138ms, setup 0ms, import 222ms, tests 21ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-decision-cache-semantics
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -145,7 +145,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-decision-cache-semantics
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -156,7 +156,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-decision-cache-semantics
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -167,7 +167,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-decision-cache-semantics
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -178,61 +178,61 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-decision-cache-semantics
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-time-travel-slos
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-decision-cache-semantics
 
 
  Test Files  10 passed (10)
-      Tests  142 passed (142)
-   Start at  21:52:01
-   Duration  240ms (transform 796ms, setup 0ms, import 1.12s, tests 102ms, environment 0ms)
+      Tests  143 passed (143)
+   Start at  21:53:07
+   Duration  244ms (transform 810ms, setup 0ms, import 1.17s, tests 107ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-decision-cache-semantics
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-time-travel-slos
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-decision-cache-semantics
 
 
  Test Files  4 passed (4)
       Tests  103 passed (103)
-   Start at  21:52:02
-   Duration  503ms (transform 479ms, setup 0ms, import 762ms, tests 246ms, environment 0ms)
+   Start at  21:53:08
+   Duration  523ms (transform 519ms, setup 0ms, import 813ms, tests 245ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-time-travel-slos
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-decision-cache-semantics
 
 
  Test Files  3 passed (3)
       Tests  33 passed (33)
-   Start at  21:52:02
-   Duration  233ms (transform 321ms, setup 0ms, import 442ms, tests 42ms, environment 0ms)
+   Start at  21:53:09
+   Duration  228ms (transform 315ms, setup 0ms, import 437ms, tests 42ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-time-travel-slos
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-decision-cache-semantics
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-time-travel-slos
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-decision-cache-semantics
 
 
  Test Files  3 passed (3)
       Tests  34 passed (34)
-   Start at  21:52:03
-   Duration  339ms (transform 367ms, setup 0ms, import 658ms, tests 115ms, environment 0ms)
+   Start at  21:53:09
+   Duration  334ms (transform 375ms, setup 0ms, import 646ms, tests 117ms, environment 0ms)
 ```
 
 
