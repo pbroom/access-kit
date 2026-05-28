@@ -1079,6 +1079,7 @@ function createPartialSecondSyncFixtureClient(): FixtureGraphClient {
         status: 200
       },
       { value: [], status: 503 }
-    ]
+    ],
+    ...createEmptySharePointOneDriveInventory(["raw-user-1"], 2)
   });
 }
