@@ -1,7 +1,10 @@
 import {
-  finalizeEvidenceExport,
+  createReadOnlyConnectorEvidenceExport,
+  createReadOnlyDryRunPlan,
+  createReadOnlyNoWriteApplyFailure,
+  createReadOnlyRevocationPlan,
+  readOnlyConnectorSourceEventIds,
   sha256,
-  verifyAuditChain,
   type AuditEvent,
   type CanonicalId,
   type ConnectorAdapter,
@@ -325,24 +328,19 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
   }
 
   async planProvisioningChange(request: DecisionResult): Promise<ProvisioningPlan> {
-    return createDryRunPlan(this.id, request, request.resourceId, this.#now());
+    return createReadOnlyDryRunPlan({
+      connectorId: this.id,
+      request,
+      createdAt: this.#now(),
+      compensationReason: "Reverse provider state if a copied connector later enables enforcement and verification fails."
+    });
   }
 
   async applyProvisioningChange(plan: ProvisioningPlan): Promise<ProvisioningPlan> {
-    return {
-      ...plan,
-      status: "failed",
-      actions: plan.actions.map((action) => ({
-        ...action,
-        status: "failed",
-        verification: {
-          ...action.verification,
-          status: "failed",
-          checkedAt: this.#now(),
-          message: "Sample connector template does not execute provider writes."
-        }
-      }))
-    };
+    return createReadOnlyNoWriteApplyFailure(plan, {
+      checkedAt: this.#now(),
+      verificationMessage: "Sample connector template does not execute provider writes."
+    });
   }
 
   async verifyProvisioningChange(plan: ProvisioningPlan): Promise<boolean> {
@@ -351,7 +349,12 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
   }
 
   async revokeAccess(nativeGrantId: CanonicalId): Promise<ProvisioningPlan> {
-    return createRevocationPlan(this.id, nativeGrantId, this.#resourceIdForNativeGrant(nativeGrantId), this.#now());
+    return createReadOnlyRevocationPlan({
+      connectorId: this.id,
+      nativeGrantId,
+      resourceId: this.#resourceIdForNativeGrant(nativeGrantId),
+      createdAt: this.#now()
+    });
   }
 
   async detectDrift(): Promise<DriftFinding[]> {
@@ -360,114 +363,107 @@ export class SampleReadOnlyConnector implements ConnectorAdapter {
 
   async emitEvidence(events: AuditEvent[]): Promise<EvidenceExport> {
     const generatedAt = this.#now();
-    const evidencePeriod = deriveEvidencePeriod(events, generatedAt);
-    const auditIntegrity = verifyAuditChain(events, generatedAt);
-    return finalizeEvidenceExport({
-      exportId: `evidence:${this.id}`,
-      framework: "nist-800-53",
-      controls: ["AC-2", "AC-3", "AC-6", "AU-2"],
-      periodStart: evidencePeriod.periodStart,
-      periodEnd: evidencePeriod.periodEnd,
+    const sourceEventIds = readOnlyConnectorSourceEventIds(events);
+
+    return createReadOnlyConnectorEvidenceExport({
+      events,
+      sourceEventIds,
       generatedAt,
-      evidenceTypes: ["connector_template", "discovery_runs", "native_grants", "audit_events"],
-      sourceEventIds: events.map((event) => event.eventId),
-      responsibleRole: "Connector Owner",
-      format: "json",
-      auditIntegrity,
-      controlMappings: [
-        {
-          controlId: "AC-6",
-          family: "AC",
-          status: "implemented",
-          implementationSummary: "Sample connector template demonstrates least-privilege read scopes and no provider writes.",
-          evidenceTypes: ["connector_template"],
-          sourceEventIds: events.map((event) => event.eventId),
-          gaps: ["Live provider access requires a connector-specific security review."]
-        }
-      ],
-      artifacts: [
-        {
-          name: "sample-readonly-template",
-          type: "configuration_baseline",
-          description: "Copyable read-only connector template with redacted synthetic fixtures.",
-          eventCount: events.length,
-          format: "json"
-        }
-      ],
-      conmonMetrics: [
-        {
-          name: "sample_connector_events",
-          value: events.length,
-          unit: "count",
-          source: this.id
-        }
-      ],
-      poamItems: [],
-      siemExport: {
-        format: "jsonl",
-        eventCount: events.length,
-        schemaVersion: "audit-event:v1",
-        includesPayloadHashes: true,
-        target: "operator_download"
-      },
-      systemBoundary: {
-        boundaryId: `boundary:${this.id}`,
-        name: "Sample read-only connector template boundary",
-        description: "Synthetic connector template boundary for local authoring and tests.",
-        environment: "local_proof_point",
-        liveTenantData: false,
-        components: [
+      draft: {
+        exportId: `evidence:${this.id}`,
+        framework: "nist-800-53",
+        controls: ["AC-2", "AC-3", "AC-6", "AU-2"],
+        evidenceTypes: ["connector_template", "discovery_runs", "native_grants", "audit_events"],
+        responsibleRole: "Connector Owner",
+        format: "json",
+        controlMappings: [
           {
-            id: `component:connector:${this.id}`,
-            name: "Sample read-only connector template",
-            type: "connector",
-            trustZone: "synthetic_provider",
-            dataClassification: "synthetic",
-            description: "Sample connector template that contains no live tenant data or provider secrets."
+            controlId: "AC-6",
+            family: "AC",
+            status: "implemented",
+            implementationSummary: "Sample connector template demonstrates least-privilege read scopes and no provider writes.",
+            evidenceTypes: ["connector_template"],
+            sourceEventIds,
+            gaps: ["Live provider access requires a connector-specific security review."]
           }
         ],
-        externalSystems: [this.provider],
-        assumptions: ["All sample records are synthetic and raw provider identifiers are redacted before evidence export."],
-        version: "system-boundary:v1"
-      },
-      dataFlows: [
-        {
-          id: `data-flow:${this.id}:readback`,
-          name: "Sample connector read-only discovery",
-          source: `component:connector:${this.id}`,
-          destination: "component:api-runtime",
-          dataTypes: ["synthetic_subjects", "synthetic_resources", "synthetic_native_grants"],
-          protections: ["read_only", "redacted_identifiers", "synthetic_data_only"],
-          liveTenantData: false
-        }
-      ],
-      controlStatements: [
-        {
-          controlId: "AC-6",
-          status: "implemented",
-          statement: "The sample connector template defaults to least-privilege read-only behavior.",
-          responsibleRole: "Connector Owner",
-          reviewerRole: "Security Engineer",
-          reviewedAt: this.#now(),
-          evidenceTypes: ["connector_template"],
-          sourceArtifactNames: ["sample-readonly-template"],
-          gaps: ["Provider-specific access requires a separate review."]
-        }
-      ],
-      accessReviews: [],
-      exceptionRegister: [],
-      operationalEvidence: [
-        {
-          id: `operational:${this.id}:template`,
-          type: "configuration_baseline",
-          status: "implemented",
-          ownerRole: "Connector Owner",
-          generatedAt: this.#now(),
-          summary: "Sample connector template demonstrates read-only discovery, tombstones, warnings, and failed write hooks.",
-          evidenceRefs: ["packages/connectors-sample-readonly/src/index.ts", "tests/connectors/sample-readonly.test.ts"],
-          gaps: ["Replace synthetic fixtures with provider-specific least-privilege review before live connector access."]
-        }
-      ]
+        artifacts: [
+          {
+            name: "sample-readonly-template",
+            type: "configuration_baseline",
+            description: "Copyable read-only connector template with redacted synthetic fixtures.",
+            eventCount: events.length,
+            format: "json"
+          }
+        ],
+        conmonMetrics: [
+          {
+            name: "sample_connector_events",
+            value: events.length,
+            unit: "count",
+            source: this.id
+          }
+        ],
+        poamItems: [],
+        systemBoundary: {
+          boundaryId: `boundary:${this.id}`,
+          name: "Sample read-only connector template boundary",
+          description: "Synthetic connector template boundary for local authoring and tests.",
+          environment: "local_proof_point",
+          liveTenantData: false,
+          components: [
+            {
+              id: `component:connector:${this.id}`,
+              name: "Sample read-only connector template",
+              type: "connector",
+              trustZone: "synthetic_provider",
+              dataClassification: "synthetic",
+              description: "Sample connector template that contains no live tenant data or provider secrets."
+            }
+          ],
+          externalSystems: [this.provider],
+          assumptions: ["All sample records are synthetic and raw provider identifiers are redacted before evidence export."],
+          version: "system-boundary:v1"
+        },
+        dataFlows: [
+          {
+            id: `data-flow:${this.id}:readback`,
+            name: "Sample connector read-only discovery",
+            source: `component:connector:${this.id}`,
+            destination: "component:api-runtime",
+            dataTypes: ["synthetic_subjects", "synthetic_resources", "synthetic_native_grants"],
+            protections: ["read_only", "redacted_identifiers", "synthetic_data_only"],
+            liveTenantData: false
+          }
+        ],
+        controlStatements: [
+          {
+            controlId: "AC-6",
+            status: "implemented",
+            statement: "The sample connector template defaults to least-privilege read-only behavior.",
+            responsibleRole: "Connector Owner",
+            reviewerRole: "Security Engineer",
+            reviewedAt: this.#now(),
+            evidenceTypes: ["connector_template"],
+            sourceArtifactNames: ["sample-readonly-template"],
+            gaps: ["Provider-specific access requires a separate review."]
+          }
+        ],
+        accessReviews: [],
+        exceptionRegister: [],
+        operationalEvidence: [
+          {
+            id: `operational:${this.id}:template`,
+            type: "configuration_baseline",
+            status: "implemented",
+            ownerRole: "Connector Owner",
+            generatedAt: this.#now(),
+            summary: "Sample connector template demonstrates read-only discovery, tombstones, warnings, and failed write hooks.",
+            evidenceRefs: ["packages/connectors-sample-readonly/src/index.ts", "tests/connectors/sample-readonly.test.ts"],
+            gaps: ["Replace synthetic fixtures with provider-specific least-privilege review before live connector access."]
+          }
+        ]
+      }
     });
   }
 
@@ -722,100 +718,6 @@ export function createSampleScenarioWithoutServiceGrant(): SampleConnectorScenar
         }
       ]
     }
-  };
-}
-
-function createDryRunPlan(
-  connectorId: string,
-  request: DecisionResult,
-  targetObjectId: CanonicalId,
-  createdAt: string
-): ProvisioningPlan {
-  return {
-    id: `plan:${connectorId}:${request.decisionId}`,
-    sourceDecisionId: request.decisionId,
-    connectorId,
-    subjectId: request.subjectId,
-    resourceId: request.resourceId,
-    action: request.action,
-    mode: "dry_run",
-    status: "planned",
-    actions: [
-      {
-        actionId: `action:${connectorId}:${request.decisionId}`,
-        operation: request.decision === "allow" ? "grant" : "revoke",
-        targetPlatform: connectorId,
-        targetObjectId,
-        requestedState: { subjectId: request.subjectId, permission: request.action },
-        dryRun: true,
-        idempotencyKey: `${connectorId}:${request.subjectId}:${request.action}:${request.resourceId}:${request.policyVersion}`,
-        status: "planned",
-        verification: {
-          status: "pending",
-          method: "connector.current_access_readback",
-          expectedState: { subjectId: request.subjectId, permission: request.action }
-        },
-        compensation: {
-          operation: request.decision === "allow" ? "revoke" : "grant",
-          reason: "Reverse provider state if a copied connector later enables enforcement and verification fails.",
-          status: "planned",
-          idempotencyKey: `compensate:${connectorId}:${request.subjectId}:${request.action}:${request.resourceId}:${request.policyVersion}`
-        }
-      }
-    ],
-    version: "plan:v1",
-    createdAt
-  };
-}
-
-function createRevocationPlan(
-  connectorId: string,
-  nativeGrantId: CanonicalId,
-  resourceId: CanonicalId,
-  createdAt: string
-): ProvisioningPlan {
-  return {
-    id: `plan:revoke:${connectorId}:${nativeGrantId}`,
-    connectorId,
-    subjectId: "subject:unknown",
-    resourceId,
-    action: "revoke",
-    mode: "dry_run",
-    status: "planned",
-    actions: [
-      {
-        actionId: `action:revoke:${connectorId}:${nativeGrantId}`,
-        operation: "revoke",
-        targetPlatform: connectorId,
-        targetObjectId: resourceId,
-        requestedState: { nativeGrantId, status: "revoked" },
-        dryRun: true,
-        idempotencyKey: `revoke:${connectorId}:${nativeGrantId}`,
-        status: "planned",
-        verification: {
-          status: "pending",
-          method: "connector.current_access_readback",
-          expectedState: { nativeGrantId, status: "revoked" }
-        },
-        compensation: {
-          operation: "grant",
-          reason: "Restore previous native grant if revocation verification fails after enforcement is enabled.",
-          status: "planned",
-          idempotencyKey: `compensate:${connectorId}:${nativeGrantId}`
-        }
-      }
-    ],
-    version: "plan:v1",
-    createdAt
-  };
-}
-
-function deriveEvidencePeriod(events: AuditEvent[], now: string): Pick<EvidenceExport, "periodStart" | "periodEnd"> {
-  const occurredAt = events.map((event) => event.occurredAt).sort();
-
-  return {
-    periodStart: occurredAt.at(0) ?? now,
-    periodEnd: occurredAt.at(-1) ?? now
   };
 }
 

@@ -159,7 +159,9 @@ describe("SampleReadOnlyConnector", () => {
     });
     expect(plan.mode).toBe("dry_run");
     expect(plan.actions.every((action) => action.dryRun && action.compensation?.status === "planned")).toBe(true);
-    await expect(connector.applyProvisioningChange(plan)).resolves.toMatchObject({ status: "failed" });
+    const failedPlan = await connector.applyProvisioningChange(plan);
+    expect(failedPlan).toMatchObject({ status: "failed" });
+    expect(failedPlan.actions.every((action) => action.status === "failed" && action.verification.status === "failed")).toBe(true);
     await expect(connector.verifyProvisioningChange(plan)).resolves.toBe(false);
   });
 
