@@ -53,4 +53,3 @@ xychart-beta
 - The benchmark is intentionally shaped to expose the previous global relationship filtering/indexing cost. It is not a worst-case graph-explosion traversal.
 - The optimized engine lazily filters active relationships per visited subject and caches that subject index by relationship revision, `asOf`, and tuple-version scope.
 - The store now keeps relationship adjacency by subject, so unrelated graph size no longer dominates decisions with a short reachable path.
-

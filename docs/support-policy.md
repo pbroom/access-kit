@@ -30,4 +30,3 @@ The latest proof-point minor release is supported until the next minor proof-poi
 Use GitHub issues for non-sensitive bugs, docs errors, release packaging drift, and compatibility questions. Do not include secrets, tenant IDs, live provider identifiers, customer names, tokens, or exploit details in public issues.
 
 For suspected vulnerabilities, follow the private disclosure process in [Security Policy](../SECURITY.md).
-

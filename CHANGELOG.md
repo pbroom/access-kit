@@ -16,4 +16,3 @@ Initial product release packaging contract for stable adoption channels:
 ### Container Image Release Notes
 
 The `rebac-api-v0.1.0` container channel packages the local API runtime for deployment exercises. Published image digests must be verified with cosign and GitHub artifact attestations before promotion. The image remains a proof point until deployment-specific IdP or mTLS authentication, admin authorization, secrets management, audit retention, SIEM delivery, backup and restore, and assessor-reviewed controls are supplied.
-
