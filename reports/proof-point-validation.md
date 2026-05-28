@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T04:39:30.495Z
+Generated at: 2026-05-28T04:49:48.664Z
 
-Branch: codex/rebac-api-collections
+Branch: codex/rebac-typescript-pep-starter
 
 Node: v24.4.1
 
@@ -38,14 +38,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-schemas.ts
 
 Validated 21 schemas and 21 example fixtures.
@@ -75,10 +75,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-api-collections/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-typescript-pep-starter/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -90,7 +90,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### API collection validation
 
 ```text
-> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/generate-api-collections.ts --check
 
 API collection artifacts are current.
@@ -99,7 +99,7 @@ API collection artifacts are current.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -122,7 +122,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-typescript-pep-starter
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -135,23 +135,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-typescript-pep-starter
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-collections
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-typescript-pep-starter
 
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  00:39:24
-   Duration  280ms (transform 135ms, setup 0ms, import 210ms, tests 20ms, environment 0ms)
+   Start at  00:49:42
+   Duration  279ms (transform 133ms, setup 0ms, import 207ms, tests 20ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -162,7 +162,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -175,7 +175,7 @@ PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclos
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -186,7 +186,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -197,7 +197,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -208,7 +208,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -219,7 +219,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-typescript-pep-starter
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -229,61 +229,61 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-typescript-pep-starter
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-collections
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-typescript-pep-starter
 
 
  Test Files  13 passed (13)
       Tests  168 passed (168)
-   Start at  00:39:27
-   Duration  241ms (transform 1.05s, setup 0ms, import 1.46s, tests 127ms, environment 0ms)
+   Start at  00:49:46
+   Duration  245ms (transform 1.07s, setup 0ms, import 1.52s, tests 122ms, environment 1ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-typescript-pep-starter
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-collections
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-typescript-pep-starter
 
 
  Test Files  7 passed (7)
       Tests  114 passed (114)
-   Start at  00:39:28
-   Duration  516ms (transform 852ms, setup 0ms, import 1.42s, tests 438ms, environment 0ms)
+   Start at  00:49:46
+   Duration  515ms (transform 877ms, setup 0ms, import 1.47s, tests 440ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-collections
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-typescript-pep-starter
 
 
  Test Files  3 passed (3)
       Tests  44 passed (44)
-   Start at  00:39:29
-   Duration  230ms (transform 348ms, setup 0ms, import 451ms, tests 49ms, environment 0ms)
+   Start at  00:49:47
+   Duration  231ms (transform 340ms, setup 0ms, import 454ms, tests 49ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-api-collections
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-typescript-pep-starter
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-api-collections
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-typescript-pep-starter
 
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  00:39:29
-   Duration  327ms (transform 396ms, setup 0ms, import 639ms, tests 114ms, environment 0ms)
+   Start at  00:49:48
+   Duration  325ms (transform 385ms, setup 0ms, import 635ms, tests 114ms, environment 0ms)
 ```
 
 
