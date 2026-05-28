@@ -1,8 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import {
-  finalizeEvidenceExport,
+  createReadOnlyConnectorEvidenceExport,
+  createReadOnlyDryRunPlan,
+  createReadOnlyNoWriteApplyFailure,
+  createReadOnlyRevocationPlan,
+  readOnlyConnectorSourceEventIds,
   sha256,
-  verifyAuditChain,
   type AuditEvent,
   type ConnectorAdapter,
   type ConnectorCapabilities,
@@ -599,15 +602,15 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   }
 
   async planProvisioningChange(request: DecisionResult): Promise<ProvisioningPlan> {
-    return createDryRunPlan(request, this.id, request.resourceId, this.#now());
+    return createReadOnlyDryRunPlan({
+      connectorId: this.id,
+      request,
+      createdAt: this.#now()
+    });
   }
 
   async applyProvisioningChange(plan: ProvisioningPlan): Promise<ProvisioningPlan> {
-    return {
-      ...plan,
-      status: "failed",
-      actions: plan.actions.map((action) => ({ ...action, status: "failed" }))
-    };
+    return createReadOnlyNoWriteApplyFailure(plan);
   }
 
   async verifyProvisioningChange(plan: ProvisioningPlan): Promise<boolean> {
@@ -616,7 +619,12 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   }
 
   async revokeAccess(nativeGrantId: string): Promise<ProvisioningPlan> {
-    return createRevocationPlan(this.id, nativeGrantId, "resource:unknown", this.#now());
+    return createReadOnlyRevocationPlan({
+      connectorId: this.id,
+      nativeGrantId,
+      resourceId: "resource:unknown",
+      createdAt: this.#now()
+    });
   }
 
   async detectDrift(): Promise<DriftFinding[]> {
@@ -2416,198 +2424,106 @@ function readTokenFile(path: string | undefined): string | undefined {
   return value.length > 0 ? value : undefined;
 }
 
-function createDryRunPlan(request: DecisionResult, connectorId: string, targetObjectId: string, now: string): ProvisioningPlan {
-  return {
-    id: `plan:${connectorId}:${request.decisionId}`,
-    sourceDecisionId: request.decisionId,
-    connectorId,
-    subjectId: request.subjectId,
-    resourceId: request.resourceId,
-    action: request.action,
-    mode: "dry_run",
-    status: "planned",
-    actions: [
-      {
-        actionId: `action:${connectorId}:${request.decisionId}`,
-        operation: request.decision === "allow" ? "grant" : "revoke",
-        targetPlatform: connectorId,
-        targetObjectId,
-        requestedState: { subjectId: request.subjectId, permission: request.action },
-        dryRun: true,
-        idempotencyKey: `${connectorId}:${request.subjectId}:${request.action}:${request.resourceId}:${request.policyVersion}`,
-        status: "planned",
-        verification: {
-          status: "pending",
-          method: "connector.current_access_readback",
-          expectedState: { subjectId: request.subjectId, permission: request.action }
-        },
-        compensation: {
-          operation: request.decision === "allow" ? "revoke" : "grant",
-          reason: "Reverse provider state if later enforcement does not verify cleanly.",
-          status: "planned",
-          idempotencyKey: `compensate:${connectorId}:${request.subjectId}:${request.action}:${request.resourceId}:${request.policyVersion}`
-        }
-      }
-    ],
-    version: "plan:v1",
-    createdAt: now
-  };
-}
-
-function createRevocationPlan(connectorId: string, nativeGrantId: string, resourceId: string, now: string): ProvisioningPlan {
-  return {
-    id: `plan:revoke:${connectorId}:${nativeGrantId}`,
-    connectorId,
-    subjectId: "subject:unknown",
-    resourceId,
-    action: "revoke",
-    mode: "dry_run",
-    status: "planned",
-    actions: [
-      {
-        actionId: `action:revoke:${connectorId}:${nativeGrantId}`,
-        operation: "revoke",
-        targetPlatform: connectorId,
-        targetObjectId: resourceId,
-        requestedState: { nativeGrantId, status: "revoked" },
-        dryRun: true,
-        idempotencyKey: `revoke:${connectorId}:${nativeGrantId}`,
-        status: "planned",
-        verification: {
-          status: "pending",
-          method: "connector.current_access_readback",
-          expectedState: { nativeGrantId, status: "revoked" }
-        },
-        compensation: {
-          operation: "grant",
-          reason: "Restore previous native grant if revocation verification fails after enforcement is enabled.",
-          status: "planned",
-          idempotencyKey: `compensate:${connectorId}:${nativeGrantId}`
-        }
-      }
-    ],
-    version: "plan:v1",
-    createdAt: now
-  };
-}
-
 function createEvidence(connectorId: string, events: AuditEvent[], now: string): EvidenceExport {
-  const auditIntegrity = verifyAuditChain(events, now);
-  const evidencePeriod = deriveEvidencePeriod(events, now);
-  return finalizeEvidenceExport({
-    exportId: `evidence:${connectorId}`,
-    framework: "nist-800-53",
-    controls: ["AC-2", "AC-3", "AU-2"],
-    periodStart: evidencePeriod.periodStart,
-    periodEnd: evidencePeriod.periodEnd,
+  const sourceEventIds = readOnlyConnectorSourceEventIds(events);
+
+  return createReadOnlyConnectorEvidenceExport({
+    events,
     generatedAt: now,
-    evidenceTypes: ["audit_events", "discovery_runs", "native_grants", "audit_integrity", "control_mappings"],
-    sourceEventIds: events.map((event) => event.eventId),
-    responsibleRole: "ISSO",
-    format: "json",
-    auditIntegrity,
-    controlMappings: [
-      {
-        controlId: "AU-2",
-        family: "AU",
-        status: events.length > 0 ? "implemented" : "partially_implemented",
-        implementationSummary: "Microsoft Graph connector evidence includes redacted audit event identifiers emitted by the local control plane.",
-        evidenceTypes: ["audit_events"],
-        sourceEventIds: events.map((event) => event.eventId),
-        gaps: events.length > 0 ? [] : ["No source audit events were provided to the connector evidence hook."]
-      }
-    ],
-    artifacts: [
-      {
-        name: "microsoft-graph-connector-audit-events",
-        type: "audit_events",
-        description: "Redacted Microsoft Graph connector audit events prepared for evidence packaging.",
-        eventCount: events.length,
-        format: "json"
-      }
-    ],
-    conmonMetrics: [
-      {
-        name: "microsoft_graph_connector_evidence_events",
-        value: events.length,
-        unit: "count",
-        source: connectorId
-      }
-    ],
-    poamItems: [],
-    siemExport: {
-      format: "jsonl",
-      eventCount: events.length,
-      schemaVersion: "audit-event:v1",
-      includesPayloadHashes: true,
-      target: "operator_download"
-    },
-    systemBoundary: {
-      boundaryId: `boundary:${connectorId}`,
-      name: `${connectorId} connector evidence boundary`,
-      description: "Microsoft Graph Entra read-only connector boundary with redacted sandbox-tenant evidence.",
-      environment: "local_proof_point",
-      liveTenantData: true,
-      components: [
+    draft: {
+      exportId: `evidence:${connectorId}`,
+      framework: "nist-800-53",
+      controls: ["AC-2", "AC-3", "AU-2"],
+      evidenceTypes: ["audit_events", "discovery_runs", "native_grants", "audit_integrity", "control_mappings"],
+      responsibleRole: "ISSO",
+      format: "json",
+      controlMappings: [
         {
-          id: `component:connector:${connectorId}`,
-          name: `${connectorId} connector`,
-          type: "connector",
-          trustZone: "future_production",
-          dataClassification: "redacted directory and collaboration metadata",
-          description: "Read-only Microsoft Graph adapter for Entra users, groups, service principals, app-role assignments, M365/Teams coupling, SharePoint, and OneDrive inventory."
+          controlId: "AU-2",
+          family: "AU",
+          status: events.length > 0 ? "implemented" : "partially_implemented",
+          implementationSummary: "Microsoft Graph connector evidence includes redacted audit event identifiers emitted by the local control plane.",
+          evidenceTypes: ["audit_events"],
+          sourceEventIds,
+          gaps: events.length > 0 ? [] : ["No source audit events were provided to the connector evidence hook."]
         }
       ],
-      externalSystems: ["microsoft-graph"],
-      assumptions: ["Connector evidence redacts tenant identifiers, object identifiers, emails, names, URLs, paths, request identifiers, tokens, and cursors."],
-      version: "system-boundary:v1"
-    },
-    dataFlows: [
-      {
-        id: `data-flow:${connectorId}:evidence`,
-        name: `${connectorId} connector evidence emission`,
-        source: `component:connector:${connectorId}`,
-        destination: "component:api-runtime",
-        dataTypes: ["redacted_directory_inventory", "redacted_collaboration_inventory", "redacted_app_role_assignments", "connector_audit_events"],
-        protections: ["read_only_scopes", "redacted_identifiers", "no_provider_writes"],
-        liveTenantData: true
-      }
-    ],
-    controlStatements: [
-      {
-        controlId: "AU-2",
-        status: events.length > 0 ? "implemented" : "partially_implemented",
-        statement: "Microsoft Graph connector evidence includes redacted audit event identifiers emitted by the local control plane.",
-        responsibleRole: "ISSO",
-        reviewerRole: "Security Control Assessor",
-        reviewedAt: now,
-        evidenceTypes: ["audit_events"],
-        sourceArtifactNames: ["microsoft-graph-connector-audit-events"],
-        gaps: events.length > 0 ? [] : ["No source audit events were provided to the connector evidence hook."]
-      }
-    ],
-    accessReviews: [],
-    exceptionRegister: [],
-    operationalEvidence: [
-      {
-        id: `operational:${connectorId}:connector-boundary`,
-        type: "configuration_baseline",
-        status: "implemented",
-        ownerRole: "Connector Owner",
-        generatedAt: now,
-        summary: "Microsoft Graph Entra read-only connector configuration is represented with redacted local proof-point evidence.",
-        evidenceRefs: ["packages/connectors-microsoft-graph/src/index.ts", "docs/connector-contract.md"],
-        gaps: ["Retain live sandbox run evidence before claiming environment-specific tenant verification."]
-      }
-    ]
+      artifacts: [
+        {
+          name: "microsoft-graph-connector-audit-events",
+          type: "audit_events",
+          description: "Redacted Microsoft Graph connector audit events prepared for evidence packaging.",
+          eventCount: events.length,
+          format: "json"
+        }
+      ],
+      conmonMetrics: [
+        {
+          name: "microsoft_graph_connector_evidence_events",
+          value: events.length,
+          unit: "count",
+          source: connectorId
+        }
+      ],
+      poamItems: [],
+      systemBoundary: {
+        boundaryId: `boundary:${connectorId}`,
+        name: `${connectorId} connector evidence boundary`,
+        description: "Microsoft Graph Entra read-only connector boundary with redacted sandbox-tenant evidence.",
+        environment: "local_proof_point",
+        liveTenantData: true,
+        components: [
+          {
+            id: `component:connector:${connectorId}`,
+            name: `${connectorId} connector`,
+            type: "connector",
+            trustZone: "future_production",
+            dataClassification: "redacted directory and collaboration metadata",
+            description: "Read-only Microsoft Graph adapter for Entra users, groups, service principals, app-role assignments, M365/Teams coupling, SharePoint, and OneDrive inventory."
+          }
+        ],
+        externalSystems: ["microsoft-graph"],
+        assumptions: ["Connector evidence redacts tenant identifiers, object identifiers, emails, names, URLs, paths, request identifiers, tokens, and cursors."],
+        version: "system-boundary:v1"
+      },
+      dataFlows: [
+        {
+          id: `data-flow:${connectorId}:evidence`,
+          name: `${connectorId} connector evidence emission`,
+          source: `component:connector:${connectorId}`,
+          destination: "component:api-runtime",
+          dataTypes: ["redacted_directory_inventory", "redacted_collaboration_inventory", "redacted_app_role_assignments", "connector_audit_events"],
+          protections: ["read_only_scopes", "redacted_identifiers", "no_provider_writes"],
+          liveTenantData: true
+        }
+      ],
+      controlStatements: [
+        {
+          controlId: "AU-2",
+          status: events.length > 0 ? "implemented" : "partially_implemented",
+          statement: "Microsoft Graph connector evidence includes redacted audit event identifiers emitted by the local control plane.",
+          responsibleRole: "ISSO",
+          reviewerRole: "Security Control Assessor",
+          reviewedAt: now,
+          evidenceTypes: ["audit_events"],
+          sourceArtifactNames: ["microsoft-graph-connector-audit-events"],
+          gaps: events.length > 0 ? [] : ["No source audit events were provided to the connector evidence hook."]
+        }
+      ],
+      accessReviews: [],
+      exceptionRegister: [],
+      operationalEvidence: [
+        {
+          id: `operational:${connectorId}:connector-boundary`,
+          type: "configuration_baseline",
+          status: "implemented",
+          ownerRole: "Connector Owner",
+          generatedAt: now,
+          summary: "Microsoft Graph Entra read-only connector configuration is represented with redacted local proof-point evidence.",
+          evidenceRefs: ["packages/connectors-microsoft-graph/src/index.ts", "docs/connector-contract.md"],
+          gaps: ["Retain live sandbox run evidence before claiming environment-specific tenant verification."]
+        }
+      ]
+    }
   });
-}
-
-function deriveEvidencePeriod(events: AuditEvent[], now: string): Pick<EvidenceExport, "periodStart" | "periodEnd"> {
-  const occurredAt = events.map((event) => event.occurredAt).sort();
-
-  return {
-    periodStart: occurredAt.at(0) ?? now,
-    periodEnd: occurredAt.at(-1) ?? now
-  };
 }

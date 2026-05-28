@@ -17,5 +17,6 @@ export * from "./policy-proof-points.js";
 export * from "./production-audit.js";
 export * from "./production-job-queue.js";
 export * from "./production-repositories.js";
+export * from "./read-only-connector-helpers.js";
 export * from "./repositories.js";
 export * from "./store.js";
