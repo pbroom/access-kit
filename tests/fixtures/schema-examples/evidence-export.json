@@ -165,17 +165,32 @@
   ],
   "accessReviews": [
     {
-      "reviewId": "access-review:20260521t170000000z",
-      "scope": "synthetic local subjects and resources",
+      "reviewId": "access-review:campaign:local-governance",
+      "campaignId": "access-review:campaign:local-governance",
+      "scope": "synthetic local subjects, resources, relationship tuples, native grants, drift findings, exception requests, and remediation records",
+      "ownerRole": "Data Owner",
       "reviewerRole": "Data Steward",
       "status": "completed",
       "reviewedAt": "2026-05-21T17:00:00.000Z",
+      "dueAt": "2026-06-20T17:00:00.000Z",
+      "completedAt": "2026-05-21T17:00:00.000Z",
       "subjectCount": 1,
       "resourceCount": 1,
       "findingCount": 0,
       "exceptionCount": 0,
+      "findingIds": [],
+      "exceptionRequestIds": [],
+      "remediationItemIds": [],
+      "ownerApprovals": [
+        {
+          "approverRole": "Data Owner",
+          "decision": "approved",
+          "decidedAt": "2026-05-21T17:00:00.000Z",
+          "evidenceRefs": ["evidence:access-review-campaign"]
+        }
+      ],
       "sourceEventIds": ["evt:decision-allow-alice-read-case-plan"],
-      "version": "access-review:v1"
+      "version": "access-review:v2"
     }
   ],
   "exceptionRegister": [],

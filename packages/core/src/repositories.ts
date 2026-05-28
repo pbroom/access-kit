@@ -14,6 +14,7 @@ import {
   writeJsonFileAtomically
 } from "./repository-envelopes.js";
 import type {
+  AccessReviewCampaign,
   AuditEvent,
   AuditIntegrityReport,
   AuditStorageReceipt,
@@ -24,6 +25,8 @@ import type {
   EnforcementReadinessReport,
   EvidenceExport,
   EvidenceStorageReceipt,
+  ExceptionRequest,
+  GovernanceFinding,
   NativeGrant,
   ProvisioningJob,
   ProvisioningPlan,
@@ -37,6 +40,8 @@ import type {
   DescribedPersistenceRepository,
   DiscoveryRunFilter,
   DriftFindingFilter,
+  ExceptionRequestFilter,
+  GovernanceFindingFilter,
   EnforcementReadinessReportFilter,
   NativeGrantFilter,
   PersistenceBackendDescriptor,
@@ -79,6 +84,9 @@ export interface RebacStateStorageReceipt {
     provisioningPlans: number;
     provisioningJobs: number;
     driftFindings: number;
+    accessReviewCampaigns: number;
+    governanceFindings: number;
+    exceptionRequests: number;
     reconciliationRuns: number;
     decisions: number;
     auditEvents: number;
@@ -112,6 +120,9 @@ export interface RebacJobStorageReceipt {
     provisioningPlans: number;
     provisioningJobs: number;
     driftFindings: number;
+    accessReviewCampaigns: number;
+    governanceFindings: number;
+    exceptionRequests: number;
     reconciliationRuns: number;
     decisions: number;
   };
@@ -652,6 +663,53 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
     return clone(this.#jobs.driftFindings.filter((finding) => !filter.severity || finding.severity === filter.severity));
   }
 
+  upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign {
+    this.#jobs.accessReviewCampaigns = upsertById(this.#jobs.accessReviewCampaigns, clone(campaign));
+    this.#persist(this.#now());
+    return clone(campaign);
+  }
+
+  getAccessReviewCampaign(id: CanonicalId): AccessReviewCampaign | undefined {
+    return cloneOptional(this.#jobs.accessReviewCampaigns.find((campaign) => campaign.id === id));
+  }
+
+  listAccessReviewCampaigns(): AccessReviewCampaign[] {
+    return clone(this.#jobs.accessReviewCampaigns);
+  }
+
+  upsertGovernanceFinding(finding: GovernanceFinding): GovernanceFinding {
+    this.#jobs.governanceFindings = upsertById(this.#jobs.governanceFindings, clone(finding));
+    this.#persist(this.#now());
+    return clone(finding);
+  }
+
+  getGovernanceFinding(id: CanonicalId): GovernanceFinding | undefined {
+    return cloneOptional(this.#jobs.governanceFindings.find((finding) => finding.id === id));
+  }
+
+  listGovernanceFindings(filter: GovernanceFindingFilter = {}): GovernanceFinding[] {
+    return clone(
+      this.#jobs.governanceFindings.filter((finding) => (
+        (!filter.status || finding.status === filter.status) &&
+        (!filter.severity || finding.severity === filter.severity)
+      ))
+    );
+  }
+
+  upsertExceptionRequest(request: ExceptionRequest): ExceptionRequest {
+    this.#jobs.exceptionRequests = upsertById(this.#jobs.exceptionRequests, clone(request));
+    this.#persist(this.#now());
+    return clone(request);
+  }
+
+  getExceptionRequest(id: CanonicalId): ExceptionRequest | undefined {
+    return cloneOptional(this.#jobs.exceptionRequests.find((request) => request.id === id));
+  }
+
+  listExceptionRequests(filter: ExceptionRequestFilter = {}): ExceptionRequest[] {
+    return clone(this.#jobs.exceptionRequests.filter((request) => !filter.status || request.status === filter.status));
+  }
+
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun {
     this.#jobs.reconciliationRuns = appendUniqueById(this.#jobs.reconciliationRuns, clone(run), "Reconciliation run");
     this.#persist(this.#now());
@@ -697,6 +755,9 @@ export class LocalJsonFileJobRepository implements RebacJobRepository, Described
       "provisioningPlans",
       "provisioningJobs",
       "driftFindings",
+      "accessReviewCampaigns",
+      "governanceFindings",
+      "exceptionRequests",
       "reconciliationRuns",
       "decisions"
     ]);
@@ -757,6 +818,9 @@ export class LocalJsonFileStateRepository implements RebacStateRepository {
         "provisioningPlans",
         "provisioningJobs",
         "driftFindings",
+        "accessReviewCampaigns",
+        "governanceFindings",
+        "exceptionRequests",
         "reconciliationRuns",
         "decisions",
         "auditEvents",
@@ -868,6 +932,9 @@ function emptyJobSnapshot(): RebacJobSnapshot {
     provisioningPlans: [],
     provisioningJobs: [],
     driftFindings: [],
+    accessReviewCampaigns: [],
+    governanceFindings: [],
+    exceptionRequests: [],
     reconciliationRuns: [],
     decisions: []
   };

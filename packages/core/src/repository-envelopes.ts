@@ -63,6 +63,9 @@ export function normalizeJobSnapshot(jobs: Partial<RebacJobSnapshot>): RebacJobS
     provisioningPlans: clone(jobs.provisioningPlans ?? []),
     provisioningJobs: clone(jobs.provisioningJobs ?? []),
     driftFindings: clone(jobs.driftFindings ?? []),
+    accessReviewCampaigns: clone(jobs.accessReviewCampaigns ?? []),
+    governanceFindings: clone(jobs.governanceFindings ?? []),
+    exceptionRequests: clone(jobs.exceptionRequests ?? []),
     reconciliationRuns: clone(jobs.reconciliationRuns ?? []),
     decisions: clone(jobs.decisions ?? [])
   };
@@ -84,6 +87,9 @@ export function countJobEntities(jobs: RebacJobSnapshot): RebacJobStorageReceipt
     provisioningPlans: jobs.provisioningPlans.length,
     provisioningJobs: jobs.provisioningJobs.length,
     driftFindings: jobs.driftFindings.length,
+    accessReviewCampaigns: jobs.accessReviewCampaigns.length,
+    governanceFindings: jobs.governanceFindings.length,
+    exceptionRequests: jobs.exceptionRequests.length,
     reconciliationRuns: jobs.reconciliationRuns.length,
     decisions: jobs.decisions.length
   };
@@ -109,6 +115,9 @@ export function countStateEntities(state: RebacSeedData): RebacStateStorageRecei
     provisioningPlans: state.provisioningPlans?.length ?? 0,
     provisioningJobs: state.provisioningJobs?.length ?? 0,
     driftFindings: state.driftFindings?.length ?? 0,
+    accessReviewCampaigns: state.accessReviewCampaigns?.length ?? 0,
+    governanceFindings: state.governanceFindings?.length ?? 0,
+    exceptionRequests: state.exceptionRequests?.length ?? 0,
     reconciliationRuns: state.reconciliationRuns?.length ?? 0,
     decisions: state.decisions?.length ?? 0,
     auditEvents: state.auditEvents?.length ?? 0,
@@ -131,6 +140,9 @@ export function migrateLegacyRuntimeState(value: unknown): RebacSeedData {
     "provisioningPlans",
     "provisioningJobs",
     "driftFindings",
+    "accessReviewCampaigns",
+    "governanceFindings",
+    "exceptionRequests",
     "reconciliationRuns",
     "decisions",
     "auditEvents",

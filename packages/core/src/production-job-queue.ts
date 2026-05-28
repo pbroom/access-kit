@@ -1,10 +1,13 @@
 import type {
+  AccessReviewCampaign,
   CanonicalId,
   DecisionResult,
   DiscoveryRun,
   DriftFinding,
   EnforcementControl,
   EnforcementReadinessReport,
+  ExceptionRequest,
+  GovernanceFinding,
   JsonRecord,
   ProvisioningApproval,
   ProvisioningJob,
@@ -15,6 +18,8 @@ import type {
   DescribedPersistenceRepository,
   DiscoveryRunFilter,
   DriftFindingFilter,
+  ExceptionRequestFilter,
+  GovernanceFindingFilter,
   EnforcementReadinessReportFilter,
   PersistenceBackendDescriptor,
   RebacJobRepository,
@@ -599,6 +604,77 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     return clone(this.#jobs.driftFindings.filter((finding) => !filter.severity || finding.severity === filter.severity));
   }
 
+  upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign {
+    assertNoSecretMaterial(campaign, `Access review campaign ${campaign.id}`);
+    return this.#commitSnapshot(this.#now(), (jobs, queue) => ({
+      jobs: {
+        ...jobs,
+        accessReviewCampaigns: upsertById(jobs.accessReviewCampaigns, clone(campaign))
+      },
+      queue,
+      result: campaign
+    }));
+  }
+
+  getAccessReviewCampaign(id: CanonicalId): AccessReviewCampaign | undefined {
+    this.#refreshFromStore();
+    return cloneOptional(this.#jobs.accessReviewCampaigns.find((campaign) => campaign.id === id));
+  }
+
+  listAccessReviewCampaigns(): AccessReviewCampaign[] {
+    this.#refreshFromStore();
+    return clone(this.#jobs.accessReviewCampaigns);
+  }
+
+  upsertGovernanceFinding(finding: GovernanceFinding): GovernanceFinding {
+    assertNoSecretMaterial(finding, `Governance finding ${finding.id}`);
+    return this.#commitSnapshot(this.#now(), (jobs, queue) => ({
+      jobs: {
+        ...jobs,
+        governanceFindings: upsertById(jobs.governanceFindings, clone(finding))
+      },
+      queue,
+      result: finding
+    }));
+  }
+
+  getGovernanceFinding(id: CanonicalId): GovernanceFinding | undefined {
+    this.#refreshFromStore();
+    return cloneOptional(this.#jobs.governanceFindings.find((finding) => finding.id === id));
+  }
+
+  listGovernanceFindings(filter: GovernanceFindingFilter = {}): GovernanceFinding[] {
+    this.#refreshFromStore();
+    return clone(
+      this.#jobs.governanceFindings.filter((finding) => (
+        (!filter.status || finding.status === filter.status) &&
+        (!filter.severity || finding.severity === filter.severity)
+      ))
+    );
+  }
+
+  upsertExceptionRequest(request: ExceptionRequest): ExceptionRequest {
+    assertNoSecretMaterial(request, `Exception request ${request.id}`);
+    return this.#commitSnapshot(this.#now(), (jobs, queue) => ({
+      jobs: {
+        ...jobs,
+        exceptionRequests: upsertById(jobs.exceptionRequests, clone(request))
+      },
+      queue,
+      result: request
+    }));
+  }
+
+  getExceptionRequest(id: CanonicalId): ExceptionRequest | undefined {
+    this.#refreshFromStore();
+    return cloneOptional(this.#jobs.exceptionRequests.find((request) => request.id === id));
+  }
+
+  listExceptionRequests(filter: ExceptionRequestFilter = {}): ExceptionRequest[] {
+    this.#refreshFromStore();
+    return clone(this.#jobs.exceptionRequests.filter((request) => !filter.status || request.status === filter.status));
+  }
+
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun {
     assertNoSecretMaterial(run, `Reconciliation run ${run.id}`);
     return this.#commitSnapshot(this.#now(), (jobs, queue) => ({
@@ -968,6 +1044,9 @@ function validateQueueRecord(record: ProductionJobQueueStoreRecord, tenantBounda
     "provisioningPlans",
     "provisioningJobs",
     "driftFindings",
+    "accessReviewCampaigns",
+    "governanceFindings",
+    "exceptionRequests",
     "reconciliationRuns",
     "decisions"
   ]);
@@ -1143,6 +1222,9 @@ function emptyJobSnapshot(): RebacJobSnapshot {
     provisioningPlans: [],
     provisioningJobs: [],
     driftFindings: [],
+    accessReviewCampaigns: [],
+    governanceFindings: [],
+    exceptionRequests: [],
     reconciliationRuns: [],
     decisions: []
   };

@@ -1,10 +1,13 @@
 import type {
+  AccessReviewCampaign,
   AuditIntegrityReport,
   CanonicalId,
   DecisionResult,
   DiscoveryRun,
   DriftFinding,
   EnforcementReadinessReport,
+  ExceptionRequest,
+  GovernanceFinding,
   JsonRecord,
   NativeGrant,
   ProvisioningJob,
@@ -108,6 +111,9 @@ export interface RebacJobSnapshot {
   provisioningPlans: ProvisioningPlan[];
   provisioningJobs: ProvisioningJob[];
   driftFindings: DriftFinding[];
+  accessReviewCampaigns: AccessReviewCampaign[];
+  governanceFindings: GovernanceFinding[];
+  exceptionRequests: ExceptionRequest[];
   reconciliationRuns: ReconciliationRun[];
   decisions: DecisionResult[];
 }
@@ -119,6 +125,8 @@ export type NativeGrantFilter = Partial<
 export type DiscoveryRunFilter = Partial<Pick<DiscoveryRun, "connectorId" | "status">>;
 export type EnforcementReadinessReportFilter = Partial<Pick<EnforcementReadinessReport, "connectorId" | "status">>;
 export type DriftFindingFilter = Partial<Pick<DriftFinding, "severity">>;
+export type GovernanceFindingFilter = Partial<Pick<GovernanceFinding, "status" | "severity">>;
+export type ExceptionRequestFilter = Partial<Pick<ExceptionRequest, "status">>;
 
 export interface RebacGraphRepository {
   getSubject(id: CanonicalId): Subject | undefined;
@@ -153,6 +161,15 @@ export interface RebacJobRepository {
   upsertDriftFinding(finding: DriftFinding): DriftFinding;
   getDriftFinding(id: CanonicalId): DriftFinding | undefined;
   listDriftFindings(filter?: DriftFindingFilter): DriftFinding[];
+  upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign;
+  getAccessReviewCampaign(id: CanonicalId): AccessReviewCampaign | undefined;
+  listAccessReviewCampaigns(): AccessReviewCampaign[];
+  upsertGovernanceFinding(finding: GovernanceFinding): GovernanceFinding;
+  getGovernanceFinding(id: CanonicalId): GovernanceFinding | undefined;
+  listGovernanceFindings(filter?: GovernanceFindingFilter): GovernanceFinding[];
+  upsertExceptionRequest(request: ExceptionRequest): ExceptionRequest;
+  getExceptionRequest(id: CanonicalId): ExceptionRequest | undefined;
+  listExceptionRequests(filter?: ExceptionRequestFilter): ExceptionRequest[];
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun;
   listReconciliationRuns(): ReconciliationRun[];
   recordDecision(decision: DecisionResult): DecisionResult;
@@ -326,6 +343,42 @@ export class InMemoryRebacPersistenceRepository implements RebacGraphRepository,
     return clone(this.#store.listDriftFindings(filter));
   }
 
+  upsertAccessReviewCampaign(campaign: AccessReviewCampaign): AccessReviewCampaign {
+    return clone(this.#store.upsertAccessReviewCampaign(clone(campaign)));
+  }
+
+  getAccessReviewCampaign(id: CanonicalId): AccessReviewCampaign | undefined {
+    return cloneOptional(this.#store.getAccessReviewCampaign(id));
+  }
+
+  listAccessReviewCampaigns(): AccessReviewCampaign[] {
+    return clone(this.#store.listAccessReviewCampaigns());
+  }
+
+  upsertGovernanceFinding(finding: GovernanceFinding): GovernanceFinding {
+    return clone(this.#store.upsertGovernanceFinding(clone(finding)));
+  }
+
+  getGovernanceFinding(id: CanonicalId): GovernanceFinding | undefined {
+    return cloneOptional(this.#store.getGovernanceFinding(id));
+  }
+
+  listGovernanceFindings(filter: GovernanceFindingFilter = {}): GovernanceFinding[] {
+    return clone(this.#store.listGovernanceFindings(filter));
+  }
+
+  upsertExceptionRequest(request: ExceptionRequest): ExceptionRequest {
+    return clone(this.#store.upsertExceptionRequest(clone(request)));
+  }
+
+  getExceptionRequest(id: CanonicalId): ExceptionRequest | undefined {
+    return cloneOptional(this.#store.getExceptionRequest(id));
+  }
+
+  listExceptionRequests(filter: ExceptionRequestFilter = {}): ExceptionRequest[] {
+    return clone(this.#store.listExceptionRequests(filter));
+  }
+
   recordReconciliationRun(run: ReconciliationRun): ReconciliationRun {
     return clone(this.#store.recordReconciliationRun(clone(run)));
   }
@@ -358,6 +411,9 @@ export class InMemoryRebacPersistenceRepository implements RebacGraphRepository,
       provisioningPlans: this.listProvisioningPlans(),
       provisioningJobs: this.listProvisioningJobs(),
       driftFindings: this.listDriftFindings(),
+      accessReviewCampaigns: this.listAccessReviewCampaigns(),
+      governanceFindings: this.listGovernanceFindings(),
+      exceptionRequests: this.listExceptionRequests(),
       reconciliationRuns: this.listReconciliationRuns(),
       decisions: this.listDecisions()
     };

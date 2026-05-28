@@ -6,6 +6,7 @@ const requiredRunbooks = [
   "runbooks/drift-remediation.md",
   "runbooks/connector-outage.md",
   "runbooks/break-glass-review.md",
+  "runbooks/access-review-exceptions.md",
   "runbooks/audit-evidence-export.md",
   "runbooks/compromised-connector-credential.md",
   "runbooks/decision-api-outage.md"

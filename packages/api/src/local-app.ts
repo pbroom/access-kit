@@ -2,15 +2,19 @@ import {
   AuditRecorder,
   assertAdminAuthorizationDescriptorSafe,
   attachEvidenceIntegrityManifest,
+  buildAccessReviewGovernance,
   createLocalEngineSeed,
   createLocalBearerTokenAdminAuthorizationDescriptor,
+  sourceEventIdsForAccessReview,
   InMemoryRebacStore,
   RebacDecisionEngine,
   sha256,
   stableStringify,
   validatePolicyModel,
   verifyAuditChain,
+  type AccessReviewCampaign,
   type AccessReviewEvidence,
+  type AccessReviewGovernanceRecords,
   type AuditEvent,
   type AuditEventExport,
   type AuditEventExportTarget,
@@ -36,7 +40,9 @@ import {
   type EvidenceFramework,
   type EvidencePackageRepository,
   type EvidenceStorageReceipt,
+  type ExceptionRequest,
   type ExceptionRecord,
+  type GovernanceFinding,
   type JsonRecord,
   type PoamItem,
   type PolicyModel,
@@ -1094,12 +1100,13 @@ export function exportEvidencePackage(
   const events = allEvents.filter((event) => event.occurredAt >= periodStart && event.occurredAt <= periodEnd);
   const auditIntegrity = verifyRuntimeAuditIntegrity(app, generatedAt);
   const controlMappings = buildControlMappings(controls, events);
-  const conmonMetrics = buildConMonMetrics(app, events, auditIntegrity);
-  const poamItems = buildPoamItems(controlMappings, auditIntegrity, generatedAt);
+  const governanceRecords = materializeAccessReviewGovernance(app, events, generatedAt);
+  const conmonMetrics = buildConMonMetrics(app, events, auditIntegrity, governanceRecords);
+  const poamItems = buildPoamItems(controlMappings, auditIntegrity, generatedAt, governanceRecords.findings);
   const systemBoundary = buildSystemBoundary(app);
   const dataFlows = buildDataFlows(app);
-  const accessReviews = buildAccessReviews(app, events, generatedAt);
-  const exceptionRegister = buildExceptionRegister(app, generatedAt);
+  const accessReviews = buildAccessReviews(governanceRecords.campaigns, generatedAt);
+  const exceptionRegister = buildExceptionRegister(governanceRecords.exceptionRequests);
   const operationalEvidence = buildOperationalEvidence(generatedAt);
   const artifacts = buildEvidenceArtifacts(format, events.length);
   const exportMetadata = attachEvidenceIntegrityManifest({
@@ -1255,6 +1262,9 @@ function initialRuntimeSeed(
           provisioningPlans: jobs.provisioningPlans,
           provisioningJobs: jobs.provisioningJobs,
           driftFindings: jobs.driftFindings,
+          accessReviewCampaigns: jobs.accessReviewCampaigns,
+          governanceFindings: jobs.governanceFindings,
+          exceptionRequests: jobs.exceptionRequests,
           reconciliationRuns: jobs.reconciliationRuns,
           decisions: jobs.decisions
         }
@@ -1307,6 +1317,9 @@ function shouldUsePersistedJobs(jobs: RebacJobSnapshot, baseSeed: RebacSeedData)
     && containsAllById(jobs.provisioningPlans, baseSeed.provisioningPlans)
     && containsAllById(jobs.provisioningJobs, baseSeed.provisioningJobs)
     && containsAllById(jobs.driftFindings, baseSeed.driftFindings)
+    && containsAllById(jobs.accessReviewCampaigns, baseSeed.accessReviewCampaigns)
+    && containsAllById(jobs.governanceFindings, baseSeed.governanceFindings)
+    && containsAllById(jobs.exceptionRequests, baseSeed.exceptionRequests)
     && containsAllById(jobs.reconciliationRuns, baseSeed.reconciliationRuns)
     && containsAllByKey(jobs.decisions, baseSeed.decisions, "decisionId");
 }
@@ -1317,6 +1330,9 @@ function hasPersistedRuntimeJobRecords(jobs: RebacJobSnapshot): boolean {
     || jobs.provisioningPlans.length > 0
     || jobs.provisioningJobs.length > 0
     || jobs.driftFindings.length > 0
+    || jobs.accessReviewCampaigns.length > 0
+    || jobs.governanceFindings.length > 0
+    || jobs.exceptionRequests.length > 0
     || jobs.reconciliationRuns.length > 0
     || jobs.decisions.length > 0;
 }
@@ -1366,6 +1382,9 @@ function seedEmptyRuntimeRepositories(
       seed.provisioningPlans?.forEach((plan) => persistence.jobRepository?.upsertProvisioningPlan(plan));
       seed.provisioningJobs?.forEach((job) => persistence.jobRepository?.upsertProvisioningJob(job));
       seed.driftFindings?.forEach((finding) => persistence.jobRepository?.upsertDriftFinding(finding));
+      seed.accessReviewCampaigns?.forEach((campaign) => persistence.jobRepository?.upsertAccessReviewCampaign(campaign));
+      seed.governanceFindings?.forEach((finding) => persistence.jobRepository?.upsertGovernanceFinding(finding));
+      seed.exceptionRequests?.forEach((request) => persistence.jobRepository?.upsertExceptionRequest(request));
       seed.reconciliationRuns?.forEach((run) => persistence.jobRepository?.recordReconciliationRun(run));
       seed.decisions?.forEach((decision) => persistence.jobRepository?.recordDecision(decision));
     }
@@ -1509,6 +1528,30 @@ function persistJobDriftFinding(app: RebacLocalApp, finding: DriftFinding, store
   }
 }
 
+function persistJobAccessReviewCampaign(app: RebacLocalApp, campaign: AccessReviewCampaign, storedAt: string): void {
+  try {
+    app.jobRepository?.upsertAccessReviewCampaign(campaign);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "upsertAccessReviewCampaign", storedAt, error);
+  }
+}
+
+function persistJobGovernanceFinding(app: RebacLocalApp, finding: GovernanceFinding, storedAt: string): void {
+  try {
+    app.jobRepository?.upsertGovernanceFinding(finding);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "upsertGovernanceFinding", storedAt, error);
+  }
+}
+
+function persistJobExceptionRequest(app: RebacLocalApp, request: ExceptionRequest, storedAt: string): void {
+  try {
+    app.jobRepository?.upsertExceptionRequest(request);
+  } catch (error) {
+    recordPersistenceRepositoryError(app.persistenceDegradations, "job", "upsertExceptionRequest", storedAt, error);
+  }
+}
+
 function persistJobReconciliationRun(app: RebacLocalApp, run: ReconciliationRun, storedAt: string): void {
   try {
     app.jobRepository?.recordReconciliationRun(run);
@@ -1628,12 +1671,51 @@ function buildControlMappings(
   });
 }
 
+function materializeAccessReviewGovernance(
+  app: RebacLocalApp,
+  events: AuditEvent[],
+  generatedAt: string
+): AccessReviewGovernanceRecords {
+  const governanceRecords = buildAccessReviewGovernance({
+    generatedAt,
+    subjectCount: app.store.listSubjects().length,
+    resourceCount: app.store.listResources().length,
+    sourceEventIds: sourceEventIdsForAccessReview(events),
+    driftFindings: app.store.listDriftFindings(),
+    existingCampaigns: app.store.listAccessReviewCampaigns(),
+    existingFindings: app.store.listGovernanceFindings(),
+    existingExceptionRequests: app.store.listExceptionRequests()
+  });
+
+  for (const campaign of governanceRecords.campaigns) {
+    app.store.upsertAccessReviewCampaign(campaign);
+    persistJobAccessReviewCampaign(app, campaign, generatedAt);
+  }
+  for (const finding of governanceRecords.findings) {
+    app.store.upsertGovernanceFinding(finding);
+    persistJobGovernanceFinding(app, finding, generatedAt);
+  }
+  for (const request of governanceRecords.exceptionRequests) {
+    app.store.upsertExceptionRequest(request);
+    persistJobExceptionRequest(app, request, generatedAt);
+  }
+
+  return governanceRecords;
+}
+
 function buildConMonMetrics(
   app: RebacLocalApp,
   events: AuditEvent[],
-  auditIntegrity: AuditIntegrityReport
+  auditIntegrity: AuditIntegrityReport,
+  governanceRecords: AccessReviewGovernanceRecords
 ): ConMonMetric[] {
   const driftFindings = app.store.listDriftFindings();
+  const openGovernanceFindings = governanceRecords.findings.filter((finding) => finding.status !== "remediated");
+  const openExceptionRequests = governanceRecords.exceptionRequests.filter((request) => !["expired", "revoked", "remediated"].includes(request.status));
+  const pendingOwnerApprovals = [
+    ...governanceRecords.campaigns,
+    ...governanceRecords.exceptionRequests
+  ].filter((record) => record.ownerApprovals.some((approval) => approval.decision === "pending")).length;
 
   return [
     { name: "audit_events_in_period", value: events.length, unit: "count", source: "audit_log" },
@@ -1654,6 +1736,48 @@ function buildConMonMetrics(
       value: app.store.listEnforcementReadinessReports().length,
       unit: "count",
       source: "connector_readiness_store"
+    },
+    {
+      name: "access_review_campaigns",
+      value: governanceRecords.campaigns.length,
+      unit: "count",
+      source: "governance_store"
+    },
+    {
+      name: "open_governance_findings",
+      value: openGovernanceFindings.length,
+      unit: "count",
+      source: "governance_store"
+    },
+    {
+      name: "open_exception_requests",
+      value: openExceptionRequests.length,
+      unit: "count",
+      source: "governance_store"
+    },
+    {
+      name: "expired_exception_requests",
+      value: governanceRecords.exceptionRequests.filter((request) => request.status === "expired").length,
+      unit: "count",
+      source: "governance_store"
+    },
+    {
+      name: "pending_owner_approvals",
+      value: pendingOwnerApprovals,
+      unit: "count",
+      source: "governance_store"
+    },
+    {
+      name: "pending_risk_acceptances",
+      value: governanceRecords.exceptionRequests.filter((request) => request.riskAcceptance.status === "pending").length,
+      unit: "count",
+      source: "governance_store"
+    },
+    {
+      name: "overdue_remediation_items",
+      value: governanceRecords.findings.filter((finding) => finding.remediation.status === "overdue").length,
+      unit: "count",
+      source: "governance_store"
     }
   ];
 }
@@ -1661,7 +1785,8 @@ function buildConMonMetrics(
 function buildPoamItems(
   mappings: EvidenceControlMapping[],
   auditIntegrity: AuditIntegrityReport,
-  generatedAt: string
+  generatedAt: string,
+  governanceFindings: GovernanceFinding[]
 ): PoamItem[] {
   const plannedCompletion = addDays(generatedAt, 30);
   const items: PoamItem[] = [];
@@ -1689,6 +1814,22 @@ function buildPoamItems(
         ownerRole: "ISSO",
         plannedCompletion,
         source: "control_mapping"
+      });
+    });
+
+  governanceFindings
+    .filter((finding) => finding.status !== "remediated")
+    .forEach((finding) => {
+      items.push({
+        id: finding.remediation.poamItemId,
+        controlId: finding.controlId,
+        weakness: finding.weakness,
+        status: finding.remediation.status === "planned" || finding.remediation.status === "in_progress"
+            ? "planned"
+            : "open",
+        ownerRole: finding.remediation.ownerRole,
+        plannedCompletion: finding.remediation.dueAt,
+        source: "governance_findings"
       });
     });
 
@@ -1858,50 +1999,72 @@ function artifactSupportsMapping(artifact: EvidenceArtifact, mapping: EvidenceCo
   return mapping.evidenceTypes.some((evidenceType) => artifact.name.includes(evidenceType.replaceAll("_", "-")));
 }
 
-function buildAccessReviews(app: RebacLocalApp, events: AuditEvent[], reviewedAt: string): AccessReviewEvidence[] {
-  const driftFindings = app.store.listDriftFindings();
-  const sourceEventIds = events
-    .filter((event) => event.eventType.startsWith("decision.") || event.eventType.startsWith("relationship.") || event.eventType.startsWith("connector.current_access_read"))
-    .map((event) => event.eventId);
-
-  return [
-    {
-      reviewId: `access-review:${compactTimestamp(reviewedAt)}`,
-      scope: "synthetic local subjects, resources, relationship tuples, native grants, and drift findings",
-      reviewerRole: "Data Steward",
-      status: sourceEventIds.length > 0 || driftFindings.length > 0 ? "completed" : "planned",
-      reviewedAt,
-      subjectCount: app.store.listSubjects().length,
-      resourceCount: app.store.listResources().length,
-      findingCount: driftFindings.length,
-      exceptionCount: driftFindings.filter(requiresExceptionRecord).length,
-      sourceEventIds,
-      version: "access-review:v1"
-    }
-  ];
+function buildAccessReviews(campaigns: AccessReviewCampaign[], reviewedAt: string): AccessReviewEvidence[] {
+  return campaigns.map((campaign) => ({
+    reviewId: campaign.id,
+    campaignId: campaign.id,
+    scope: campaign.scope,
+    ownerRole: campaign.ownerRole,
+    reviewerRole: campaign.reviewerRole,
+    status: campaign.status === "completed" ? "completed" : "planned",
+    reviewedAt: campaign.completedAt ?? reviewedAt,
+    dueAt: campaign.dueAt,
+    completedAt: campaign.completedAt,
+    subjectCount: campaign.subjectCount,
+    resourceCount: campaign.resourceCount,
+    findingCount: campaign.findingIds.length,
+    exceptionCount: campaign.exceptionRequestIds.length,
+    findingIds: campaign.findingIds,
+    exceptionRequestIds: campaign.exceptionRequestIds,
+    remediationItemIds: campaign.remediationItemIds,
+    ownerApprovals: campaign.ownerApprovals,
+    sourceEventIds: campaign.sourceEventIds,
+    version: "access-review:v2"
+  }));
 }
 
-function buildExceptionRegister(app: RebacLocalApp, generatedAt: string): ExceptionRecord[] {
-  return app.store
-    .listDriftFindings()
-    .filter(requiresExceptionRecord)
-    .map((finding) => ({
-      id: `exception:${sanitizeCanonicalId(finding.id)}`,
-      subjectId: sanitizeCanonicalId(finding.subjectId),
-      resourceId: sanitizeCanonicalId(finding.resourceId),
-      action: "review",
-      reason: `Drift finding ${finding.id} requires documented risk acceptance or remediation.`,
-      status: "open",
-      approverRole: "Authorizing Official",
-      expiresAt: addDays(generatedAt, 30),
-      reviewRequiredAt: addDays(generatedAt, 14),
-      source: "drift",
-      sourceFindingId: sanitizeCanonicalId(finding.id)
-    }));
+function buildExceptionRegister(exceptionRequests: ExceptionRequest[]): ExceptionRecord[] {
+  return exceptionRequests.map((request) => ({
+    id: request.id,
+    subjectId: request.subjectId,
+    resourceId: request.resourceId,
+    action: request.action,
+    reason: request.justification,
+    status: exceptionRecordStatus(request.status),
+    requestStatus: request.status,
+    requesterRole: request.requesterRole,
+    ownerRole: request.ownerRole,
+    approverRole: "Authorizing Official",
+    requestedAt: request.requestedAt,
+    expiresAt: request.expiresAt,
+    reviewRequiredAt: request.reviewRequiredAt,
+    ownerApprovals: request.ownerApprovals,
+    riskAcceptance: request.riskAcceptance,
+    remediation: request.remediation,
+    source: request.source,
+    findingId: request.findingId,
+    sourceFindingId: request.sourceFindingId,
+    controlIds: request.controlIds,
+    evidenceRefs: request.evidenceRefs,
+    version: "exception-record:v2"
+  }));
 }
 
-function requiresExceptionRecord(finding: { recommendedAction: string; severity: string }): boolean {
-  return finding.recommendedAction === "exception" || finding.severity === "high" || finding.severity === "critical";
+function exceptionRecordStatus(status: ExceptionRequest["status"]): ExceptionRecord["status"] {
+  if (status === "risk_accepted" || status === "owner_approved") {
+    return "approved";
+  }
+  if (status === "expired") {
+    return "expired";
+  }
+  if (status === "revoked") {
+    return "revoked";
+  }
+  if (status === "remediated") {
+    return "remediated";
+  }
+
+  return "open";
 }
 
 function controlFamily(controlId: string): string {

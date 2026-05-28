@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type {
+  AccessReviewCampaign,
   DecisionResult,
   DiscoveryRun,
   DriftFinding,
   EnforcementReadinessReport,
+  ExceptionRequest,
+  GovernanceFinding,
   NativeGrant,
   ProvisioningJob,
   ProvisioningPlan,
@@ -73,6 +76,9 @@ export function describeConnectorStateRepositoryConformance(cases: RepositoryCon
       const plan = createProvisioningPlan();
       const job = createProvisioningJob();
       const driftFinding = createDriftFinding();
+      const accessReviewCampaign = createAccessReviewCampaign();
+      const governanceFinding = createGovernanceFinding();
+      const exceptionRequest = createExceptionRequest();
       const reconciliationRun = createReconciliationRun(driftFinding);
       const decision = createDecision();
 
@@ -81,6 +87,9 @@ export function describeConnectorStateRepositoryConformance(cases: RepositoryCon
       repository.upsertProvisioningPlan(plan);
       repository.upsertProvisioningJob(job);
       repository.upsertDriftFinding(driftFinding);
+      repository.upsertAccessReviewCampaign(accessReviewCampaign);
+      repository.upsertGovernanceFinding(governanceFinding);
+      repository.upsertExceptionRequest(exceptionRequest);
       repository.recordReconciliationRun(reconciliationRun);
       repository.recordDecision(decision);
 
@@ -90,6 +99,11 @@ export function describeConnectorStateRepositoryConformance(cases: RepositoryCon
       expect(repository.getProvisioningJobByIdempotencyKey(job.idempotencyKey as string)).toEqual(job);
       expect(repository.getDriftFinding(driftFinding.id)).toEqual(driftFinding);
       expect(repository.listDriftFindings({ severity: "high" })).toEqual([driftFinding]);
+      expect(repository.getAccessReviewCampaign(accessReviewCampaign.id)).toEqual(accessReviewCampaign);
+      expect(repository.getGovernanceFinding(governanceFinding.id)).toEqual(governanceFinding);
+      expect(repository.listGovernanceFindings({ status: "open", severity: "high" })).toEqual([governanceFinding]);
+      expect(repository.getExceptionRequest(exceptionRequest.id)).toEqual(exceptionRequest);
+      expect(repository.listExceptionRequests({ status: "requested" })).toEqual([exceptionRequest]);
       expect(repository.listReconciliationRuns()).toEqual([reconciliationRun]);
       expect(repository.listDecisions()).toEqual([decision]);
       expect(repository.exportJobs()).toEqual({
@@ -98,6 +112,9 @@ export function describeConnectorStateRepositoryConformance(cases: RepositoryCon
         provisioningPlans: [plan],
         provisioningJobs: [job],
         driftFindings: [driftFinding],
+        accessReviewCampaigns: [accessReviewCampaign],
+        governanceFindings: [governanceFinding],
+        exceptionRequests: [exceptionRequest],
         reconciliationRuns: [reconciliationRun],
         decisions: [decision]
       });
@@ -275,6 +292,111 @@ export function createDriftFinding(overrides: Partial<DriftFinding> = {}): Drift
     recommendedAction: "revoke",
     status: "open",
     version: "drift-finding:v1",
+    createdAt: conformanceNow,
+    ...overrides
+  };
+}
+
+export function createAccessReviewCampaign(overrides: Partial<AccessReviewCampaign> = {}): AccessReviewCampaign {
+  return {
+    id: "access-review:campaign:local-governance",
+    name: "Local access review and exception governance campaign",
+    scope: "synthetic local subjects, resources, native grants, findings, exceptions, and remediation records",
+    ownerRole: "Data Owner",
+    reviewerRole: "Data Steward",
+    status: "completed",
+    startedAt: conformanceNow,
+    dueAt: "2026-06-25T04:00:00.000Z",
+    completedAt: "2026-05-26T04:03:00.000Z",
+    subjectCount: 1,
+    resourceCount: 1,
+    findingIds: ["governance-finding:drift_bob-graph-plan-read"],
+    exceptionRequestIds: ["exception:drift_bob-graph-plan-read"],
+    remediationItemIds: ["poam:governance:drift_bob-graph-plan-read"],
+    sourceEventIds: ["evt:reconciliation"],
+    ownerApprovals: [
+      {
+        approverRole: "Data Owner",
+        decision: "approved",
+        decidedAt: "2026-05-26T04:03:00.000Z",
+        evidenceRefs: ["evidence:access-review-campaign"]
+      }
+    ],
+    version: "access-review-campaign:v1",
+    createdAt: conformanceNow,
+    ...overrides
+  };
+}
+
+export function createGovernanceFinding(overrides: Partial<GovernanceFinding> = {}): GovernanceFinding {
+  return {
+    id: "governance-finding:drift_bob-graph-plan-read",
+    campaignId: "access-review:campaign:local-governance",
+    subjectId: "user:bob",
+    resourceId: "document:graph-plan",
+    action: "read",
+    severity: "high",
+    status: "open",
+    source: "drift",
+    sourceFindingId: "drift_bob-graph-plan-read",
+    ownerRole: "Resource Owner",
+    weakness: "Native read access differs from intended none access.",
+    recommendedAction: "revoke",
+    detectedAt: conformanceNow,
+    dueAt: "2026-06-09T04:00:00.000Z",
+    controlId: "CA-7",
+    remediation: {
+      status: "planned",
+      ownerRole: "Resource Owner",
+      plan: "Validate intended access, plan revocation, and verify reconciliation closure.",
+      dueAt: "2026-06-09T04:00:00.000Z",
+      evidenceRefs: ["drift:drift_bob-graph-plan-read"],
+      poamItemId: "poam:governance:drift_bob-graph-plan-read"
+    },
+    exceptionRequestId: "exception:drift_bob-graph-plan-read",
+    evidenceRefs: ["drift:drift_bob-graph-plan-read"],
+    version: "governance-finding:v1",
+    createdAt: conformanceNow,
+    ...overrides
+  };
+}
+
+export function createExceptionRequest(overrides: Partial<ExceptionRequest> = {}): ExceptionRequest {
+  return {
+    id: "exception:drift_bob-graph-plan-read",
+    campaignId: "access-review:campaign:local-governance",
+    findingId: "governance-finding:drift_bob-graph-plan-read",
+    subjectId: "user:bob",
+    resourceId: "document:graph-plan",
+    action: "read",
+    justification: "Drift finding drift:bob-graph-plan-read requires documented risk acceptance or remediation.",
+    status: "requested",
+    requesterRole: "Security Engineer",
+    ownerRole: "Resource Owner",
+    requestedAt: conformanceNow,
+    expiresAt: "2026-06-25T04:00:00.000Z",
+    reviewRequiredAt: "2026-06-09T04:00:00.000Z",
+    ownerApprovals: [
+      {
+        approverRole: "Resource Owner",
+        decision: "pending",
+        evidenceRefs: ["evidence:exception-request"]
+      }
+    ],
+    riskAcceptance: {
+      status: "pending",
+      rationale: "Residual access drift drift:bob-graph-plan-read is tracked for owner review, remediation, or time-bound acceptance.",
+      residualRisk: "high",
+      expiresAt: "2026-06-25T04:00:00.000Z",
+      reviewRequiredAt: "2026-06-09T04:00:00.000Z",
+      evidenceRefs: ["drift:drift_bob-graph-plan-read"]
+    },
+    remediation: createGovernanceFinding().remediation,
+    source: "drift",
+    sourceFindingId: "drift_bob-graph-plan-read",
+    controlIds: ["CA-7", "RA-5"],
+    evidenceRefs: ["drift:drift_bob-graph-plan-read"],
+    version: "exception-request:v1",
     createdAt: conformanceNow,
     ...overrides
   };

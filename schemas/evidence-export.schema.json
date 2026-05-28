@@ -323,17 +323,56 @@
     "accessReview": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["reviewId", "scope", "reviewerRole", "status", "reviewedAt", "subjectCount", "resourceCount", "findingCount", "exceptionCount", "sourceEventIds", "version"],
+      "required": [
+        "reviewId",
+        "campaignId",
+        "scope",
+        "ownerRole",
+        "reviewerRole",
+        "status",
+        "reviewedAt",
+        "dueAt",
+        "subjectCount",
+        "resourceCount",
+        "findingCount",
+        "exceptionCount",
+        "findingIds",
+        "exceptionRequestIds",
+        "remediationItemIds",
+        "ownerApprovals",
+        "sourceEventIds",
+        "version"
+      ],
       "properties": {
         "reviewId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "campaignId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
         "scope": { "type": "string", "minLength": 1 },
+        "ownerRole": { "type": "string", "minLength": 1 },
         "reviewerRole": { "type": "string", "minLength": 1 },
         "status": { "type": "string", "enum": ["completed", "planned"] },
         "reviewedAt": { "type": "string", "format": "date-time" },
+        "dueAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
         "subjectCount": { "type": "integer", "minimum": 0 },
         "resourceCount": { "type": "integer", "minimum": 0 },
         "findingCount": { "type": "integer", "minimum": 0 },
         "exceptionCount": { "type": "integer", "minimum": 0 },
+        "findingIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "exceptionRequestIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "remediationItemIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        },
+        "ownerApprovals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/governanceApproval" }
+        },
         "sourceEventIds": {
           "type": "array",
           "items": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
@@ -344,19 +383,109 @@
     "exceptionRecord": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "subjectId", "resourceId", "action", "reason", "status", "approverRole", "expiresAt", "reviewRequiredAt", "source"],
+      "required": [
+        "id",
+        "subjectId",
+        "resourceId",
+        "action",
+        "reason",
+        "status",
+        "requestStatus",
+        "requesterRole",
+        "ownerRole",
+        "approverRole",
+        "requestedAt",
+        "expiresAt",
+        "reviewRequiredAt",
+        "ownerApprovals",
+        "riskAcceptance",
+        "remediation",
+        "source",
+        "controlIds",
+        "evidenceRefs",
+        "version"
+      ],
       "properties": {
         "id": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
         "subjectId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
         "resourceId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
         "action": { "type": "string", "minLength": 1 },
         "reason": { "type": "string", "minLength": 1 },
-        "status": { "type": "string", "enum": ["open", "approved", "expired", "revoked"] },
+        "status": { "type": "string", "enum": ["open", "approved", "expired", "revoked", "remediated"] },
+        "requestStatus": { "type": "string", "enum": ["requested", "owner_approved", "risk_accepted", "expired", "revoked", "remediated"] },
+        "requesterRole": { "type": "string", "minLength": 1 },
+        "ownerRole": { "type": "string", "minLength": 1 },
         "approverRole": { "type": "string", "minLength": 1 },
+        "requestedAt": { "type": "string", "format": "date-time" },
         "expiresAt": { "type": "string", "format": "date-time" },
         "reviewRequiredAt": { "type": "string", "format": "date-time" },
+        "ownerApprovals": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/governanceApproval" }
+        },
+        "riskAcceptance": { "$ref": "#/$defs/riskAcceptance" },
+        "remediation": { "$ref": "#/$defs/remediationTracking" },
         "source": { "type": "string", "enum": ["drift", "access_review", "manual"] },
-        "sourceFindingId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
+        "findingId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "sourceFindingId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" },
+        "controlIds": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Z]{2}-[0-9]+(\\([0-9]+\\))?$" }
+        },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "governanceApproval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approverRole", "decision", "evidenceRefs"],
+      "properties": {
+        "approverRole": { "type": "string", "minLength": 1 },
+        "decision": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "decidedAt": { "type": "string", "format": "date-time" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "riskAcceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "rationale", "residualRisk", "expiresAt", "reviewRequiredAt", "evidenceRefs"],
+      "properties": {
+        "status": { "type": "string", "enum": ["pending", "accepted", "expired", "revoked"] },
+        "acceptedByRole": { "type": "string", "minLength": 1 },
+        "acceptedAt": { "type": "string", "format": "date-time" },
+        "rationale": { "type": "string", "minLength": 1 },
+        "residualRisk": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "reviewRequiredAt": { "type": "string", "format": "date-time" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "remediationTracking": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "ownerRole", "plan", "dueAt", "evidenceRefs", "poamItemId"],
+      "properties": {
+        "status": { "type": "string", "enum": ["open", "planned", "in_progress", "completed", "overdue"] },
+        "ownerRole": { "type": "string", "minLength": 1 },
+        "plan": { "type": "string", "minLength": 1 },
+        "dueAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "evidenceRefs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "poamItemId": { "type": "string", "pattern": "^[a-z0-9_:-]+$" }
       }
     },
     "operationalEvidence": {
