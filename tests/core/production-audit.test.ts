@@ -127,6 +127,19 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
     });
   });
 
+  it("validates each backing store collection once when opening the repository", () => {
+    const store = new CountingExternalAppendOnlyAuditStore();
+
+    createRepository(store);
+
+    expect(store.readCounts).toEqual({
+      auditRecords: 1,
+      evidenceRecords: 1,
+      signedWindows: 1,
+      siemDeliveries: 1
+    });
+  });
+
   it("rejects duplicate, out-of-order, and unredacted secret-bearing audit records before append", () => {
     const repository = createRepository();
     const [firstEvent] = createAuditEvents();
@@ -173,6 +186,23 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
 
       expect(() => repository.appendAuditEvent(event, "2026-05-26T06:13:00.000Z")).toThrow(
         "contains secret material and must be redacted"
+      );
+    }
+
+    const providerTokenPrefix = ["gh", "p_"].join("");
+    const jwtPrefix = ["ey", "J"].join("");
+    for (const secretValue of [
+      "oauth response accessToken: tenant-secret-value",
+      "provider returned api-key=tenant-secret-value",
+      `github token ${providerTokenPrefix}1234567890abcdef123456`,
+      `jwt=${jwtPrefix}hbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.dGVzdHNpZ25hdHVyZQ`
+    ]) {
+      const event = createNextEvent([firstEvent], `audit.secret_value_rejected.${secretValue.length}`, "2026-05-26T06:14:00.000Z", {
+        diagnostic: secretValue
+      });
+
+      expect(() => repository.appendAuditEvent(event, "2026-05-26T06:14:00.000Z")).toThrow(
+        "contains secret-looking material and must be redacted"
       );
     }
   });
@@ -445,4 +475,33 @@ function createEvidenceExport(events: AuditEvent[]): EvidenceExport {
     exceptionRegister: [],
     operationalEvidence: []
   });
+}
+
+class CountingExternalAppendOnlyAuditStore extends InMemoryExternalAppendOnlyAuditStore {
+  readCounts = {
+    auditRecords: 0,
+    evidenceRecords: 0,
+    signedWindows: 0,
+    siemDeliveries: 0
+  };
+
+  override readAuditRecords() {
+    this.readCounts.auditRecords += 1;
+    return super.readAuditRecords();
+  }
+
+  override readEvidenceRecords() {
+    this.readCounts.evidenceRecords += 1;
+    return super.readEvidenceRecords();
+  }
+
+  override readSignedWindows() {
+    this.readCounts.signedWindows += 1;
+    return super.readSignedWindows();
+  }
+
+  override readSiemDeliveries() {
+    this.readCounts.siemDeliveries += 1;
+    return super.readSiemDeliveries();
+  }
 }
