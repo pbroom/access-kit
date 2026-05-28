@@ -2087,17 +2087,34 @@ export class MicrosoftGraphEntraReadOnlyConnector implements ConnectorAdapter {
   }
 
   #baseWarnings(): DiscoveryRunWarning[] {
-    return this.#sandboxEvidenceRef
-      ? []
-      : [
-          {
-            code: "GRAPH_SANDBOX_EVIDENCE_REQUIRED",
-            message: "No live sandbox evidence reference is configured; retain a sandbox run artifact before claiming live-tenant verification.",
-            severity: "warning",
-            scope: "connector",
-            retryable: false
-          }
-        ];
+    const warnings: DiscoveryRunWarning[] = [
+      {
+        code: "GRAPH_CHANGE_NOTIFICATION_DELIVERY_UNSUPPORTED",
+        message: "Microsoft Graph webhook change notifications are not configured; Access Kit relies on redacted delta cursors and treats notification delivery coverage as unsupported.",
+        severity: "warning",
+        scope: "connector",
+        retryable: false
+      },
+      {
+        code: "GRAPH_POWER_PLATFORM_DATAVERSE_ROLE_MAPPING_UNSUPPORTED",
+        message: "Power Platform and Dataverse role mappings are outside the staged Microsoft Graph connector; provider-specific role coverage must remain an unsupported warning instead of becoming canonical access.",
+        severity: "warning",
+        scope: "native_grants",
+        retryable: false
+      }
+    ];
+
+    if (!this.#sandboxEvidenceRef) {
+      warnings.unshift({
+        code: "GRAPH_SANDBOX_EVIDENCE_REQUIRED",
+        message: "No live sandbox evidence reference is configured; retain a sandbox run artifact before claiming live-tenant verification.",
+        severity: "warning",
+        scope: "connector",
+        retryable: false
+      });
+    }
+
+    return warnings;
   }
 
   #warnMissingId(scope: DiscoveryRunWarning["scope"]): void {
@@ -2256,6 +2273,7 @@ function tombstoneAttributes(record: GraphDeltaCapableRecord): JsonRecord {
 }
 
 const SECURITY_RELEVANT_COVERAGE_WARNING_CODES = new Set([
+  "GRAPH_CHANGE_NOTIFICATION_DELIVERY_UNSUPPORTED",
   "GRAPH_COLLECTION_SKIPPED",
   "GRAPH_DELTA_TOKEN_MISSING",
   "GRAPH_DELTA_TOKEN_STALE",
@@ -2270,6 +2288,7 @@ const SECURITY_RELEVANT_COVERAGE_WARNING_CODES = new Set([
   "GRAPH_NATIVE_GRANT_SITE_USER_UNSUPPORTED",
   "GRAPH_NATIVE_GRANT_TARGET_UNSUPPORTED",
   "GRAPH_PAGE_LIMIT_REACHED",
+  "GRAPH_POWER_PLATFORM_DATAVERSE_ROLE_MAPPING_UNSUPPORTED",
   "GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS",
   "GRAPH_TEAM_CHANNEL_COVERAGE_UNSUPPORTED",
   "GRAPH_THROTTLE_RETRIED"

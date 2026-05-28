@@ -93,6 +93,18 @@ SharePoint sites are imported as `sharepoint_site` resources. Site and OneDrive 
 
 Coverage warnings are part of the contract. Group-backed Teams membership does not import private-channel, shared-channel, channel-specific, installed-app, or Teams permission-grant coverage. Microsoft Graph group-owner readback can also be incomplete for service-principal owners in some tenant or rollout states, so the connector emits `GRAPH_GROUP_OWNER_SERVICE_PRINCIPAL_VISIBILITY_LIMITED` rather than treating missing service principals as proof of no ownership. SharePoint and OneDrive inventory emits `GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS` when it records hierarchy inheritance markers without explicit permission readback, and empty or skipped site, drive, or folder reads remain warnings instead of canonical access facts. Stale or ambiguous incremental state is discarded before a read-only full resync, and security-relevant stale or incomplete provider coverage is surfaced as drift findings for review.
 
+The staged Microsoft provider semantics are consolidated as provider-specific facts and warnings:
+
+| Provider behavior | Access Kit treatment |
+| --- | --- |
+| Graph delta cursors and tombstones | Redacted cursor hashes, `mark_deleted` tombstones, stale-token recovery, and drift findings for ambiguous incremental state. |
+| Graph change notifications | Unsupported delivery coverage warning; delta sync remains the implemented read-only change signal until webhook delivery evidence exists. |
+| Microsoft 365 groups and Teams | Provider-specific workspace/team resources, group and team relationships, and native grants without converting collaboration membership into generic application access. |
+| SharePoint and OneDrive inheritance | Inventory resources carry explicit inheritance ambiguity markers and never mint canonical reader relationships from hierarchy alone. |
+| Guest and external users | Imported as redacted subjects with external-user attributes and native principal type rather than local user assumptions. |
+| Power Platform and Dataverse roles | Unsupported role-mapping warning until a reviewed read-only connector slice can prove least-privilege scope, tenant boundary, and native-role semantics. |
+| Partial sync recovery | Stale or ambiguous delta state is discarded before full read-only resync, and coverage gaps become reviewable drift findings. |
+
 The connector does not implement Graph writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled.
 
 ## AWS Read-Only Access-Analysis Foundation
