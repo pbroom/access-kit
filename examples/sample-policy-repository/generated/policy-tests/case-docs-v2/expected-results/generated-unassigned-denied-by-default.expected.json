@@ -1,7 +1,0 @@
-{
-  "decision": "deny",
-  "reasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH",
-  "policyVersion": "policy:case-docs-v2",
-  "relationshipVersion": "generated:tuple-set:case-docs-v2",
-  "relationshipPath": []
-}

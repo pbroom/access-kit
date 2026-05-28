@@ -1,9 +1,9 @@
 {
-  "schemaVersion": "access-kit.generated-policy-tests.v1",
+  "schemaVersion": "access-kit.generated-policy-tests.v2",
   "repositoryId": "sample-policy-repository:case-docs",
   "generatedAt": "2026-05-26T12:00:00.000Z",
   "generator": "scripts/generate-policy-tests.ts",
-  "reviewNotice": "Generated starter policy tests are review aids only and cannot replace explicit deny, boundary, and abuse-case coverage.",
+  "reviewNotice": "Generated starter policy tests supplement explicit abuse and boundary tests; they are review aids only and cannot replace hand-authored deny, tenant-boundary, classification, revocation, or abuse coverage.",
   "suites": [
     {
       "policyVersion": "policy:case-docs-v1",
@@ -11,18 +11,21 @@
       "modelPath": "models/case-docs.v1.json",
       "tupleFixturePath": "generated/policy-tests/case-docs-v1/tuple-fixture.json",
       "authorizationTestsPath": "generated/policy-tests/case-docs-v1/authorization-tests.json",
-      "exampleRequestPaths": [
-        "generated/policy-tests/case-docs-v1/example-requests/generated-reviewer-read-allowed.request.json",
-        "generated/policy-tests/case-docs-v1/example-requests/generated-unassigned-denied-by-default.request.json",
-        "generated/policy-tests/case-docs-v1/example-requests/generated-cross-tenant-denied.request.json",
-        "generated/policy-tests/case-docs-v1/example-requests/generated-explicit-deny-overrides-allow.request.json"
-      ],
-      "expectedResultPaths": [
-        "generated/policy-tests/case-docs-v1/expected-results/generated-reviewer-read-allowed.expected.json",
-        "generated/policy-tests/case-docs-v1/expected-results/generated-unassigned-denied-by-default.expected.json",
-        "generated/policy-tests/case-docs-v1/expected-results/generated-cross-tenant-denied.expected.json",
-        "generated/policy-tests/case-docs-v1/expected-results/generated-explicit-deny-overrides-allow.expected.json"
-      ]
+      "derivativeArtifacts": {
+        "materializedDuringValidation": true,
+        "exampleRequestPaths": [
+          "generated/policy-tests/case-docs-v1/example-requests/generated-reviewer-read-allowed.request.json",
+          "generated/policy-tests/case-docs-v1/example-requests/generated-unassigned-denied-by-default.request.json",
+          "generated/policy-tests/case-docs-v1/example-requests/generated-cross-tenant-denied.request.json",
+          "generated/policy-tests/case-docs-v1/example-requests/generated-explicit-deny-overrides-allow.request.json"
+        ],
+        "expectedResultPaths": [
+          "generated/policy-tests/case-docs-v1/expected-results/generated-reviewer-read-allowed.expected.json",
+          "generated/policy-tests/case-docs-v1/expected-results/generated-unassigned-denied-by-default.expected.json",
+          "generated/policy-tests/case-docs-v1/expected-results/generated-cross-tenant-denied.expected.json",
+          "generated/policy-tests/case-docs-v1/expected-results/generated-explicit-deny-overrides-allow.expected.json"
+        ]
+      }
     },
     {
       "policyVersion": "policy:case-docs-v2",
@@ -30,20 +33,23 @@
       "modelPath": "models/case-docs.v2.json",
       "tupleFixturePath": "generated/policy-tests/case-docs-v2/tuple-fixture.json",
       "authorizationTestsPath": "generated/policy-tests/case-docs-v2/authorization-tests.json",
-      "exampleRequestPaths": [
-        "generated/policy-tests/case-docs-v2/example-requests/generated-reviewer-read-allowed.request.json",
-        "generated/policy-tests/case-docs-v2/example-requests/generated-unassigned-denied-by-default.request.json",
-        "generated/policy-tests/case-docs-v2/example-requests/generated-cross-tenant-denied.request.json",
-        "generated/policy-tests/case-docs-v2/example-requests/generated-explicit-deny-overrides-allow.request.json",
-        "generated/policy-tests/case-docs-v2/example-requests/generated-restricted-write-denied.request.json"
-      ],
-      "expectedResultPaths": [
-        "generated/policy-tests/case-docs-v2/expected-results/generated-reviewer-read-allowed.expected.json",
-        "generated/policy-tests/case-docs-v2/expected-results/generated-unassigned-denied-by-default.expected.json",
-        "generated/policy-tests/case-docs-v2/expected-results/generated-cross-tenant-denied.expected.json",
-        "generated/policy-tests/case-docs-v2/expected-results/generated-explicit-deny-overrides-allow.expected.json",
-        "generated/policy-tests/case-docs-v2/expected-results/generated-restricted-write-denied.expected.json"
-      ]
+      "derivativeArtifacts": {
+        "materializedDuringValidation": true,
+        "exampleRequestPaths": [
+          "generated/policy-tests/case-docs-v2/example-requests/generated-reviewer-read-allowed.request.json",
+          "generated/policy-tests/case-docs-v2/example-requests/generated-unassigned-denied-by-default.request.json",
+          "generated/policy-tests/case-docs-v2/example-requests/generated-cross-tenant-denied.request.json",
+          "generated/policy-tests/case-docs-v2/example-requests/generated-explicit-deny-overrides-allow.request.json",
+          "generated/policy-tests/case-docs-v2/example-requests/generated-restricted-write-denied.request.json"
+        ],
+        "expectedResultPaths": [
+          "generated/policy-tests/case-docs-v2/expected-results/generated-reviewer-read-allowed.expected.json",
+          "generated/policy-tests/case-docs-v2/expected-results/generated-unassigned-denied-by-default.expected.json",
+          "generated/policy-tests/case-docs-v2/expected-results/generated-cross-tenant-denied.expected.json",
+          "generated/policy-tests/case-docs-v2/expected-results/generated-explicit-deny-overrides-allow.expected.json",
+          "generated/policy-tests/case-docs-v2/expected-results/generated-restricted-write-denied.expected.json"
+        ]
+      }
     },
     {
       "policyVersion": "policy:case-docs-v3",
@@ -51,20 +57,23 @@
       "modelPath": "models/case-docs.v3.json",
       "tupleFixturePath": "generated/policy-tests/case-docs-v3/tuple-fixture.json",
       "authorizationTestsPath": "generated/policy-tests/case-docs-v3/authorization-tests.json",
-      "exampleRequestPaths": [
-        "generated/policy-tests/case-docs-v3/example-requests/generated-reviewer-read-allowed.request.json",
-        "generated/policy-tests/case-docs-v3/example-requests/generated-unassigned-denied-by-default.request.json",
-        "generated/policy-tests/case-docs-v3/example-requests/generated-cross-tenant-denied.request.json",
-        "generated/policy-tests/case-docs-v3/example-requests/generated-explicit-deny-overrides-allow.request.json",
-        "generated/policy-tests/case-docs-v3/example-requests/generated-restricted-write-denied.request.json"
-      ],
-      "expectedResultPaths": [
-        "generated/policy-tests/case-docs-v3/expected-results/generated-reviewer-read-allowed.expected.json",
-        "generated/policy-tests/case-docs-v3/expected-results/generated-unassigned-denied-by-default.expected.json",
-        "generated/policy-tests/case-docs-v3/expected-results/generated-cross-tenant-denied.expected.json",
-        "generated/policy-tests/case-docs-v3/expected-results/generated-explicit-deny-overrides-allow.expected.json",
-        "generated/policy-tests/case-docs-v3/expected-results/generated-restricted-write-denied.expected.json"
-      ]
+      "derivativeArtifacts": {
+        "materializedDuringValidation": true,
+        "exampleRequestPaths": [
+          "generated/policy-tests/case-docs-v3/example-requests/generated-reviewer-read-allowed.request.json",
+          "generated/policy-tests/case-docs-v3/example-requests/generated-unassigned-denied-by-default.request.json",
+          "generated/policy-tests/case-docs-v3/example-requests/generated-cross-tenant-denied.request.json",
+          "generated/policy-tests/case-docs-v3/example-requests/generated-explicit-deny-overrides-allow.request.json",
+          "generated/policy-tests/case-docs-v3/example-requests/generated-restricted-write-denied.request.json"
+        ],
+        "expectedResultPaths": [
+          "generated/policy-tests/case-docs-v3/expected-results/generated-reviewer-read-allowed.expected.json",
+          "generated/policy-tests/case-docs-v3/expected-results/generated-unassigned-denied-by-default.expected.json",
+          "generated/policy-tests/case-docs-v3/expected-results/generated-cross-tenant-denied.expected.json",
+          "generated/policy-tests/case-docs-v3/expected-results/generated-explicit-deny-overrides-allow.expected.json",
+          "generated/policy-tests/case-docs-v3/expected-results/generated-restricted-write-denied.expected.json"
+        ]
+      }
     }
   ],
   "migrationRegressionSnapshots": [

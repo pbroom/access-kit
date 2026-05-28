@@ -14,7 +14,7 @@ The data is synthetic. It does not include live tenant IDs, emails, secrets, pro
 | `fixtures/tuple-sets/*.json` | Synthetic subjects, resources, and relationship tuples for pinned relationship versions. |
 | `snapshots/regression/*.json` | Authorization regression expectations for pinned policy and tuple versions. |
 | `generated/api/**` | Generated decision-check request and expected response examples derived from regression snapshots. |
-| `generated/policy-tests/**` | Generated starter authorization tests, tuple fixtures, example requests, expected results, and migration review snapshots derived from model definitions. |
+| `generated/policy-tests/**` | Compact generated starter authorization tests, tuple fixtures, and migration review snapshots derived from model definitions. Validation materializes derivative request and expected-result files in temporary output. |
 | `.github/workflows/policy-tests.yml` | Copyable workflow showing how to run policy tests in CI. |
 
 ## Validate
@@ -34,7 +34,7 @@ pnpm generate:policy-tests
 pnpm validate:generated-policy-tests
 ```
 
-Generated starter artifacts are review aids only. They help authors bootstrap request and expected-result coverage, but they do not replace hand-authored deny, boundary, revocation, and abuse-case tests.
+Generated starter artifacts supplement explicit abuse and boundary tests. They help authors bootstrap request and expected-result coverage, but they do not replace hand-authored deny, boundary, revocation, and abuse-case tests.
 
 ## Adaptation Rules
 

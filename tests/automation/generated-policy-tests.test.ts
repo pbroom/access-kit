@@ -5,13 +5,15 @@ import { describe, expect, it } from "vitest";
 import {
   compareGeneratedPolicyTestArtifacts,
   GENERATED_POLICY_REVIEW_NOTICE,
-  generatePolicyTestArtifacts
+  generatePolicyTestArtifacts,
+  materializeGeneratedPolicyTestDerivativeArtifacts
 } from "../../scripts/lib/generated-policy-tests.js";
 
 describe("generated policy test artifacts", () => {
-  it("builds starter authorization tests, tuple fixtures, requests, and expected results from each sample model", async () => {
+  it("builds compact starter authorization tests and temp materialized derivatives from each sample model", async () => {
     const generated = await generatePolicyTestArtifacts({ root: process.cwd() });
     const v3Suite = generated.suites.find((suite) => suite.source.modelVersion === "policy:case-docs-v3");
+    const v3ManifestSuite = generated.manifest.suites.find((suite) => suite.policyVersion === "policy:case-docs-v3");
 
     expect(generated.suites).toHaveLength(3);
     expect(v3Suite).toBeDefined();
@@ -44,11 +46,53 @@ describe("generated policy test artifacts", () => {
       expect.arrayContaining([
         "generated/policy-tests/manifest.json",
         "generated/policy-tests/case-docs-v3/tuple-fixture.json",
-        "generated/policy-tests/case-docs-v3/authorization-tests.json",
+        "generated/policy-tests/case-docs-v3/authorization-tests.json"
+      ])
+    );
+    expect(generated.files.map((file) => file.path)).not.toContain(
+      "generated/policy-tests/case-docs-v3/example-requests/generated-reviewer-read-allowed.request.json"
+    );
+    expect(v3ManifestSuite?.derivativeArtifacts).toMatchObject({
+      materializedDuringValidation: true,
+      exampleRequestPaths: expect.arrayContaining([
+        "generated/policy-tests/case-docs-v3/example-requests/generated-reviewer-read-allowed.request.json"
+      ]),
+      expectedResultPaths: expect.arrayContaining([
+        "generated/policy-tests/case-docs-v3/expected-results/generated-reviewer-read-allowed.expected.json"
+      ])
+    });
+    expect(generated.derivativeFiles.map((file) => file.path)).toEqual(
+      expect.arrayContaining([
         "generated/policy-tests/case-docs-v3/example-requests/generated-reviewer-read-allowed.request.json",
         "generated/policy-tests/case-docs-v3/expected-results/generated-reviewer-read-allowed.expected.json"
       ])
     );
+  });
+
+  it("materializes derivative requests and expected results into a temporary output root", async () => {
+    const tempRoot = await mkdtemp(join(tmpdir(), "access-kit-policy-test-derivatives-"));
+    const requestPath = "generated/policy-tests/case-docs-v3/example-requests/generated-reviewer-read-allowed.request.json";
+    const expectedPath = "generated/policy-tests/case-docs-v3/expected-results/generated-reviewer-read-allowed.expected.json";
+
+    try {
+      const generated = await generatePolicyTestArtifacts({ root: process.cwd() });
+      const materialized = await materializeGeneratedPolicyTestDerivativeArtifacts({
+        root: process.cwd(),
+        outputRoot: tempRoot
+      });
+      const generatedTest = generated.suites
+        .find((suite) => suite.source.modelVersion === "policy:case-docs-v3")
+        ?.authorizationTests.find((test) => test.slug === "generated-reviewer-read-allowed");
+
+      expect(materialized.outputRoot).toBe(tempRoot);
+      expect(materialized.files.map((file) => file.path)).toEqual(
+        expect.arrayContaining([requestPath, expectedPath])
+      );
+      expect(JSON.parse(await readFile(join(tempRoot, requestPath), "utf8"))).toEqual(generatedTest?.request);
+      expect(JSON.parse(await readFile(join(tempRoot, expectedPath), "utf8"))).toEqual(generatedTest?.expected);
+    } finally {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it("binds generated classification-boundary cases to the expected policy control", async () => {
