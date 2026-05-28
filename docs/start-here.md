@@ -64,5 +64,5 @@ pnpm ci:check
 
 - All examples are synthetic.
 - Live tenant identifiers, emails, secrets, access tokens, customer names, production logs, and sensitive architecture details are out of scope.
-- Synthetic Entra ID, SharePoint, and AWS-style connectors prove contract shape only.
+- Synthetic Entra ID, SharePoint, and AWS-style connectors prove contract shape only; the optional Microsoft Graph sandbox connector now stages live read-only Entra, M365/Teams, SharePoint, and OneDrive inventory with redacted evidence and coverage warnings.
 - Production deployments must replace local proof points with deployment-specific diagrams, retention controls, operational approvals, and assessor-reviewed control statements.

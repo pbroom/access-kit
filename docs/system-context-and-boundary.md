@@ -63,7 +63,7 @@ flowchart LR
 2. Evaluation: API loads canonical subject, resource, and active relationship facts, applies deterministic policy logic, and records the decision.
 3. Explanation: `explain` includes the relationship path and constraints used for review.
 4. Provisioning: API creates a plan and job evidence; dry-run skips provider writes.
-5. Discovery: connector sync reads synthetic inventory and native grants into discovery and native-grant records; the optional Microsoft Graph Entra connector can read a sandbox tenant only when explicitly configured and stores redacted identifiers.
+5. Discovery: connector sync reads synthetic inventory and native grants into discovery and native-grant records; the optional Microsoft Graph connector can read a sandbox tenant only when explicitly configured and stores redacted Entra, M365/Teams, SharePoint, and OneDrive identifiers.
 6. Reconciliation: native grants are compared to intended access and produce drift findings.
 7. Audit and evidence: events are hash chained, exported, mapped to controls, retained through immutable adapter receipts when configured, and tied to SIEM delivery or replay records when a forwarder is used.
 8. Admin authorization readiness: the runtime reports whether local bearer-token proof points have been replaced by an evidenced IdP or mTLS gateway, separate admin ReBAC policy, secrets-manager references, break-glass approval, incident notifications, and post-action review evidence.

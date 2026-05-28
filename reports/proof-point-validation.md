@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-05-28T03:01:06.029Z
+Generated at: 2026-05-28T03:05:27.360Z
 
-Branch: codex/rebac-microsoft-m365-teams
+Branch: codex/rebac-microsoft-sharepoint-onedrive
 
 Node: v24.4.1
 
@@ -36,14 +36,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-schemas.ts
 
 Validated 18 schemas and 18 example fixtures.
@@ -70,10 +70,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-microsoft-m365-teams/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -85,7 +85,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -108,7 +108,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -121,23 +121,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 
 
  Test Files  1 passed (1)
       Tests  5 passed (5)
-   Start at  23:01:00
-   Duration  272ms (transform 126ms, setup 0ms, import 201ms, tests 20ms, environment 0ms)
+   Start at  23:05:22
+   Duration  271ms (transform 127ms, setup 0ms, import 200ms, tests 19ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -148,7 +148,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -159,7 +159,7 @@ PASS Container release workflow builds runtime image with SBOM/provenance, regis
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -170,7 +170,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -181,7 +181,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -192,7 +192,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -203,61 +203,61 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 
 
  Test Files  10 passed (10)
       Tests  148 passed (148)
-   Start at  23:01:03
-   Duration  223ms (transform 769ms, setup 0ms, import 1.08s, tests 100ms, environment 0ms)
+   Start at  23:05:24
+   Duration  224ms (transform 769ms, setup 0ms, import 1.09s, tests 104ms, environment 0ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 
 
  Test Files  4 passed (4)
       Tests  107 passed (107)
-   Start at  23:01:04
-   Duration  492ms (transform 500ms, setup 0ms, import 740ms, tests 252ms, environment 0ms)
+   Start at  23:05:25
+   Duration  492ms (transform 465ms, setup 0ms, import 738ms, tests 251ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 
 
  Test Files  3 passed (3)
-      Tests  38 passed (38)
-   Start at  23:01:04
-   Duration  214ms (transform 297ms, setup 0ms, import 412ms, tests 45ms, environment 0ms)
+      Tests  39 passed (39)
+   Start at  23:05:26
+   Duration  216ms (transform 298ms, setup 0ms, import 416ms, tests 46ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-microsoft-m365-teams
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-sharepoint-onedrive
 
 
  Test Files  3 passed (3)
       Tests  35 passed (35)
-   Start at  23:01:05
-   Duration  308ms (transform 357ms, setup 0ms, import 602ms, tests 106ms, environment 0ms)
+   Start at  23:05:26
+   Duration  308ms (transform 347ms, setup 0ms, import 606ms, tests 103ms, environment 0ms)
 ```
 
 
@@ -277,7 +277,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
 - Secure SDLC release evidence validation for SAST, DAST, dependency scanning, SBOM/provenance, fuzzing, tenant-isolation abuse tests, threat-model refresh, vulnerability triage, and NIST SSDF evidence.
 - Local core engine tests for deterministic check/explain, decision audit emission, shared graph and connector-state repository conformance across in-memory, local JSON, production external, and production queue adapters, local JSON graph persistence and tamper checks, local append-only audit persistence and tamper findings, local JSON job persistence and idempotency lookups, production graph, connector-state, queue, and audit/evidence tenant/secret/backup checks, production audit signed windows, SIEM delivery monitoring, replay, immutable evidence receipts, tamper detection, queue idempotency, priority, retry, dead-letter, replay, connector-health semantics, admin authorization readiness for IdP or mTLS gateway controls, internal admin ReBAC, secrets-manager references, break-glass, incident notification, and post-action review, persistence-readiness gates for graph, audit, and job backends, and production persistence manifest readiness checks.
 - API runtime tests for health, readiness probes, optional bearer-token API guarding, audited authentication failures, admin authorization readiness reporting without token, claim, header, certificate, connector, or secret leakage, decision, relationship write audit, read-only mock and synthetic provider connector discovery, repository-backed discovery run history, native access filtering, drift finding and reconciliation recovery, dry-run provisioning jobs, enforcement-readiness reports, controlled synthetic enforcement guardrails, audit integrity, SIEM-ready audit export, local file-backed audit/evidence storage, production audit/evidence adapter runtime persistence, restartable JSON runtime state snapshots, API service runtime config, complete local ATO evidence packaging, access-review and exception evidence, idempotent job replay, reconciliation, queued discovery, queued provisioning, queued evidence, queued revocation, and execution-time queue enforcement revalidation.
-- Connector package tests for Microsoft Graph Entra, Microsoft 365 group and Teams coupling, ownership, AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
+- Connector package tests for Microsoft Graph Entra, Microsoft 365 group and Teams coupling, SharePoint and OneDrive inventory, inheritance markers, coverage warnings, ownership, AWS read-only inventory, native grants, pagination, throttling, redaction, no-write, security-gate, and optional runtime-registration behavior, plus the sample read-only connector template for synthetic fixtures, tombstones, stale-grant replacement, redacted evidence, fail-closed provisioning hooks, and intentional security-gate registration.
 - CLI API smoke tests for operator, CI/CD, assessor, audit-integrity, SIEM-ready audit export, ATO evidence export, dry-run provisioning, connector readiness, and controlled synthetic enforcement surfaces calling the API.
 - Generated API client tests for bearer authentication, idempotency headers, fail-closed protected calls, and retry-after error propagation.
 
@@ -290,7 +290,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-microsoft-m365-teams
 - Replace local release and deployment-manifest proof points with environment-specific registry promotion approvals, enforced signed-image admission, IaC overlays for ingress/certificates/storage/networking, identity-provider-backed authentication, and operator authorization.
 - Replace local bearer-token admin proof points with environment-specific IdP or mTLS gateway deployment, trusted identity propagation, separate admin ReBAC policy, secrets-manager integration, incident-mode notifications, break-glass approval, post-action review evidence, and request-scoped admin actor binding.
 - Replace local audit integrity, SIEM-ready audit exports, JSON snapshots, local append-only audit proof points, and adapter-level SIEM delivery metadata with deployment-specific durable audit storage, approved SIEM forwarding, retention, alert routing, and replay evidence.
-- Retain live Microsoft Graph and AWS sandbox evidence for environment-specific verification, and replace remaining synthetic SharePoint readback fixtures with live read-only connector discovery after connector security review.
+- Retain live Microsoft Graph and AWS sandbox evidence for environment-specific verification, and replace remaining synthetic SharePoint, OneDrive, and AWS-style readback fixtures with live read-only connector discovery after connector security review.
 - Select and configure environment-specific production connector-state storage behind the production connector-state adapter for discovery runs, native-grant readback, drift findings, and reconciliation evidence.
 - Deploy managed queue workers with production monitoring, retry, dead-letter, replay, and emergency revocation operating procedures.
 - Extend enforcement beyond the synthetic mock connector only after approval workflow, rollback, operational runbooks, emergency revocation behavior, and connector least-privilege review are complete.

@@ -21,6 +21,7 @@ import { validateConnectorSecurityGate } from "../../scripts/validate-connector-
 
 const now = "2026-05-26T12:00:00.000Z";
 const noSleep = async (): Promise<void> => {};
+const driveItemSelect = "id,name,webUrl,parentReference,folder,file,package,deleted,size,createdDateTime,lastModifiedDateTime";
 
 class FixtureGraphClient implements MicrosoftGraphReadClient {
   readonly calls: string[] = [];
@@ -254,6 +255,108 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       .not.toContain("GRAPH_M365_GROUP_WITHOUT_TEAM");
   });
 
+  it("imports redacted SharePoint and OneDrive inventory without granting canonical access", async () => {
+    const client = createSharePointOneDriveFixtureClient();
+    const connector = new MicrosoftGraphEntraReadOnlyConnector({
+      client,
+      tenantId: "tenant-live-123",
+      now: () => now,
+      sleep: noSleep,
+      sandboxEvidenceRef: "reports/microsoft-graph-sharepoint-onedrive-sandbox-fixture.json"
+    });
+
+    const resources = await connector.discoverResources();
+    const relationships = await connector.discoverRelationships();
+    const metadata = connector.getDiscoveryMetadata();
+    const site = resources.find((resource) => resource.type === "sharepoint_site");
+    const drives = resources.filter((resource) => resource.type === "workspace" && resource.attributes?.graphType === "drive");
+    const folder = resources.find((resource) => resource.type === "folder");
+    const documents = resources.filter((resource) => resource.type === "document");
+    const serialized = JSON.stringify({ resources, relationships, metadata });
+
+    expect(site).toEqual(expect.objectContaining({
+      type: "sharepoint_site",
+      sourceSystem: MICROSOFT_GRAPH_ENTRA_CONNECTOR_ID,
+      attributes: expect.objectContaining({
+        graphType: "site",
+        siteKind: "sharepoint_site",
+        redacted: true
+      })
+    }));
+    expect(drives).toHaveLength(2);
+    expect(drives).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        parentId: site!.id,
+        attributes: expect.objectContaining({
+          inventorySource: "sharepoint_site",
+          inheritanceAmbiguous: true,
+          canonicalAccessGranted: false
+        })
+      }),
+      expect.objectContaining({
+        attributes: expect.objectContaining({
+          inventorySource: "onedrive_user",
+          ownerSubjectId: expect.stringMatching(/^user:entra:/),
+          inheritanceAmbiguous: true,
+          canonicalAccessGranted: false
+        })
+      })
+    ]));
+    expect(folder).toEqual(expect.objectContaining({
+      parentId: expect.stringMatching(/^workspace:microsoft-graph-drive:/),
+      attributes: expect.objectContaining({
+        itemFacet: "folder",
+        inheritedFromObjectId: expect.stringMatching(/^workspace:microsoft-graph-drive:/),
+        inheritanceMarker: "provider_permissions_deferred_to_native_grant_readback",
+        canonicalAccessGranted: false
+      })
+    }));
+    expect(documents).toHaveLength(3);
+    expect(metadata.warnings.map((warning) => warning.code)).toEqual(expect.arrayContaining([
+      "GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS"
+    ]));
+    expect(metadata.warnings
+      .filter((warning) => warning.code === "GRAPH_SHAREPOINT_ONEDRIVE_INHERITANCE_AMBIGUOUS")
+      .map((warning) => warning.objectId)
+    ).toEqual(expect.arrayContaining(resources
+      .filter((resource) => resource.attributes?.inheritanceAmbiguous === true)
+      .map((resource) => resource.id)));
+    const oneDriveEnumerationWarnings = metadata.warnings
+      .filter((warning) => warning.code === "GRAPH_ONEDRIVE_USER_ENUMERATION_SEQUENTIAL");
+    expect(oneDriveEnumerationWarnings).toHaveLength(1);
+    expect(oneDriveEnumerationWarnings[0]).not.toHaveProperty("objectId");
+    expect(relationships.map((relationship) => relationship.relation)).not.toEqual(expect.arrayContaining([
+      "sharepoint_reader",
+      "onedrive_reader",
+      "file_reader"
+    ]));
+    for (const resource of resources.filter((candidate) => [
+      "sharepoint_site",
+      "workspace",
+      "folder",
+      "document"
+    ].includes(candidate.type))) {
+      await expect(connector.readCurrentAccess(resource.id)).resolves.toEqual([]);
+    }
+    expect(client.calls).toEqual(expect.arrayContaining([
+      "/sites?$select=id,name,displayName,webUrl,isPersonalSite,root,siteCollection",
+      "/sites/raw-site-1/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds",
+      `/drives/raw-drive-site/root/children?$select=${driveItemSelect}`,
+      `/drives/raw-drive-site/items/raw-folder-1/children?$select=${driveItemSelect}`,
+      "/users/raw-user-owner/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds",
+      `/drives/raw-onedrive-1/root/children?$select=${driveItemSelect}`
+    ]));
+    expect(serialized).not.toContain("tenant-live-123");
+    expect(serialized).not.toContain("raw-site-1");
+    expect(serialized).not.toContain("raw-drive-site");
+    expect(serialized).not.toContain("raw-onedrive-1");
+    expect(serialized).not.toContain("Case Documents");
+    expect(serialized).not.toContain("Sensitive Case Plan.docx");
+    expect(serialized).not.toContain("Personal Notes.txt");
+    expect(serialized).not.toContain("owner@example.test");
+    expect(serialized).not.toContain("contoso.sharepoint.test");
+  });
+
   it("keeps live provider writes disabled even when provisioning hooks are called", async () => {
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
       client: createFixtureClient(),
@@ -439,7 +542,8 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       ],
       "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
         { value: [], status: 200 }
-      ]
+      ],
+      ...createEmptySharePointOneDriveInventory(["raw-user-1"])
     });
     const sleeps: number[] = [];
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
@@ -473,7 +577,8 @@ describe("MicrosoftGraphEntraReadOnlyConnector", () => {
       ],
       "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
         { value: [], status: 200 }
-      ]
+      ],
+      ...createEmptySharePointOneDriveInventory(["raw-user-1"])
     });
     const sleeps: number[] = [];
     const connector = new MicrosoftGraphEntraReadOnlyConnector({
@@ -622,7 +727,8 @@ function createFixtureClient(): FixtureGraphClient {
         ],
         status: 200
       }
-    ]
+    ],
+    ...createEmptySharePointOneDriveInventory(["raw-user-1", "raw-user-2"])
   });
 }
 
@@ -699,7 +805,8 @@ function createM365TeamsFixtureClient(ownerObjects: Array<Record<string, unknown
     ],
     "/servicePrincipals/raw-sp-bot/appRoleAssignedTo?$select=id,principalId,principalType,principalDisplayName,resourceId,resourceDisplayName,appRoleId,createdDateTime": [
       { value: [], status: 200 }
-    ]
+    ],
+    ...createEmptySharePointOneDriveInventory(["raw-user-owner", "raw-user-member"])
   }, {
     "/teams/raw-m365-group-1?$select=id,displayName,description,webUrl,isArchived,visibility": [
       {
@@ -715,6 +822,148 @@ function createM365TeamsFixtureClient(ownerObjects: Array<Record<string, unknown
       }
     ]
   });
+}
+
+function createSharePointOneDriveFixtureClient(): FixtureGraphClient {
+  return new FixtureGraphClient({
+    "/users?$select=id,displayName,userPrincipalName,accountEnabled,userType,externalUserState,deletedDateTime": [
+      {
+        value: [
+          {
+            id: "raw-user-owner",
+            displayName: "Owner Example",
+            userPrincipalName: "owner@example.test",
+            accountEnabled: true,
+            userType: "Member"
+          }
+        ],
+        status: 200
+      }
+    ],
+    "/groups?$select=id,displayName,securityEnabled,mailEnabled,visibility,groupTypes,resourceProvisioningOptions,deletedDateTime": [
+      { value: [], status: 200 }
+    ],
+    "/servicePrincipals?$select=id,displayName,appId,servicePrincipalType,appRoles,deletedDateTime": [
+      { value: [], status: 200 }
+    ],
+    "/sites?$select=id,name,displayName,webUrl,isPersonalSite,root,siteCollection": [
+      {
+        value: [
+          {
+            id: "raw-site-1",
+            name: "Case Site",
+            displayName: "Case Site",
+            webUrl: "https://contoso.sharepoint.test/sites/cases",
+            isPersonalSite: false,
+            root: {},
+            siteCollection: {
+              hostname: "contoso.sharepoint.test",
+              dataLocationCode: "NAM",
+              root: {}
+            }
+          }
+        ],
+        status: 200
+      }
+    ],
+    "/sites/raw-site-1/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds": [
+      {
+        value: [
+          {
+            id: "raw-drive-site",
+            name: "Case Documents",
+            driveType: "documentLibrary",
+            webUrl: "https://contoso.sharepoint.test/sites/cases/Shared%20Documents",
+            owner: { group: { id: "raw-group-sharepoint" } },
+            quota: { state: "normal", total: 1000 },
+            sharePointIds: { siteId: "raw-site-1", webId: "raw-web-1", listId: "raw-list-1" }
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/drives/raw-drive-site/root/children?$select=${driveItemSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-folder-1",
+            name: "Case Folder",
+            webUrl: "https://contoso.sharepoint.test/sites/cases/Shared%20Documents/Case%20Folder",
+            folder: { childCount: 1 },
+            parentReference: { driveId: "raw-drive-site", id: "root", siteId: "raw-site-1", path: "/drive/root:" }
+          },
+          {
+            id: "raw-file-1",
+            name: "Sensitive Case Plan.docx",
+            webUrl: "https://contoso.sharepoint.test/sites/cases/Shared%20Documents/Sensitive%20Case%20Plan.docx",
+            file: { mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+            size: 42,
+            parentReference: { driveId: "raw-drive-site", id: "root", siteId: "raw-site-1", path: "/drive/root:" }
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/drives/raw-drive-site/items/raw-folder-1/children?$select=${driveItemSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-file-2",
+            name: "Nested Evidence.pdf",
+            webUrl: "https://contoso.sharepoint.test/sites/cases/Shared%20Documents/Case%20Folder/Nested%20Evidence.pdf",
+            file: { mimeType: "application/pdf" },
+            size: 7,
+            parentReference: { driveId: "raw-drive-site", id: "raw-folder-1", siteId: "raw-site-1", path: "/drive/root:/Case Folder" }
+          }
+        ],
+        status: 200
+      }
+    ],
+    "/users/raw-user-owner/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds": [
+      {
+        value: [
+          {
+            id: "raw-onedrive-1",
+            name: "Owner OneDrive",
+            driveType: "business",
+            webUrl: "https://contoso-my.sharepoint.test/personal/owner",
+            owner: { user: { id: "raw-user-owner", displayName: "Owner Example" } },
+            quota: { state: "normal", total: 500 }
+          }
+        ],
+        status: 200
+      }
+    ],
+    [`/drives/raw-onedrive-1/root/children?$select=${driveItemSelect}`]: [
+      {
+        value: [
+          {
+            id: "raw-onedrive-file-1",
+            name: "Personal Notes.txt",
+            webUrl: "https://contoso-my.sharepoint.test/personal/owner/Documents/Personal%20Notes.txt",
+            file: { mimeType: "text/plain" },
+            size: 5,
+            parentReference: { driveId: "raw-onedrive-1", id: "root", path: "/drive/root:" }
+          }
+        ],
+        status: 200
+      }
+    ]
+  });
+}
+
+function createEmptySharePointOneDriveInventory(userIds: string[], runs = 1): Record<string, Array<MicrosoftGraphCollectionPage<unknown>>> {
+  return {
+    "/sites?$select=id,name,displayName,webUrl,isPersonalSite,root,siteCollection": repeatedEmptyPages(runs),
+    ...Object.fromEntries(userIds.map((userId) => [
+      `/users/${userId}/drives?$select=id,name,driveType,webUrl,createdDateTime,lastModifiedDateTime,owner,quota,sharePointIds`,
+      repeatedEmptyPages(runs)
+    ]))
+  };
+}
+
+function repeatedEmptyPages(count: number): Array<MicrosoftGraphCollectionPage<unknown>> {
+  return Array.from({ length: count }, () => ({ value: [], status: 200 }));
 }
 
 function createAuditEvent(eventId: string, occurredAt: string): AuditEvent {
@@ -777,7 +1026,8 @@ function createTwoSyncFixtureClient(): FixtureGraphClient {
         status: 200
       },
       { value: [], status: 200 }
-    ]
+    ],
+    ...createEmptySharePointOneDriveInventory(["raw-user-1"], 2)
   });
 }
 
@@ -829,6 +1079,7 @@ function createPartialSecondSyncFixtureClient(): FixtureGraphClient {
         status: 200
       },
       { value: [], status: 503 }
-    ]
+    ],
+    ...createEmptySharePointOneDriveInventory(["raw-user-1"], 2)
   });
 }
