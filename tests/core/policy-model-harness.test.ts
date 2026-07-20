@@ -48,11 +48,11 @@ describe("policy model test harness", () => {
         expectedCheck: "resource_parent_types_known"
       },
       {
-        name: "missing canonical relation",
+        name: "missing relation referenced by inheritance rules",
         mutate: (model) => {
           model.relations = model.relations.filter((relation) => relation.name !== "member_of");
         },
-        expectedCheck: "canonical_relations_present"
+        expectedCheck: "inheritance_relations_known"
       },
       {
         name: "empty action grants",

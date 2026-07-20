@@ -23,10 +23,13 @@ import {
   type DecisionTraversalBounds,
   type DecisionTraversalReport
 } from "./decision-runtime.js";
-import type {
-  PolicyModel,
-  PolicyModelCaveatCondition,
-  PolicyModelContextType
+import {
+  compilePolicyModel,
+  createDefaultPolicyModel,
+  type CompiledPolicyModel,
+  type PolicyModel,
+  type PolicyModelCaveatCondition,
+  type PolicyModelContextType
 } from "./policy-model.js";
 import { InMemoryRebacStore } from "./store.js";
 
@@ -74,19 +77,7 @@ interface NormalizedDecisionEngineOptions {
   monotonicNow: () => number;
 }
 
-const denyRelations = new Set(["denied", "denied_read", "quarantined_from"]);
-const membershipRelations = new Set(["member_of"]);
-const containmentRelations = new Set(["contains"]);
-
-const actionAllowRelations = new Map<string, Set<string>>([
-  ["read", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
-  ["view", new Set(["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"])],
-  ["write", new Set(["contributor_to", "owner_of", "admin_of"])],
-  ["contribute", new Set(["contributor_to", "owner_of", "admin_of"])],
-  ["admin", new Set(["owner_of", "admin_of"])],
-  ["administer", new Set(["owner_of", "admin_of"])],
-  ["manage", new Set(["owner_of", "admin_of"])]
-]);
+const emptyRelationSet: ReadonlySet<string> = new Set<string>();
 
 const MAX_ACTIVE_RELATIONSHIP_SCOPES = 32;
 const emptyActiveRelationships: readonly RelationshipTuple[] = [];
@@ -121,7 +112,8 @@ interface DenyQueueEntry {
 export class RebacDecisionEngine {
   readonly #auditRecorder: AuditRecorder;
   readonly #onAuditEvent?: (event: AuditEvent) => void;
-  readonly #policyModel?: PolicyModel;
+  readonly #policyModel: PolicyModel;
+  readonly #compiledPolicyModel: CompiledPolicyModel;
   readonly #store: InMemoryRebacStore;
   readonly #options: NormalizedDecisionEngineOptions;
   readonly #activeRelationshipScopes = new Map<string, ActiveRelationshipScope>();
@@ -130,7 +122,8 @@ export class RebacDecisionEngine {
     this.#store = store;
     this.#auditRecorder = options.auditRecorder ?? new AuditRecorder(store.listAuditEvents());
     this.#onAuditEvent = options.onAuditEvent;
-    this.#policyModel = options.policyModel;
+    this.#policyModel = options.policyModel ?? createDefaultPolicyModel();
+    this.#compiledPolicyModel = compilePolicyModel(this.#policyModel);
     this.#options = {
       policyVersion: options.policyVersion ?? "policy:local-v1",
       modelVersion: options.modelVersion ?? "model:local-v1",
@@ -265,10 +258,12 @@ export class RebacDecisionEngine {
     );
     const explicitDeny = findDenyPath(
       this.#store,
+      this.#compiledPolicyModel,
       activeRelationshipScope,
       traversalGuard,
       request.subjectId,
       request.resourceId,
+      request.action,
       rootTenantId,
       versionPins.asOf
     );
@@ -283,6 +278,7 @@ export class RebacDecisionEngine {
 
     const relationshipPath = findAllowPath(
       this.#store,
+      this.#compiledPolicyModel,
       activeRelationshipScope,
       traversalGuard,
       request.subjectId,
@@ -300,18 +296,16 @@ export class RebacDecisionEngine {
       return denied("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
     }
 
-    const caveatResult = this.#policyModel
-      ? evaluateConditionalRelationshipCaveats({
-          store: this.#store,
-          policyModel: this.#policyModel,
-          request,
-          evaluatedAt,
-          relationshipPath: relationshipPath.steps,
-          relationshipPathRelationships: relationshipPath.relationships
-        })
-      : undefined;
+    const caveatResult = evaluateConditionalRelationshipCaveats({
+      store: this.#store,
+      policyModel: this.#policyModel,
+      request,
+      evaluatedAt,
+      relationshipPath: relationshipPath.steps,
+      relationshipPathRelationships: relationshipPath.relationships
+    });
 
-    if (caveatResult && !caveatResult.allow) {
+    if (!caveatResult.allow) {
       return denied(caveatResult.reasonCode, relationshipPath.steps, versionPins, caveatResult.constraints, relationshipPath.relationships);
     }
 
@@ -326,7 +320,7 @@ export class RebacDecisionEngine {
       relationshipPath: relationshipPath.steps,
       relationshipPathRelationships: relationshipPath.relationships,
       traversal: traversalGuard.report(),
-      constraints: caveatResult?.constraints
+      constraints: caveatResult.constraints
     };
 
     function denied(
@@ -671,6 +665,7 @@ function isActiveRelationshipAt(
 
 function findAllowPath(
   store: InMemoryRebacStore,
+  compiledPolicyModel: CompiledPolicyModel,
   activeRelationshipScope: ActiveRelationshipScope,
   traversalGuard: DecisionTraversalGuard,
   subjectId: string,
@@ -679,7 +674,9 @@ function findAllowPath(
   rootTenantId: string | undefined,
   asOf: string
 ): RelationshipTraversalPath {
-  const allowedRelations = actionAllowRelations.get(action.toLowerCase()) ?? new Set<string>();
+  const actionKey = action.toLowerCase();
+  const allowedRelations = compiledPolicyModel.grantRelationsByAction.get(actionKey) ?? emptyRelationSet;
+  const traversalRelations = compiledPolicyModel.traversalRelationsByAction.get(actionKey) ?? emptyRelationSet;
   const queue: AllowQueueEntry[] = [
     { currentId: subjectId, depth: 0, hasActionGrant: false }
   ];
@@ -703,14 +700,21 @@ function findAllowPath(
       }
 
       const relationGrantsAction = allowedRelations.has(relationship.relation);
-      const traversable = canTraverseRelationship(relationship, relationGrantsAction, next.hasActionGrant);
+      const traversable = canTraverseRelationship(
+        compiledPolicyModel,
+        traversalRelations,
+        relationship,
+        relationGrantsAction,
+        next.hasActionGrant
+      );
 
       if (relationship.objectId === resourceId && relationGrantsAction) {
         return buildAllowPath(next, relationship);
       }
 
       if (
-        relationship.relation === "contains" &&
+        compiledPolicyModel.containmentRelations.has(relationship.relation) &&
+        traversalRelations.has(relationship.relation) &&
         relationship.objectId === resourceId &&
         next.hasActionGrant
       ) {
@@ -749,13 +753,18 @@ function findAllowPath(
 
 function findDenyPath(
   store: InMemoryRebacStore,
+  compiledPolicyModel: CompiledPolicyModel,
   activeRelationshipScope: ActiveRelationshipScope,
   traversalGuard: DecisionTraversalGuard,
   subjectId: string,
   resourceId: string,
+  action: string,
   rootTenantId: string | undefined,
   asOf: string
 ): RelationshipTraversalPath {
+  const actionKey = action.toLowerCase();
+  const denyRelations = compiledPolicyModel.denyRelationsByAction.get(actionKey) ?? compiledPolicyModel.unscopedDenyRelations;
+  const traversalRelations = compiledPolicyModel.traversalRelationsByAction.get(actionKey) ?? emptyRelationSet;
   const queue: DenyQueueEntry[] = [
     { currentId: subjectId, depth: 0 }
   ];
@@ -784,7 +793,7 @@ function findDenyPath(
 
       if (
         relationship.objectId === resourceId ||
-        !canTraverseDenyRelationship(relationship) ||
+        !canTraverseDenyRelationship(compiledPolicyModel, traversalRelations, relationship) ||
         !isActiveGraphNodeAt(store, relationship.objectId, asOf)
       ) {
         continue;
@@ -850,23 +859,29 @@ function emptyRelationshipTraversalPath(): RelationshipTraversalPath {
 }
 
 function canTraverseRelationship(
+  compiledPolicyModel: CompiledPolicyModel,
+  traversalRelations: ReadonlySet<string>,
   relationship: RelationshipTuple,
   relationGrantsAction: boolean,
   hasActionGrant: boolean
 ): boolean {
-  if (membershipRelations.has(relationship.relation)) {
-    return true;
+  if (compiledPolicyModel.membershipRelations.has(relationship.relation)) {
+    return traversalRelations.has(relationship.relation);
   }
 
-  if (containmentRelations.has(relationship.relation)) {
-    return hasActionGrant;
+  if (compiledPolicyModel.containmentRelations.has(relationship.relation)) {
+    return traversalRelations.has(relationship.relation) && hasActionGrant;
   }
 
   return relationGrantsAction;
 }
 
-function canTraverseDenyRelationship(relationship: RelationshipTuple): boolean {
-  return membershipRelations.has(relationship.relation);
+function canTraverseDenyRelationship(
+  compiledPolicyModel: CompiledPolicyModel,
+  traversalRelations: ReadonlySet<string>,
+  relationship: RelationshipTuple
+): boolean {
+  return compiledPolicyModel.membershipRelations.has(relationship.relation) && traversalRelations.has(relationship.relation);
 }
 
 function isActiveGraphNodeAt(store: InMemoryRebacStore, id: string, asOf: string): boolean {
