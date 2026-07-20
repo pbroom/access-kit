@@ -261,6 +261,8 @@ export const automationContract = {
               "did not become healthy within 20 seconds",
               "/v1/ready",
               "REBAC_API_KEYS=ci-smoke",
+              '"identifiers":{"ciId":"smoke-allow"}',
+              '"identifiers":{"ciId":"smoke-deny"}',
               "/v1/decision/check",
               "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
             ]
