@@ -764,7 +764,6 @@ function findDenyPath(
 ): RelationshipTraversalPath {
   const actionKey = action.toLowerCase();
   const denyRelations = compiledPolicyModel.denyRelationsByAction.get(actionKey) ?? compiledPolicyModel.unscopedDenyRelations;
-  const traversalRelations = compiledPolicyModel.traversalRelationsByAction.get(actionKey) ?? emptyRelationSet;
   const queue: DenyQueueEntry[] = [
     { currentId: subjectId, depth: 0 }
   ];
@@ -793,7 +792,7 @@ function findDenyPath(
 
       if (
         relationship.objectId === resourceId ||
-        !canTraverseDenyRelationship(compiledPolicyModel, traversalRelations, relationship) ||
+        !canTraverseDenyRelationship(compiledPolicyModel, relationship) ||
         !isActiveGraphNodeAt(store, relationship.objectId, asOf)
       ) {
         continue;
@@ -878,10 +877,9 @@ function canTraverseRelationship(
 
 function canTraverseDenyRelationship(
   compiledPolicyModel: CompiledPolicyModel,
-  traversalRelations: ReadonlySet<string>,
   relationship: RelationshipTuple
 ): boolean {
-  return compiledPolicyModel.membershipRelations.has(relationship.relation) && traversalRelations.has(relationship.relation);
+  return compiledPolicyModel.membershipRelations.has(relationship.relation);
 }
 
 function isActiveGraphNodeAt(store: InMemoryRebacStore, id: string, asOf: string): boolean {

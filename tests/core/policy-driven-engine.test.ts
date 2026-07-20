@@ -51,6 +51,29 @@ describe("policy-driven decision engine", () => {
     expect(read.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
   });
 
+  it("propagates denies through membership independently of grant inheritance", () => {
+    const model = createAuditPolicyModel();
+    model.inheritanceRules = model.inheritanceRules.map((rule) => ({
+      ...rule,
+      actions: rule.actions.filter((action) => action !== "audit")
+    }));
+    const store = auditStore([
+      tuple("relationship:alice-auditor-document", "user:alice", "auditor_of", "document:case-plan"),
+      tuple("relationship:alice-member-team", "user:alice", "member_of", "group:audit-team"),
+      tuple("relationship:team-blocked-document", "group:audit-team", "blocked_from", "document:case-plan")
+    ]);
+    const engine = new RebacDecisionEngine(store, { now: () => now, policyModel: model });
+
+    const audit = engine.explain({ subjectId: "user:alice", action: "audit", resourceId: "document:case-plan" });
+
+    expect(audit.decision).toBe("deny");
+    expect(audit.reasonCode).toBe("DENY_EXPLICIT_OVERRIDE");
+    expect(audit.relationshipPath).toEqual([
+      { subjectId: "user:alice", relation: "member_of", objectId: "group:audit-team" },
+      { subjectId: "group:audit-team", relation: "blocked_from", objectId: "document:case-plan" }
+    ]);
+  });
+
   it("propagates custom grants through membership and containment per inheritance rules", () => {
     const store = auditStore(transitiveAuditRelationships());
     const engine = new RebacDecisionEngine(store, { now: () => now, policyModel: createAuditPolicyModel() });
