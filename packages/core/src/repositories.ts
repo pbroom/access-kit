@@ -92,6 +92,8 @@ export interface RebacStateStorageReceipt {
     decisions: number;
     auditEvents: number;
     persistenceDegradations: number;
+    policies: number;
+    policyIdempotencyRecords: number;
   };
   version: string;
 }
@@ -825,7 +827,9 @@ export class LocalJsonFileStateRepository implements RebacStateRepository {
         "reconciliationRuns",
         "decisions",
         "auditEvents",
-        "persistenceDegradations"
+        "persistenceDegradations",
+        "policies",
+        "policyIdempotencyRecords"
       ]);
       assertStoredStateIntegrity(parsed);
       return parsed.state;

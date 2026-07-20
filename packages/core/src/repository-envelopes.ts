@@ -121,7 +121,9 @@ export function countStateEntities(state: RebacSeedData): RebacStateStorageRecei
     reconciliationRuns: state.reconciliationRuns?.length ?? 0,
     decisions: state.decisions?.length ?? 0,
     auditEvents: state.auditEvents?.length ?? 0,
-    persistenceDegradations: state.persistenceDegradations?.length ?? 0
+    persistenceDegradations: state.persistenceDegradations?.length ?? 0,
+    policies: state.policies?.length ?? 0,
+    policyIdempotencyRecords: state.policyIdempotencyRecords?.length ?? 0
   };
 }
 
@@ -146,7 +148,9 @@ export function migrateLegacyRuntimeState(value: unknown): RebacSeedData {
     "reconciliationRuns",
     "decisions",
     "auditEvents",
-    "persistenceDegradations"
+    "persistenceDegradations",
+    "policies",
+    "policyIdempotencyRecords"
   ]);
 
   for (const key of Object.keys(value)) {
