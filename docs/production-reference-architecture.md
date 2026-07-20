@@ -35,8 +35,8 @@ The local Kubernetes manifests in `deploy/kubernetes/` remain the base proof poi
 | IdP or mTLS gateway | Authenticate operators, preserve MFA/session evidence, and map trusted claims into admin ReBAC roles. | `docs/security-model.md`, `docs/api.md` |
 | Graph store | Persist subjects, resources, relationships, native grants, tenant boundaries, and backup metadata behind the repository contract. | `docs/persistence.md`, `deploy/persistence/production-manifest.example.json` |
 | Connector-state store | Retain discovery runs, readiness reports, reconciliation records, drift findings, and connector evidence separately from queue execution. | `docs/persistence.md` |
-| Job queue | Execute discovery, reconciliation, provisioning, evidence, and revocation work durably with idempotency, retry, dead-letter, replay, and emergency priority. | `packages/core/src/production-job-queue.ts` |
-| Audit and evidence store | Retain append-only audit records, signed windows, evidence receipts, delivery monitoring, replay records, and backup metadata. | `packages/core/src/production-audit.ts` |
+| Job queue | Execute discovery, reconciliation, provisioning, evidence, and revocation work durably with idempotency, retry, dead-letter, replay, and emergency priority. | `packages/core/src/reference-job-queue.ts` |
+| Audit and evidence store | Retain append-only audit records, signed windows, evidence receipts, delivery monitoring, replay records, and backup metadata. | `packages/core/src/reference-audit.ts` |
 | SIEM forwarder | Deliver bounded audit windows, alert on failed delivery, and retain replay proof. | `docs/audit-event-model.md` |
 | Secrets manager | Store API keys, IdP or mTLS references, connector credentials, signing configuration, and rotation evidence outside manifests and logs. | `adrs/0009-secret-management.md` |
 | Observability | Capture health, readiness, queue depth, failed auth, audit delivery, connector coverage, and emergency revocation metrics. | `docs/concept-of-operations.md` |

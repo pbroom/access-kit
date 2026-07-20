@@ -1,7 +1,7 @@
 import { type ApiContractOperationSnapshot } from "./contract-snapshot.js";
 
-export const generatedClientContractVersion = "0.1.0";
-export const generatedClientOperations = [
+export const contractClientVersion = "0.1.0";
+export const contractClientOperations = [
   { operationId: "getHealth", method: "GET", path: "/v1/health", auth: "public", idempotencyKey: false, deprecated: false },
   { operationId: "getReadiness", method: "GET", path: "/v1/ready", auth: "public", idempotencyKey: false, deprecated: false },
   { operationId: "checkDecision", method: "POST", path: "/v1/decision/check", auth: "bearer", idempotencyKey: false, deprecated: false },
@@ -43,7 +43,7 @@ export const generatedClientOperations = [
   { operationId: "listDiscoveryRuns", method: "GET", path: "/v1/discovery/runs", auth: "bearer", idempotencyKey: false, deprecated: false }
 ] as const satisfies readonly ApiContractOperationSnapshot[];
 
-export type GeneratedClientOperationId = (typeof generatedClientOperations)[number]["operationId"];
+export type ContractClientOperationId = (typeof contractClientOperations)[number]["operationId"];
 
 export interface RebacClientOptions {
   readonly apiKey?: string;
@@ -70,17 +70,17 @@ export class RebacClientError extends Error {
 }
 
 export function createRebacClient(options: RebacClientOptions): {
-  readonly request: <T>(operationId: GeneratedClientOperationId, requestOptions?: RebacRequestOptions) => Promise<T>;
+  readonly request: <T>(operationId: ContractClientOperationId, requestOptions?: RebacRequestOptions) => Promise<T>;
 } {
   const clientFetch = options.fetch ?? fetch;
   const baseUrl = normalizeBaseUrl(options.baseUrl);
 
   return {
     async request<T>(
-      operationId: GeneratedClientOperationId,
+      operationId: ContractClientOperationId,
       requestOptions: RebacRequestOptions = {}
     ): Promise<T> {
-      const operation = getGeneratedOperation(operationId);
+      const operation = getContractClientOperation(operationId);
 
       if (operation.auth === "bearer" && !options.apiKey) {
         throw new RebacClientError(401, "CLIENT_MISSING_API_KEY");
@@ -109,8 +109,8 @@ export function createRebacClient(options: RebacClientOptions): {
   };
 }
 
-function getGeneratedOperation(operationId: GeneratedClientOperationId): ApiContractOperationSnapshot {
-  const operation = generatedClientOperations.find((entry) => entry.operationId === operationId);
+function getContractClientOperation(operationId: ContractClientOperationId): ApiContractOperationSnapshot {
+  const operation = contractClientOperations.find((entry) => entry.operationId === operationId);
 
   if (!operation) {
     throw new RebacClientError(400, "CLIENT_UNKNOWN_OPERATION");

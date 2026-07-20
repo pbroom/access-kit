@@ -4,40 +4,40 @@ import type {
   EvidenceExport,
   EvidenceStorageReceipt
 } from "./domain.js";
-import type { ProductionRepositoryBackupMetadata } from "./production-repositories.js";
+import type { ReferenceRepositoryBackupMetadata } from "./reference-repositories.js";
 
-export interface ProductionAuditRetentionPolicy {
+export interface ReferenceAuditRetentionPolicy {
   policyId: CanonicalId;
   retentionDays: number;
   legalHold: boolean;
   version: "production-audit-retention-policy:v1";
 }
 
-export interface ProductionAuditEventStoreRecord {
+export interface ReferenceAuditEventStoreRecord {
   version: "production-audit-event-record:v1";
   tenantBoundary: string;
   sequence: number;
   storedAt: string;
   eventHash: string;
   previousEventHash?: string;
-  retentionPolicy: ProductionAuditRetentionPolicy;
+  retentionPolicy: ReferenceAuditRetentionPolicy;
   event: AuditEvent;
   recordHash: string;
 }
 
-export interface ProductionEvidenceStoreRecord {
+export interface ReferenceEvidenceStoreRecord {
   version: "production-evidence-package-record:v1";
   tenantBoundary: string;
   exportId: CanonicalId;
   storedAt: string;
   packageHash: string;
-  retentionPolicy: ProductionAuditRetentionPolicy;
+  retentionPolicy: ReferenceAuditRetentionPolicy;
   evidence: EvidenceExport;
   receipt: EvidenceStorageReceipt;
   recordHash: string;
 }
 
-export interface ProductionSignedAuditWindow {
+export interface ReferenceSignedAuditWindow {
   version: "production-signed-audit-window:v1";
   tenantBoundary: string;
   windowId: CanonicalId;
@@ -49,21 +49,21 @@ export interface ProductionSignedAuditWindow {
   sourceEventIds: CanonicalId[];
   firstEventHash?: string;
   lastEventHash?: string;
-  retentionPolicy: ProductionAuditRetentionPolicy;
+  retentionPolicy: ReferenceAuditRetentionPolicy;
   signatureAlgorithm: "hmac-sha256";
   signatureHash: string;
   recordHash: string;
 }
 
-export type ProductionSiemDeliveryStatus = "delivered" | "failed";
+export type ReferenceSiemDeliveryStatus = "delivered" | "failed";
 
-export interface ProductionSiemDeliveryRecord {
+export interface ReferenceSiemDeliveryRecord {
   version: "production-siem-delivery:v1";
   tenantBoundary: string;
   deliveryId: CanonicalId;
   windowId: CanonicalId;
   destination: string;
-  status: ProductionSiemDeliveryStatus;
+  status: ReferenceSiemDeliveryStatus;
   attemptedAt: string;
   sourceEventIds: CanonicalId[];
   eventCount: number;
@@ -74,20 +74,20 @@ export interface ProductionSiemDeliveryRecord {
   recordHash: string;
 }
 
-export interface ProductionAuditStoreBackup {
+export interface ReferenceAuditStoreBackup {
   version: "production-audit-store-backup:v1";
   id: CanonicalId;
   tenantBoundary: string;
   createdAt: string;
-  auditRecords: ProductionAuditEventStoreRecord[];
-  evidenceRecords: ProductionEvidenceStoreRecord[];
-  signedWindows: ProductionSignedAuditWindow[];
-  siemDeliveries: ProductionSiemDeliveryRecord[];
-  backupMetadata: ProductionRepositoryBackupMetadata[];
+  auditRecords: ReferenceAuditEventStoreRecord[];
+  evidenceRecords: ReferenceEvidenceStoreRecord[];
+  signedWindows: ReferenceSignedAuditWindow[];
+  siemDeliveries: ReferenceSiemDeliveryRecord[];
+  backupMetadata: ReferenceRepositoryBackupMetadata[];
   backupHash: string;
 }
 
-export interface ProductionAuditRestoreReceipt {
+export interface ReferenceAuditRestoreReceipt {
   restoredAt: string;
   backend: "external";
   location: string;
@@ -101,28 +101,28 @@ export interface ProductionAuditRestoreReceipt {
 }
 
 export interface ExternalAppendOnlyAuditStore {
-  readAuditRecords(): ProductionAuditEventStoreRecord[];
-  appendAuditRecord(record: ProductionAuditEventStoreRecord): void;
-  readEvidenceRecords(): ProductionEvidenceStoreRecord[];
-  appendEvidenceRecord(record: ProductionEvidenceStoreRecord): void;
-  readSignedWindows(): ProductionSignedAuditWindow[];
-  appendSignedWindow(window: ProductionSignedAuditWindow): void;
-  readSiemDeliveries(): ProductionSiemDeliveryRecord[];
-  appendSiemDelivery(delivery: ProductionSiemDeliveryRecord): void;
-  readBackupMetadata(): ProductionRepositoryBackupMetadata[];
-  writeBackupMetadata(metadata: ProductionRepositoryBackupMetadata[]): void;
-  readBackup(id: CanonicalId): ProductionAuditStoreBackup | undefined;
-  writeBackup(id: CanonicalId, backup: ProductionAuditStoreBackup): void;
+  readAuditRecords(): ReferenceAuditEventStoreRecord[];
+  appendAuditRecord(record: ReferenceAuditEventStoreRecord): void;
+  readEvidenceRecords(): ReferenceEvidenceStoreRecord[];
+  appendEvidenceRecord(record: ReferenceEvidenceStoreRecord): void;
+  readSignedWindows(): ReferenceSignedAuditWindow[];
+  appendSignedWindow(window: ReferenceSignedAuditWindow): void;
+  readSiemDeliveryLogEntries(): ReferenceSiemDeliveryRecord[];
+  appendSiemDeliveryLogEntry(delivery: ReferenceSiemDeliveryRecord): void;
+  readBackupMetadata(): ReferenceRepositoryBackupMetadata[];
+  writeBackupMetadata(metadata: ReferenceRepositoryBackupMetadata[]): void;
+  readBackup(id: CanonicalId): ReferenceAuditStoreBackup | undefined;
+  writeBackup(id: CanonicalId, backup: ReferenceAuditStoreBackup): void;
   restoreSnapshot(snapshot: {
-    auditRecords: ProductionAuditEventStoreRecord[];
-    evidenceRecords: ProductionEvidenceStoreRecord[];
-    signedWindows: ProductionSignedAuditWindow[];
-    siemDeliveries: ProductionSiemDeliveryRecord[];
-    backupMetadata: ProductionRepositoryBackupMetadata[];
+    auditRecords: ReferenceAuditEventStoreRecord[];
+    evidenceRecords: ReferenceEvidenceStoreRecord[];
+    signedWindows: ReferenceSignedAuditWindow[];
+    siemDeliveries: ReferenceSiemDeliveryRecord[];
+    backupMetadata: ReferenceRepositoryBackupMetadata[];
   }): void;
 }
 
-export interface ProductionAuditEvidenceAdapterOptions {
+export interface ReferenceAuditEvidenceAdapterOptions {
   store: ExternalAppendOnlyAuditStore;
   tenantBoundary: string;
   location: string;
@@ -133,7 +133,7 @@ export interface ProductionAuditEvidenceAdapterOptions {
   now?: () => string;
 }
 
-export interface ProductionAuditWindowRequest {
+export interface ReferenceAuditWindowRequest {
   windowId: CanonicalId;
   periodStart: string;
   periodEnd: string;
@@ -141,25 +141,25 @@ export interface ProductionAuditWindowRequest {
   signingKeyId?: CanonicalId;
 }
 
-export interface ProductionSiemDeliveryRequest {
+export interface ReferenceSiemDeliveryRequest {
   windowId: CanonicalId;
   destination: string;
-  status: ProductionSiemDeliveryStatus;
+  status: ReferenceSiemDeliveryStatus;
   attemptedAt?: string;
   deliveredAt?: string;
   error?: string;
 }
 
-export interface ProductionSiemReplayRequest {
+export interface ReferenceSiemReplayRequest {
   deliveryId: CanonicalId;
   attemptedAt?: string;
   destination?: string;
-  status?: ProductionSiemDeliveryStatus;
+  status?: ReferenceSiemDeliveryStatus;
   deliveredAt?: string;
   error?: string;
 }
 
-export interface ProductionAuditWindowSigner {
+export interface ReferenceAuditWindowSigner {
   readonly keyId: CanonicalId;
   readonly algorithm: "hmac-sha256";
   sign(payload: unknown): string;

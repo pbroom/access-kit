@@ -8,7 +8,7 @@ OpenAPI version: 3.1.0
 
 Source: `openapi/rebac-control-plane.yaml`
 
-Generated client: `packages/api-contracts/src/generated-client.ts`
+Contract snapshot client: `packages/api-contracts/src/contract-client.ts`
 
 ## API Behavior
 

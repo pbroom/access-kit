@@ -39,11 +39,11 @@ import {
   stableHash
 } from "./repository-envelopes.js";
 import {
-  ProductionJobSnapshotStore,
-  emptyProductionJobSnapshot,
-  type ProductionJobSnapshotStoreFields,
-  type ProductionJobSnapshotStoreRecord
-} from "./production-job-snapshot-store.js";
+  ReferenceJobSnapshotStore,
+  emptyReferenceJobSnapshot,
+  type ReferenceJobSnapshotStoreFields,
+  type ReferenceJobSnapshotStoreRecord
+} from "./reference-job-snapshot-store.js";
 import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
 import {
   assertEvidenceTenantBoundary,
@@ -51,11 +51,11 @@ import {
   assertReportTenantBoundary,
   clone,
   cloneOptional
-} from "./production-repository-security-utils.js";
+} from "./reference-repository-security-utils.js";
 import type { RebacGraphStorageReceipt, RebacJobStorageReceipt } from "./repositories.js";
 
-export type ProductionRepositoryStoreComponent = "graph" | "connector_state" | "job" | "audit";
-export type ProductionConnectorStateCapability =
+export type ReferenceRepositoryStoreComponent = "graph" | "connector_state" | "job" | "audit";
+export type ReferenceConnectorStateCapability =
   | "connector_state_read"
   | "connector_state_write"
   | "discovery_run_history"
@@ -66,19 +66,19 @@ export type ProductionConnectorStateCapability =
   | "transactional_writes"
   | "backup_restore";
 
-export interface ProductionConnectorStateStoreDescriptor {
+export interface ReferenceConnectorStateStoreDescriptor {
   component: "connector_state";
   backend: "external_connector_state";
   durable: boolean;
   immutable: boolean;
-  capabilities: ProductionConnectorStateCapability[];
+  capabilities: ReferenceConnectorStateCapability[];
   location: string;
   version: "production-connector-state-backend:v1";
 }
 
-export interface ProductionRepositoryBackupMetadata {
+export interface ReferenceRepositoryBackupMetadata {
   id: CanonicalId;
-  component: ProductionRepositoryStoreComponent;
+  component: ReferenceRepositoryStoreComponent;
   createdAt: string;
   location: string;
   snapshotHash: string;
@@ -95,35 +95,35 @@ export interface ExternalSnapshotStore<TRecord extends object> {
   writeBackup(id: CanonicalId, record: TRecord): void;
 }
 
-export interface ProductionGraphStoreRecord {
+export interface ReferenceGraphStoreRecord {
   version: "production-graph-store:v1";
   storedAt: string;
   tenantBoundary: string;
   graphHash: string;
   graph: RebacGraphSnapshot;
   entityCounts: RebacGraphStorageReceipt["entityCounts"];
-  backupMetadata: ProductionRepositoryBackupMetadata[];
+  backupMetadata: ReferenceRepositoryBackupMetadata[];
 }
 
-export interface ProductionConnectorStateStoreRecord extends ProductionJobSnapshotStoreRecord {
+export interface ReferenceConnectorStateStoreRecord extends ReferenceJobSnapshotStoreRecord {
   version: "production-connector-state-store:v1";
   storedAt: string;
   tenantBoundary: string;
   jobsHash: string;
   jobs: RebacJobSnapshot;
   entityCounts: RebacJobStorageReceipt["entityCounts"];
-  backupMetadata: ProductionRepositoryBackupMetadata[];
+  backupMetadata: ReferenceRepositoryBackupMetadata[];
 }
 
-export interface ProductionGraphStoreAdapterOptions {
-  store: ExternalSnapshotStore<ProductionGraphStoreRecord>;
+export interface ReferenceGraphStoreAdapterOptions {
+  store: ExternalSnapshotStore<ReferenceGraphStoreRecord>;
   tenantBoundary: string;
   location: string;
   now?: () => string;
 }
 
-export interface ProductionConnectorStateStoreAdapterOptions {
-  store: ExternalSnapshotStore<ProductionConnectorStateStoreRecord>;
+export interface ReferenceConnectorStateStoreAdapterOptions {
+  store: ExternalSnapshotStore<ReferenceConnectorStateStoreRecord>;
   tenantBoundary: string;
   location: string;
   now?: () => string;
@@ -162,15 +162,15 @@ export class InMemoryExternalSnapshotStore<TRecord extends object> implements Ex
   }
 }
 
-export class ProductionGraphStoreAdapter implements RebacGraphRepository, DescribedPersistenceRepository {
-  readonly #store: ExternalSnapshotStore<ProductionGraphStoreRecord>;
+export class ReferenceGraphStoreAdapter implements RebacGraphRepository, DescribedPersistenceRepository {
+  readonly #store: ExternalSnapshotStore<ReferenceGraphStoreRecord>;
   readonly #tenantBoundary: string;
   readonly #location: string;
   readonly #now: () => string;
   #graph: RebacGraphSnapshot;
-  #backupMetadata: ProductionRepositoryBackupMetadata[];
+  #backupMetadata: ReferenceRepositoryBackupMetadata[];
 
-  constructor(options: ProductionGraphStoreAdapterOptions) {
+  constructor(options: ReferenceGraphStoreAdapterOptions) {
     assertTenantBoundary(options.tenantBoundary);
     assertNoSecretMaterial(options.location, "production graph store location");
     this.#store = options.store;
@@ -299,7 +299,7 @@ export class ProductionGraphStoreAdapter implements RebacGraphRepository, Descri
     return this.#persist(storedAt);
   }
 
-  createBackup(id: CanonicalId, createdAt: string = this.#now()): ProductionRepositoryBackupMetadata {
+  createBackup(id: CanonicalId, createdAt: string = this.#now()): ReferenceRepositoryBackupMetadata {
     const graph = normalizeGraphSnapshot(this.#graph);
     const entityCounts = countGraphEntities(graph);
     const graphHash = `sha256:${stableHash(graph)}`;
@@ -327,11 +327,11 @@ export class ProductionGraphStoreAdapter implements RebacGraphRepository, Descri
     return this.#persist(restoredAt);
   }
 
-  listBackupMetadata(): ProductionRepositoryBackupMetadata[] {
+  listBackupMetadata(): ReferenceRepositoryBackupMetadata[] {
     return clone(this.#backupMetadata);
   }
 
-  #readGraphRecord(): ProductionGraphStoreRecord | undefined {
+  #readGraphRecord(): ReferenceGraphStoreRecord | undefined {
     const stored = this.#store.readCurrent();
 
     if (!stored) {
@@ -341,11 +341,11 @@ export class ProductionGraphStoreAdapter implements RebacGraphRepository, Descri
     return validateGraphRecord(stored, this.#tenantBoundary);
   }
 
-  #readGraphBackup(id: CanonicalId): ProductionGraphStoreRecord {
+  #readGraphBackup(id: CanonicalId): ReferenceGraphStoreRecord {
     const backup = this.#store.readBackup(id);
 
     if (!backup) {
-      throw new Error(`Production graph backup ${id} does not exist.`);
+      throw new Error(`Reference graph backup ${id} does not exist.`);
     }
 
     return validateGraphRecord(backup, this.#tenantBoundary);
@@ -395,10 +395,10 @@ export class ProductionGraphStoreAdapter implements RebacGraphRepository, Descri
   #createRecord(
     storedAt: string,
     graph: RebacGraphSnapshot,
-    backupMetadata: ProductionRepositoryBackupMetadata[]
-  ): ProductionGraphStoreRecord {
+    backupMetadata: ReferenceRepositoryBackupMetadata[]
+  ): ReferenceGraphStoreRecord {
     assertGraphTenantBoundary(graph, this.#tenantBoundary);
-    assertNoSecretMaterial(graph, "Production graph snapshot");
+    assertNoSecretMaterial(graph, "Reference graph snapshot");
     const graphHash = `sha256:${stableHash(graph)}`;
     return {
       version: "production-graph-store:v1",
@@ -412,37 +412,37 @@ export class ProductionGraphStoreAdapter implements RebacGraphRepository, Descri
   }
 }
 
-export class ProductionConnectorStateStoreAdapter implements RebacJobRepository {
-  readonly #jobSnapshots: ProductionJobSnapshotStore<ProductionConnectorStateStoreRecord>;
+export class ReferenceConnectorStateStoreAdapter implements RebacJobRepository {
+  readonly #jobSnapshots: ReferenceJobSnapshotStore<ReferenceConnectorStateStoreRecord>;
   readonly #tenantBoundary: string;
   readonly #location: string;
   readonly #now: () => string;
   #jobs: RebacJobSnapshot;
-  #backupMetadata: ProductionRepositoryBackupMetadata[];
+  #backupMetadata: ReferenceRepositoryBackupMetadata[];
 
-  constructor(options: ProductionConnectorStateStoreAdapterOptions) {
+  constructor(options: ReferenceConnectorStateStoreAdapterOptions) {
     assertTenantBoundary(options.tenantBoundary);
     assertNoSecretMaterial(options.location, "production connector-state store location");
     this.#tenantBoundary = options.tenantBoundary;
     this.#location = options.location;
     this.#now = options.now ?? (() => new Date().toISOString());
-    this.#jobSnapshots = new ProductionJobSnapshotStore({
+    this.#jobSnapshots = new ReferenceJobSnapshotStore({
       store: options.store,
       tenantBoundary: options.tenantBoundary,
       component: "connector_state",
       location: options.location,
       recordVersion: "production-connector-state-store:v1",
-      recordLabel: "Production connector-state store",
-      payloadLabel: "Production connector-state store payload",
-      snapshotLabel: "Production connector-state snapshot",
-      backupMissingLabel: "Production connector-state backup"
+      recordLabel: "Reference connector-state store",
+      payloadLabel: "Reference connector-state store payload",
+      snapshotLabel: "Reference connector-state snapshot",
+      backupMissingLabel: "Reference connector-state backup"
     });
     const stored = this.#readJobsRecord();
-    this.#jobs = stored?.jobs ?? emptyProductionJobSnapshot();
+    this.#jobs = stored?.jobs ?? emptyReferenceJobSnapshot();
     this.#backupMetadata = stored?.backupMetadata ?? [];
   }
 
-  describeConnectorStatePersistence(): ProductionConnectorStateStoreDescriptor {
+  describeConnectorStatePersistence(): ReferenceConnectorStateStoreDescriptor {
     return {
       component: "connector_state",
       backend: "external_connector_state",
@@ -637,7 +637,7 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
     return this.#persist(storedAt);
   }
 
-  createBackup(id: CanonicalId, createdAt: string = this.#now()): ProductionRepositoryBackupMetadata {
+  createBackup(id: CanonicalId, createdAt: string = this.#now()): ReferenceRepositoryBackupMetadata {
     const snapshot = this.#jobSnapshots.createSnapshotFields(createdAt, this.#jobs, this.#backupMetadata);
     const metadata = this.#jobSnapshots.createBackupMetadata({
       id,
@@ -663,15 +663,15 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
     return this.#persist(restoredAt);
   }
 
-  listBackupMetadata(): ProductionRepositoryBackupMetadata[] {
+  listBackupMetadata(): ReferenceRepositoryBackupMetadata[] {
     return clone(this.#backupMetadata);
   }
 
-  #readJobsRecord(): ProductionConnectorStateStoreRecord | undefined {
+  #readJobsRecord(): ReferenceConnectorStateStoreRecord | undefined {
     return this.#jobSnapshots.readCurrent();
   }
 
-  #readJobsBackup(id: CanonicalId): ProductionConnectorStateStoreRecord {
+  #readJobsBackup(id: CanonicalId): ReferenceConnectorStateStoreRecord {
     return this.#jobSnapshots.readBackup(id);
   }
 
@@ -693,7 +693,7 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
     };
   }
 
-  #createRecord(snapshot: ProductionJobSnapshotStoreFields): ProductionConnectorStateStoreRecord {
+  #createRecord(snapshot: ReferenceJobSnapshotStoreFields): ReferenceConnectorStateStoreRecord {
     return {
       version: "production-connector-state-store:v1",
       storedAt: snapshot.storedAt,
@@ -706,17 +706,17 @@ export class ProductionConnectorStateStoreAdapter implements RebacJobRepository 
   }
 }
 
-function validateGraphRecord(record: ProductionGraphStoreRecord, tenantBoundary: string): ProductionGraphStoreRecord {
+function validateGraphRecord(record: ReferenceGraphStoreRecord, tenantBoundary: string): ReferenceGraphStoreRecord {
   if (record.version !== "production-graph-store:v1") {
-    throw new Error("Production graph store must use the production-graph-store:v1 envelope.");
+    throw new Error("Reference graph store must use the production-graph-store:v1 envelope.");
   }
   if (record.tenantBoundary !== tenantBoundary) {
-    throw new Error("Production graph store tenant boundary does not match the configured tenant boundary.");
+    throw new Error("Reference graph store tenant boundary does not match the configured tenant boundary.");
   }
-  assertObjectArrayFields(record.graph, "Production graph store payload", ["subjects", "resources", "relationships", "nativeGrants"]);
-  assertStoredPayloadHash(record.graph, record.graphHash, "Production graph store hash does not match the stored graph payload.");
+  assertObjectArrayFields(record.graph, "Reference graph store payload", ["subjects", "resources", "relationships", "nativeGrants"]);
+  assertStoredPayloadHash(record.graph, record.graphHash, "Reference graph store hash does not match the stored graph payload.");
   assertGraphTenantBoundary(record.graph, tenantBoundary);
-  assertNoSecretMaterial(record.graph, "Production graph snapshot");
+  assertNoSecretMaterial(record.graph, "Reference graph snapshot");
   return {
     ...record,
     graph: normalizeGraphSnapshot(record.graph),
@@ -757,13 +757,13 @@ function assertOptionalTenantAttribute(attributes: JsonRecord | undefined, tenan
 
 function assertTenantBoundary(tenantBoundary: string): void {
   if (tenantBoundary.length === 0) {
-    throw new Error("Production repository adapters require a tenant boundary.");
+    throw new Error("Reference repository adapters require a tenant boundary.");
   }
 }
 
 function createBackupMetadata(
-  metadata: Omit<ProductionRepositoryBackupMetadata, "version">
-): ProductionRepositoryBackupMetadata {
+  metadata: Omit<ReferenceRepositoryBackupMetadata, "version">
+): ReferenceRepositoryBackupMetadata {
   return {
     ...metadata,
     version: "production-repository-backup:v1"

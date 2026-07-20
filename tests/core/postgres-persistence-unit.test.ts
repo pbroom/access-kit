@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type {
-  ProductionAuditEventStoreRecord,
-  ProductionAuditStoreBackup,
-  ProductionGraphStoreRecord
+  ReferenceAuditEventStoreRecord,
+  ReferenceAuditStoreBackup,
+  ReferenceGraphStoreRecord
 } from "../../packages/core/src/index.js";
 import {
   PostgresExternalAppendOnlyAuditStore,
@@ -115,7 +115,7 @@ describe("postgres persistence schema bootstrap SQL shaping", () => {
 describe("postgres snapshot store SQL shaping", () => {
   it("persists current snapshots through parameterized upserts and backups through insert-or-replace", async () => {
     const db = new RecordingQueryable();
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const store = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: conformanceTenant,
       storeName: "graph"
@@ -145,7 +145,7 @@ describe("postgres snapshot store SQL shaping", () => {
   it("issues conditional compare-exchange writes guarded by the stored record hash", async () => {
     const db = new RecordingQueryable();
     db.rowsByPattern = [{ pattern: /RETURNING store_name/, rows: [{ store_name: "graph" }] }];
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const store = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: conformanceTenant,
       storeName: "graph"
@@ -180,7 +180,7 @@ describe("postgres snapshot store SQL shaping", () => {
   it("rejects stale compare-exchange writes instead of inserting a missing row", async () => {
     const db = new RecordingQueryable();
     db.rowsByPattern = [{ pattern: /FROM access_kit_snapshot_current/, rows: [{ record: graphRecord() }] }];
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const store = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: conformanceTenant,
       storeName: "graph"
@@ -198,7 +198,7 @@ describe("postgres snapshot store SQL shaping", () => {
 
   it("rejects a compare-exchange create when another writer wins the insert race", async () => {
     const db = new RecordingQueryable();
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const store = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: conformanceTenant,
       storeName: "graph"
@@ -213,7 +213,7 @@ describe("postgres snapshot store SQL shaping", () => {
 
   it("returns defensive copies and surfaces queued write failures on waitForPendingWrites", async () => {
     const db = new RecordingQueryable();
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const store = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: conformanceTenant,
       storeName: "graph"
@@ -235,7 +235,7 @@ describe("postgres snapshot store SQL shaping", () => {
 
   it("captures an immutable snapshot for deferred persistence", async () => {
     const db = new RecordingQueryable();
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const store = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: conformanceTenant,
       storeName: "graph"
@@ -248,7 +248,7 @@ describe("postgres snapshot store SQL shaping", () => {
     await store.waitForPendingWrites();
 
     const write = db.queries.find((query) => query.text.includes("INSERT INTO access_kit_snapshot_backup"));
-    expect((write?.params?.[3] as ProductionGraphStoreRecord).storedAt).toBe(originalStoredAt);
+    expect((write?.params?.[3] as ReferenceGraphStoreRecord).storedAt).toBe(originalStoredAt);
   });
 });
 
@@ -346,7 +346,7 @@ describe("postgres stable hashing", () => {
   });
 });
 
-function graphRecord(): ProductionGraphStoreRecord {
+function graphRecord(): ReferenceGraphStoreRecord {
   return {
     version: "production-graph-store:v1",
     storedAt: conformanceNow,
@@ -358,7 +358,7 @@ function graphRecord(): ProductionGraphStoreRecord {
   };
 }
 
-function auditRecord(sequence: number, eventId: string): ProductionAuditEventStoreRecord {
+function auditRecord(sequence: number, eventId: string): ReferenceAuditEventStoreRecord {
   return {
     version: "production-audit-event-record:v1",
     tenantBoundary: conformanceTenant,
@@ -384,7 +384,7 @@ function auditRecord(sequence: number, eventId: string): ProductionAuditEventSto
   };
 }
 
-function auditBackup(id: string): ProductionAuditStoreBackup {
+function auditBackup(id: string): ReferenceAuditStoreBackup {
   return {
     version: "production-audit-store-backup:v1",
     id,

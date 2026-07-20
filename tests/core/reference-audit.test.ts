@@ -4,11 +4,11 @@ import {
   auditEventHash,
   finalizeEvidenceExport,
   InMemoryExternalAppendOnlyAuditStore,
-  ProductionAuditEvidenceAdapter,
+  ReferenceAuditEvidenceAdapter,
   type AuditEvent,
   type EvidenceExport,
   type JsonRecord,
-  type ProductionAuditEventStoreRecord
+  type ReferenceAuditEventStoreRecord
 } from "../../packages/core/src/index.js";
 
 const now = "2026-05-26T06:10:00.000Z";
@@ -31,19 +31,19 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
   });
 
   it("requires explicit signing key material for audit windows", () => {
-    expect(() => new ProductionAuditEvidenceAdapter({
+    expect(() => new ReferenceAuditEvidenceAdapter({
       store: new InMemoryExternalAppendOnlyAuditStore(),
       tenantBoundary,
       location: "worm://audit/access-kit-test",
       signingKeyMaterial: ""
-    })).toThrow("Production audit signing key material is required.");
+    })).toThrow("Reference audit signing key material is required.");
 
-    expect(() => new ProductionAuditEvidenceAdapter({
+    expect(() => new ReferenceAuditEvidenceAdapter({
       store: new InMemoryExternalAppendOnlyAuditStore(),
       tenantBoundary,
       location: "worm://audit/access-kit-test",
       signingKeyMaterial: "short"
-    })).toThrow("Production audit signing key material must be at least 32 characters.");
+    })).toThrow("Reference audit signing key material must be at least 32 characters.");
   });
 
   it("retains ordered audit events, signed windows, SIEM delivery metadata, evidence receipts, and backups", () => {
@@ -59,7 +59,7 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
       periodEnd: "2026-05-27T00:00:00.000Z",
       signedAt: "2026-05-26T06:12:00.000Z"
     });
-    const delivery = repository.recordSiemDelivery({
+    const delivery = repository.recordSiemDeliveryLogEntry({
       windowId: window.windowId,
       destination: "siem://access-kit/audit",
       status: "delivered",
@@ -220,7 +220,7 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
       periodEnd: "2026-05-27T00:00:00.000Z",
       signedAt: "2026-05-26T06:12:00.000Z"
     });
-    const failed = repository.recordSiemDelivery({
+    const failed = repository.recordSiemDeliveryLogEntry({
       windowId: window.windowId,
       destination: "siem://access-kit/audit",
       status: "failed",
@@ -232,11 +232,11 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
       status: "failed",
       findings: [expect.objectContaining({ code: "SIEM_DELIVERY_FAILED", severity: "high" })]
     });
-    expect(createRepository(store).listSiemDeliveries()).toEqual([
+    expect(createRepository(store).listSiemDeliveryLogEntries()).toEqual([
       expect.objectContaining({ deliveryId: failed.deliveryId, status: "failed" })
     ]);
 
-    const replay = repository.replaySiemDelivery({
+    const replay = repository.replaySiemDeliveryLogEntry({
       deliveryId: failed.deliveryId,
       attemptedAt: "2026-05-26T06:15:00.000Z"
     });
@@ -264,7 +264,7 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
       periodEnd: "2026-05-27T00:00:00.000Z",
       signedAt: "2026-05-26T06:12:00.000Z"
     });
-    const failed = repository.recordSiemDelivery({
+    const failed = repository.recordSiemDeliveryLogEntry({
       windowId: window.windowId,
       destination: "siem://access-kit/audit",
       status: "failed",
@@ -272,7 +272,7 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
       error: "forwarder unavailable"
     });
 
-    const replay = repository.replaySiemDelivery({
+    const replay = repository.replaySiemDeliveryLogEntry({
       deliveryId: failed.deliveryId,
       attemptedAt: "2026-05-26T06:15:00.000Z",
       status: "failed",
@@ -291,7 +291,7 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
         expect.objectContaining({ code: "SIEM_DELIVERY_FAILED", eventId: replay.deliveryId })
       ])
     });
-    expect(() => repository.replaySiemDelivery({ deliveryId: failed.deliveryId, status: "failed" })).toThrow(
+    expect(() => repository.replaySiemDeliveryLogEntry({ deliveryId: failed.deliveryId, status: "failed" })).toThrow(
       "Failed SIEM replay deliveries require an error message."
     );
   });
@@ -303,7 +303,7 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
 
     repository.appendAuditEvent(firstEvent, now);
     const records = store.readAuditRecords();
-    const tampered: ProductionAuditEventStoreRecord = {
+    const tampered: ReferenceAuditEventStoreRecord = {
       ...records[0],
       event: {
         ...records[0].event,
@@ -350,8 +350,8 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
   });
 });
 
-function createRepository(store = new InMemoryExternalAppendOnlyAuditStore()): ProductionAuditEvidenceAdapter {
-  return new ProductionAuditEvidenceAdapter({
+function createRepository(store = new InMemoryExternalAppendOnlyAuditStore()): ReferenceAuditEvidenceAdapter {
+  return new ReferenceAuditEvidenceAdapter({
     store,
     tenantBoundary,
     location: "worm://audit/access-kit-test",
@@ -434,7 +434,7 @@ function createEvidenceExport(events: AuditEvent[]): EvidenceExport {
         controlId: "AU-6",
         family: "AU",
         status: "implemented",
-        implementationSummary: "Production audit adapter retains immutable audit events and SIEM delivery metadata.",
+        implementationSummary: "Reference audit adapter retains immutable audit events and SIEM delivery metadata.",
         evidenceTypes: ["audit_events", "siem_export"],
         sourceEventIds: events.map((event) => event.eventId),
         gaps: []
@@ -460,7 +460,7 @@ function createEvidenceExport(events: AuditEvent[]): EvidenceExport {
     },
     systemBoundary: {
       boundaryId: "boundary:production-audit-test",
-      name: "Production audit test boundary",
+      name: "Reference audit test boundary",
       description: "Synthetic production audit adapter boundary for conformance tests.",
       environment: "production",
       liveTenantData: false,
@@ -500,8 +500,8 @@ class CountingExternalAppendOnlyAuditStore extends InMemoryExternalAppendOnlyAud
     return super.readSignedWindows();
   }
 
-  override readSiemDeliveries() {
+  override readSiemDeliveryLogEntries() {
     this.readCounts.siemDeliveries += 1;
-    return super.readSiemDeliveries();
+    return super.readSiemDeliveryLogEntries();
   }
 }

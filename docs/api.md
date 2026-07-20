@@ -15,7 +15,7 @@ The generated human-readable reference lives at [Generated API Reference](api-re
 
 ## Versioning And Deprecation
 
-The OpenAPI `info.version` and `apiContractSnapshot.contractVersion` must match. Version `0.1.0` has no deprecated operations. Future deprecations must stay represented in OpenAPI, the contract snapshot, and generated clients with a migration note until the next major contract; removing an operation requires an explicit major-version contract change.
+The OpenAPI `info.version` and `apiContractSnapshot.contractVersion` must match. Version `0.1.0` has no deprecated operations. Future deprecations must stay represented in OpenAPI, the contract snapshot, and contract snapshot clients with a migration note until the next major contract; removing an operation requires an explicit major-version contract change.
 
 ## Rate-Limit And Retry Behavior
 

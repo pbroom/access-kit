@@ -22,7 +22,7 @@ const SENSITIVE_KEY_NAMES = new Set([
   "xapikey"
 ]);
 
-export function isProductionSensitiveKey(key: string): boolean {
+export function isSecretMaterialSensitiveKey(key: string): boolean {
   const normalized = key.replaceAll(/[-_\s]/g, "").toLowerCase();
 
   return SENSITIVE_KEY_PATTERN.test(normalized) || SENSITIVE_KEY_NAMES.has(normalized);

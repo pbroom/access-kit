@@ -1,5 +1,5 @@
 import type { EnforcementReadinessReport, JsonRecord } from "./domain.js";
-import { isProductionSensitiveKey } from "./production-secret-material.js";
+import { isSecretMaterialSensitiveKey } from "./secret-material-heuristics.js";
 
 export function assertReportTenantBoundary(report: EnforcementReadinessReport, tenantBoundary: string): void {
   if (report.tenantBoundary !== tenantBoundary) {
@@ -24,7 +24,7 @@ export function assertNoSecretMaterial(value: unknown, path: string): void {
   }
 
   for (const [key, entry] of Object.entries(value)) {
-    if (isProductionSensitiveKey(key)) {
+    if (isSecretMaterialSensitiveKey(key)) {
       throw new Error(`${path}.${key} contains secret material and cannot be persisted by a production adapter.`);
     }
     assertNoSecretMaterial(entry, `${path}.${key}`);

@@ -1,13 +1,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   AuditRecorder,
-  ProductionAuditEvidenceAdapter,
-  ProductionConnectorStateStoreAdapter,
-  ProductionGraphStoreAdapter,
+  ReferenceAuditEvidenceAdapter,
+  ReferenceConnectorStateStoreAdapter,
+  ReferenceGraphStoreAdapter,
   auditEventHash,
   type AuditEvent,
-  type ProductionConnectorStateStoreRecord,
-  type ProductionGraphStoreRecord
+  type ReferenceConnectorStateStoreRecord,
+  type ReferenceGraphStoreRecord
 } from "../../packages/core/src/index.js";
 import {
   PostgresExternalAppendOnlyAuditStore,
@@ -100,12 +100,12 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence backend (REBAC_TEST_DATABA
 
   it("isolates snapshot state and backup identifiers across tenant boundaries", async () => {
     const secondTenant = "tenant:postgres-secondary";
-    const firstStore = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const firstStore = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: conformanceTenant,
       storeName: "graph"
     });
-    const secondStore = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const secondStore = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: secondTenant,
       storeName: "graph"
@@ -119,12 +119,12 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence backend (REBAC_TEST_DATABA
     secondStore.writeBackup("backup:shared", secondRecord);
     await Promise.all([firstStore.waitForPendingWrites(), secondStore.waitForPendingWrites()]);
 
-    const reopenedFirst = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const reopenedFirst = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: conformanceTenant,
       storeName: "graph"
     });
-    const reopenedSecond = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    const reopenedSecond = await PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
       db,
       tenantBoundary: secondTenant,
       storeName: "graph"
@@ -324,8 +324,8 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence backend (REBAC_TEST_DATABA
   });
 });
 
-async function createGraphStore(db: PostgresQueryable): Promise<PostgresExternalSnapshotStore<ProductionGraphStoreRecord>> {
-  return PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+async function createGraphStore(db: PostgresQueryable): Promise<PostgresExternalSnapshotStore<ReferenceGraphStoreRecord>> {
+  return PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
     db,
     tenantBoundary: conformanceTenant,
     storeName: "graph"
@@ -334,8 +334,8 @@ async function createGraphStore(db: PostgresQueryable): Promise<PostgresExternal
 
 async function createConnectorStateStore(
   db: PostgresQueryable
-): Promise<PostgresExternalSnapshotStore<ProductionConnectorStateStoreRecord>> {
-  return PostgresExternalSnapshotStore.create<ProductionConnectorStateStoreRecord>({
+): Promise<PostgresExternalSnapshotStore<ReferenceConnectorStateStoreRecord>> {
+  return PostgresExternalSnapshotStore.create<ReferenceConnectorStateStoreRecord>({
     db,
     tenantBoundary: conformanceTenant,
     storeName: "connector_state"
@@ -347,9 +347,9 @@ async function createAuditStore(db: PostgresQueryable): Promise<PostgresExternal
 }
 
 function createGraphRepository(
-  store: PostgresExternalSnapshotStore<ProductionGraphStoreRecord>
-): ProductionGraphStoreAdapter {
-  return new ProductionGraphStoreAdapter({
+  store: PostgresExternalSnapshotStore<ReferenceGraphStoreRecord>
+): ReferenceGraphStoreAdapter {
+  return new ReferenceGraphStoreAdapter({
     store,
     tenantBoundary: conformanceTenant,
     location: "postgres://graph/access-kit-test",
@@ -358,9 +358,9 @@ function createGraphRepository(
 }
 
 function createConnectorStateRepository(
-  store: PostgresExternalSnapshotStore<ProductionConnectorStateStoreRecord>
-): ProductionConnectorStateStoreAdapter {
-  return new ProductionConnectorStateStoreAdapter({
+  store: PostgresExternalSnapshotStore<ReferenceConnectorStateStoreRecord>
+): ReferenceConnectorStateStoreAdapter {
+  return new ReferenceConnectorStateStoreAdapter({
     store,
     tenantBoundary: conformanceTenant,
     location: "postgres://connector-state/access-kit-test",
@@ -368,8 +368,8 @@ function createConnectorStateRepository(
   });
 }
 
-function createAuditRepository(store: PostgresExternalAppendOnlyAuditStore): ProductionAuditEvidenceAdapter {
-  return new ProductionAuditEvidenceAdapter({
+function createAuditRepository(store: PostgresExternalAppendOnlyAuditStore): ReferenceAuditEvidenceAdapter {
+  return new ReferenceAuditEvidenceAdapter({
     store,
     tenantBoundary: conformanceTenant,
     location: "postgres://audit/access-kit-test",
@@ -404,7 +404,7 @@ function createAuditEvents(): [AuditEvent, AuditEvent] {
   return [firstEvent, secondEvent];
 }
 
-function emptyGraphRecord(tenantBoundary: string, graphHash: string): ProductionGraphStoreRecord {
+function emptyGraphRecord(tenantBoundary: string, graphHash: string): ReferenceGraphStoreRecord {
   return {
     version: "production-graph-store:v1",
     storedAt: conformanceNow,

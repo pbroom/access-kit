@@ -1,8 +1,8 @@
 import type {
   EvidenceExport,
   JsonRecord,
-  ProductionJobQueueAdapter,
-  ProductionQueuedJob,
+  ReferenceJobQueueAdapter,
+  ReferenceQueuedJob,
   ProvisioningMode
 } from "@access-kit/core";
 import {
@@ -15,14 +15,14 @@ import {
 } from "./local-app.js";
 
 export interface DrainQueuedJobOptions {
-  queue?: ProductionJobQueueAdapter;
+  queue?: ReferenceJobQueueAdapter;
   workerId?: string;
   reservedAt?: string;
 }
 
 export interface DrainQueuedJobResult {
   status: "idle" | "completed" | "failed" | "dead_lettered";
-  queueJob?: ProductionQueuedJob;
+  queueJob?: ReferenceQueuedJob;
   result?: unknown;
   error?: string;
 }
@@ -68,7 +68,7 @@ export async function drainNextQueuedJob(
   }
 }
 
-async function executeQueuedJob(app: RebacLocalApp, job: ProductionQueuedJob): Promise<unknown> {
+async function executeQueuedJob(app: RebacLocalApp, job: ReferenceQueuedJob): Promise<unknown> {
   switch (job.kind) {
     case "discovery":
       return syncConnector(app, connectorId(job), "read_only");
@@ -85,7 +85,7 @@ async function executeQueuedJob(app: RebacLocalApp, job: ProductionQueuedJob): P
   }
 }
 
-function runProvisioningJob(app: RebacLocalApp, job: ProductionQueuedJob): Promise<unknown> {
+function runProvisioningJob(app: RebacLocalApp, job: ReferenceQueuedJob): Promise<unknown> {
   return createProvisioningJob(app, {
     planId: requiredString(job.payload, "planId", `Queued provisioning job ${job.id}`),
     approverId: optionalString(job.payload, "approverId") ?? job.approval?.approverId ?? app.actor,
@@ -96,7 +96,7 @@ function runProvisioningJob(app: RebacLocalApp, job: ProductionQueuedJob): Promi
   });
 }
 
-async function runRevocationJob(app: RebacLocalApp, job: ProductionQueuedJob): Promise<unknown> {
+async function runRevocationJob(app: RebacLocalApp, job: ReferenceQueuedJob): Promise<unknown> {
   const planId = optionalString(job.payload, "planId");
 
   if (planId) {
@@ -133,7 +133,7 @@ async function runRevocationJob(app: RebacLocalApp, job: ProductionQueuedJob): P
   });
 }
 
-function connectorId(job: ProductionQueuedJob): string {
+function connectorId(job: ReferenceQueuedJob): string {
   return job.connectorId;
 }
 

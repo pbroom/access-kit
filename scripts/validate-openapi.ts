@@ -6,8 +6,8 @@ import { join } from "node:path";
 import YAML from "yaml";
 import {
   apiContractSnapshot,
-  generatedClientContractVersion,
-  generatedClientOperations,
+  contractClientVersion,
+  contractClientOperations,
   type ApiContractOperationSnapshot
 } from "../packages/api-contracts/src/index.js";
 
@@ -112,7 +112,7 @@ assertValidExample(errorSchema, authFailureExample, "examples/api/auth-failure.r
 
 const openApiOperations = getOpenApiOperationSnapshot();
 assertOperationSnapshot(apiContractSnapshot.operations, openApiOperations, "checked-in API contract snapshot");
-assertOperationSnapshot(generatedClientOperations, openApiOperations, "generated TypeScript client operations");
+assertOperationSnapshot(contractClientOperations, openApiOperations, "contract snapshot TypeScript client operations");
 assertContractMetadata();
 
 const provisioningJob = asRecord(parsed.components.schemas.ProvisioningJob, "ProvisioningJob schema");
@@ -359,9 +359,9 @@ function assertContractMetadata(): void {
     throw new Error(`OpenAPI info.version ${String(parsed.info.version)} does not match contract snapshot ${apiContractSnapshot.contractVersion}.`);
   }
 
-  if (parsed.info.version !== generatedClientContractVersion) {
+  if (parsed.info.version !== contractClientVersion) {
     throw new Error(
-      `OpenAPI info.version ${String(parsed.info.version)} does not match generated client ${generatedClientContractVersion}.`
+      `OpenAPI info.version ${String(parsed.info.version)} does not match contract snapshot client ${contractClientVersion}.`
     );
   }
 

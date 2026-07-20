@@ -22,7 +22,7 @@ Release tags use the product version and artifact-specific prefixes:
 | Product source release | `access-kit-v<major>.<minor>.<patch>` | Used for source archives, changelog entries, docs snapshots, and release manifests. |
 | API container image | `rebac-api-v<major>.<minor>.<patch>` | Triggers `.github/workflows/container-release.yml` and publishes immutable GHCR digest references. |
 | CLI package | `@access-kit/cli@<major>.<minor>.<patch>` | Publishes the `rebac` binary wrapper when AK-031 operator packaging is in the stack. |
-| SDK package | `@access-kit/api-contracts@<major>.<minor>.<patch>` | Publishes OpenAPI, JSON Schema, generated client metadata, and contract snapshots. |
+| SDK package | `@access-kit/api-contracts@<major>.<minor>.<patch>` | Publishes OpenAPI, JSON Schema, contract snapshot client metadata, and contract snapshots. |
 
 Patch releases keep the same contract family and may include docs, validation, packaging, dependency, or security fixes. Minor releases may add new API fields, CLI commands, schemas, examples, or compatibility rows. Major releases are reserved for breaking API, schema, CLI, package, or evidence-contract changes.
 
@@ -45,7 +45,7 @@ The canonical example for the current proof-point release is [`releases/v0.1.0/m
 | Source archive | Tag, changelog entry, manifest, docs snapshot, dependency audit result | Product release owner |
 | API container | GHCR digest, Buildx SBOM, Buildx provenance metadata, GitHub artifact attestation, keyless cosign signature | Platform release owner |
 | CLI package | npm provenance, package tarball hash, profile/config docs, JSON output and exit-code validation | Operator experience owner |
-| SDK package | npm provenance, generated API reference freshness, schema validation, generated client snapshot | API contracts owner |
+| SDK package | npm provenance, generated API reference freshness, schema validation, contract snapshot client snapshot | API contracts owner |
 | Docs site | versioned docs root, compatibility matrix, proof-point labels, support and security policy links | Docs owner |
 
 Do not promote an artifact when its release notes omit proof-point limitations, when vulnerability disclosure is missing, or when SBOM/provenance/signature evidence is unavailable for an artifact type that supports it.

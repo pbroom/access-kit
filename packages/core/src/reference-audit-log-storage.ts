@@ -5,33 +5,33 @@ import type {
 } from "./domain.js";
 import type {
   ExternalAppendOnlyAuditStore,
-  ProductionAuditEventStoreRecord,
-  ProductionAuditRetentionPolicy
-} from "./production-audit-models.js";
-import type { ProductionAuditIntegrityValidator } from "./production-audit-integrity.js";
+  ReferenceAuditEventStoreRecord,
+  ReferenceAuditRetentionPolicy
+} from "./reference-audit-models.js";
+import type { ReferenceAuditIntegrityValidator } from "./reference-audit-integrity.js";
 import {
   assertNoSecretMaterial,
   assertOptionalTenantBoundary,
   clone,
   withRecordHash
-} from "./production-audit-utils.js";
+} from "./reference-audit-utils.js";
 
-export interface ProductionAuditLogStorageOptions {
+export interface ReferenceAuditLogStorageOptions {
   store: ExternalAppendOnlyAuditStore;
   tenantBoundary: string;
   location: string;
-  retentionPolicy: ProductionAuditRetentionPolicy;
-  integrity: ProductionAuditIntegrityValidator;
+  retentionPolicy: ReferenceAuditRetentionPolicy;
+  integrity: ReferenceAuditIntegrityValidator;
 }
 
-export class ProductionAuditLogStorage {
+export class ReferenceAuditLogStorage {
   readonly #store: ExternalAppendOnlyAuditStore;
   readonly #tenantBoundary: string;
   readonly #location: string;
-  readonly #retentionPolicy: ProductionAuditRetentionPolicy;
-  readonly #integrity: ProductionAuditIntegrityValidator;
+  readonly #retentionPolicy: ReferenceAuditRetentionPolicy;
+  readonly #integrity: ReferenceAuditIntegrityValidator;
 
-  constructor(options: ProductionAuditLogStorageOptions) {
+  constructor(options: ReferenceAuditLogStorageOptions) {
     this.#store = options.store;
     this.#tenantBoundary = options.tenantBoundary;
     this.#location = options.location;
@@ -56,7 +56,7 @@ export class ProductionAuditLogStorage {
     }
 
     const eventHash = auditEventHash(event);
-    const record = withRecordHash<ProductionAuditEventStoreRecord>({
+    const record = withRecordHash<ReferenceAuditEventStoreRecord>({
       version: "production-audit-event-record:v1",
       tenantBoundary: this.#tenantBoundary,
       sequence: records.length + 1,

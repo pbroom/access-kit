@@ -6,27 +6,27 @@ import type {
 } from "./domain.js";
 import type {
   ExternalAppendOnlyAuditStore,
-  ProductionAuditEventStoreRecord,
-  ProductionAuditStoreBackup,
-  ProductionAuditWindowSigner,
-  ProductionEvidenceStoreRecord,
-  ProductionSiemDeliveryRecord,
-  ProductionSignedAuditWindow
-} from "./production-audit-models.js";
+  ReferenceAuditEventStoreRecord,
+  ReferenceAuditStoreBackup,
+  ReferenceAuditWindowSigner,
+  ReferenceEvidenceStoreRecord,
+  ReferenceSiemDeliveryRecord,
+  ReferenceSignedAuditWindow
+} from "./reference-audit-models.js";
 import {
   assertNoIntegrityFindings,
   finding,
   hashBackup,
   hashRecord,
   secretMaterialFindings
-} from "./production-audit-utils.js";
+} from "./reference-audit-utils.js";
 
-export class ProductionAuditIntegrityValidator {
+export class ReferenceAuditIntegrityValidator {
   readonly #store: ExternalAppendOnlyAuditStore;
   readonly #tenantBoundary: string;
-  readonly #windowSigner: ProductionAuditWindowSigner;
+  readonly #windowSigner: ReferenceAuditWindowSigner;
 
-  constructor(store: ExternalAppendOnlyAuditStore, tenantBoundary: string, windowSigner: ProductionAuditWindowSigner) {
+  constructor(store: ExternalAppendOnlyAuditStore, tenantBoundary: string, windowSigner: ReferenceAuditWindowSigner) {
     this.#store = store;
     this.#tenantBoundary = tenantBoundary;
     this.#windowSigner = windowSigner;
@@ -36,7 +36,7 @@ export class ProductionAuditIntegrityValidator {
     const auditRecords = this.#store.readAuditRecords();
     const evidenceRecords = this.#store.readEvidenceRecords();
     const signedWindows = this.#store.readSignedWindows();
-    const siemDeliveries = this.#store.readSiemDeliveries();
+    const siemDeliveries = this.#store.readSiemDeliveryLogEntries();
 
     assertNoIntegrityFindings(this.auditRecordFindings(auditRecords), "Stored production audit log integrity check failed");
     assertNoIntegrityFindings(this.evidenceRecordFindings(evidenceRecords), "Stored production evidence integrity check failed");
@@ -44,14 +44,14 @@ export class ProductionAuditIntegrityValidator {
     assertNoIntegrityFindings(this.siemDeliveryFindings(siemDeliveries, signedWindows), "Stored production SIEM delivery integrity check failed");
   }
 
-  trustedAuditRecords(): ProductionAuditEventStoreRecord[] {
+  trustedAuditRecords(): ReferenceAuditEventStoreRecord[] {
     const records = this.#store.readAuditRecords();
     const findings = this.auditRecordFindings(records);
     assertNoIntegrityFindings(findings, "Stored production audit log integrity check failed");
     return records;
   }
 
-  trustedEvidenceRecords(): ProductionEvidenceStoreRecord[] {
+  trustedEvidenceRecords(): ReferenceEvidenceStoreRecord[] {
     const records = this.#store.readEvidenceRecords();
     const findings = this.evidenceRecordFindings(records);
     assertNoIntegrityFindings(findings, "Stored production evidence integrity check failed");
@@ -61,7 +61,7 @@ export class ProductionAuditIntegrityValidator {
   verifyIntegrity(verifiedAt: string): AuditIntegrityReport {
     const records = this.#store.readAuditRecords();
     const windows = this.#store.readSignedWindows();
-    const deliveries = this.#store.readSiemDeliveries();
+    const deliveries = this.#store.readSiemDeliveryLogEntries();
     const events = records.map((record) => record.event);
     const report = verifyAuditChain(events, verifiedAt);
     const findings = [
@@ -78,7 +78,7 @@ export class ProductionAuditIntegrityValidator {
     };
   }
 
-  auditRecordFindings(records: ProductionAuditEventStoreRecord[] = this.#store.readAuditRecords()): AuditIntegrityFinding[] {
+  auditRecordFindings(records: ReferenceAuditEventStoreRecord[] = this.#store.readAuditRecords()): AuditIntegrityFinding[] {
     const seenEventIds = new Set<CanonicalId>();
 
     return records.flatMap((record, index) => {
@@ -115,7 +115,7 @@ export class ProductionAuditIntegrityValidator {
     });
   }
 
-  evidenceRecordFindings(records: ProductionEvidenceStoreRecord[] = this.#store.readEvidenceRecords()): AuditIntegrityFinding[] {
+  evidenceRecordFindings(records: ReferenceEvidenceStoreRecord[] = this.#store.readEvidenceRecords()): AuditIntegrityFinding[] {
     return records.flatMap((record) => {
       const findings: AuditIntegrityFinding[] = [];
 
@@ -141,8 +141,8 @@ export class ProductionAuditIntegrityValidator {
   }
 
   signedWindowFindings(
-    windows: ProductionSignedAuditWindow[] = this.#store.readSignedWindows(),
-    records: ProductionAuditEventStoreRecord[] = this.#store.readAuditRecords()
+    windows: ReferenceSignedAuditWindow[] = this.#store.readSignedWindows(),
+    records: ReferenceAuditEventStoreRecord[] = this.#store.readAuditRecords()
   ): AuditIntegrityFinding[] {
     return windows.flatMap((window) => {
       const findings: AuditIntegrityFinding[] = [];
@@ -200,8 +200,8 @@ export class ProductionAuditIntegrityValidator {
   }
 
   siemDeliveryFindings(
-    deliveries: ProductionSiemDeliveryRecord[] = this.#store.readSiemDeliveries(),
-    windows: ProductionSignedAuditWindow[] = this.#store.readSignedWindows(),
+    deliveries: ReferenceSiemDeliveryRecord[] = this.#store.readSiemDeliveryLogEntries(),
+    windows: ReferenceSignedAuditWindow[] = this.#store.readSignedWindows(),
     options: { includeOperationalFailures?: boolean } = {}
   ): AuditIntegrityFinding[] {
     return deliveries.flatMap((delivery) => {
@@ -240,22 +240,22 @@ export class ProductionAuditIntegrityValidator {
     });
   }
 
-  validateBackup(backup: ProductionAuditStoreBackup): void {
+  validateBackup(backup: ReferenceAuditStoreBackup): void {
     if (backup.tenantBoundary !== this.#tenantBoundary) {
-      throw new Error(`Production audit backup ${backup.id} tenant boundary does not match the adapter.`);
+      throw new Error(`Reference audit backup ${backup.id} tenant boundary does not match the adapter.`);
     }
     if (backup.backupHash !== hashBackup(backup)) {
-      throw new Error(`Production audit backup ${backup.id} hash does not match the stored snapshot.`);
+      throw new Error(`Reference audit backup ${backup.id} hash does not match the stored snapshot.`);
     }
-    assertNoIntegrityFindings(this.auditRecordFindings(backup.auditRecords), "Production audit backup event integrity check failed");
-    assertNoIntegrityFindings(this.evidenceRecordFindings(backup.evidenceRecords), "Production audit backup evidence integrity check failed");
+    assertNoIntegrityFindings(this.auditRecordFindings(backup.auditRecords), "Reference audit backup event integrity check failed");
+    assertNoIntegrityFindings(this.evidenceRecordFindings(backup.evidenceRecords), "Reference audit backup evidence integrity check failed");
     assertNoIntegrityFindings(
       this.signedWindowFindings(backup.signedWindows, backup.auditRecords),
-      "Production audit backup signed-window integrity check failed"
+      "Reference audit backup signed-window integrity check failed"
     );
     assertNoIntegrityFindings(
       this.siemDeliveryFindings(backup.siemDeliveries, backup.signedWindows),
-      "Production audit backup SIEM delivery integrity check failed"
+      "Reference audit backup SIEM delivery integrity check failed"
     );
   }
 }

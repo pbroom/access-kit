@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   InMemoryExternalAppendOnlyAuditStore,
-  ProductionAuditEvidenceAdapter
+  ReferenceAuditEvidenceAdapter
 } from "../../packages/core/src/index.js";
 import {
   checkDecision,
@@ -12,7 +12,7 @@ import {
 
 describe("production audit adapter runtime integration", () => {
   it("uses the production audit/evidence adapter through normal runtime persistence hooks", () => {
-    const adapter = new ProductionAuditEvidenceAdapter({
+    const adapter = new ReferenceAuditEvidenceAdapter({
       store: new InMemoryExternalAppendOnlyAuditStore(),
       tenantBoundary: "tenant:access-kit-test",
       location: "worm://audit/runtime-test",
@@ -69,7 +69,7 @@ describe("production audit adapter runtime integration", () => {
   });
 
   it("surfaces production SIEM delivery failures through runtime integrity and evidence exports", () => {
-    const adapter = new ProductionAuditEvidenceAdapter({
+    const adapter = new ReferenceAuditEvidenceAdapter({
       store: new InMemoryExternalAppendOnlyAuditStore(),
       tenantBoundary: "tenant:access-kit-test",
       location: "worm://audit/runtime-test",
@@ -101,7 +101,7 @@ describe("production audit adapter runtime integration", () => {
       periodEnd: "2026-05-27T00:00:00.000Z",
       signedAt: "2026-05-26T06:30:30.000Z"
     });
-    adapter.recordSiemDelivery({
+    adapter.recordSiemDeliveryLogEntry({
       windowId: window.windowId,
       destination: "siem://access-kit/audit",
       status: "failed",
