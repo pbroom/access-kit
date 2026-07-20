@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   InMemoryRebacStore,
+  latencyTargetsForGraphSize,
   RebacDecisionEngine,
   type RebacSeedData,
   type RelationshipTuple,
@@ -26,6 +27,8 @@ const reportPath = join(process.cwd(), "reports/decision-engine-benchmark.md");
 const createdAt = "2026-05-21T17:00:00.000Z";
 const iterations = 31;
 const relationshipCounts = [5_000, 50_000, 100_000, 250_000, 500_000];
+const checkMode = process.argv.includes("--check");
+const ciVarianceMultiplier = 4;
 
 const baselineSamples: BenchmarkSample[] = [
   { relationships: 5_000, coldEngineMs: 3.039, warmMedianEngineMs: 1.792, warmP95EngineMs: 2.19, coldTotalMs: 4.068, warmMedianTotalMs: 1.858 },
@@ -36,8 +39,13 @@ const baselineSamples: BenchmarkSample[] = [
 ];
 
 const currentSamples = relationshipCounts.map((relationships) => runBenchmark(relationships));
-await writeReport(baselineSamples, currentSamples);
-console.log(`Wrote ${reportPath}`);
+if (checkMode) {
+  checkLatencyTargets(currentSamples);
+  console.log("Decision engine benchmark thresholds passed.");
+} else {
+  await writeReport(baselineSamples, currentSamples);
+  console.log(`Wrote ${reportPath}`);
+}
 
 function runBenchmark(relationships: number): BenchmarkSample {
   const store = new InMemoryRebacStore(createBenchmarkSeed(relationships));
@@ -96,6 +104,24 @@ function createBenchmarkSeed(relationshipTarget: number): RebacSeedData {
   }
 
   return { subjects, resources, relationships };
+}
+
+function checkLatencyTargets(samples: BenchmarkSample[]): void {
+  for (const sample of samples) {
+    const targets = latencyTargetsForGraphSize({
+      subjects: Math.max(100, Math.floor(sample.relationships / 10)) + 1,
+      resources: Math.max(100, Math.floor(sample.relationships / 10)) + 1,
+      relationships: sample.relationships
+    });
+    const thresholdMs = targets.regressionGateMs * ciVarianceMultiplier;
+
+    if (sample.warmP95EngineMs > thresholdMs) {
+      throw new Error(
+        `Warm p95 ${sample.warmP95EngineMs}ms exceeded the ${thresholdMs}ms CI threshold for ` +
+        `${sample.relationships} relationships.`
+      );
+    }
+  }
 }
 
 function subject(id: string, type: Subject["type"]): Subject {
@@ -206,8 +232,7 @@ async function writeReport(before: BenchmarkSample[], after: BenchmarkSample[]):
     "",
     "- The benchmark is intentionally shaped to expose the previous global relationship filtering/indexing cost. It is not a worst-case graph-explosion traversal.",
     "- The optimized engine lazily filters active relationships per visited subject and caches that subject index by relationship revision, `asOf`, and tuple-version scope.",
-    "- The store now keeps relationship adjacency by subject, so unrelated graph size no longer dominates decisions with a short reachable path.",
-    ""
+    "- The store now keeps relationship adjacency by subject, so unrelated graph size no longer dominates decisions with a short reachable path."
   ];
 
   await mkdir(dirname(reportPath), { recursive: true });

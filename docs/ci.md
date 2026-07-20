@@ -12,6 +12,7 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - `pnpm validate:ci` is a local steward check that validates expected GitHub Actions jobs. The hosted workflow does not self-validate this run-line.
 - `pnpm validate:deployment-manifests` validates the Kubernetes manifests, probe wiring, secret references, restricted runtime security, network policy, and signed-image admission policy example.
 - `pnpm validate:persistence-deployment` validates the schema-backed synthetic production persistence manifest, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
+- `pnpm validate:runbook-exercises` validates the retained, redacted evidence for incident response, break-glass, backup/restore, contingency, emergency revocation, SIEM replay, and post-action review exercises.
 - `pnpm validate:secure-sdlc` validates release-retained SAST, DAST, dependency scan, SBOM, fuzzing, tenant-isolation abuse, threat-model, vulnerability triage, and NIST SSDF evidence.
 - `pnpm validate:live-enforcement-pilot` validates the schema-backed controlled live enforcement pilot manifest, retained readiness report artifact, read-only confidence evidence, least-privilege write-scope review, approval workflow, degraded-runtime blocking, verification and rollback hooks, emergency revocation runbooks, and release gate.
 - `pnpm test:core` includes shared repository conformance coverage for in-memory proof-point repositories, local JSON graph/job stores, and the production graph, connector-state, and queue adapters.
@@ -29,7 +30,8 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - Automation contract validation on Node 22.
 - Typecheck, lint, tests, and build on Node 22 and Node 24.
 - Evidence report freshness on Node 24.
-- Container packaging by building the `rebac-api` runtime image and smoke-testing health, readiness, and bearer-token API protection.
+- Decision-engine benchmark thresholds on Node 22. The p95 check permits four times the documented regression gate to absorb shared-runner variance while detecting material regressions.
+- Container packaging by building the `rebac-api` runtime image and smoke-testing health, readiness, bearer-token API protection, and seeded allow and deny-by-default decisions.
 
 `.github/workflows/container-release.yml` runs on `rebac-api-v*` tags or manual dispatch:
 

@@ -65,6 +65,9 @@ jobs:
       - name: Validate live enforcement pilot gates
         run: pnpm validate:live-enforcement-pilot
 
+      - name: Validate runbook exercises
+        run: pnpm validate:runbook-exercises
+
       - name: Validate sample internal admin app
         run: pnpm validate:sample-admin-app
 
@@ -161,6 +164,32 @@ jobs:
       - name: Check proof-point evidence freshness
         run: pnpm evidence:check
 
+  decision-engine-benchmark:
+    name: Decision engine benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.30.3
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.x
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Check decision engine benchmark thresholds
+        run: pnpm benchmark:decision-engine --check
+
   container-packaging:
     name: Container packaging
     runs-on: ubuntu-latest
@@ -173,6 +202,8 @@ jobs:
 
       - name: Smoke test rebac-api image
         run: |
+          set -euo pipefail
+
           docker run --rm --detach \
             --name rebac-api-smoke \
             --publish 3000:3000 \
@@ -208,3 +239,38 @@ jobs:
           test "$ready_status" = "200"
           test "$unauth_status" = "401"
           test "$auth_status" = "200"
+
+          curl --fail --silent --show-error --oauth2-bearer ci-smoke \
+            --header "content-type: application/json" \
+            --request POST \
+            --data '{"id":"user:smoke-allow","type":"user","displayName":"Smoke Allow","sourceSystem":"ci","lifecycleState":"active","identifiers":{},"attributes":{"tenantId":"tenant:smoke"},"version":"subject:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            http://127.0.0.1:3000/v1/subjects >/tmp/rebac-subject-allow.json
+          curl --fail --silent --show-error --oauth2-bearer ci-smoke \
+            --header "content-type: application/json" \
+            --request POST \
+            --data '{"id":"user:smoke-deny","type":"user","displayName":"Smoke Deny","sourceSystem":"ci","lifecycleState":"active","identifiers":{},"attributes":{"tenantId":"tenant:smoke"},"version":"subject:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            http://127.0.0.1:3000/v1/subjects >/tmp/rebac-subject-deny.json
+          curl --fail --silent --show-error --oauth2-bearer ci-smoke \
+            --header "content-type: application/json" \
+            --request POST \
+            --data '{"id":"document:smoke","type":"document","displayName":"Smoke Document","sourceSystem":"ci","ownerId":"user:owner","dataStewardId":"user:steward","technicalOwnerId":"user:technical-owner","classification":"internal","lifecycleState":"active","attributes":{"tenantId":"tenant:smoke"},"version":"resource:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            http://127.0.0.1:3000/v1/resources >/tmp/rebac-resource.json
+          curl --fail --silent --show-error --oauth2-bearer ci-smoke \
+            --header "content-type: application/json" \
+            --request PUT \
+            --data '{"id":"relationship:smoke-allow","subjectId":"user:smoke-allow","relation":"reader_of","objectId":"document:smoke","sourceSystem":"ci","assertedAt":"2026-05-21T17:00:00.000Z","status":"active","attributes":{"tenantId":"tenant:smoke"},"version":"tuple:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            http://127.0.0.1:3000/v1/relationships >/tmp/rebac-relationship.json
+
+          curl --fail --silent --show-error --oauth2-bearer ci-smoke \
+            --header "content-type: application/json" \
+            --request POST \
+            --data '{"subjectId":"user:smoke-allow","action":"read","resourceId":"document:smoke"}' \
+            http://127.0.0.1:3000/v1/decision/check >/tmp/rebac-decision-allow.json
+          curl --fail --silent --show-error --oauth2-bearer ci-smoke \
+            --header "content-type: application/json" \
+            --request POST \
+            --data '{"subjectId":"user:smoke-deny","action":"read","resourceId":"document:smoke"}' \
+            http://127.0.0.1:3000/v1/decision/check >/tmp/rebac-decision-deny.json
+
+          jq -e '.decision == "allow" and .reasonCode == "ALLOW_VIA_RELATIONSHIP_PATH"' /tmp/rebac-decision-allow.json
+          jq -e '.decision == "deny" and .reasonCode == "DENY_DEFAULT_NO_RELATIONSHIP_PATH"' /tmp/rebac-decision-deny.json
