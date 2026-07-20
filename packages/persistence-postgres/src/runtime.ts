@@ -58,8 +58,16 @@ export async function createPostgresRuntimePersistence(
 
     const locationPrefix = options.locationPrefix ?? "postgres";
     const [graphStore, connectorStateStore, auditStore] = await Promise.all([
-      PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({ db, storeName: graphStoreName }),
-      PostgresExternalSnapshotStore.create<ProductionConnectorStateStoreRecord>({ db, storeName: connectorStateStoreName }),
+      PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+        db,
+        tenantBoundary: options.tenantBoundary,
+        storeName: graphStoreName
+      }),
+      PostgresExternalSnapshotStore.create<ProductionConnectorStateStoreRecord>({
+        db,
+        tenantBoundary: options.tenantBoundary,
+        storeName: connectorStateStoreName
+      }),
       PostgresExternalAppendOnlyAuditStore.create({ db, tenantBoundary: options.tenantBoundary })
     ]);
 

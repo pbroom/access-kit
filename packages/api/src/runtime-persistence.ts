@@ -62,6 +62,8 @@ export async function createRuntimePersistence(options: RuntimePersistenceOption
     graphRepository: bundle.graphRepository,
     jobRepository: bundle.jobRepository,
     auditRepository: bundle.auditRepository,
-    evidenceRepository: bundle.evidenceRepository
+    evidenceRepository: bundle.evidenceRepository,
+    waitForPendingWrites: () => bundle.waitForPendingWrites(),
+    close: () => bundle.close()
   };
 }

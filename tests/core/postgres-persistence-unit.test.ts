@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { ProductionAuditEventStoreRecord, ProductionGraphStoreRecord } from "../../packages/core/src/index.js";
+import type {
+  ProductionAuditEventStoreRecord,
+  ProductionAuditStoreBackup,
+  ProductionGraphStoreRecord
+} from "../../packages/core/src/index.js";
 import {
   PostgresExternalAppendOnlyAuditStore,
   PostgresExternalSnapshotStore,
@@ -77,7 +81,7 @@ describe("postgres persistence config parsing", () => {
 });
 
 describe("postgres persistence schema bootstrap SQL shaping", () => {
-  it("creates every table idempotently with indexes and append-only triggers", async () => {
+  it("creates every table with tenant-scoped keys and append-only triggers", async () => {
     const db = new RecordingQueryable();
 
     await ensureAccessKitPersistenceSchema(db);
@@ -97,7 +101,13 @@ describe("postgres persistence schema bootstrap SQL shaping", () => {
         statements.some((statement) => statement.includes(`CREATE OR REPLACE TRIGGER ${tableName}_append_only`))
       ).toBe(true);
     }
-    expect(statements.filter((statement) => statement.startsWith("CREATE INDEX IF NOT EXISTS")).length).toBeGreaterThanOrEqual(4);
+    expect(statements).toEqual(expect.arrayContaining([
+      expect.stringContaining("PRIMARY KEY (tenant_boundary, store_name)"),
+      expect.stringContaining("PRIMARY KEY (tenant_boundary, store_name, backup_id)"),
+      expect.stringContaining("PRIMARY KEY (tenant_boundary, sequence)"),
+      expect.stringContaining("UNIQUE (tenant_boundary, event_id)"),
+      expect.stringContaining("PRIMARY KEY (tenant_boundary, backup_id)")
+    ]));
     expect(appendOnlyRestoreBypassStatement()).toBe("SET LOCAL access_kit.allow_audit_restore = 'true'");
   });
 });
@@ -105,7 +115,11 @@ describe("postgres persistence schema bootstrap SQL shaping", () => {
 describe("postgres snapshot store SQL shaping", () => {
   it("persists current snapshots through parameterized upserts and backups through insert-or-replace", async () => {
     const db = new RecordingQueryable();
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({ db, storeName: "graph" });
+    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: conformanceTenant,
+      storeName: "graph"
+    });
     const record = graphRecord();
 
     store.writeCurrent(record);
@@ -115,18 +129,27 @@ describe("postgres snapshot store SQL shaping", () => {
     const writes = db.queries.filter((query) => query.text.includes("INSERT INTO"));
     expect(writes).toHaveLength(2);
     expect(writes[0]?.text).toContain(`INSERT INTO ${postgresPersistenceTableNames.snapshotCurrent}`);
-    expect(writes[0]?.text).toContain("ON CONFLICT (store_name) DO UPDATE");
-    expect(writes[0]?.params?.[0]).toBe("graph");
-    expect(writes[0]?.params?.[1]).toEqual(record);
-    expect(writes[0]?.params?.[2]).toBe(stablePostgresHash(record));
+    expect(writes[0]?.text).toContain("ON CONFLICT (tenant_boundary, store_name) DO UPDATE");
+    expect(writes[0]?.params).toEqual([conformanceTenant, "graph", record, stablePostgresHash(record)]);
     expect(writes[1]?.text).toContain(`INSERT INTO ${postgresPersistenceTableNames.snapshotBackup}`);
-    expect(writes[1]?.params).toEqual(["graph", "backup:graph:one", record, stablePostgresHash(record)]);
+    expect(writes[1]?.text).toContain("ON CONFLICT (tenant_boundary, store_name, backup_id) DO UPDATE");
+    expect(writes[1]?.params).toEqual([
+      conformanceTenant,
+      "graph",
+      "backup:graph:one",
+      record,
+      stablePostgresHash(record)
+    ]);
   });
 
   it("issues conditional compare-exchange writes guarded by the stored record hash", async () => {
     const db = new RecordingQueryable();
     db.rowsByPattern = [{ pattern: /RETURNING store_name/, rows: [{ store_name: "graph" }] }];
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({ db, storeName: "graph" });
+    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: conformanceTenant,
+      storeName: "graph"
+    });
     const first = graphRecord();
     const second = { ...graphRecord(), storedAt: "2026-05-26T04:05:00.000Z" };
 
@@ -137,14 +160,64 @@ describe("postgres snapshot store SQL shaping", () => {
 
     const conditionalWrites = db.queries.filter((query) => query.text.includes("RETURNING store_name"));
     expect(conditionalWrites).toHaveLength(2);
-    expect(conditionalWrites[0]?.text).toContain("WHERE access_kit_snapshot_current.record_hash = $4");
-    expect(conditionalWrites[0]?.params?.[3]).toBeNull();
-    expect(conditionalWrites[1]?.params?.[3]).toBe(stablePostgresHash(first));
+    expect(conditionalWrites[0]?.text).toContain("ON CONFLICT (tenant_boundary, store_name) DO NOTHING");
+    expect(conditionalWrites[0]?.params).toEqual([
+      conformanceTenant,
+      "graph",
+      first,
+      stablePostgresHash(first)
+    ]);
+    expect(conditionalWrites[1]?.text).toContain("WHERE tenant_boundary = $1 AND store_name = $2 AND record_hash = $5");
+    expect(conditionalWrites[1]?.params).toEqual([
+      conformanceTenant,
+      "graph",
+      second,
+      stablePostgresHash(second),
+      stablePostgresHash(first)
+    ]);
+  });
+
+  it("rejects stale compare-exchange writes instead of inserting a missing row", async () => {
+    const db = new RecordingQueryable();
+    db.rowsByPattern = [{ pattern: /FROM access_kit_snapshot_current/, rows: [{ record: graphRecord() }] }];
+    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: conformanceTenant,
+      storeName: "graph"
+    });
+    const expected = store.readCurrent();
+    const replacement = { ...graphRecord(), storedAt: "2026-05-26T04:05:00.000Z" };
+
+    expect(store.compareExchangeCurrent(expected, replacement)).toBe(true);
+    await expect(store.waitForPendingWrites()).rejects.toThrow("Another writer has persisted a conflicting update.");
+
+    const write = db.queries.find((query) => query.text.startsWith("UPDATE access_kit_snapshot_current"));
+    expect(write?.text).not.toContain("INSERT INTO");
+    expect(write?.params?.[4]).toBe(stablePostgresHash(expected));
+  });
+
+  it("rejects a compare-exchange create when another writer wins the insert race", async () => {
+    const db = new RecordingQueryable();
+    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: conformanceTenant,
+      storeName: "graph"
+    });
+
+    expect(store.compareExchangeCurrent(undefined, graphRecord())).toBe(true);
+    await expect(store.waitForPendingWrites()).rejects.toThrow("Another writer has persisted a conflicting update.");
+
+    const write = db.queries.find((query) => query.text.includes("RETURNING store_name"));
+    expect(write?.text).toContain("ON CONFLICT (tenant_boundary, store_name) DO NOTHING");
   });
 
   it("returns defensive copies and surfaces queued write failures on waitForPendingWrites", async () => {
     const db = new RecordingQueryable();
-    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({ db, storeName: "graph" });
+    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: conformanceTenant,
+      storeName: "graph"
+    });
     const record = graphRecord();
     db.failOnPattern = { pattern: /INSERT INTO access_kit_snapshot_current/, error: new Error("connection reset") };
 
@@ -154,7 +227,10 @@ describe("postgres snapshot store SQL shaping", () => {
     expect(readBack).not.toBe(record);
 
     await expect(store.waitForPendingWrites()).rejects.toThrow("connection reset");
-    await expect(store.waitForPendingWrites()).resolves.toBeUndefined();
+    db.failOnPattern = undefined;
+    store.writeBackup("backup:after-failure", record);
+    await expect(store.waitForPendingWrites()).rejects.toThrow("connection reset");
+    expect(db.queries.some((query) => query.text.includes("INSERT INTO access_kit_snapshot_backup"))).toBe(false);
   });
 });
 
@@ -182,6 +258,19 @@ describe("postgres append-only audit store semantics", () => {
     ]);
   });
 
+  it("scopes audit backup upserts to the tenant boundary", async () => {
+    const db = new RecordingQueryable();
+    const store = await PostgresExternalAppendOnlyAuditStore.create({ db, tenantBoundary: conformanceTenant });
+    const backup = auditBackup("backup:audit:one");
+
+    store.writeBackup(backup.id, backup);
+    await store.waitForPendingWrites();
+
+    const write = db.queries.find((query) => query.text.includes("INSERT INTO access_kit_audit_backups"));
+    expect(write?.text).toContain("ON CONFLICT (tenant_boundary, backup_id) DO UPDATE");
+    expect(write?.params).toEqual([conformanceTenant, backup.id, backup, backup.createdAt]);
+  });
+
   it("verifies sequence continuity when hydrating and when reading audit records", async () => {
     const db = new RecordingQueryable();
     db.rowsByPattern = [
@@ -194,6 +283,18 @@ describe("postgres append-only audit store semantics", () => {
     await expect(PostgresExternalAppendOnlyAuditStore.create({ db, tenantBoundary: conformanceTenant })).rejects.toThrow(
       "Postgres audit store sequence continuity check failed: expected sequence 2 but found 3 for event evt:three."
     );
+  });
+
+  it("stops issuing audit writes after the first queued persistence failure", async () => {
+    const db = new RecordingQueryable();
+    const store = await PostgresExternalAppendOnlyAuditStore.create({ db, tenantBoundary: conformanceTenant });
+    db.failOnPattern = { pattern: /INSERT INTO access_kit_audit_records/, error: new Error("audit unavailable") };
+
+    store.appendAuditRecord(auditRecord(1, "evt:one"));
+    store.appendAuditRecord(auditRecord(2, "evt:two"));
+
+    await expect(store.waitForPendingWrites()).rejects.toThrow("audit unavailable");
+    expect(db.queries.filter((query) => query.text.includes("INSERT INTO access_kit_audit_records"))).toHaveLength(1);
   });
 
   it("restores snapshots inside a transaction that explicitly bypasses the append-only guard", async () => {
@@ -260,5 +361,20 @@ function auditRecord(sequence: number, eventId: string): ProductionAuditEventSto
       payloadHash: `sha256:${eventId}`
     },
     recordHash: `sha256:record:${eventId}`
+  };
+}
+
+function auditBackup(id: string): ProductionAuditStoreBackup {
+  return {
+    version: "production-audit-store-backup:v1",
+    id,
+    tenantBoundary: conformanceTenant,
+    createdAt: conformanceNow,
+    auditRecords: [],
+    evidenceRecords: [],
+    signedWindows: [],
+    siemDeliveries: [],
+    backupMetadata: [],
+    backupHash: "sha256:backup"
   };
 }

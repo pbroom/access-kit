@@ -49,7 +49,7 @@ export function readRebacApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env):
     evidenceRoot: readOptionalPath(env.REBAC_EVIDENCE_ROOT),
     databaseUrl: readOptionalPath(env.REBAC_DATABASE_URL),
     databaseTenantBoundary: readOptionalPath(env.REBAC_DATABASE_TENANT_BOUNDARY),
-    databaseAuditSigningKey: readOptionalPath(env.REBAC_DATABASE_AUDIT_SIGNING_KEY)
+    databaseAuditSigningKey: readOptionalSecret(env.REBAC_DATABASE_AUDIT_SIGNING_KEY)
   };
 }
 
@@ -77,6 +77,10 @@ function readPort(value: string | undefined): number {
 function readOptionalPath(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+}
+
+function readOptionalSecret(value: string | undefined): string | undefined {
+  return value === undefined || value.length === 0 ? undefined : value;
 }
 
 function readList(value: string | undefined): string[] {

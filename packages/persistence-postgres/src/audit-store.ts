@@ -58,7 +58,6 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
   #backupMetadata: ProductionRepositoryBackupMetadata[] = [];
   readonly #backups = new Map<CanonicalId, ProductionAuditStoreBackup>();
   #writeQueue: Promise<void> = Promise.resolve();
-  readonly #pendingErrors: Error[] = [];
 
   private constructor(options: PostgresAppendOnlyAuditStoreOptions) {
     this.#db = options.db;
@@ -174,7 +173,7 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
       this.#db.query(
         `INSERT INTO ${postgresPersistenceTableNames.auditBackups} (tenant_boundary, backup_id, record, created_at)
          VALUES ($1, $2, $3, $4)
-         ON CONFLICT (backup_id) DO UPDATE SET record = EXCLUDED.record`,
+         ON CONFLICT (tenant_boundary, backup_id) DO UPDATE SET record = EXCLUDED.record`,
         [this.#tenantBoundary, id, backup, backup.createdAt]
       )
     );
@@ -201,11 +200,6 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
    */
   async waitForPendingWrites(): Promise<void> {
     await this.#writeQueue;
-
-    if (this.#pendingErrors.length > 0) {
-      const [error] = this.#pendingErrors.splice(0, this.#pendingErrors.length);
-      throw error;
-    }
   }
 
   async #hydrate(): Promise<void> {
@@ -250,12 +244,9 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
   }
 
   #enqueue(operation: () => Promise<unknown>): void {
-    this.#writeQueue = this.#writeQueue.then(() => operation()).then(
-      () => undefined,
-      (error: unknown) => {
-        this.#pendingErrors.push(error instanceof Error ? error : new Error(String(error)));
-      }
-    );
+    const queued = this.#writeQueue.then(() => operation()).then(() => undefined);
+    void queued.catch(() => undefined);
+    this.#writeQueue = queued;
   }
 
   async #persistRestoreSnapshot(snapshot: {

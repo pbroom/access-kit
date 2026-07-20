@@ -16,56 +16,56 @@ const appendOnlyGuardBypassSetting = "access_kit.allow_audit_restore";
 
 const bootstrapStatements: readonly string[] = [
   `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.snapshotCurrent} (
-    store_name text PRIMARY KEY,
+    tenant_boundary text NOT NULL,
+    store_name text NOT NULL,
     record jsonb NOT NULL,
     record_hash text NOT NULL,
-    updated_at timestamptz NOT NULL
+    updated_at timestamptz NOT NULL,
+    PRIMARY KEY (tenant_boundary, store_name)
   )`,
   `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.snapshotBackup} (
+    tenant_boundary text NOT NULL,
     store_name text NOT NULL,
     backup_id text NOT NULL,
     record jsonb NOT NULL,
     record_hash text NOT NULL,
     created_at timestamptz NOT NULL,
-    PRIMARY KEY (store_name, backup_id)
+    PRIMARY KEY (tenant_boundary, store_name, backup_id)
   )`,
-  `CREATE INDEX IF NOT EXISTS ${postgresPersistenceTableNames.snapshotBackup}_store_name_idx
-    ON ${postgresPersistenceTableNames.snapshotBackup} (store_name)`,
   `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.auditRecords} (
     tenant_boundary text NOT NULL,
-    sequence bigint PRIMARY KEY,
-    event_id text NOT NULL UNIQUE,
+    sequence bigint NOT NULL,
+    event_id text NOT NULL,
     record jsonb NOT NULL,
     record_hash text NOT NULL,
-    stored_at timestamptz NOT NULL
+    stored_at timestamptz NOT NULL,
+    PRIMARY KEY (tenant_boundary, sequence),
+    UNIQUE (tenant_boundary, event_id)
   )`,
-  `CREATE INDEX IF NOT EXISTS ${postgresPersistenceTableNames.auditRecords}_tenant_boundary_idx
-    ON ${postgresPersistenceTableNames.auditRecords} (tenant_boundary)`,
   `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.auditEvidenceRecords} (
     tenant_boundary text NOT NULL,
-    export_id text PRIMARY KEY,
+    export_id text NOT NULL,
     record jsonb NOT NULL,
-    stored_at timestamptz NOT NULL
+    stored_at timestamptz NOT NULL,
+    PRIMARY KEY (tenant_boundary, export_id)
   )`,
-  `CREATE INDEX IF NOT EXISTS ${postgresPersistenceTableNames.auditEvidenceRecords}_tenant_boundary_idx
-    ON ${postgresPersistenceTableNames.auditEvidenceRecords} (tenant_boundary)`,
   `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.auditSignedWindows} (
     tenant_boundary text NOT NULL,
-    window_id text PRIMARY KEY,
-    record jsonb NOT NULL,
-    signed_at timestamptz NOT NULL
-  )`,
-  `CREATE INDEX IF NOT EXISTS ${postgresPersistenceTableNames.auditSignedWindows}_tenant_boundary_idx
-    ON ${postgresPersistenceTableNames.auditSignedWindows} (tenant_boundary)`,
-  `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.auditSiemDeliveries} (
-    tenant_boundary text NOT NULL,
-    delivery_id text PRIMARY KEY,
     window_id text NOT NULL,
     record jsonb NOT NULL,
-    attempted_at timestamptz NOT NULL
+    signed_at timestamptz NOT NULL,
+    PRIMARY KEY (tenant_boundary, window_id)
+  )`,
+  `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.auditSiemDeliveries} (
+    tenant_boundary text NOT NULL,
+    delivery_id text NOT NULL,
+    window_id text NOT NULL,
+    record jsonb NOT NULL,
+    attempted_at timestamptz NOT NULL,
+    PRIMARY KEY (tenant_boundary, delivery_id)
   )`,
   `CREATE INDEX IF NOT EXISTS ${postgresPersistenceTableNames.auditSiemDeliveries}_window_id_idx
-    ON ${postgresPersistenceTableNames.auditSiemDeliveries} (window_id)`,
+    ON ${postgresPersistenceTableNames.auditSiemDeliveries} (tenant_boundary, window_id)`,
   `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.auditBackupMetadata} (
     tenant_boundary text PRIMARY KEY,
     metadata jsonb NOT NULL,
@@ -73,9 +73,10 @@ const bootstrapStatements: readonly string[] = [
   )`,
   `CREATE TABLE IF NOT EXISTS ${postgresPersistenceTableNames.auditBackups} (
     tenant_boundary text NOT NULL,
-    backup_id text PRIMARY KEY,
+    backup_id text NOT NULL,
     record jsonb NOT NULL,
-    created_at timestamptz NOT NULL
+    created_at timestamptz NOT NULL,
+    PRIMARY KEY (tenant_boundary, backup_id)
   )`,
   `CREATE OR REPLACE FUNCTION ${appendOnlyGuardFunction}() RETURNS trigger AS $$
   BEGIN

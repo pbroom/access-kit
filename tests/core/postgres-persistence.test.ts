@@ -98,6 +98,43 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence backend (REBAC_TEST_DATABA
     expect(reopened.listNativeGrants()).toEqual([nativeGrant]);
   });
 
+  it("isolates snapshot state and backup identifiers across tenant boundaries", async () => {
+    const secondTenant = "tenant:postgres-secondary";
+    const firstStore = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: conformanceTenant,
+      storeName: "graph"
+    });
+    const secondStore = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: secondTenant,
+      storeName: "graph"
+    });
+    const firstRecord = emptyGraphRecord(conformanceTenant, "sha256:first");
+    const secondRecord = emptyGraphRecord(secondTenant, "sha256:second");
+
+    firstStore.writeCurrent(firstRecord);
+    firstStore.writeBackup("backup:shared", firstRecord);
+    secondStore.writeCurrent(secondRecord);
+    secondStore.writeBackup("backup:shared", secondRecord);
+    await Promise.all([firstStore.waitForPendingWrites(), secondStore.waitForPendingWrites()]);
+
+    const reopenedFirst = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: conformanceTenant,
+      storeName: "graph"
+    });
+    const reopenedSecond = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: secondTenant,
+      storeName: "graph"
+    });
+    expect(reopenedFirst.readCurrent()).toEqual(firstRecord);
+    expect(reopenedFirst.readBackup("backup:shared")).toEqual(firstRecord);
+    expect(reopenedSecond.readCurrent()).toEqual(secondRecord);
+    expect(reopenedSecond.readBackup("backup:shared")).toEqual(secondRecord);
+  });
+
   it("creates graph backups and restores them across store instances", async () => {
     const store = await createGraphStore(db);
     const repository = createGraphRepository(store);
@@ -288,13 +325,21 @@ describe.skipIf(!databaseUrl)("PostgreSQL persistence backend (REBAC_TEST_DATABA
 });
 
 async function createGraphStore(db: PostgresQueryable): Promise<PostgresExternalSnapshotStore<ProductionGraphStoreRecord>> {
-  return PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({ db, storeName: "graph" });
+  return PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+    db,
+    tenantBoundary: conformanceTenant,
+    storeName: "graph"
+  });
 }
 
 async function createConnectorStateStore(
   db: PostgresQueryable
 ): Promise<PostgresExternalSnapshotStore<ProductionConnectorStateStoreRecord>> {
-  return PostgresExternalSnapshotStore.create<ProductionConnectorStateStoreRecord>({ db, storeName: "connector_state" });
+  return PostgresExternalSnapshotStore.create<ProductionConnectorStateStoreRecord>({
+    db,
+    tenantBoundary: conformanceTenant,
+    storeName: "connector_state"
+  });
 }
 
 async function createAuditStore(db: PostgresQueryable): Promise<PostgresExternalAppendOnlyAuditStore> {
@@ -357,6 +402,18 @@ function createAuditEvents(): [AuditEvent, AuditEvent] {
   );
 
   return [firstEvent, secondEvent];
+}
+
+function emptyGraphRecord(tenantBoundary: string, graphHash: string): ProductionGraphStoreRecord {
+  return {
+    version: "production-graph-store:v1",
+    storedAt: conformanceNow,
+    tenantBoundary,
+    graphHash,
+    graph: { subjects: [], resources: [], relationships: [], nativeGrants: [] },
+    entityCounts: { subjects: 0, resources: 0, relationships: 0, nativeGrants: 0 },
+    backupMetadata: []
+  };
 }
 
 function createNextEvent(seedEvents: AuditEvent[], eventType: string, occurredAt: string): AuditEvent {
