@@ -77,8 +77,8 @@ The API listens on `127.0.0.1:3000` by default. Useful environment variables:
 | --- | --- | --- |
 | `REBAC_API_HOST` | `127.0.0.1` | Bind host. Non-loopback hosts require bearer tokens. |
 | `REBAC_API_PORT` | `3000` | Bind port. |
-| `REBAC_API_ACTOR` | `service:api` | Actor recorded for service-emitted audit events. |
-| `REBAC_API_KEYS` | unset | Comma-separated bearer tokens for `/v1` routes except health and readiness. |
+| `REBAC_API_ACTOR` | `service:api` | Default actor for service-emitted audit events when bearer tokens are unlabeled or auth is disabled on loopback. |
+| `REBAC_API_KEYS` | unset | Comma-separated bearer tokens for `/v1` routes except health and readiness. Optional `label:token` entries record audit events as `api-key:<label>`. |
 | `REBAC_STATE_PATH` | unset | Optional JSON runtime state snapshot path. |
 | `REBAC_EVIDENCE_ROOT` | unset | Optional local persistence root for audit records and evidence packages. |
 
@@ -89,7 +89,7 @@ curl http://127.0.0.1:3000/v1/health
 curl http://127.0.0.1:3000/v1/ready
 ```
 
-When `REBAC_API_KEYS` is set, call protected routes with `Authorization: Bearer <token>`. The runtime refuses to bind beyond loopback without keys, audits failed authentication attempts, and excludes token material from logs.
+When `REBAC_API_KEYS` is set, call protected routes with `Authorization: Bearer <token>`. Entries may use optional labels as `label:token`; labeled tokens record audit events under `api-key:<label>` while unlabeled tokens use `REBAC_API_ACTOR`. Because the first colon opts an entry into labeled parsing, deployments upgrading with existing opaque tokens that contain `:` must rotate those tokens to colon-free values first. The runtime refuses to bind beyond loopback without keys, audits failed authentication attempts, and excludes token material from logs.
 
 ## Run The CLI
 

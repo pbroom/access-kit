@@ -38,6 +38,7 @@ export interface DecisionEngineOptions {
   contextVersion?: string;
   traversalBounds?: Partial<DecisionTraversalBounds>;
   actor?: string;
+  resolveAuditActor?: () => string | undefined;
   now?: () => string;
   monotonicNow?: () => number;
   policyModel?: PolicyModel;
@@ -68,6 +69,7 @@ interface NormalizedDecisionEngineOptions {
   contextVersion?: string;
   traversalBounds: DecisionTraversalBounds;
   actor: string;
+  resolveAuditActor?: () => string | undefined;
   now: () => string;
   monotonicNow: () => number;
 }
@@ -138,6 +140,7 @@ export class RebacDecisionEngine {
       contextVersion: options.contextVersion,
       traversalBounds: mergeDecisionTraversalBounds(DEFAULT_DECISION_TRAVERSAL_BOUNDS, options.traversalBounds),
       actor: options.actor ?? "service:decision-engine",
+      resolveAuditActor: options.resolveAuditActor,
       now: options.now ?? (() => new Date().toISOString()),
       monotonicNow: options.monotonicNow ?? (() => performance.now())
     };
@@ -154,8 +157,7 @@ export class RebacDecisionEngine {
   #evaluate(request: DecisionRequest, explain: boolean): DecisionResult {
     const startedAt = this.#options.monotonicNow();
     const evaluatedAt = this.#options.now();
-    const runtimeRequest = explain ? request : { ...request, asOf: evaluatedAt };
-    const versionPins = normalizeDecisionRuntimeVersionPins(runtimeRequest, this.#options, evaluatedAt);
+    const versionPins = normalizeDecisionRuntimeVersionPins(request, this.#options, evaluatedAt);
     const context = this.#buildDecisionContext(request, evaluatedAt, versionPins);
     const performance = createDecisionRuntimePerformanceReport(
       Math.max(0, this.#options.monotonicNow() - startedAt),
@@ -166,7 +168,7 @@ export class RebacDecisionEngine {
     const auditEvent = this.#auditRecorder.record(
       {
         eventType: result.decision === "allow" ? "decision.allowed" : "decision.denied",
-        actor: this.#options.actor,
+        actor: this.#options.resolveAuditActor?.() ?? this.#options.actor,
         subjectId: result.subjectId,
         resourceId: result.resourceId,
         correlationId: `corr:${result.decisionId}`,

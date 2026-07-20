@@ -82,6 +82,7 @@ import {
   type RebacPersistenceDegradation,
   type RebacRuntimePersistence
 } from "./runtime-app.js";
+import { getRequestAuditActor } from "./request-audit-context.js";
 import { createRuntimeConnectors } from "./runtime-connectors.js";
 import {
   buildEvidenceArtifacts,
@@ -203,6 +204,7 @@ export function createRebacLocalApp(options: RebacLocalAppOptions = {}): RebacLo
   const engine = new RebacDecisionEngine(store, {
     now,
     actor,
+    resolveAuditActor: getRequestAuditActor,
     auditRecorder,
     onAuditEvent: (event) => {
       const priorStoreAuditEvents = persistence.stateRepository ? store.listAuditEvents().slice(0, -1) : undefined;
@@ -1228,7 +1230,8 @@ function verifyRuntimeAuditIntegrity(app: RebacLocalApp, verifiedAt: string): Au
 }
 
 export function recordAudit(app: RebacLocalApp, input: AuditEventInput, options: RecordAuditOptions = {}): AuditEvent {
-  const event = app.auditRecorder.record(input, options.occurredAt ?? app.now());
+  const actor = getRequestAuditActor() ?? input.actor;
+  const event = app.auditRecorder.record({ ...input, actor }, options.occurredAt ?? app.now());
   const priorStoreAuditEvents = app.persistence.stateRepository ? app.store.listAuditEvents() : undefined;
   app.store.recordAuditEvent(event);
   commitRuntimePersistence(app, event.occurredAt, [

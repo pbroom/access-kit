@@ -64,6 +64,13 @@
     "automation:doctor": "node --import tsx scripts/automation-doctor.ts",
     "pr:stack": "gt submit --stack"
   },
+  "pnpm": {
+    "overrides": {
+      "brace-expansion@1.1.14": "1.1.16",
+      "brace-expansion@5.0.6": "5.0.7",
+      "vite": "8.0.16"
+    }
+  },
   "dependencies": {
     "commander": "^14.0.2"
   },

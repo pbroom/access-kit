@@ -10,10 +10,61 @@ export interface AuthenticationFailureSample {
   suppressedCount: number;
 }
 
+export interface ParsedApiKey {
+  raw: string;
+  token: string;
+  label?: string;
+}
+
+export interface AuthenticationResult {
+  status: AuthenticationStatus;
+  apiKeyLabel?: string;
+}
+
 const bearerScheme = "bearer ";
 const maxAuthorizationHeaderBytes = 8192;
 const maxBearerTokenBytes = 4096;
 const authenticationFailureAuditSampleWindowMs = 60_000;
+
+export function parseApiKeyEntry(entry: string): ParsedApiKey {
+  const trimmed = entry.trim();
+  const separatorIndex = trimmed.indexOf(":");
+
+  if (separatorIndex <= 0) {
+    return { raw: trimmed, token: trimmed };
+  }
+
+  const label = trimmed.slice(0, separatorIndex).trim();
+  const token = trimmed.slice(separatorIndex + 1).trim();
+
+  if (!label || !token) {
+    return { raw: trimmed, token: trimmed };
+  }
+
+  return { raw: trimmed, token, label };
+}
+
+export function parseApiKeys(apiKeys: readonly string[] | undefined): ParsedApiKey[] {
+  const parsed = (apiKeys ?? []).map(parseApiKeyEntry).filter((entry) => entry.token.length > 0);
+
+  if (parsed.some((entry) => byteLength(entry.token) > maxBearerTokenBytes)) {
+    throw new Error("API keys must be 4096 bytes or less.");
+  }
+
+  const unique: ParsedApiKey[] = [];
+  const seenTokens = new Set<string>();
+
+  for (const entry of parsed) {
+    if (seenTokens.has(entry.token)) {
+      continue;
+    }
+
+    seenTokens.add(entry.token);
+    unique.push(entry);
+  }
+
+  return unique;
+}
 
 export function normalizeApiKeys(apiKeys: readonly string[] | undefined): string[] {
   const normalized = (apiKeys ?? []).map((apiKey) => apiKey.trim()).filter(Boolean);
@@ -25,18 +76,34 @@ export function normalizeApiKeys(apiKeys: readonly string[] | undefined): string
   return [...new Set(normalized)];
 }
 
-export function authenticateRequest(request: IncomingMessage, apiKeys: readonly string[]): AuthenticationStatus {
+export function resolveRequestAuditActor(configuredActor: string, apiKeyLabel?: string): string {
+  return apiKeyLabel ? `api-key:${apiKeyLabel}` : configuredActor;
+}
+
+export function authenticateRequest(request: IncomingMessage, apiKeys: readonly ParsedApiKey[]): AuthenticationResult {
   if (apiKeys.length === 0) {
-    return "authenticated";
+    return { status: "authenticated" };
   }
 
   const token = readBearerToken(request);
 
   if (!token) {
-    return hasBearerAuthorization(request) ? "invalid" : "missing";
+    return { status: hasBearerAuthorization(request) ? "invalid" : "missing" };
   }
 
-  return apiKeys.some((apiKey) => constantTimeEqual(apiKey, token)) ? "authenticated" : "invalid";
+  let authenticated = false;
+  let apiKeyLabel: string | undefined;
+
+  for (const apiKey of apiKeys) {
+    // Scan every configured key to avoid leaking the matching key's position.
+    const matches = constantTimeEqual(apiKey.token, token);
+    if (matches && !authenticated) {
+      authenticated = true;
+      apiKeyLabel = apiKey.label;
+    }
+  }
+
+  return authenticated ? { status: "authenticated", apiKeyLabel } : { status: "invalid" };
 }
 
 export function bearerChallenge(status: AuthenticationStatus): string {
