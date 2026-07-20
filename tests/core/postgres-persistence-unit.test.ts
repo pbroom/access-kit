@@ -232,6 +232,24 @@ describe("postgres snapshot store SQL shaping", () => {
     await expect(store.waitForPendingWrites()).rejects.toThrow("connection reset");
     expect(db.queries.some((query) => query.text.includes("INSERT INTO access_kit_snapshot_backup"))).toBe(false);
   });
+
+  it("captures an immutable snapshot for deferred persistence", async () => {
+    const db = new RecordingQueryable();
+    const store = await PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      db,
+      tenantBoundary: conformanceTenant,
+      storeName: "graph"
+    });
+    const record = graphRecord();
+    const originalStoredAt = record.storedAt;
+
+    store.writeBackup("backup:immutable", record);
+    record.storedAt = "2026-05-26T05:00:00.000Z";
+    await store.waitForPendingWrites();
+
+    const write = db.queries.find((query) => query.text.includes("INSERT INTO access_kit_snapshot_backup"));
+    expect((write?.params?.[3] as ProductionGraphStoreRecord).storedAt).toBe(originalStoredAt);
+  });
 });
 
 describe("postgres append-only audit store semantics", () => {
@@ -316,6 +334,8 @@ describe("postgres append-only audit store semantics", () => {
     const deleteIndexes = statements.flatMap((statement, index) => (statement.startsWith("DELETE FROM") ? [index] : []));
     expect(deleteIndexes.length).toBeGreaterThan(0);
     expect(Math.min(...deleteIndexes)).toBeGreaterThan(bypassIndex);
+    const metadataWrite = db.queries.find((query) => query.text.includes("INSERT INTO access_kit_audit_backup_metadata"));
+    expect(metadataWrite?.params).toEqual([conformanceTenant, "[]"]);
   });
 });
 

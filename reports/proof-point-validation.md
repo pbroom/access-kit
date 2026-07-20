@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-07-20T21:20:38.102Z
+Generated at: 2026-07-20T21:21:11.266Z
 
 Branch: codex/postgres-persistence
 
@@ -154,8 +154,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  17:20:30
-   Duration  385ms (transform 201ms, setup 0ms, import 303ms, tests 23ms, environment 0ms)
+   Start at  17:21:03
+   Duration  484ms (transform 253ms, setup 0ms, import 380ms, tests 25ms, environment 0ms)
 ```
 
 ### deployment manifest validation
@@ -223,9 +223,9 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
 
  Test Files  17 passed | 1 skipped (18)
-      Tests  210 passed | 9 skipped (219)
-   Start at  17:20:33
-   Duration  357ms (transform 2.18s, setup 0ms, import 3.21s, tests 237ms, environment 1ms)
+      Tests  211 passed | 9 skipped (220)
+   Start at  17:21:06
+   Duration  388ms (transform 2.43s, setup 0ms, import 3.49s, tests 236ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -240,8 +240,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  8 passed (8)
       Tests  127 passed (127)
-   Start at  17:20:34
-   Duration  736ms (transform 1.68s, setup 0ms, import 2.61s, tests 537ms, environment 0ms)
+   Start at  17:21:07
+   Duration  720ms (transform 1.54s, setup 0ms, import 2.48s, tests 538ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -256,8 +256,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  17:20:35
-   Duration  604ms (transform 476ms, setup 0ms, import 733ms, tests 247ms, environment 0ms)
+   Start at  17:21:08
+   Duration  598ms (transform 461ms, setup 0ms, import 711ms, tests 256ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
@@ -272,8 +272,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  17:20:36
-   Duration  211ms (transform 115ms, setup 0ms, import 143ms, tests 9ms, environment 0ms)
+   Start at  17:21:09
+   Duration  243ms (transform 132ms, setup 0ms, import 165ms, tests 8ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -284,8 +284,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
  Test Files  8 passed (8)
       Tests  47 passed (47)
-   Start at  17:20:36
-   Duration  352ms (transform 1.24s, setup 0ms, import 1.74s, tests 88ms, environment 0ms)
+   Start at  17:21:09
+   Duration  356ms (transform 1.29s, setup 0ms, import 1.78s, tests 90ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -300,8 +300,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  17:20:37
-   Duration  498ms (transform 696ms, setup 0ms, import 1.08s, tests 142ms, environment 0ms)
+   Start at  17:21:10
+   Duration  464ms (transform 664ms, setup 0ms, import 1.01s, tests 129ms, environment 0ms)
 ```
 
 

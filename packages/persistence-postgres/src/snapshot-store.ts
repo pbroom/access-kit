@@ -45,8 +45,9 @@ export class PostgresExternalSnapshotStore<TRecord extends object> implements Ex
   }
 
   writeCurrent(record: TRecord): void {
-    this.#current = clone(record);
-    this.#enqueue(() => this.#persistCurrentUnconditional(record));
+    const persistedRecord = clone(record);
+    this.#current = persistedRecord;
+    this.#enqueue(() => this.#persistCurrentUnconditional(persistedRecord));
   }
 
   compareExchangeCurrent(expected: TRecord | undefined, record: TRecord): boolean {
@@ -57,8 +58,9 @@ export class PostgresExternalSnapshotStore<TRecord extends object> implements Ex
       return false;
     }
 
-    this.#current = clone(record);
-    this.#enqueue(() => this.#persistCurrentConditional(expectedHash, record));
+    const persistedRecord = clone(record);
+    this.#current = persistedRecord;
+    this.#enqueue(() => this.#persistCurrentConditional(expectedHash, persistedRecord));
     return true;
   }
 
@@ -67,8 +69,9 @@ export class PostgresExternalSnapshotStore<TRecord extends object> implements Ex
   }
 
   writeBackup(id: CanonicalId, record: TRecord): void {
-    this.#backups.set(id, clone(record));
-    this.#enqueue(() => this.#persistBackup(id, record));
+    const persistedRecord = clone(record);
+    this.#backups.set(id, persistedRecord);
+    this.#enqueue(() => this.#persistBackup(id, persistedRecord));
   }
 
   /**

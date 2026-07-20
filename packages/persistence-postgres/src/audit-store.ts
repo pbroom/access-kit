@@ -80,12 +80,20 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
       throw new Error(`Production audit event ${record.event.eventId} has already been appended.`);
     }
 
-    this.#auditRecords.push(clone(record));
+    const persistedRecord = clone(record);
+    this.#auditRecords.push(persistedRecord);
     this.#enqueue(() =>
       this.#db.query(
         `INSERT INTO ${postgresPersistenceTableNames.auditRecords} (tenant_boundary, sequence, event_id, record, record_hash, stored_at)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [this.#tenantBoundary, record.sequence, record.event.eventId, record, record.recordHash, record.storedAt]
+        [
+          this.#tenantBoundary,
+          persistedRecord.sequence,
+          persistedRecord.event.eventId,
+          persistedRecord,
+          persistedRecord.recordHash,
+          persistedRecord.storedAt
+        ]
       )
     );
   }
@@ -99,12 +107,13 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
       throw new Error(`Production evidence package ${record.exportId} has already been retained.`);
     }
 
-    this.#evidenceRecords.push(clone(record));
+    const persistedRecord = clone(record);
+    this.#evidenceRecords.push(persistedRecord);
     this.#enqueue(() =>
       this.#db.query(
         `INSERT INTO ${postgresPersistenceTableNames.auditEvidenceRecords} (tenant_boundary, export_id, record, stored_at)
          VALUES ($1, $2, $3, $4)`,
-        [this.#tenantBoundary, record.exportId, record, record.storedAt]
+        [this.#tenantBoundary, persistedRecord.exportId, persistedRecord, persistedRecord.storedAt]
       )
     );
   }
@@ -118,12 +127,13 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
       throw new Error(`Production audit window ${window.windowId} has already been signed.`);
     }
 
-    this.#signedWindows.push(clone(window));
+    const persistedWindow = clone(window);
+    this.#signedWindows.push(persistedWindow);
     this.#enqueue(() =>
       this.#db.query(
         `INSERT INTO ${postgresPersistenceTableNames.auditSignedWindows} (tenant_boundary, window_id, record, signed_at)
          VALUES ($1, $2, $3, $4)`,
-        [this.#tenantBoundary, window.windowId, window, window.signedAt]
+        [this.#tenantBoundary, persistedWindow.windowId, persistedWindow, persistedWindow.signedAt]
       )
     );
   }
@@ -137,12 +147,19 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
       throw new Error(`Production SIEM delivery ${delivery.deliveryId} has already been recorded.`);
     }
 
-    this.#siemDeliveries.push(clone(delivery));
+    const persistedDelivery = clone(delivery);
+    this.#siemDeliveries.push(persistedDelivery);
     this.#enqueue(() =>
       this.#db.query(
         `INSERT INTO ${postgresPersistenceTableNames.auditSiemDeliveries} (tenant_boundary, delivery_id, window_id, record, attempted_at)
          VALUES ($1, $2, $3, $4, $5)`,
-        [this.#tenantBoundary, delivery.deliveryId, delivery.windowId, delivery, delivery.attemptedAt]
+        [
+          this.#tenantBoundary,
+          persistedDelivery.deliveryId,
+          persistedDelivery.windowId,
+          persistedDelivery,
+          persistedDelivery.attemptedAt
+        ]
       )
     );
   }
@@ -152,13 +169,14 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
   }
 
   writeBackupMetadata(metadata: ProductionRepositoryBackupMetadata[]): void {
-    this.#backupMetadata = clone(metadata);
+    const persistedMetadata = clone(metadata);
+    this.#backupMetadata = persistedMetadata;
     this.#enqueue(() =>
       this.#db.query(
         `INSERT INTO ${postgresPersistenceTableNames.auditBackupMetadata} (tenant_boundary, metadata, updated_at)
          VALUES ($1, $2, now())
          ON CONFLICT (tenant_boundary) DO UPDATE SET metadata = EXCLUDED.metadata, updated_at = EXCLUDED.updated_at`,
-        [this.#tenantBoundary, metadata]
+        [this.#tenantBoundary, JSON.stringify(persistedMetadata)]
       )
     );
   }
@@ -168,13 +186,14 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
   }
 
   writeBackup(id: CanonicalId, backup: ProductionAuditStoreBackup): void {
-    this.#backups.set(id, clone(backup));
+    const persistedBackup = clone(backup);
+    this.#backups.set(id, persistedBackup);
     this.#enqueue(() =>
       this.#db.query(
         `INSERT INTO ${postgresPersistenceTableNames.auditBackups} (tenant_boundary, backup_id, record, created_at)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (tenant_boundary, backup_id) DO UPDATE SET record = EXCLUDED.record`,
-        [this.#tenantBoundary, id, backup, backup.createdAt]
+        [this.#tenantBoundary, id, persistedBackup, persistedBackup.createdAt]
       )
     );
   }
@@ -186,12 +205,13 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
     siemDeliveries: ProductionSiemDeliveryRecord[];
     backupMetadata: ProductionRepositoryBackupMetadata[];
   }): void {
-    this.#auditRecords = clone(snapshot.auditRecords);
-    this.#evidenceRecords = clone(snapshot.evidenceRecords);
-    this.#signedWindows = clone(snapshot.signedWindows);
-    this.#siemDeliveries = clone(snapshot.siemDeliveries);
-    this.#backupMetadata = clone(snapshot.backupMetadata);
-    this.#enqueue(() => this.#persistRestoreSnapshot(snapshot));
+    const persistedSnapshot = clone(snapshot);
+    this.#auditRecords = clone(persistedSnapshot.auditRecords);
+    this.#evidenceRecords = clone(persistedSnapshot.evidenceRecords);
+    this.#signedWindows = clone(persistedSnapshot.signedWindows);
+    this.#siemDeliveries = clone(persistedSnapshot.siemDeliveries);
+    this.#backupMetadata = clone(persistedSnapshot.backupMetadata);
+    this.#enqueue(() => this.#persistRestoreSnapshot(persistedSnapshot));
   }
 
   /**
@@ -299,7 +319,7 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
         `INSERT INTO ${postgresPersistenceTableNames.auditBackupMetadata} (tenant_boundary, metadata, updated_at)
          VALUES ($1, $2, now())
          ON CONFLICT (tenant_boundary) DO UPDATE SET metadata = EXCLUDED.metadata, updated_at = EXCLUDED.updated_at`,
-        [this.#tenantBoundary, snapshot.backupMetadata]
+        [this.#tenantBoundary, JSON.stringify(snapshot.backupMetadata)]
       );
     });
   }

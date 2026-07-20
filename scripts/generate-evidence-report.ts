@@ -14,7 +14,7 @@ const root = process.cwd();
 const reportPath = join(root, "reports/proof-point-validation.md");
 const checkMode = process.argv.includes("--check");
 const ansiEscapePattern = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]*[@-~]`, "g");
-const vitestFileSummaryPattern = /^[^\n]*\.test\.ts \(\d+ tests?\)[^\n]*\n?/gm;
+const vitestFileSummaryPattern = /^[^\n]*\.test\.ts \([^)]*\)[^\n]*\n?/gm;
 const vitestSlowTestPattern = /^[\s]*✓ .+ \d+ms\s*$/gm;
 const commands = automationContract.evidence.commands;
 

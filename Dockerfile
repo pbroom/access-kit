@@ -14,6 +14,7 @@ COPY packages/connectors-aws/package.json packages/connectors-aws/package.json
 COPY packages/connectors-mock/package.json packages/connectors-mock/package.json
 COPY packages/connectors-microsoft-graph/package.json packages/connectors-microsoft-graph/package.json
 COPY packages/core/package.json packages/core/package.json
+COPY packages/persistence-postgres/package.json packages/persistence-postgres/package.json
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
@@ -23,6 +24,7 @@ COPY packages/connectors-aws packages/connectors-aws
 COPY packages/connectors-mock packages/connectors-mock
 COPY packages/connectors-microsoft-graph packages/connectors-microsoft-graph
 COPY packages/core packages/core
+COPY packages/persistence-postgres packages/persistence-postgres
 RUN pnpm --filter @access-kit/api... build
 RUN pnpm deploy --filter @access-kit/api --prod --legacy /app
 
