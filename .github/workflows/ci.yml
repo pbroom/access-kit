@@ -244,22 +244,22 @@ jobs:
           curl --fail --silent --show-error --oauth2-bearer ci-smoke \
             --header "content-type: application/json" \
             --request POST \
-            --data '{"id":"user:smoke-allow","type":"user","displayName":"Smoke Allow","sourceSystem":"ci","lifecycleState":"active","identifiers":{},"attributes":{"tenantId":"tenant:smoke"},"version":"subject:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            --data '{"id":"user:smoke-allow","type":"user","displayName":"Smoke Allow","sourceSystem":"ci","lifecycleState":"active","identifiers":{},"attributes":{"tenantId":"tenant:smoke"},"version":"subject:v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
             http://127.0.0.1:3000/v1/subjects >/tmp/rebac-subject-allow.json
           curl --fail --silent --show-error --oauth2-bearer ci-smoke \
             --header "content-type: application/json" \
             --request POST \
-            --data '{"id":"user:smoke-deny","type":"user","displayName":"Smoke Deny","sourceSystem":"ci","lifecycleState":"active","identifiers":{},"attributes":{"tenantId":"tenant:smoke"},"version":"subject:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            --data '{"id":"user:smoke-deny","type":"user","displayName":"Smoke Deny","sourceSystem":"ci","lifecycleState":"active","identifiers":{},"attributes":{"tenantId":"tenant:smoke"},"version":"subject:v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
             http://127.0.0.1:3000/v1/subjects >/tmp/rebac-subject-deny.json
           curl --fail --silent --show-error --oauth2-bearer ci-smoke \
             --header "content-type: application/json" \
             --request POST \
-            --data '{"id":"document:smoke","type":"document","displayName":"Smoke Document","sourceSystem":"ci","ownerId":"user:smoke-allow","dataStewardId":"user:smoke-allow","technicalOwnerId":"user:smoke-allow","classification":"internal","lifecycleState":"active","attributes":{"tenantId":"tenant:smoke"},"version":"resource:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            --data '{"id":"document:smoke","type":"document","displayName":"Smoke Document","sourceSystem":"ci","ownerId":"user:smoke-allow","dataStewardId":"user:smoke-allow","technicalOwnerId":"user:smoke-allow","classification":"internal","lifecycleState":"active","attributes":{"tenantId":"tenant:smoke"},"version":"resource:v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
             http://127.0.0.1:3000/v1/resources >/tmp/rebac-resource.json
           curl --fail --silent --show-error --oauth2-bearer ci-smoke \
             --header "content-type: application/json" \
             --request PUT \
-            --data '{"id":"relationship:smoke-allow","subjectId":"user:smoke-allow","relation":"reader_of","objectId":"document:smoke","sourceSystem":"ci","assertedAt":"2026-05-21T17:00:00.000Z","status":"active","attributes":{"tenantId":"tenant:smoke"},"version":"tuple:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            --data '{"id":"relationship:smoke-allow","subjectId":"user:smoke-allow","relation":"reader_of","objectId":"document:smoke","sourceSystem":"ci","assertedAt":"2026-05-21T17:00:00.000Z","status":"active","attributes":{"tenantId":"tenant:smoke"},"version":"tuple:v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
             http://127.0.0.1:3000/v1/relationships >/tmp/rebac-relationship.json
 
           curl --fail --silent --show-error --oauth2-bearer ci-smoke \
