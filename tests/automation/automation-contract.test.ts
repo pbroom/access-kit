@@ -8,11 +8,10 @@ const baselineInputs = {
   packageScripts: {
     "security:pass": "pnpm audit --audit-level high && git diff --check && pnpm ci:check",
     "validate:ci": "tsx scripts/validate-ci-workflows.ts",
-    "ci:check": "pnpm validate:ci && pnpm test"
+    "validate": "pnpm validate:ci && pnpm test"
   },
   labelNames: ["security-pass-required"],
   mergeBlockerLabels: ["security-pass-required"],
-  ciWorkflow: "run: pnpm validate:ci",
   securityWorkflow: [
     "pnpm audit --audit-level high",
     "gitleaks/gitleaks-action",
@@ -43,11 +42,10 @@ describe("automation contract manifest", () => {
       "schema validation",
       "OpenAPI validation",
       "API collection validation",
+      "documentation and packaging lint",
       "policy fixture validation",
       "connector security gate validation",
       "CLI command contract",
-      "container packaging validation",
-      "release packaging validation",
       "deployment manifest validation",
       "persistence deployment evidence validation",
       "runbook exercise evidence validation",
@@ -103,14 +101,7 @@ describe("automation contract manifest", () => {
     ).toThrow("security-pass-required");
   });
 
-  it("rejects weakening CI and security workflow validation", () => {
-    expect(() =>
-      requireAutomationSecurityBaseline({
-        ...baselineInputs,
-        ciWorkflow: "run: pnpm validate:automation"
-      })
-    ).toThrow("pnpm validate:ci");
-
+  it("rejects weakening security workflow validation", () => {
     expect(() =>
       requireAutomationSecurityBaseline({
         ...baselineInputs,

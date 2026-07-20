@@ -41,7 +41,6 @@ requireAutomationSecurityBaseline({
   packageScripts: packageJson.scripts ?? {},
   labelNames: getLabelNames(labelsManifest),
   mergeBlockerLabels: automationContract.labels.mergeBlockers,
-  ciWorkflow,
   securityWorkflow
 });
 

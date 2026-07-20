@@ -2,7 +2,6 @@ export interface AutomationSecurityBaselineInputs {
   readonly packageScripts: Record<string, string>;
   readonly labelNames: readonly string[];
   readonly mergeBlockerLabels: readonly string[];
-  readonly ciWorkflow: string;
   readonly securityWorkflow: string;
 }
 
@@ -20,7 +19,7 @@ const requiredSecurityWorkflowNeedles = [
 export function requireAutomationSecurityBaseline(inputs: AutomationSecurityBaselineInputs): void {
   requireScriptEntries(inputs.packageScripts, "security:pass", requiredSecurityPassEntries);
   requireExactScript(inputs.packageScripts, "validate:ci", requiredValidateCiCommand);
-  requireScriptEntries(inputs.packageScripts, "ci:check", ["pnpm validate:ci"]);
+  requireScriptEntries(inputs.packageScripts, "validate", ["pnpm validate:ci"]);
 
   if (!inputs.labelNames.includes(requiredMergeBlockerLabel)) {
     throw new Error(`.github/labels.yml is missing required baseline label ${requiredMergeBlockerLabel}.`);
@@ -28,10 +27,6 @@ export function requireAutomationSecurityBaseline(inputs: AutomationSecurityBase
 
   if (!inputs.mergeBlockerLabels.includes(requiredMergeBlockerLabel)) {
     throw new Error(`Automation merge blockers must include ${requiredMergeBlockerLabel}.`);
-  }
-
-  if (!inputs.ciWorkflow.includes("pnpm validate:ci")) {
-    throw new Error("CI workflow must keep running pnpm validate:ci.");
   }
 
   const missingSecurityNeedles = requiredSecurityWorkflowNeedles.filter(

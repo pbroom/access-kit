@@ -45,6 +45,8 @@ This is not a complete system security plan, production evidence vault, WORM arc
 | Validation report | `reports/proof-point-validation.md` | Generated proof-point evidence. |
 | Runbooks | `runbooks/*.md` | Operational procedures and expected evidence. |
 
+The validation report is regenerated with `pnpm evidence:generate` and freshness-checked with `pnpm evidence:check`. Its command plan contains the surviving contract, deployment, and behavior gates; consolidated documentation and packaging lint runs through `pnpm validate:docs`.
+
 ## Evidence Export Package
 
 The `EvidenceExport` contract can include framework, controls, time period, source event IDs, audit integrity, an integrity manifest, control mappings, control statements, artifacts, system boundary, data flows, access review campaigns, exception requests, risk acceptance, ConMon metrics, POA&M inputs and export, operational evidence, OSCAL component-definition, SSP, assessment-results and POA&M fragments, signed package metadata, verifier checks, control-to-event traces, SIEM metadata, and storage receipt.

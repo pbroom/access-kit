@@ -65,7 +65,7 @@ function runValidator(manifest: ProductReleaseManifest): SpawnSyncReturns<string
   try {
     mkdirSync(tempReleaseDir, { recursive: true });
     writeFileSync(join(tempReleaseDir, "manifest.json"), JSON.stringify(manifest, null, 2));
-    return spawnSync(process.execPath, ["--import", "tsx", "scripts/validate-release-packaging.ts"], {
+    return spawnSync(process.execPath, ["--import", "tsx", "scripts/validate-docs-lint.ts"], {
       cwd: repoRoot,
       encoding: "utf8",
       env: {
