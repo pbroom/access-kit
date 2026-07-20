@@ -1,6 +1,6 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-07-20T21:19:06.981Z
+Generated at: 2026-07-20T21:19:42.507Z
 
 Branch: codex/hard-tests
 
@@ -154,8 +154,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  17:18:59
-   Duration  358ms (transform 187ms, setup 0ms, import 278ms, tests 24ms, environment 0ms)
+   Start at  17:19:34
+   Duration  418ms (transform 221ms, setup 0ms, import 329ms, tests 25ms, environment 0ms)
 ```
 
 ### deployment manifest validation
@@ -224,8 +224,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  16 passed (16)
       Tests  195 passed (195)
-   Start at  17:19:02
-   Duration  390ms (transform 2.24s, setup 0ms, import 3.24s, tests 256ms, environment 1ms)
+   Start at  17:19:37
+   Duration  562ms (transform 3.30s, setup 0ms, import 4.57s, tests 348ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -240,8 +240,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  8 passed (8)
       Tests  125 passed (125)
-   Start at  17:19:02
-   Duration  889ms (transform 1.93s, setup 0ms, import 3.16s, tests 721ms, environment 0ms)
+   Start at  17:19:38
+   Duration  816ms (transform 1.76s, setup 0ms, import 2.84s, tests 635ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -256,8 +256,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  17:19:04
-   Duration  571ms (transform 453ms, setup 0ms, import 694ms, tests 232ms, environment 0ms)
+   Start at  17:19:39
+   Duration  549ms (transform 408ms, setup 0ms, import 640ms, tests 243ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
@@ -272,8 +272,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  17:19:05
-   Duration  213ms (transform 114ms, setup 0ms, import 143ms, tests 8ms, environment 0ms)
+   Start at  17:19:40
+   Duration  209ms (transform 113ms, setup 0ms, import 140ms, tests 9ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -284,8 +284,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
  Test Files  8 passed (8)
       Tests  47 passed (47)
-   Start at  17:19:05
-   Duration  363ms (transform 1.34s, setup 0ms, import 1.85s, tests 84ms, environment 0ms)
+   Start at  17:19:41
+   Duration  343ms (transform 1.24s, setup 0ms, import 1.73s, tests 83ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -300,8 +300,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  17:19:06
-   Duration  452ms (transform 636ms, setup 0ms, import 968ms, tests 125ms, environment 0ms)
+   Start at  17:19:41
+   Duration  465ms (transform 597ms, setup 0ms, import 968ms, tests 160ms, environment 0ms)
 ```
 
 

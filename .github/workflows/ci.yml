@@ -254,7 +254,7 @@ jobs:
           curl --fail --silent --show-error --oauth2-bearer ci-smoke \
             --header "content-type: application/json" \
             --request POST \
-            --data '{"id":"document:smoke","type":"document","displayName":"Smoke Document","sourceSystem":"ci","ownerId":"user:owner","dataStewardId":"user:steward","technicalOwnerId":"user:technical-owner","classification":"internal","lifecycleState":"active","attributes":{"tenantId":"tenant:smoke"},"version":"resource:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
+            --data '{"id":"document:smoke","type":"document","displayName":"Smoke Document","sourceSystem":"ci","ownerId":"user:smoke-allow","dataStewardId":"user:smoke-allow","technicalOwnerId":"user:smoke-allow","classification":"internal","lifecycleState":"active","attributes":{"tenantId":"tenant:smoke"},"version":"resource:smoke-v1","createdAt":"2026-05-21T17:00:00.000Z"}' \
             http://127.0.0.1:3000/v1/resources >/tmp/rebac-resource.json
           curl --fail --silent --show-error --oauth2-bearer ci-smoke \
             --header "content-type: application/json" \
