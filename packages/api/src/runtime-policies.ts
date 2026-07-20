@@ -6,7 +6,7 @@ import {
   type PolicyModelValidationResult
 } from "@access-kit/core";
 import { RebacLocalAppError, type RebacLocalApp } from "./runtime-app.js";
-import { persistAppState } from "./runtime-state.js";
+import { recordAudit } from "./runtime-state.js";
 
 export type PolicyDraft = PersistedPolicyDraft;
 export type PolicySummary = PersistedPolicySummary;
@@ -42,7 +42,11 @@ export function createPolicy(app: RebacLocalApp, draft: PolicyDraft, idempotency
   };
   app.store.upsertPolicy({ draft, summary });
   app.store.setPolicyIdempotencyRecord({ key: `create:${idempotencyKey}`, summary });
-  persistAppState(app, createdAt);
+  recordPolicyAudit(app, "policy.created", summary, createdAt, {
+    policyId: summary.id,
+    version: summary.version,
+    status: summary.status
+  });
   return summary;
 }
 
@@ -72,8 +76,15 @@ export function validatePolicy(app: RebacLocalApp, policyId: string, mode: "vali
         ? { ...existing.summary, status: "draft" as const }
         : existing.summary;
 
+  const validatedAt = app.now();
   app.store.upsertPolicy({ ...existing, summary, validation: result });
-  persistAppState(app, policyStateStoredAt(summary));
+  recordPolicyAudit(app, result.valid ? "policy.validated" : "policy.validation_failed", summary, validatedAt, {
+    policyId,
+    version: summary.version,
+    status: summary.status,
+    mode,
+    valid: result.valid
+  });
   return result;
 }
 
@@ -96,17 +107,21 @@ export function publishPolicy(app: RebacLocalApp, policyId: string, request: Pol
 
   const validation = validatePolicyModel(prior.draft.model);
   if (!validation.valid) {
+    const failedAt = app.now();
+    const summary = { ...prior.summary, status: "draft" as const };
     app.store.upsertPolicy({
       ...prior,
-      summary: { ...prior.summary, status: "draft" },
+      summary,
       validation
     });
-    persistAppState(app, policyStateStoredAt(prior.summary));
+    recordPolicyAudit(app, "policy.validation_failed", summary, failedAt, {
+      policyId,
+      version: summary.version,
+      status: summary.status,
+      valid: false
+    });
     throw new RebacLocalAppError(422, "POLICY_VALIDATION_FAILED", `Policy ${policyId} failed deterministic validation.`);
   }
-
-  // Approval fields are validated at the HTTP boundary but not persisted by the local stub.
-  void request;
 
   const now = app.now();
   const summary: PolicySummary = {
@@ -118,7 +133,13 @@ export function publishPolicy(app: RebacLocalApp, policyId: string, request: Pol
   };
   app.store.upsertPolicy({ ...prior, summary, validation });
   app.store.setPolicyIdempotencyRecord({ key: idempotencyScope, summary });
-  persistAppState(app, now);
+  recordPolicyAudit(app, "policy.published", summary, now, {
+    policyId,
+    version: summary.version,
+    status: summary.status,
+    changeTicket: request.changeTicket,
+    approverId: request.approverId
+  });
   return summary;
 }
 
@@ -135,21 +156,59 @@ export function rollbackPolicy(app: RebacLocalApp, policyId: string, request: Po
     throw new RebacLocalAppError(404, "POLICY_NOT_FOUND", `Policy ${policyId} was not found.`);
   }
 
+  if (prior.summary.status !== "published") {
+    throw new RebacLocalAppError(409, "POLICY_NOT_PUBLISHED", `Policy ${policyId} must be published before rollback.`);
+  }
+
+  const target = app.store.listPolicyIdempotencyRecords().find((record) =>
+    record.summary.id === policyId
+      && record.summary.version === request.targetVersion
+      && record.summary.version !== prior.summary.version
+  );
+  if (!target) {
+    throw new RebacLocalAppError(
+      404,
+      "POLICY_VERSION_NOT_FOUND",
+      `Policy ${policyId} has no prior snapshot for version ${request.targetVersion}.`
+    );
+  }
+
+  const rolledBackAt = app.now();
   const summary: PolicySummary = {
     id: policyId,
-    version: request.targetVersion,
+    version: target.summary.version,
     status: "rolled_back",
     createdAt: prior.summary.createdAt,
     publishedAt: prior.summary.publishedAt
   };
   app.store.upsertPolicy({ ...prior, summary });
   app.store.setPolicyIdempotencyRecord({ key: idempotencyScope, summary });
-  persistAppState(app, policyStateStoredAt(summary));
+  recordPolicyAudit(app, "policy.rolled_back", summary, rolledBackAt, {
+    policyId,
+    version: summary.version,
+    status: summary.status,
+    targetVersion: request.targetVersion,
+    changeTicket: request.changeTicket,
+    approverId: request.approverId
+  });
   return summary;
 }
 
-function policyStateStoredAt(summary: PolicySummary): string {
-  return summary.publishedAt ?? summary.createdAt;
+function recordPolicyAudit(
+  app: RebacLocalApp,
+  eventType: string,
+  summary: PolicySummary,
+  occurredAt: string,
+  payload: Record<string, string | boolean>
+): void {
+  recordAudit(app, {
+    eventType,
+    actor: app.actor,
+    resourceId: summary.id,
+    correlationId: `corr:${summary.id}:${eventType}:${sha256({ occurredAt, payload }).slice(0, 12)}`,
+    policyVersion: summary.version,
+    payload
+  }, { occurredAt });
 }
 
 function slugify(value: string): string {
