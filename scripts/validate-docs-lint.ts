@@ -45,16 +45,24 @@ interface ProductReleaseManifest {
 const root = process.cwd();
 const failures: string[] = [];
 
-await validateRunbookHeadings();
-await validateDocumentationExamples();
-await validateContainerPackaging();
-await validateReleasePackaging();
+await captureFailure("runbook heading validation", validateRunbookHeadings);
+await captureFailure("documentation example validation", validateDocumentationExamples);
+await captureFailure("container packaging validation", validateContainerPackaging);
+await captureFailure("release packaging validation", validateReleasePackaging);
 
 if (failures.length > 0) {
   throw new Error(`Documentation lint failed:\n${failures.join("\n")}`);
 }
 
 console.log("Validated documentation headings, examples, and static packaging contracts.");
+
+async function captureFailure(label: string, validate: () => Promise<void>): Promise<void> {
+  try {
+    await validate();
+  } catch (error: unknown) {
+    failures.push(`${label}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
 
 async function validateRunbookHeadings(): Promise<void> {
   const runbooks = [
@@ -85,10 +93,13 @@ async function validateRunbookHeadings(): Promise<void> {
   ];
 
   for (const path of runbooks) {
-    const content = await readFile(join(root, path), "utf8").catch((error: unknown) => {
+    let content: string;
+    try {
+      content = await readFile(join(root, path), "utf8");
+    } catch (error: unknown) {
       failures.push(`${path}: ${error instanceof Error ? error.message : "could not read file"}`);
-      return "";
-    });
+      continue;
+    }
 
     for (const heading of headings) {
       if (!new RegExp(`^## ${escapeRegExp(heading)}\\s*$`, "m").test(content)) {

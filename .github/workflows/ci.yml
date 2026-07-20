@@ -50,6 +50,9 @@ jobs:
       - name: Validate automation contract
         run: pnpm validate:automation
 
+      - name: Validate CI workflow contract
+        run: pnpm validate:ci
+
       - name: Validate deployment manifests
         run: pnpm validate:deployment-manifests
 

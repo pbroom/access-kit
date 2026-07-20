@@ -12,6 +12,7 @@ const baselineInputs = {
   },
   labelNames: ["security-pass-required"],
   mergeBlockerLabels: ["security-pass-required"],
+  ciWorkflow: "run: pnpm validate:ci",
   securityWorkflow: [
     "pnpm audit --audit-level high",
     "gitleaks/gitleaks-action",
@@ -60,6 +61,13 @@ describe("automation contract manifest", () => {
     ]);
   });
 
+  it("keeps the hosted CI workflow contract self-validating", () => {
+    const ciWorkflow = automationContract.ci.workflows.find((workflow) => workflow.path === ".github/workflows/ci.yml");
+    const contractValidation = ciWorkflow?.jobs.find((job) => job.name === "contract-validation");
+
+    expect(contractValidation?.requiredRuns).toContain("pnpm validate:ci");
+  });
+
   it("uses defined labels across automation policy groups", () => {
     const definedLabels = new Set(automationContract.labels.definitions.map((label) => label.name));
     const policyLabels = new Set([
@@ -99,6 +107,15 @@ describe("automation contract manifest", () => {
         mergeBlockerLabels: []
       })
     ).toThrow("security-pass-required");
+  });
+
+  it("rejects removing hosted CI workflow self-validation", () => {
+    expect(() =>
+      requireAutomationSecurityBaseline({
+        ...baselineInputs,
+        ciWorkflow: "run: pnpm validate:automation"
+      })
+    ).toThrow("pnpm validate:ci");
   });
 
   it("rejects weakening security workflow validation", () => {

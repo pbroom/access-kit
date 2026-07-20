@@ -2,6 +2,7 @@ export interface AutomationSecurityBaselineInputs {
   readonly packageScripts: Record<string, string>;
   readonly labelNames: readonly string[];
   readonly mergeBlockerLabels: readonly string[];
+  readonly ciWorkflow: string;
   readonly securityWorkflow: string;
 }
 
@@ -27,6 +28,10 @@ export function requireAutomationSecurityBaseline(inputs: AutomationSecurityBase
 
   if (!inputs.mergeBlockerLabels.includes(requiredMergeBlockerLabel)) {
     throw new Error(`Automation merge blockers must include ${requiredMergeBlockerLabel}.`);
+  }
+
+  if (!inputs.ciWorkflow.includes("pnpm validate:ci")) {
+    throw new Error("CI workflow must keep running pnpm validate:ci.");
   }
 
   const missingSecurityNeedles = requiredSecurityWorkflowNeedles.filter(

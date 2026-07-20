@@ -226,6 +226,7 @@ export const automationContract = {
               "pnpm validate:connector-security",
               "pnpm validate:docs",
               "pnpm validate:automation",
+              "pnpm validate:ci",
               "pnpm validate:deployment-manifests",
               "pnpm validate:persistence-deployment",
               "pnpm validate:secure-sdlc",
