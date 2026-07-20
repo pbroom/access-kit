@@ -3,13 +3,13 @@ import type { Socket } from "node:net";
 import { createRebacApiServer } from "./server.js";
 import { createRebacLocalApp } from "./local-app.js";
 import { readRebacApiRuntimeConfig } from "./runtime-config.js";
-import { createLocalRuntimePersistence } from "./runtime-persistence.js";
+import { createRuntimePersistence } from "./runtime-persistence.js";
 
 const config = readRebacApiRuntimeConfig();
 const app = createRebacLocalApp({
   actor: config.actor,
   adminAuthorization: config.adminAuthorization,
-  persistence: createLocalRuntimePersistence(config)
+  persistence: await createRuntimePersistence(config)
 });
 const server = createRebacApiServer({ app, apiKeys: config.apiKeys });
 const sockets = new Set<Socket>();

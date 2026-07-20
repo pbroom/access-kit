@@ -17,6 +17,7 @@
     "test:cli": "vitest run tests/cli",
     "test:core": "vitest run tests/core",
     "test:examples": "vitest run tests/examples",
+    "test:postgres": "vitest run tests/core/postgres-persistence.test.ts tests/core/postgres-persistence-unit.test.ts",
     "test:sdk-pep": "vitest run tests/sdk-pep",
     "validate:pep-conformance": "vitest run tests/sdk-pep",
     "validate:sample-admin-app": "vitest run tests/examples/internal-admin-app.test.ts",

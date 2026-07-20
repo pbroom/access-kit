@@ -252,6 +252,10 @@ export const automationContract = {
             requiredRuns: ["pnpm benchmark:decision-engine --check"]
           },
           {
+            name: "postgres-persistence",
+            requiredRuns: ["pnpm test:postgres"]
+          },
+          {
             name: "container-packaging",
             requiredRuns: [
               "docker build --target runtime --tag access-kit-rebac-api:${{ github.sha }} ."

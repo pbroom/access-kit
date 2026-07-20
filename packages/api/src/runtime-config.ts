@@ -14,6 +14,9 @@ export interface RebacApiRuntimeConfig {
   adminAuthorization: AdminAuthorizationDescriptor;
   statePath?: string;
   evidenceRoot?: string;
+  databaseUrl?: string;
+  databaseTenantBoundary?: string;
+  databaseAuditSigningKey?: string;
 }
 
 const maxApiKeyBytes = 4096;
@@ -43,7 +46,10 @@ export function readRebacApiRuntimeConfig(env: NodeJS.ProcessEnv = process.env):
     apiKeys,
     adminAuthorization,
     statePath: readOptionalPath(env.REBAC_STATE_PATH),
-    evidenceRoot: readOptionalPath(env.REBAC_EVIDENCE_ROOT)
+    evidenceRoot: readOptionalPath(env.REBAC_EVIDENCE_ROOT),
+    databaseUrl: readOptionalPath(env.REBAC_DATABASE_URL),
+    databaseTenantBoundary: readOptionalPath(env.REBAC_DATABASE_TENANT_BOUNDARY),
+    databaseAuditSigningKey: readOptionalPath(env.REBAC_DATABASE_AUDIT_SIGNING_KEY)
   };
 }
 
