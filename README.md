@@ -179,10 +179,13 @@ The CLI is an operator wrapper over the API contract. Authorization logic belong
 
 ## The Policy Model
 
-Authorization semantics are declared, validated, and compiled — not hardcoded. A policy model names its relations (with kinds: `grant`, `membership`, `containment`, `deny`), maps actions to grant relations, scopes inheritance rules to actions, and declares override deny rules:
+Authorization semantics are declared, validated, and compiled — not hardcoded. A policy model names its relations (with kinds: `grant`, `membership`, `containment`, `deny`), maps actions to grant relations, scopes inheritance rules to actions, and declares override deny rules. Abridged example:
 
 ```jsonc
 {
+  "schemaVersion": "access-kit.policy-model.v1",
+  "id": "policy-model:example",
+  "version": "policy:example-v1",
   "relations": [
     { "name": "member_of",  "kind": "membership",  "subjectTypes": ["user", "group"], "objectTypes": ["group"] },
     { "name": "contains",   "kind": "containment", "subjectTypes": ["workspace"],     "objectTypes": ["document"] },
@@ -194,10 +197,12 @@ Authorization semantics are declared, validated, and compiled — not hardcoded.
     { "name": "group-grants", "relation": "member_of", "through": "member_of", "actions": ["audit"] }
   ],
   "denyRules": [{ "name": "explicit-deny", "relation": "denied", "precedence": "override" }]
+  // Abridged: a complete model also declares resourceTypes, tenantBoundary,
+  // classificationConstraints, contextConstraints, and migrations.
 }
 ```
 
-Undeclared relations grant nothing, deny rules always win, and every model change is validated for internal consistency before it can publish. See the [domain model](docs/domain-model.md) and [decision lifecycle](docs/decision-lifecycle.md).
+For a complete model that passes `pnpm validate:sample-policy`, copy [`examples/sample-policy-repository/models/case-docs.v1.json`](examples/sample-policy-repository/models/case-docs.v1.json). Undeclared relations grant nothing, deny rules always win, and every model change is validated for internal consistency before it can publish. See the [domain model](docs/domain-model.md) and [decision lifecycle](docs/decision-lifecycle.md).
 
 ## Assurance
 
