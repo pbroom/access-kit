@@ -18,7 +18,7 @@ export interface RuntimeReadinessResponse {
   checks: RuntimeReadinessCheck[];
 }
 
-export function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly string[]): RuntimeReadinessResponse {
+export function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly { readonly token: string }[]): RuntimeReadinessResponse {
   const connectorIds = [...app.connectors.keys()].sort();
   const adminAuthorization = assessAdminAuthorizationReadiness(app.adminAuthorization, app.now());
   const checks: RuntimeReadinessCheck[] = [

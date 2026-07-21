@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	  AuditRecorder,
 	  attachEvidenceIntegrityManifest,
@@ -703,7 +703,7 @@ describe("ReBAC API runtime", () => {
     ]));
   });
 
-  it("uses current evaluation time for enforcement checks while preserving historical explain", async () => {
+  it("honors caller-supplied historical asOf values for enforcement checks", async () => {
     const seed = createLocalEngineSeed();
     const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
     const app = createRebacLocalApp({
@@ -738,8 +738,8 @@ describe("ReBAC API runtime", () => {
     const check = await post<JsonObject & Pick<DecisionResult, "asOf" | "reasonCode">>("/v1/decision/check", request);
     const explain = await post<JsonObject & Pick<DecisionResult, "asOf" | "reasonCode">>("/v1/decision/explain", request);
 
-    expect(check.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
-    expect(check.asOf).toBe(TEST_NOW);
+    expect(check.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
+    expect(check.asOf).toBe("2026-05-21T11:59:00.000Z");
     expect(explain.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
     expect(explain.asOf).toBe("2026-05-21T11:59:00.000Z");
   });
@@ -911,6 +911,92 @@ describe("ReBAC API runtime", () => {
     const decisionEvent = audit.items.find((event) => event.eventType === "decision.allowed");
 
     expect(decisionEvent?.actor).toBe("user:control-plane-admin");
+  });
+
+  it("records labeled bearer tokens as api-key audit actors", async () => {
+    await restartServer({
+      now: () => TEST_NOW,
+      actor: "service:runtime",
+      apiKeys: ["ci-bot:secret-token", "legacy-token"]
+    });
+
+    const labeled = await fetch(`${baseUrl}/v1/decision/check`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer secret-token"
+      },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan"
+      })
+    });
+    const legacy = await fetch(`${baseUrl}/v1/decision/check`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer legacy-token"
+      },
+      body: JSON.stringify({
+        subjectId: "user:alice",
+        action: "read",
+        resourceId: "document:case-plan"
+      })
+    });
+    const audit = await fetch(`${baseUrl}/v1/audit/events`, {
+      headers: { authorization: "Bearer legacy-token" }
+    });
+    const auditBody = (await audit.json()) as { items: Array<{ eventType: string; actor: string }> };
+
+    expect(labeled.ok).toBe(true);
+    expect(legacy.ok).toBe(true);
+    expect(auditBody.items.filter((event) => event.actor === "api-key:ci-bot")).toHaveLength(1);
+    expect(auditBody.items.filter((event) => event.actor === "service:runtime")).toHaveLength(1);
+  });
+
+  it("returns a generic internal error response without leaking details", async () => {
+    const app = createRebacLocalApp({ now: () => TEST_NOW });
+    const failingApp = Object.assign(Object.create(Object.getPrototypeOf(app)), app, {
+      engine: new Proxy(app.engine, {
+        get(target, property, receiver) {
+          if (property === "check") {
+            return () => {
+              throw new Error("secret database connection failed");
+            };
+          }
+
+          return Reflect.get(target, property, receiver);
+        }
+      })
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await restartServer({ app: failingApp });
+
+    try {
+      const response = await fetch(`${baseUrl}/v1/decision/check`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          subjectId: "user:alice",
+          action: "read",
+          resourceId: "document:case-plan"
+        })
+      });
+      const body = (await response.json()) as { code: string; message: string; correlationId: string };
+
+      expect(response.status).toBe(500);
+      expect(body).toMatchObject({
+        code: "INTERNAL_ERROR",
+        message: "An internal error occurred."
+      });
+      expect(body.correlationId).toMatch(/^corr:internal-error:[0-9a-f-]{36}$/);
+      expect(body.message).not.toContain("secret database connection failed");
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining(body.correlationId));
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("secret database connection failed"));
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 
   it("audits relationship writes and subsequent denied decisions", async () => {

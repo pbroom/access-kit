@@ -3,11 +3,14 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import {
   authenticateRequest,
   bearerChallenge,
-  normalizeApiKeys,
+  parseApiKeys,
   recordAuthenticationFailure,
+  resolveRequestAuditActor,
   type AuthenticationFailureReason,
-  type AuthenticationFailureSample
+  type AuthenticationFailureSample,
+  type ParsedApiKey
 } from "./api-auth.js";
+import { withRequestAuditActor } from "./request-audit-context.js";
 import { HttpError, notFound, sendJson } from "./api-http.js";
 import { buildRuntimeReadiness } from "./api-readiness.js";
 import {
@@ -93,7 +96,7 @@ const nativeGrantTypes = new Set(["direct", "inherited", "group"]);
 const nativePrincipalTypes = new Set(["user", "group", "service_account", "service_principal", "managed_identity", "external_user", "unknown"]);
 export function createRebacApiServer(options: RebacApiServerOptions = {}): Server {
   const app = options.app ?? createRebacLocalApp(options);
-  const apiKeys = normalizeApiKeys(options.apiKeys);
+  const apiKeys = parseApiKeys(options.apiKeys);
   const authenticationFailureSamples = new Map<AuthenticationFailureReason, AuthenticationFailureSample>();
   const authenticationFailureAuditScope = randomUUID();
 
@@ -119,10 +122,14 @@ export function createRebacApiServer(options: RebacApiServerOptions = {}): Serve
         return;
       }
 
+      const correlationId = `corr:internal-error:${randomUUID()}`;
+      const detail = error instanceof Error ? error.message : "Unknown error";
+      console.error(`[rebac-api] ${correlationId}: ${detail}`);
+
       sendJson(response, 500, {
         code: "INTERNAL_ERROR",
-        message: error instanceof Error ? error.message : "Unknown error",
-        correlationId: "corr:internal-error"
+        message: "An internal error occurred.",
+        correlationId
       });
     }
   });
@@ -132,7 +139,7 @@ async function routeRequest(
   app: RebacLocalApp,
   request: IncomingMessage,
   response: ServerResponse,
-  apiKeys: readonly string[],
+  apiKeys: readonly ParsedApiKey[],
   authenticationFailureSamples: Map<AuthenticationFailureReason, AuthenticationFailureSample>,
   authenticationFailureAuditScope: string
 ): Promise<void> {
@@ -157,9 +164,9 @@ async function routeRequest(
   }
 
   const authentication = authenticateRequest(request, apiKeys);
-  if (authentication !== "authenticated") {
-    recordAuthenticationFailure(app, request, url, authentication, authenticationFailureSamples, authenticationFailureAuditScope);
-    response.setHeader("WWW-Authenticate", bearerChallenge(authentication));
+  if (authentication.status !== "authenticated") {
+    recordAuthenticationFailure(app, request, url, authentication.status, authenticationFailureSamples, authenticationFailureAuditScope);
+    response.setHeader("WWW-Authenticate", bearerChallenge(authentication.status));
     sendJson(response, 401, {
       code: "UNAUTHENTICATED",
       message: "A valid bearer token is required.",
@@ -168,110 +175,113 @@ async function routeRequest(
     return;
   }
 
-  if (segments[1] === "decision") {
-    await routeDecision(app, request, response, segments);
-    return;
-  }
+  const requestActor = resolveRequestAuditActor(app.actor, authentication.apiKeyLabel);
+  await withRequestAuditActor(requestActor, async () => {
+    if (segments[1] === "decision") {
+      await routeDecision(app, request, response, segments);
+      return;
+    }
 
-  if (segments[1] === "subjects") {
-    await routeSubjects(app, request, response, segments);
-    return;
-  }
+    if (segments[1] === "subjects") {
+      await routeSubjects(app, request, response, segments);
+      return;
+    }
 
-  if (segments[1] === "resources") {
-    await routeResources(app, request, response, url, segments);
-    return;
-  }
+    if (segments[1] === "resources") {
+      await routeResources(app, request, response, url, segments);
+      return;
+    }
 
-  if (segments[1] === "relationships") {
-    await routeRelationships(app, request, response, url, segments);
-    return;
-  }
+    if (segments[1] === "relationships") {
+      await routeRelationships(app, request, response, url, segments);
+      return;
+    }
 
-  if (segments[1] === "policies") {
-    await routePolicies(app, request, response, segments);
-    return;
-  }
+    if (segments[1] === "policies") {
+      await routePolicies(app, request, response, segments);
+      return;
+    }
 
-  if (segments[1] === "provisioning") {
-    await routeProvisioning(app, request, response, segments);
-    return;
-  }
+    if (segments[1] === "provisioning") {
+      await routeProvisioning(app, request, response, segments);
+      return;
+    }
 
-  if (segments[1] === "reconciliation") {
-    await routeReconciliation(app, request, response, url, segments);
-    return;
-  }
+    if (segments[1] === "reconciliation") {
+      await routeReconciliation(app, request, response, url, segments);
+      return;
+    }
 
-  if (segments[1] === "discovery") {
-    await routeDiscovery(app, request, response, url, segments);
-    return;
-  }
+    if (segments[1] === "discovery") {
+      await routeDiscovery(app, request, response, url, segments);
+      return;
+    }
 
-  if (segments[1] === "audit") {
-    if (segments[2] === "export" && method === "GET") {
-      const periodStart = readOptionalDateTime(url.searchParams.get("from"), "from");
-      const periodEnd = readOptionalDateTime(url.searchParams.get("to"), "to");
+    if (segments[1] === "audit") {
+      if (segments[2] === "export" && method === "GET") {
+        const periodStart = readOptionalDateTime(url.searchParams.get("from"), "from");
+        const periodEnd = readOptionalDateTime(url.searchParams.get("to"), "to");
 
-      if (periodStart && periodEnd && periodStart > periodEnd) {
-        throw new HttpError(400, "INVALID_AUDIT_EXPORT_PERIOD", "from must be before to");
+        if (periodStart && periodEnd && periodStart > periodEnd) {
+          throw new HttpError(400, "INVALID_AUDIT_EXPORT_PERIOD", "from must be before to");
+        }
+
+        sendJson(response, 200, exportAuditEvents(app, {
+          periodStart,
+          periodEnd,
+          target: readAuditExportTarget(url.searchParams.get("target"))
+        }));
+        return;
       }
 
-      sendJson(response, 200, exportAuditEvents(app, {
-        periodStart,
-        periodEnd,
-        target: readAuditExportTarget(url.searchParams.get("target"))
-      }));
+      if (segments[2] === "events" && method === "GET") {
+        sendJson(response, 200, {
+          items: app.store.listAuditEvents({
+            subjectId: url.searchParams.get("subjectId") ?? undefined,
+            resourceId: url.searchParams.get("resourceId") ?? undefined,
+            from: readAuditFilterDateTime(url.searchParams.get("from"), "from")
+          })
+        });
+        return;
+      }
+
+      if (segments[2] === "integrity" && method === "GET") {
+        sendJson(response, 200, verifyAuditIntegrity(app));
+        return;
+      }
+    }
+
+    if (segments[1] === "evidence" && segments[2] === "export" && method === "GET") {
+      const controls = readEvidenceControls(url.searchParams.get("controls"));
+      const framework = readEvidenceFramework(url.searchParams.get("framework"));
+      const periodStart = readOptionalDateTime(url.searchParams.get("from"), "from");
+      const periodEnd = readOptionalDateTime(url.searchParams.get("to"), "to");
+      const format = url.searchParams.get("format") ?? "json";
+      if (!isEvidenceFormat(format)) {
+        throw new HttpError(400, "INVALID_EVIDENCE_FORMAT", "format must be one of json, zip, or markdown");
+      }
+
+      if (periodStart && periodEnd && periodStart > periodEnd) {
+        throw new HttpError(400, "INVALID_EVIDENCE_PERIOD", "from must be before to");
+      }
+
+      sendJson(response, 200, exportEvidencePackage(app, controls, format, { framework, periodStart, periodEnd }));
       return;
     }
 
-    if (segments[2] === "events" && method === "GET") {
-      sendJson(response, 200, {
-        items: app.store.listAuditEvents({
-          subjectId: url.searchParams.get("subjectId") ?? undefined,
-          resourceId: url.searchParams.get("resourceId") ?? undefined,
-          from: readAuditFilterDateTime(url.searchParams.get("from"), "from")
-        })
-      });
+    if (segments[1] === "evidence" && segments[2] === "verify" && method === "POST") {
+      const idempotencyKey = readIdempotencyKey(request);
+      sendJson(response, 200, verifyEvidencePackage(app, await readJson(request), { idempotencyKey }));
       return;
     }
 
-    if (segments[2] === "integrity" && method === "GET") {
-      sendJson(response, 200, verifyAuditIntegrity(app));
+    if (segments[1] === "connectors") {
+      await routeConnectors(app, request, response, segments);
       return;
     }
-  }
 
-  if (segments[1] === "evidence" && segments[2] === "export" && method === "GET") {
-    const controls = readEvidenceControls(url.searchParams.get("controls"));
-    const framework = readEvidenceFramework(url.searchParams.get("framework"));
-    const periodStart = readOptionalDateTime(url.searchParams.get("from"), "from");
-    const periodEnd = readOptionalDateTime(url.searchParams.get("to"), "to");
-    const format = url.searchParams.get("format") ?? "json";
-    if (!isEvidenceFormat(format)) {
-      throw new HttpError(400, "INVALID_EVIDENCE_FORMAT", "format must be one of json, zip, or markdown");
-    }
-
-    if (periodStart && periodEnd && periodStart > periodEnd) {
-      throw new HttpError(400, "INVALID_EVIDENCE_PERIOD", "from must be before to");
-    }
-
-    sendJson(response, 200, exportEvidencePackage(app, controls, format, { framework, periodStart, periodEnd }));
-    return;
-  }
-
-  if (segments[1] === "evidence" && segments[2] === "verify" && method === "POST") {
-    const idempotencyKey = readIdempotencyKey(request);
-    sendJson(response, 200, verifyEvidencePackage(app, await readJson(request), { idempotencyKey }));
-    return;
-  }
-
-  if (segments[1] === "connectors") {
-    await routeConnectors(app, request, response, segments);
-    return;
-  }
-
-  notFound(response);
+    notFound(response);
+  });
 }
 
 async function routePolicies(

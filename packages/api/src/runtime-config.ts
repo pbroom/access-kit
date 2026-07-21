@@ -4,6 +4,8 @@ import {
   type AdminAuthorizationDescriptor
 } from "@access-kit/core";
 
+import { parseApiKeyEntry } from "./api-auth.js";
+
 export interface RebacApiRuntimeConfig {
   host: string;
   port: number;
@@ -74,7 +76,7 @@ function readOptionalPath(value: string | undefined): string | undefined {
 function readList(value: string | undefined): string[] {
   const items = (value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
 
-  if (items.some((item) => Buffer.byteLength(item, "utf8") > maxApiKeyBytes)) {
+  if (items.some((item) => Buffer.byteLength(parseApiKeyEntry(item).token, "utf8") > maxApiKeyBytes)) {
     throw new Error("REBAC_API_KEYS entries must be 4096 bytes or less.");
   }
 

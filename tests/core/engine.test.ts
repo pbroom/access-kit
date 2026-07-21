@@ -221,7 +221,7 @@ describe("RebacDecisionEngine", () => {
     expect(decisionRuntimeConstraints(historical).timeTravel.historical).toBe(true);
   });
 
-  it("ignores caller-supplied historical asOf values for enforcement checks", () => {
+  it("honors caller-supplied historical asOf values for enforcement checks", () => {
     const seed = createLocalEngineSeed();
     const historicalCreatedAt = "2026-05-21T00:00:00.000Z";
     const store = new InMemoryRebacStore({
@@ -254,9 +254,13 @@ describe("RebacDecisionEngine", () => {
     const check = engine.check(request);
     const explain = engine.explain(request);
 
-    expect(check.reasonCode).toBe("DENY_DEFAULT_NO_RELATIONSHIP_PATH");
-    expect(check.asOf).toBe(now);
-    expect(decisionRuntimeConstraints(check).timeTravel).toEqual({ asOf: now, evaluatedAt: now, historical: false });
+    expect(check.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
+    expect(check.asOf).toBe("2026-05-21T11:59:00.000Z");
+    expect(decisionRuntimeConstraints(check).timeTravel).toEqual({
+      asOf: "2026-05-21T11:59:00.000Z",
+      evaluatedAt: now,
+      historical: true
+    });
     expect(explain.reasonCode).toBe("ALLOW_VIA_RELATIONSHIP_PATH");
     expect(decisionRuntimeConstraints(explain).timeTravel.historical).toBe(true);
   });

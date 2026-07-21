@@ -43,7 +43,7 @@ describe("production audit, SIEM, and WORM evidence adapter", () => {
       tenantBoundary,
       location: "worm://audit/access-kit-test",
       signingKeyMaterial: "short"
-    })).toThrow("Production audit signing key material must be at least 16 characters.");
+    })).toThrow("Production audit signing key material must be at least 32 characters.");
   });
 
   it("retains ordered audit events, signed windows, SIEM delivery metadata, evidence receipts, and backups", () => {
@@ -358,7 +358,7 @@ function createRepository(store = new InMemoryExternalAppendOnlyAuditStore()): P
     retentionDays: 2555,
     retentionPolicyId: "retention:audit:seven-years",
     signingKeyId: "signing-key:audit-window:test",
-    signingKeyMaterial: "test-signing-key-material",
+    signingKeyMaterial: "x".repeat(32),
     now: () => now
   });
 }
