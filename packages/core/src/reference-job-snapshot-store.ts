@@ -8,33 +8,33 @@ import {
   stableHash
 } from "./repository-envelopes.js";
 import type { RebacJobStorageReceipt } from "./repositories.js";
-import type { ExternalSnapshotStore, ProductionRepositoryBackupMetadata } from "./production-repositories.js";
+import type { ExternalSnapshotStore, ReferenceRepositoryBackupMetadata } from "./reference-repositories.js";
 import {
   assertEvidenceTenantBoundary,
   assertNoSecretMaterial,
   assertReportTenantBoundary,
   clone
-} from "./production-repository-security-utils.js";
+} from "./reference-repository-security-utils.js";
 
-export interface ProductionJobSnapshotStoreRecord {
+export interface ReferenceJobSnapshotStoreRecord {
   version: string;
   storedAt: string;
   tenantBoundary: string;
   jobsHash: string;
   jobs: RebacJobSnapshot;
-  backupMetadata: ProductionRepositoryBackupMetadata[];
+  backupMetadata: ReferenceRepositoryBackupMetadata[];
 }
 
-export interface ProductionJobSnapshotStoreFields {
+export interface ReferenceJobSnapshotStoreFields {
   storedAt: string;
   tenantBoundary: string;
   jobsHash: string;
   jobs: RebacJobSnapshot;
   entityCounts: RebacJobStorageReceipt["entityCounts"];
-  backupMetadata: ProductionRepositoryBackupMetadata[];
+  backupMetadata: ReferenceRepositoryBackupMetadata[];
 }
 
-export interface ProductionJobSnapshotStoreOptions<TRecord extends ProductionJobSnapshotStoreRecord> {
+export interface ReferenceJobSnapshotStoreOptions<TRecord extends ReferenceJobSnapshotStoreRecord> {
   store: ExternalSnapshotStore<TRecord>;
   tenantBoundary: string;
   component: "connector_state" | "job";
@@ -47,7 +47,7 @@ export interface ProductionJobSnapshotStoreOptions<TRecord extends ProductionJob
   validateRecord?: (record: TRecord) => TRecord;
 }
 
-export interface ProductionJobSnapshotBackupMetadataOptions {
+export interface ReferenceJobSnapshotBackupMetadataOptions {
   id: CanonicalId;
   createdAt: string;
   snapshotHash: string;
@@ -67,7 +67,7 @@ const jobSnapshotFields = [
   "decisions"
 ] as const;
 
-export class ProductionJobSnapshotStore<TRecord extends ProductionJobSnapshotStoreRecord> {
+export class ReferenceJobSnapshotStore<TRecord extends ReferenceJobSnapshotStoreRecord> {
   readonly #store: ExternalSnapshotStore<TRecord>;
   readonly #tenantBoundary: string;
   readonly #component: "connector_state" | "job";
@@ -79,7 +79,7 @@ export class ProductionJobSnapshotStore<TRecord extends ProductionJobSnapshotSto
   readonly #backupMissingLabel: string;
   readonly #validateRecord: (record: TRecord) => TRecord;
 
-  constructor(options: ProductionJobSnapshotStoreOptions<TRecord>) {
+  constructor(options: ReferenceJobSnapshotStoreOptions<TRecord>) {
     this.#store = options.store;
     this.#tenantBoundary = options.tenantBoundary;
     this.#component = options.component;
@@ -127,8 +127,8 @@ export class ProductionJobSnapshotStore<TRecord extends ProductionJobSnapshotSto
   createSnapshotFields(
     storedAt: string,
     snapshot: RebacJobSnapshot,
-    backupMetadata: ProductionRepositoryBackupMetadata[]
-  ): ProductionJobSnapshotStoreFields {
+    backupMetadata: ReferenceRepositoryBackupMetadata[]
+  ): ReferenceJobSnapshotStoreFields {
     const jobs = normalizeJobSnapshot(snapshot);
     assertJobTenantBoundary(jobs, this.#tenantBoundary);
     assertNoSecretMaterial(jobs, this.#snapshotLabel);
@@ -143,8 +143,8 @@ export class ProductionJobSnapshotStore<TRecord extends ProductionJobSnapshotSto
   }
 
   createBackupMetadata(
-    options: ProductionJobSnapshotBackupMetadataOptions
-  ): ProductionRepositoryBackupMetadata {
+    options: ReferenceJobSnapshotBackupMetadataOptions
+  ): ReferenceRepositoryBackupMetadata {
     return {
       id: options.id,
       component: this.#component,
@@ -180,7 +180,7 @@ export class ProductionJobSnapshotStore<TRecord extends ProductionJobSnapshotSto
   }
 }
 
-export function emptyProductionJobSnapshot(): RebacJobSnapshot {
+export function emptyReferenceJobSnapshot(): RebacJobSnapshot {
   return {
     discoveryRuns: [],
     enforcementReadinessReports: [],

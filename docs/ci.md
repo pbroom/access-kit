@@ -4,7 +4,7 @@
 
 The repo treats API and evidence contracts as first-class CI gates. Automation-specific validation reads `scripts/lib/automation-contract.ts`, the typed manifest that defines package-script expectations, CI job command expectations, steward label policy, stack readiness rules, and proof-point evidence command ordering.
 
-- `pnpm validate:contracts` validates JSON Schemas, OpenAPI paths, API examples, contract snapshots, generated client metadata, policy model validation, policy proof points, connector security gates, and CLI-to-API command mappings.
+- `pnpm validate:contracts` validates JSON Schemas, OpenAPI paths, API examples, contract snapshots, contract snapshot client metadata, policy model validation, policy proof points, connector security gates, and CLI-to-API command mappings.
 - `pnpm validate:connector-security` validates connector identity, consent, tenant boundaries, least-privilege read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults, including approved live-read Microsoft Graph and AWS scopes when optional sandbox connectors are registered.
 - `pnpm validate:docs` validates relative Markdown links, runbook sections, documentation examples against JSON Schema/OpenAPI contracts, static container and release packaging expectations, and generated API artifacts.
 - `pnpm validate:docs-lint` is the consolidated heading, example, Dockerfile, release-manifest, and workflow lint used by `validate:docs`.

@@ -242,7 +242,7 @@ The documentation connects architecture, control families, implementation behavi
 - New standalone JSON examples parsed successfully with Node.
 - Current validation evidence is generated in `reports/proof-point-validation.md`. This report summarizes command families rather than pinning counts that drift as implementation slices merge.
 - `corepack pnpm validate:docs` validates relative Markdown links across README, docs, runbooks, and examples; required runbook sections; documentation examples; API reference freshness; and API collection freshness.
-- `corepack pnpm validate:contracts` validates schemas, schema fixtures, OpenAPI path groups, API examples, policy proof points, generated client metadata, and CLI contract coverage.
+- `corepack pnpm validate:contracts` validates schemas, schema fixtures, OpenAPI path groups, API examples, policy proof points, contract snapshot client metadata, and CLI contract coverage.
 - `corepack pnpm validate:pep-conformance` validates the shared TypeScript, Python FastAPI, and Go Envoy/ext-authz PEP behavior contract.
 - `corepack pnpm validate:sample-saas-app` and `corepack pnpm validate:sample-admin-app` validate the synthetic sample applications.
 - `corepack pnpm ci:check` is the pre-submit gate for contract validation, docs validation, automation and CI validation, packaging and deployment gates, typecheck, lint, tests, build, and evidence freshness.

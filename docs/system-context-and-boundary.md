@@ -31,7 +31,7 @@ flowchart LR
   connectors --> native["Native provider readback boundary"]
   api --> audit["Append-only audit recorder"]
   audit --> evidence["Audit and evidence exports"]
-  audit --> worm["Production audit adapter boundary"]
+  audit --> worm["Reference audit adapter boundary"]
   worm --> siem["SIEM delivery and replay records"]
 ```
 

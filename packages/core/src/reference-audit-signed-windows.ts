@@ -1,38 +1,38 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { auditEventHash, stableStringify } from "./audit.js";
 import type { CanonicalId } from "./domain.js";
-import type { ProductionAuditIntegrityValidator } from "./production-audit-integrity.js";
+import type { ReferenceAuditIntegrityValidator } from "./reference-audit-integrity.js";
 import type {
   ExternalAppendOnlyAuditStore,
-  ProductionAuditRetentionPolicy,
-  ProductionAuditWindowRequest,
-  ProductionAuditWindowSigner,
-  ProductionSignedAuditWindow
-} from "./production-audit-models.js";
+  ReferenceAuditRetentionPolicy,
+  ReferenceAuditWindowRequest,
+  ReferenceAuditWindowSigner,
+  ReferenceSignedAuditWindow
+} from "./reference-audit-models.js";
 import {
   assertNoIntegrityFindings,
   clone,
   withRecordHash
-} from "./production-audit-utils.js";
+} from "./reference-audit-utils.js";
 
-export interface ProductionSignedAuditWindowRegistryOptions {
+export interface ReferenceSignedAuditWindowRegistryOptions {
   store: ExternalAppendOnlyAuditStore;
   tenantBoundary: string;
-  retentionPolicy: ProductionAuditRetentionPolicy;
-  windowSigner: ProductionAuditWindowSigner;
-  integrity: ProductionAuditIntegrityValidator;
+  retentionPolicy: ReferenceAuditRetentionPolicy;
+  windowSigner: ReferenceAuditWindowSigner;
+  integrity: ReferenceAuditIntegrityValidator;
   now: () => string;
 }
 
-export class ProductionSignedAuditWindowRegistry {
+export class ReferenceSignedAuditWindowRegistry {
   readonly #store: ExternalAppendOnlyAuditStore;
   readonly #tenantBoundary: string;
-  readonly #retentionPolicy: ProductionAuditRetentionPolicy;
-  readonly #windowSigner: ProductionAuditWindowSigner;
-  readonly #integrity: ProductionAuditIntegrityValidator;
+  readonly #retentionPolicy: ReferenceAuditRetentionPolicy;
+  readonly #windowSigner: ReferenceAuditWindowSigner;
+  readonly #integrity: ReferenceAuditIntegrityValidator;
   readonly #now: () => string;
 
-  constructor(options: ProductionSignedAuditWindowRegistryOptions) {
+  constructor(options: ReferenceSignedAuditWindowRegistryOptions) {
     this.#store = options.store;
     this.#tenantBoundary = options.tenantBoundary;
     this.#retentionPolicy = options.retentionPolicy;
@@ -41,7 +41,7 @@ export class ProductionSignedAuditWindowRegistry {
     this.#now = options.now;
   }
 
-  signAuditWindow(request: ProductionAuditWindowRequest): ProductionSignedAuditWindow {
+  signAuditWindow(request: ReferenceAuditWindowRequest): ReferenceSignedAuditWindow {
     const records = this.#integrity.trustedAuditRecords();
     const signedAt = request.signedAt ?? this.#now();
     const events = records
@@ -49,7 +49,7 @@ export class ProductionSignedAuditWindowRegistry {
       .filter((event) => event.occurredAt >= request.periodStart && event.occurredAt <= request.periodEnd);
     const signingKeyId = request.signingKeyId ?? this.#windowSigner.keyId;
     if (signingKeyId !== this.#windowSigner.keyId) {
-      throw new Error(`Production audit window signer ${signingKeyId} is not configured for this adapter.`);
+      throw new Error(`Reference audit window signer ${signingKeyId} is not configured for this adapter.`);
     }
     const firstEvent = events.at(0);
     const lastEvent = events.at(-1);
@@ -68,7 +68,7 @@ export class ProductionSignedAuditWindowRegistry {
       retentionPolicy: this.#retentionPolicy,
       signatureAlgorithm: this.#windowSigner.algorithm
     };
-    const window = withRecordHash<ProductionSignedAuditWindow>({
+    const window = withRecordHash<ReferenceSignedAuditWindow>({
       ...windowWithoutHashes,
       signatureHash: this.#windowSigner.sign(windowWithoutHashes),
       recordHash: ""
@@ -77,15 +77,15 @@ export class ProductionSignedAuditWindowRegistry {
     return clone(window);
   }
 
-  listSignedAuditWindows(): ProductionSignedAuditWindow[] {
+  listSignedAuditWindows(): ReferenceSignedAuditWindow[] {
     const windows = this.#store.readSignedWindows();
     const findings = this.#integrity.signedWindowFindings(windows, this.#store.readAuditRecords());
-    assertNoIntegrityFindings(findings, "Production signed audit window integrity check failed");
+    assertNoIntegrityFindings(findings, "Reference signed audit window integrity check failed");
     return clone(windows);
   }
 }
 
-export function createHmacAuditWindowSigner(keyId: CanonicalId, keyMaterial: string): ProductionAuditWindowSigner {
+export function createHmacAuditWindowSigner(keyId: CanonicalId, keyMaterial: string): ReferenceAuditWindowSigner {
   return {
     keyId,
     algorithm: "hmac-sha256",
@@ -102,9 +102,9 @@ export function createHmacAuditWindowSigner(keyId: CanonicalId, keyMaterial: str
 
 export function assertSigningKeyMaterial(keyMaterial: string): void {
   if (keyMaterial.trim().length === 0) {
-    throw new Error("Production audit signing key material is required.");
+    throw new Error("Reference audit signing key material is required.");
   }
   if (keyMaterial.length < 32) {
-    throw new Error("Production audit signing key material must be at least 32 characters.");
+    throw new Error("Reference audit signing key material must be at least 32 characters.");
   }
 }

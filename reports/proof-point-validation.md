@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-07-20T21:21:11.266Z
+Generated at: 2026-07-20T21:21:42.337Z
 
-Branch: codex/postgres-persistence
+Branch: codex/honest-naming
 
 Node: v24.4.1
 
@@ -154,8 +154,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  17:21:03
-   Duration  484ms (transform 253ms, setup 0ms, import 380ms, tests 25ms, environment 0ms)
+   Start at  17:21:34
+   Duration  380ms (transform 199ms, setup 0ms, import 299ms, tests 25ms, environment 0ms)
 ```
 
 ### deployment manifest validation
@@ -224,8 +224,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  17 passed | 1 skipped (18)
       Tests  211 passed | 9 skipped (220)
-   Start at  17:21:06
-   Duration  388ms (transform 2.43s, setup 0ms, import 3.49s, tests 236ms, environment 1ms)
+   Start at  17:21:37
+   Duration  393ms (transform 2.43s, setup 0ms, import 3.55s, tests 248ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -240,8 +240,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  8 passed (8)
       Tests  127 passed (127)
-   Start at  17:21:07
-   Duration  720ms (transform 1.54s, setup 0ms, import 2.48s, tests 538ms, environment 0ms)
+   Start at  17:21:38
+   Duration  753ms (transform 1.76s, setup 0ms, import 2.72s, tests 528ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -256,8 +256,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  17:21:08
-   Duration  598ms (transform 461ms, setup 0ms, import 711ms, tests 256ms, environment 0ms)
+   Start at  17:21:39
+   Duration  659ms (transform 548ms, setup 0ms, import 829ms, tests 263ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
@@ -272,8 +272,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  17:21:09
-   Duration  243ms (transform 132ms, setup 0ms, import 165ms, tests 8ms, environment 0ms)
+   Start at  17:21:40
+   Duration  227ms (transform 126ms, setup 0ms, import 158ms, tests 8ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -284,8 +284,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
  Test Files  8 passed (8)
       Tests  47 passed (47)
-   Start at  17:21:09
-   Duration  356ms (transform 1.29s, setup 0ms, import 1.78s, tests 90ms, environment 0ms)
+   Start at  17:21:40
+   Duration  331ms (transform 1.23s, setup 0ms, import 1.69s, tests 80ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -300,8 +300,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  17:21:10
-   Duration  464ms (transform 664ms, setup 0ms, import 1.01s, tests 129ms, environment 0ms)
+   Start at  17:21:41
+   Duration  491ms (transform 656ms, setup 0ms, import 1.04s, tests 149ms, environment 0ms)
 ```
 
 
@@ -309,7 +309,7 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 - TypeScript strict type checking.
 - JSON Schema validation for subject, resource, relationship, decision, native grant, discovery run, connector-security-review, enforcement-readiness, provisioning plan, audit event, audit export, drift finding, audit-integrity, persistence-deployment manifest, persistence-deployment readiness, runbook exercise, live-enforcement-pilot manifest, live-enforcement-pilot readiness, and evidence export examples.
-- OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, enforcement-readiness, generated client metadata, contract snapshots, versioning, deprecation, authentication, rate-limit, and API example path groups.
+- OpenAPI validation for required readiness, decision, inventory, native access, discovery, relationship, policy, provisioning, reconciliation, audit, audit-integrity, audit-export, evidence, connector, enforcement-readiness, contract snapshot client metadata, contract snapshots, versioning, deprecation, authentication, rate-limit, and API example path groups.
 - Generated Postman and Bruno API collections for the demo seed decision, explain, policy-test, dry-run provisioning, reconciliation, audit export, evidence export, and authentication-failure workflows.
 - Policy fixtures for deny by default, relationship allow, deny override, expired access denial, suspended-user denial, idempotency, and drift finding.
 - Connector security gate validation for connector identity, consent, tenant boundary, least-privilege read scopes, approved Microsoft Graph and AWS live-read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults.

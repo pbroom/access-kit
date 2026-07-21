@@ -1,9 +1,9 @@
 import {
-  ProductionAuditEvidenceAdapter,
-  ProductionConnectorStateStoreAdapter,
-  ProductionGraphStoreAdapter,
-  type ProductionConnectorStateStoreRecord,
-  type ProductionGraphStoreRecord
+  ReferenceAuditEvidenceAdapter,
+  ReferenceConnectorStateStoreAdapter,
+  ReferenceGraphStoreAdapter,
+  type ReferenceConnectorStateStoreRecord,
+  type ReferenceGraphStoreRecord
 } from "@access-kit/core";
 import { Pool } from "pg";
 import { PostgresExternalAppendOnlyAuditStore } from "./audit-store.js";
@@ -21,10 +21,10 @@ export interface PostgresRuntimePersistenceOptions {
 }
 
 export interface PostgresRuntimePersistenceBundle {
-  graphRepository: ProductionGraphStoreAdapter;
-  jobRepository: ProductionConnectorStateStoreAdapter;
-  auditRepository: ProductionAuditEvidenceAdapter;
-  evidenceRepository: ProductionAuditEvidenceAdapter;
+  graphRepository: ReferenceGraphStoreAdapter;
+  jobRepository: ReferenceConnectorStateStoreAdapter;
+  auditRepository: ReferenceAuditEvidenceAdapter;
+  evidenceRepository: ReferenceAuditEvidenceAdapter;
   waitForPendingWrites(): Promise<void>;
   close(): Promise<void>;
 }
@@ -58,12 +58,12 @@ export async function createPostgresRuntimePersistence(
 
     const locationPrefix = options.locationPrefix ?? "postgres";
     const [graphStore, connectorStateStore, auditStore] = await Promise.all([
-      PostgresExternalSnapshotStore.create<ProductionGraphStoreRecord>({
+      PostgresExternalSnapshotStore.create<ReferenceGraphStoreRecord>({
         db,
         tenantBoundary: options.tenantBoundary,
         storeName: graphStoreName
       }),
-      PostgresExternalSnapshotStore.create<ProductionConnectorStateStoreRecord>({
+      PostgresExternalSnapshotStore.create<ReferenceConnectorStateStoreRecord>({
         db,
         tenantBoundary: options.tenantBoundary,
         storeName: connectorStateStoreName
@@ -71,19 +71,19 @@ export async function createPostgresRuntimePersistence(
       PostgresExternalAppendOnlyAuditStore.create({ db, tenantBoundary: options.tenantBoundary })
     ]);
 
-    const graphRepository = new ProductionGraphStoreAdapter({
+    const graphRepository = new ReferenceGraphStoreAdapter({
       store: graphStore,
       tenantBoundary: options.tenantBoundary,
       location: `${locationPrefix}://graph`,
       now: options.now
     });
-    const jobRepository = new ProductionConnectorStateStoreAdapter({
+    const jobRepository = new ReferenceConnectorStateStoreAdapter({
       store: connectorStateStore,
       tenantBoundary: options.tenantBoundary,
       location: `${locationPrefix}://connector-state`,
       now: options.now
     });
-    const auditRepository = new ProductionAuditEvidenceAdapter({
+    const auditRepository = new ReferenceAuditEvidenceAdapter({
       store: auditStore,
       tenantBoundary: options.tenantBoundary,
       location: `${locationPrefix}://audit`,

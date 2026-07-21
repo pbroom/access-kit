@@ -1,12 +1,12 @@
 import type { AuditIntegrityFinding, CanonicalId, JsonRecord } from "./domain.js";
-import type { ProductionRepositoryBackupMetadata } from "./production-repositories.js";
-import { isProductionSensitiveKey } from "./production-secret-material.js";
+import type { ReferenceRepositoryBackupMetadata } from "./reference-repositories.js";
+import { isSecretMaterialSensitiveKey } from "./secret-material-heuristics.js";
 import { stableHash } from "./repository-envelopes.js";
-import type { ProductionAuditStoreBackup } from "./production-audit-models.js";
+import type { ReferenceAuditStoreBackup } from "./reference-audit-models.js";
 
 export function assertTenantBoundary(tenantBoundary: string): void {
   if (tenantBoundary.length === 0) {
-    throw new Error("Production audit adapters require a tenant boundary.");
+    throw new Error("Reference audit adapters require a tenant boundary.");
   }
 }
 
@@ -52,7 +52,7 @@ export function secretMaterialFindings(value: unknown, path: string): AuditInteg
     const nextPath = `${path}.${key}`;
     const findings: AuditIntegrityFinding[] = [];
 
-    if (isProductionSensitiveKey(key)) {
+    if (isSecretMaterialSensitiveKey(key)) {
       findings.push({
         code: "SECRET_MATERIAL_NOT_REDACTED",
         message: `${nextPath} contains secret material and must be redacted before production audit persistence.`,
@@ -101,14 +101,14 @@ export function hashRecord(record: { recordHash?: string }): string {
   return hashReference(withoutHash);
 }
 
-export function withBackupHash(backup: ProductionAuditStoreBackup): ProductionAuditStoreBackup {
+export function withBackupHash(backup: ReferenceAuditStoreBackup): ReferenceAuditStoreBackup {
   return {
     ...backup,
     backupHash: hashBackup(backup)
   };
 }
 
-export function hashBackup(backup: ProductionAuditStoreBackup): string {
+export function hashBackup(backup: ReferenceAuditStoreBackup): string {
   return hashReference({
     version: backup.version,
     id: backup.id,
@@ -126,7 +126,7 @@ export function hashReference(value: unknown): string {
   return `sha256:${stableHash(value)}`;
 }
 
-export function createBackupMetadata(metadata: Omit<ProductionRepositoryBackupMetadata, "version">): ProductionRepositoryBackupMetadata {
+export function createBackupMetadata(metadata: Omit<ReferenceRepositoryBackupMetadata, "version">): ReferenceRepositoryBackupMetadata {
   return {
     ...metadata,
     version: "production-repository-backup:v1"

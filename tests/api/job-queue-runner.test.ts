@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   InMemoryExternalSnapshotStore,
-  ProductionJobQueueAdapter,
+  ReferenceJobQueueAdapter,
   type DiscoveryRun,
   type EvidenceExport,
-  type ProductionJobQueueStoreRecord,
+  type ReferenceJobQueueStoreRecord,
   type ProvisioningApproval,
   type ProvisioningJob,
   type ReconciliationRun
@@ -189,9 +189,9 @@ describe("queued API runtime worker", () => {
   });
 });
 
-function createQueue(now: () => string): ProductionJobQueueAdapter {
-  return new ProductionJobQueueAdapter({
-    store: new InMemoryExternalSnapshotStore<ProductionJobQueueStoreRecord>(),
+function createQueue(now: () => string): ReferenceJobQueueAdapter {
+  return new ReferenceJobQueueAdapter({
+    store: new InMemoryExternalSnapshotStore<ReferenceJobQueueStoreRecord>(),
     tenantBoundary: "synthetic:mock",
     location: "external://queue/access-kit-test-runtime",
     now

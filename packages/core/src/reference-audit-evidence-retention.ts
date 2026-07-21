@@ -4,33 +4,33 @@ import type {
 } from "./domain.js";
 import type {
   ExternalAppendOnlyAuditStore,
-  ProductionAuditRetentionPolicy,
-  ProductionEvidenceStoreRecord
-} from "./production-audit-models.js";
-import type { ProductionAuditIntegrityValidator } from "./production-audit-integrity.js";
+  ReferenceAuditRetentionPolicy,
+  ReferenceEvidenceStoreRecord
+} from "./reference-audit-models.js";
+import type { ReferenceAuditIntegrityValidator } from "./reference-audit-integrity.js";
 import {
   assertNoSecretMaterial,
   clone,
   cloneOptional,
   withRecordHash
-} from "./production-audit-utils.js";
+} from "./reference-audit-utils.js";
 
-export interface ProductionEvidencePackageRetentionOptions {
+export interface ReferenceEvidencePackageRetentionOptions {
   store: ExternalAppendOnlyAuditStore;
   tenantBoundary: string;
   location: string;
-  retentionPolicy: ProductionAuditRetentionPolicy;
-  integrity: ProductionAuditIntegrityValidator;
+  retentionPolicy: ReferenceAuditRetentionPolicy;
+  integrity: ReferenceAuditIntegrityValidator;
 }
 
-export class ProductionEvidencePackageRetention {
+export class ReferenceEvidencePackageRetention {
   readonly #store: ExternalAppendOnlyAuditStore;
   readonly #tenantBoundary: string;
   readonly #location: string;
-  readonly #retentionPolicy: ProductionAuditRetentionPolicy;
-  readonly #integrity: ProductionAuditIntegrityValidator;
+  readonly #retentionPolicy: ReferenceAuditRetentionPolicy;
+  readonly #integrity: ReferenceAuditIntegrityValidator;
 
-  constructor(options: ProductionEvidencePackageRetentionOptions) {
+  constructor(options: ReferenceEvidencePackageRetentionOptions) {
     this.#store = options.store;
     this.#tenantBoundary = options.tenantBoundary;
     this.#location = options.location;
@@ -60,7 +60,7 @@ export class ProductionEvidencePackageRetention {
       ...clone(evidence),
       storageReceipt: receipt
     };
-    const record = withRecordHash<ProductionEvidenceStoreRecord>({
+    const record = withRecordHash<ReferenceEvidenceStoreRecord>({
       version: "production-evidence-package-record:v1",
       tenantBoundary: this.#tenantBoundary,
       exportId: evidence.exportId,

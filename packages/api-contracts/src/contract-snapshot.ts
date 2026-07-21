@@ -14,7 +14,7 @@ export interface ApiContractSnapshot {
   readonly contractVersion: string;
   readonly openApiVersion: string;
   readonly source: string;
-  readonly generatedClient: {
+  readonly contractClient: {
     readonly language: "typescript";
     readonly artifact: string;
   };
@@ -29,9 +29,9 @@ export const apiContractSnapshot = {
   contractVersion: "0.1.0",
   openApiVersion: "3.1.0",
   source: "openapi/rebac-control-plane.yaml",
-  generatedClient: {
+  contractClient: {
     language: "typescript",
-    artifact: "packages/api-contracts/src/generated-client.ts"
+    artifact: "packages/api-contracts/src/contract-client.ts"
   },
   rateLimitPolicy: {
     authenticationFailureAuditSamplingWindowSeconds: 60,

@@ -1,33 +1,33 @@
 import type { CanonicalId } from "./domain.js";
-import type { ProductionRepositoryBackupMetadata } from "./production-repositories.js";
-import type { ProductionAuditIntegrityValidator } from "./production-audit-integrity.js";
+import type { ReferenceRepositoryBackupMetadata } from "./reference-repositories.js";
+import type { ReferenceAuditIntegrityValidator } from "./reference-audit-integrity.js";
 import type {
   ExternalAppendOnlyAuditStore,
-  ProductionAuditRestoreReceipt
-} from "./production-audit-models.js";
+  ReferenceAuditRestoreReceipt
+} from "./reference-audit-models.js";
 import {
   clone,
   createBackupMetadata,
   hashReference,
   withBackupHash
-} from "./production-audit-utils.js";
+} from "./reference-audit-utils.js";
 
-export interface ProductionAuditBackupVaultOptions {
+export interface ReferenceAuditBackupVaultOptions {
   store: ExternalAppendOnlyAuditStore;
   tenantBoundary: string;
   location: string;
-  integrity: ProductionAuditIntegrityValidator;
+  integrity: ReferenceAuditIntegrityValidator;
   now: () => string;
 }
 
-export class ProductionAuditBackupVault {
+export class ReferenceAuditBackupVault {
   readonly #store: ExternalAppendOnlyAuditStore;
   readonly #tenantBoundary: string;
   readonly #location: string;
-  readonly #integrity: ProductionAuditIntegrityValidator;
+  readonly #integrity: ReferenceAuditIntegrityValidator;
   readonly #now: () => string;
 
-  constructor(options: ProductionAuditBackupVaultOptions) {
+  constructor(options: ReferenceAuditBackupVaultOptions) {
     this.#store = options.store;
     this.#tenantBoundary = options.tenantBoundary;
     this.#location = options.location;
@@ -35,7 +35,7 @@ export class ProductionAuditBackupVault {
     this.#now = options.now;
   }
 
-  createBackup(id: CanonicalId, createdAt: string = this.#now()): ProductionRepositoryBackupMetadata {
+  createBackup(id: CanonicalId, createdAt: string = this.#now()): ReferenceRepositoryBackupMetadata {
     this.#integrity.validateStoreState();
     const currentMetadata = this.#store.readBackupMetadata();
     const metadata = createBackupMetadata({
@@ -47,7 +47,7 @@ export class ProductionAuditBackupVault {
         auditRecords: this.#store.readAuditRecords(),
         evidenceRecords: this.#store.readEvidenceRecords(),
         signedWindows: this.#store.readSignedWindows(),
-        siemDeliveries: this.#store.readSiemDeliveries()
+        siemDeliveries: this.#store.readSiemDeliveryLogEntries()
       }),
       tenantBoundary: this.#tenantBoundary,
       entityCounts: this.#entityCounts()
@@ -60,7 +60,7 @@ export class ProductionAuditBackupVault {
       auditRecords: this.#store.readAuditRecords(),
       evidenceRecords: this.#store.readEvidenceRecords(),
       signedWindows: this.#store.readSignedWindows(),
-      siemDeliveries: this.#store.readSiemDeliveries(),
+      siemDeliveries: this.#store.readSiemDeliveryLogEntries(),
       backupMetadata: [...currentMetadata, metadata],
       backupHash: ""
     });
@@ -70,11 +70,11 @@ export class ProductionAuditBackupVault {
     return clone(metadata);
   }
 
-  restoreBackup(id: CanonicalId, restoredAt: string = this.#now()): ProductionAuditRestoreReceipt {
+  restoreBackup(id: CanonicalId, restoredAt: string = this.#now()): ReferenceAuditRestoreReceipt {
     const backup = this.#store.readBackup(id);
 
     if (!backup) {
-      throw new Error(`Production audit backup ${id} does not exist.`);
+      throw new Error(`Reference audit backup ${id} does not exist.`);
     }
     this.#integrity.validateBackup(backup);
     this.#store.restoreSnapshot({
@@ -99,7 +99,7 @@ export class ProductionAuditBackupVault {
     };
   }
 
-  listBackupMetadata(): ProductionRepositoryBackupMetadata[] {
+  listBackupMetadata(): ReferenceRepositoryBackupMetadata[] {
     return clone(this.#store.readBackupMetadata());
   }
 
@@ -108,7 +108,7 @@ export class ProductionAuditBackupVault {
       auditEvents: this.#store.readAuditRecords().length,
       evidencePackages: this.#store.readEvidenceRecords().length,
       signedAuditWindows: this.#store.readSignedWindows().length,
-      siemDeliveries: this.#store.readSiemDeliveries().length
+      siemDeliveries: this.#store.readSiemDeliveryLogEntries().length
     };
   }
 }

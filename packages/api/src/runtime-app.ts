@@ -6,7 +6,7 @@ import type {
   EvidencePackageRepository,
   InMemoryRebacStore,
   PersistenceDegradationReceipt,
-  ProductionJobQueueAdapter,
+  ReferenceJobQueueAdapter,
   RebacDecisionEngine,
   RebacGraphRepository,
   RebacJobRepository,
@@ -22,7 +22,7 @@ export interface RebacLocalAppOptions {
   persistence?: RebacRuntimePersistence;
   graphRepository?: RebacGraphRepository;
   jobRepository?: RebacJobRepository;
-  jobQueue?: ProductionJobQueueAdapter;
+  jobQueue?: ReferenceJobQueueAdapter;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
@@ -31,7 +31,7 @@ export interface RebacLocalAppOptions {
 export interface RebacRuntimePersistence {
   graphRepository?: RebacGraphRepository;
   jobRepository?: RebacJobRepository;
-  jobQueue?: ProductionJobQueueAdapter;
+  jobQueue?: ReferenceJobQueueAdapter;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
@@ -59,7 +59,7 @@ export interface RebacLocalApp {
   persistenceDegradations: RebacPersistenceDegradation[];
   graphRepository?: RebacGraphRepository;
   jobRepository?: RebacJobRepository;
-  jobQueue?: ProductionJobQueueAdapter;
+  jobQueue?: ReferenceJobQueueAdapter;
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;

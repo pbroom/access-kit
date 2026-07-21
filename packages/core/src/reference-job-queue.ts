@@ -32,12 +32,12 @@ import {
   stableHash
 } from "./repository-envelopes.js";
 import {
-  ProductionJobSnapshotStore,
-  emptyProductionJobSnapshot,
-  type ProductionJobSnapshotStoreRecord
-} from "./production-job-snapshot-store.js";
+  ReferenceJobSnapshotStore,
+  emptyReferenceJobSnapshot,
+  type ReferenceJobSnapshotStoreRecord
+} from "./reference-job-snapshot-store.js";
 import type { RebacJobStorageReceipt } from "./repositories.js";
-import type { ExternalSnapshotStore, ProductionRepositoryBackupMetadata } from "./production-repositories.js";
+import type { ExternalSnapshotStore, ReferenceRepositoryBackupMetadata } from "./reference-repositories.js";
 import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
 import {
   assertEvidenceTenantBoundary,
@@ -45,45 +45,45 @@ import {
   assertReportTenantBoundary,
   clone,
   cloneOptional
-} from "./production-repository-security-utils.js";
+} from "./reference-repository-security-utils.js";
 
-export type ProductionQueuedJobKind = "discovery" | "reconciliation" | "provisioning" | "evidence" | "revocation";
-export type ProductionQueuedJobPriority = "emergency" | "high" | "normal" | "low";
-export type ProductionQueuedJobStatus = "queued" | "running" | "completed" | "failed" | "dead_lettered";
-export type ProductionConnectorHealthStatus = "healthy" | "degraded" | "offline";
+export type ReferenceQueuedJobKind = "discovery" | "reconciliation" | "provisioning" | "evidence" | "revocation";
+export type ReferenceQueuedJobPriority = "emergency" | "high" | "normal" | "low";
+export type ReferenceQueuedJobStatus = "queued" | "running" | "completed" | "failed" | "dead_lettered";
+export type ReferenceConnectorHealthStatus = "healthy" | "degraded" | "offline";
 
-export interface ProductionJobQueueBackoffPolicy {
+export interface ReferenceJobQueueBackoffPolicy {
   strategy: "exponential";
   initialDelayMs: number;
   maxDelayMs: number;
   multiplier?: number;
 }
 
-export interface ProductionJobQueueEnqueueRequest {
-  kind: ProductionQueuedJobKind;
+export interface ReferenceJobQueueEnqueueRequest {
+  kind: ReferenceQueuedJobKind;
   connectorId: CanonicalId;
   idempotencyKey: string;
   payload: JsonRecord;
-  priority?: ProductionQueuedJobPriority;
+  priority?: ReferenceQueuedJobPriority;
   requestedAt?: string;
   maxAttempts?: number;
-  backoff?: ProductionJobQueueBackoffPolicy;
+  backoff?: ReferenceJobQueueBackoffPolicy;
   approval?: ProvisioningApproval;
   control?: EnforcementControl;
   readinessReportId?: CanonicalId;
   replayedFromJobId?: CanonicalId;
 }
 
-export interface ProductionProvisioningJobQueueOptions {
+export interface ReferenceProvisioningJobQueueOptions {
   plan?: ProvisioningPlan;
   requestedAt?: string;
-  priority?: ProductionQueuedJobPriority;
+  priority?: ReferenceQueuedJobPriority;
   maxAttempts?: number;
-  backoff?: ProductionJobQueueBackoffPolicy;
+  backoff?: ReferenceJobQueueBackoffPolicy;
   readinessReportId?: CanonicalId;
 }
 
-export interface ProductionRevocationJobQueueRequest {
+export interface ReferenceRevocationJobQueueRequest {
   connectorId: CanonicalId;
   nativeGrantId: CanonicalId;
   idempotencyKey: string;
@@ -93,21 +93,21 @@ export interface ProductionRevocationJobQueueRequest {
   control?: EnforcementControl;
   readinessReportId?: CanonicalId;
   maxAttempts?: number;
-  backoff?: ProductionJobQueueBackoffPolicy;
+  backoff?: ReferenceJobQueueBackoffPolicy;
 }
 
-export interface ProductionQueuedJob {
+export interface ReferenceQueuedJob {
   id: CanonicalId;
-  kind: ProductionQueuedJobKind;
+  kind: ReferenceQueuedJobKind;
   connectorId: CanonicalId;
-  status: ProductionQueuedJobStatus;
-  priority: ProductionQueuedJobPriority;
+  status: ReferenceQueuedJobStatus;
+  priority: ReferenceQueuedJobPriority;
   idempotencyKey: string;
   requestHash: string;
   payload: JsonRecord;
   attempts: number;
   maxAttempts: number;
-  backoff: ProductionJobQueueBackoffPolicy;
+  backoff: ReferenceJobQueueBackoffPolicy;
   requestedAt: string;
   availableAt: string;
   updatedAt: string;
@@ -125,7 +125,7 @@ export interface ProductionQueuedJob {
   version: "production-queued-job:v1";
 }
 
-export interface ProductionJobQueueIdempotencyRecord {
+export interface ReferenceJobQueueIdempotencyRecord {
   idempotencyKey: string;
   jobId: CanonicalId;
   requestHash: string;
@@ -133,9 +133,9 @@ export interface ProductionJobQueueIdempotencyRecord {
   version: "production-job-idempotency:v1";
 }
 
-export interface ProductionConnectorHealth {
+export interface ReferenceConnectorHealth {
   connectorId: CanonicalId;
-  status: ProductionConnectorHealthStatus;
+  status: ReferenceConnectorHealthStatus;
   updatedAt: string;
   reason?: string;
   lastSuccessAt?: string;
@@ -143,95 +143,95 @@ export interface ProductionConnectorHealth {
   version: "production-connector-health:v1";
 }
 
-export interface ProductionJobQueueSnapshot {
-  queuedJobs: ProductionQueuedJob[];
-  connectorHealth: ProductionConnectorHealth[];
-  idempotencyRecords: ProductionJobQueueIdempotencyRecord[];
+export interface ReferenceJobQueueSnapshot {
+  queuedJobs: ReferenceQueuedJob[];
+  connectorHealth: ReferenceConnectorHealth[];
+  idempotencyRecords: ReferenceJobQueueIdempotencyRecord[];
 }
 
-export type ProductionJobQueueEntityCounts = RebacJobStorageReceipt["entityCounts"] & {
+export type ReferenceJobQueueEntityCounts = RebacJobStorageReceipt["entityCounts"] & {
   queuedJobs: number;
   deadLetteredJobs: number;
   connectorHealth: number;
   idempotencyRecords: number;
 };
 
-export interface ProductionJobQueueStoreRecord extends ProductionJobSnapshotStoreRecord {
+export interface ReferenceJobQueueStoreRecord extends ReferenceJobSnapshotStoreRecord {
   version: "production-job-queue-store:v1";
   storedAt: string;
   tenantBoundary: string;
   jobsHash: string;
   queueHash: string;
   jobs: RebacJobSnapshot;
-  queue: ProductionJobQueueSnapshot;
-  entityCounts: ProductionJobQueueEntityCounts;
-  backupMetadata: ProductionRepositoryBackupMetadata[];
+  queue: ReferenceJobQueueSnapshot;
+  entityCounts: ReferenceJobQueueEntityCounts;
+  backupMetadata: ReferenceRepositoryBackupMetadata[];
 }
 
-export interface ProductionJobQueueAdapterOptions {
-  store: ExternalSnapshotStore<ProductionJobQueueStoreRecord>;
+export interface ReferenceJobQueueAdapterOptions {
+  store: ExternalSnapshotStore<ReferenceJobQueueStoreRecord>;
   tenantBoundary: string;
   location: string;
   now?: () => string;
 }
 
-export interface ProductionQueuedJobFilter {
-  kind?: ProductionQueuedJobKind;
+export interface ReferenceQueuedJobFilter {
+  kind?: ReferenceQueuedJobKind;
   connectorId?: CanonicalId;
-  status?: ProductionQueuedJobStatus;
+  status?: ReferenceQueuedJobStatus;
 }
 
-export interface ProductionJobReservationRequest {
+export interface ReferenceJobReservationRequest {
   workerId: CanonicalId;
   reservedAt?: string;
   leaseDurationMs?: number;
 }
 
-export interface ProductionJobFailureRequest {
+export interface ReferenceJobFailureRequest {
   workerId?: CanonicalId;
   failedAt?: string;
   error: string;
 }
 
-export interface ProductionJobCompletionRequest {
+export interface ReferenceJobCompletionRequest {
   workerId?: CanonicalId;
   completedAt?: string;
 }
 
-export interface ProductionJobReplayRequest {
+export interface ReferenceJobReplayRequest {
   requestedAt?: string;
   idempotencyKey?: string;
 }
 
-export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedPersistenceRepository {
-  readonly #jobSnapshots: ProductionJobSnapshotStore<ProductionJobQueueStoreRecord>;
+export class ReferenceJobQueueAdapter implements RebacJobRepository, DescribedPersistenceRepository {
+  readonly #jobSnapshots: ReferenceJobSnapshotStore<ReferenceJobQueueStoreRecord>;
   readonly #tenantBoundary: string;
   readonly #location: string;
   readonly #now: () => string;
   #jobs: RebacJobSnapshot;
-  #queue: ProductionJobQueueSnapshot;
-  #backupMetadata: ProductionRepositoryBackupMetadata[];
+  #queue: ReferenceJobQueueSnapshot;
+  #backupMetadata: ReferenceRepositoryBackupMetadata[];
 
-  constructor(options: ProductionJobQueueAdapterOptions) {
+  constructor(options: ReferenceJobQueueAdapterOptions) {
     assertTenantBoundary(options.tenantBoundary);
     assertNoSecretMaterial(options.location, "production job queue location");
     this.#tenantBoundary = options.tenantBoundary;
     this.#location = options.location;
     this.#now = options.now ?? (() => new Date().toISOString());
-    this.#jobSnapshots = new ProductionJobSnapshotStore({
+    this.#jobSnapshots = new ReferenceJobSnapshotStore({
       store: options.store,
       tenantBoundary: options.tenantBoundary,
       component: "job",
       location: options.location,
       recordVersion: "production-job-queue-store:v1",
-      recordLabel: "Production job queue store",
-      payloadLabel: "Production job queue job payload",
-      snapshotLabel: "Production job queue job snapshot",
-      backupMissingLabel: "Production job queue backup",
+      recordLabel: "Reference job queue store",
+      payloadLabel: "Reference job queue job payload",
+      snapshotLabel: "Reference job queue job snapshot",
+      backupMissingLabel: "Reference job queue backup",
       validateRecord: validateQueueState
     });
     const stored = this.#readQueueRecord();
-    this.#jobs = stored?.jobs ?? emptyProductionJobSnapshot();
+    this.#jobs = stored?.jobs ?? emptyReferenceJobSnapshot();
     this.#queue = stored?.queue ?? emptyQueueSnapshot();
     this.#backupMetadata = stored?.backupMetadata ?? [];
   }
@@ -248,14 +248,14 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     };
   }
 
-  enqueueJob(request: ProductionJobQueueEnqueueRequest): ProductionQueuedJob {
+  enqueueJob(request: ReferenceJobQueueEnqueueRequest): ReferenceQueuedJob {
     const normalized = this.#normalizeEnqueueRequest(request);
     assertEnforcementEvidence(normalized);
     assertNoSecretMaterial(normalized.payload, `Queued ${normalized.kind} job payload`);
     return this.#enqueueNormalizedJob(normalized);
   }
 
-  enqueueProvisioningJob(job: ProvisioningJob, options: ProductionProvisioningJobQueueOptions = {}): ProductionQueuedJob {
+  enqueueProvisioningJob(job: ProvisioningJob, options: ReferenceProvisioningJobQueueOptions = {}): ReferenceQueuedJob {
     this.#refreshFromStore();
     const plan = options.plan ?? this.getProvisioningPlan(job.planId);
     const normalized = this.#normalizeEnqueueRequest({
@@ -295,7 +295,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     });
   }
 
-  enqueueRevocationJob(request: ProductionRevocationJobQueueRequest): ProductionQueuedJob {
+  enqueueRevocationJob(request: ReferenceRevocationJobQueueRequest): ReferenceQueuedJob {
     return this.enqueueJob({
       kind: "revocation",
       connectorId: request.connectorId,
@@ -314,7 +314,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     });
   }
 
-  reserveNextJob(request: ProductionJobReservationRequest): ProductionQueuedJob | undefined {
+  reserveNextJob(request: ReferenceJobReservationRequest): ReferenceQueuedJob | undefined {
     const reservedAt = request.reservedAt ?? this.#now();
     return this.#commitSnapshot(reservedAt, (jobs, queue) => {
       const recoveredQueue = recoverExpiredRunningJobs(queue, reservedAt);
@@ -326,7 +326,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
         return { jobs, queue: recoveredQueue, result: undefined };
       }
 
-      const running: ProductionQueuedJob = {
+      const running: ReferenceQueuedJob = {
         ...eligible,
         status: "running",
         workerId: request.workerId,
@@ -346,14 +346,14 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     });
   }
 
-  completeJob(jobId: CanonicalId, request: ProductionJobCompletionRequest = {}): ProductionQueuedJob {
+  completeJob(jobId: CanonicalId, request: ReferenceJobCompletionRequest = {}): ReferenceQueuedJob {
     const completedAt = request.completedAt ?? this.#now();
     return this.#commitSnapshot(completedAt, (jobs, queue) => {
       const job = requiredQueuedJob(queue, jobId);
       assertJobRunning(job, "complete");
       assertLeaseActive(job, completedAt, "complete");
       assertWorkerMatches(job, request.workerId);
-      const completed: ProductionQueuedJob = {
+      const completed: ReferenceQueuedJob = {
         ...job,
         status: "completed",
         workerId: request.workerId ?? job.workerId,
@@ -371,14 +371,14 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     });
   }
 
-  recordJobFailure(jobId: CanonicalId, request: ProductionJobFailureRequest): ProductionQueuedJob {
+  recordJobFailure(jobId: CanonicalId, request: ReferenceJobFailureRequest): ReferenceQueuedJob {
     const failedAt = request.failedAt ?? this.#now();
     return this.#commitSnapshot(failedAt, (jobs, queue) => {
       const job = requiredQueuedJob(queue, jobId);
       assertJobRunning(job, "record failure for");
       assertWorkerMatches(job, request.workerId);
       const retryable = job.attempts < job.maxAttempts;
-      const failed: ProductionQueuedJob = retryable
+      const failed: ReferenceQueuedJob = retryable
         ? {
           ...job,
           status: "queued",
@@ -409,13 +409,13 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     });
   }
 
-  replayDeadLetteredJob(jobId: CanonicalId, request: ProductionJobReplayRequest = {}): ProductionQueuedJob {
+  replayDeadLetteredJob(jobId: CanonicalId, request: ReferenceJobReplayRequest = {}): ReferenceQueuedJob {
     const requestedAt = request.requestedAt ?? this.#now();
     this.#refreshFromStore();
     const job = requiredQueuedJob(this.#queue, jobId);
 
     if (job.status !== "dead_lettered") {
-      throw new Error(`Production queue job ${jobId} is not dead-lettered and cannot be replayed.`);
+      throw new Error(`Reference queue job ${jobId} is not dead-lettered and cannot be replayed.`);
     }
 
     return this.enqueueJob({
@@ -437,12 +437,12 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     });
   }
 
-  getQueuedJob(id: CanonicalId): ProductionQueuedJob | undefined {
+  getQueuedJob(id: CanonicalId): ReferenceQueuedJob | undefined {
     this.#refreshFromStore();
     return cloneOptional(this.#queue.queuedJobs.find((job) => job.id === id));
   }
 
-  listQueuedJobs(filter: ProductionQueuedJobFilter = {}): ProductionQueuedJob[] {
+  listQueuedJobs(filter: ReferenceQueuedJobFilter = {}): ReferenceQueuedJob[] {
     this.#refreshFromStore();
     return clone(
       this.#queue.queuedJobs.filter((job) => {
@@ -455,12 +455,12 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     );
   }
 
-  listDeadLetteredJobs(): ProductionQueuedJob[] {
+  listDeadLetteredJobs(): ReferenceQueuedJob[] {
     return this.listQueuedJobs({ status: "dead_lettered" });
   }
 
-  setConnectorHealth(health: Omit<ProductionConnectorHealth, "version">): ProductionConnectorHealth {
-    const next: ProductionConnectorHealth = {
+  setConnectorHealth(health: Omit<ReferenceConnectorHealth, "version">): ReferenceConnectorHealth {
+    const next: ReferenceConnectorHealth = {
       ...health,
       version: "production-connector-health:v1"
     };
@@ -475,7 +475,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     }));
   }
 
-  getConnectorHealth(connectorId: CanonicalId): ProductionConnectorHealth {
+  getConnectorHealth(connectorId: CanonicalId): ReferenceConnectorHealth {
     this.#refreshFromStore();
     return clone(
       this.#queue.connectorHealth.find((health) => health.connectorId === connectorId) ?? {
@@ -487,12 +487,12 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     );
   }
 
-  listConnectorHealth(): ProductionConnectorHealth[] {
+  listConnectorHealth(): ReferenceConnectorHealth[] {
     this.#refreshFromStore();
     return clone(this.#queue.connectorHealth);
   }
 
-  exportQueue(): ProductionJobQueueSnapshot {
+  exportQueue(): ReferenceJobQueueSnapshot {
     this.#refreshFromStore();
     return clone(this.#queue);
   }
@@ -741,7 +741,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     return this.#persist(storedAt);
   }
 
-  createBackup(id: CanonicalId, createdAt: string = this.#now()): ProductionRepositoryBackupMetadata {
+  createBackup(id: CanonicalId, createdAt: string = this.#now()): ReferenceRepositoryBackupMetadata {
     this.#refreshFromStore();
     const jobs = this.#jobSnapshots.createSnapshotFields(createdAt, this.#jobs, this.#backupMetadata).jobs;
     const queue = normalizeQueueSnapshot(this.#queue);
@@ -768,7 +768,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     return this.#persist(restoredAt);
   }
 
-  listBackupMetadata(): ProductionRepositoryBackupMetadata[] {
+  listBackupMetadata(): ReferenceRepositoryBackupMetadata[] {
     this.#refreshFromStore();
     return clone(this.#backupMetadata);
   }
@@ -776,13 +776,13 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
   #enqueueNormalizedJob(
     normalized: RequiredQueueRequest,
     mutateJobs: (jobs: RebacJobSnapshot) => RebacJobSnapshot = (jobs) => jobs
-  ): ProductionQueuedJob {
+  ): ReferenceQueuedJob {
     return this.#commitSnapshot(normalized.requestedAt, (jobs, queue) => {
       const existing = queue.idempotencyRecords.find((record) => record.idempotencyKey === normalized.idempotencyKey);
 
       if (existing) {
         if (existing.requestHash !== normalized.requestHash) {
-          throw new Error(`Production queue idempotency key ${normalized.idempotencyKey} was reused for a different job request.`);
+          throw new Error(`Reference queue idempotency key ${normalized.idempotencyKey} was reused for a different job request.`);
         }
 
         return { jobs, queue, result: requiredQueuedJob(queue, existing.jobId) };
@@ -814,18 +814,18 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     storedAt: string,
     mutate: (
       jobs: RebacJobSnapshot,
-      queue: ProductionJobQueueSnapshot,
-      backupMetadata: ProductionRepositoryBackupMetadata[]
+      queue: ReferenceJobQueueSnapshot,
+      backupMetadata: ReferenceRepositoryBackupMetadata[]
     ) => {
       jobs: RebacJobSnapshot;
-      queue: ProductionJobQueueSnapshot;
-      backupMetadata?: ProductionRepositoryBackupMetadata[];
+      queue: ReferenceJobQueueSnapshot;
+      backupMetadata?: ReferenceRepositoryBackupMetadata[];
       result: T;
     }
   ): T {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const expected = this.#readQueueRecord();
-      const jobs = expected?.jobs ?? emptyProductionJobSnapshot();
+      const jobs = expected?.jobs ?? emptyReferenceJobSnapshot();
       const queue = expected?.queue ?? emptyQueueSnapshot();
       const backupMetadata = expected?.backupMetadata ?? [];
       const mutation = mutate(clone(jobs), clone(queue), clone(backupMetadata));
@@ -845,22 +845,22 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
 
     }
 
-    throw new Error("Production job queue write conflict persisted after retry.");
+    throw new Error("Reference job queue write conflict persisted after retry.");
   }
 
   #refreshFromStore(): void {
     const stored = this.#readQueueRecord();
-    this.#jobs = stored?.jobs ?? emptyProductionJobSnapshot();
+    this.#jobs = stored?.jobs ?? emptyReferenceJobSnapshot();
     this.#queue = stored?.queue ?? emptyQueueSnapshot();
     this.#backupMetadata = stored?.backupMetadata ?? [];
   }
 
-  #normalizeEnqueueRequest(request: ProductionJobQueueEnqueueRequest): RequiredQueueRequest {
+  #normalizeEnqueueRequest(request: ReferenceJobQueueEnqueueRequest): RequiredQueueRequest {
     if (request.idempotencyKey.length === 0) {
-      throw new Error("Production queue jobs require an idempotency key.");
+      throw new Error("Reference queue jobs require an idempotency key.");
     }
     if (request.connectorId.length === 0) {
-      throw new Error("Production queue jobs require a connector id.");
+      throw new Error("Reference queue jobs require a connector id.");
     }
 
     const requestedAt = request.requestedAt ?? this.#now();
@@ -899,7 +899,7 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     };
   }
 
-  #isConnectorReservable(job: ProductionQueuedJob, queue: ProductionJobQueueSnapshot): boolean {
+  #isConnectorReservable(job: ReferenceQueuedJob, queue: ReferenceJobQueueSnapshot): boolean {
     const health = queue.connectorHealth.find((entry) => entry.connectorId === job.connectorId);
 
     if (!health || health.status === "healthy") {
@@ -909,11 +909,11 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
     return job.kind === "revocation" && job.priority === "emergency";
   }
 
-  #readQueueRecord(): ProductionJobQueueStoreRecord | undefined {
+  #readQueueRecord(): ReferenceJobQueueStoreRecord | undefined {
     return this.#jobSnapshots.readCurrent();
   }
 
-  #readQueueBackup(id: CanonicalId): ProductionJobQueueStoreRecord {
+  #readQueueBackup(id: CanonicalId): ReferenceJobQueueStoreRecord {
     return this.#jobSnapshots.readBackup(id);
   }
 
@@ -942,12 +942,12 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
   #createRecord(
     storedAt: string,
     jobs: RebacJobSnapshot,
-    queue: ProductionJobQueueSnapshot,
-    backupMetadata: ProductionRepositoryBackupMetadata[]
-  ): ProductionJobQueueStoreRecord {
+    queue: ReferenceJobQueueSnapshot,
+    backupMetadata: ReferenceRepositoryBackupMetadata[]
+  ): ReferenceJobQueueStoreRecord {
     const jobSnapshot = this.#jobSnapshots.createSnapshotFields(storedAt, jobs, backupMetadata);
     const queueSnapshot = normalizeQueueSnapshot(queue);
-    assertNoSecretMaterial(queueSnapshot, "Production job queue snapshot");
+    assertNoSecretMaterial(queueSnapshot, "Reference job queue snapshot");
     return {
       version: "production-job-queue-store:v1",
       storedAt: jobSnapshot.storedAt,
@@ -963,14 +963,14 @@ export class ProductionJobQueueAdapter implements RebacJobRepository, DescribedP
 }
 
 interface RequiredQueueRequest {
-  kind: ProductionQueuedJobKind;
+  kind: ReferenceQueuedJobKind;
   connectorId: CanonicalId;
   idempotencyKey: string;
   payload: JsonRecord;
-  priority: ProductionQueuedJobPriority;
+  priority: ReferenceQueuedJobPriority;
   requestedAt: string;
   maxAttempts: number;
-  backoff: ProductionJobQueueBackoffPolicy;
+  backoff: ReferenceJobQueueBackoffPolicy;
   approval?: ProvisioningApproval;
   control?: EnforcementControl;
   readinessReportId?: CanonicalId;
@@ -978,7 +978,7 @@ interface RequiredQueueRequest {
   replayedFromJobId?: CanonicalId;
 }
 
-function createQueuedJob(request: RequiredQueueRequest): ProductionQueuedJob {
+function createQueuedJob(request: RequiredQueueRequest): ReferenceQueuedJob {
   return {
     id: `queue:${stableHash({
       connectorId: request.connectorId,
@@ -1006,17 +1006,17 @@ function createQueuedJob(request: RequiredQueueRequest): ProductionQueuedJob {
   };
 }
 
-function requiredQueuedJob(queue: ProductionJobQueueSnapshot, id: CanonicalId): ProductionQueuedJob {
+function requiredQueuedJob(queue: ReferenceJobQueueSnapshot, id: CanonicalId): ReferenceQueuedJob {
   const job = queue.queuedJobs.find((entry) => entry.id === id);
 
   if (!job) {
-    throw new Error(`Production queue job ${id} does not exist.`);
+    throw new Error(`Reference queue job ${id} does not exist.`);
   }
 
   return clone(job);
 }
 
-function recoverExpiredRunningJobs(queue: ProductionJobQueueSnapshot, recoveredAt: string): ProductionJobQueueSnapshot {
+function recoverExpiredRunningJobs(queue: ReferenceJobQueueSnapshot, recoveredAt: string): ReferenceJobQueueSnapshot {
   let recovered = false;
   const queuedJobs = queue.queuedJobs.map((job) => {
     if (job.status !== "running" || !job.leaseExpiresAt || job.leaseExpiresAt > recoveredAt) {
@@ -1038,14 +1038,14 @@ function recoverExpiredRunningJobs(queue: ProductionJobQueueSnapshot, recoveredA
   return recovered ? { ...queue, queuedJobs } : queue;
 }
 
-function validateQueueState(record: ProductionJobQueueStoreRecord): ProductionJobQueueStoreRecord {
-  assertObjectArrayFields(record.queue, "Production job queue payload", [
+function validateQueueState(record: ReferenceJobQueueStoreRecord): ReferenceJobQueueStoreRecord {
+  assertObjectArrayFields(record.queue, "Reference job queue payload", [
     "queuedJobs",
     "connectorHealth",
     "idempotencyRecords"
   ]);
-  assertStoredPayloadHash(record.queue, record.queueHash, "Production job queue store hash does not match the stored queue payload.");
-  assertNoSecretMaterial(record.queue, "Production job queue snapshot");
+  assertStoredPayloadHash(record.queue, record.queueHash, "Reference job queue store hash does not match the stored queue payload.");
+  assertNoSecretMaterial(record.queue, "Reference job queue snapshot");
   return {
     ...record,
     queue: normalizeQueueSnapshot(record.queue),
@@ -1065,39 +1065,39 @@ function assertEnforcementEvidence(request: RequiredQueueRequest): void {
   }
 
   if (!request.approval || !request.control || !request.readinessReportId) {
-    throw new Error("Production queue enforcement jobs require approval, control, and readiness evidence before enqueue.");
+    throw new Error("Reference queue enforcement jobs require approval, control, and readiness evidence before enqueue.");
   }
 }
 
 function assertTenantBoundary(tenantBoundary: string): void {
   if (tenantBoundary.length === 0) {
-    throw new Error("Production job queue adapters require a tenant boundary.");
+    throw new Error("Reference job queue adapters require a tenant boundary.");
   }
 }
 
-function assertWorkerMatches(job: ProductionQueuedJob, workerId: CanonicalId | undefined): void {
+function assertWorkerMatches(job: ReferenceQueuedJob, workerId: CanonicalId | undefined): void {
   if (workerId && job.workerId && workerId !== job.workerId) {
-    throw new Error(`Production queue job ${job.id} is reserved by worker ${job.workerId}, not ${workerId}.`);
+    throw new Error(`Reference queue job ${job.id} is reserved by worker ${job.workerId}, not ${workerId}.`);
   }
 }
 
-function assertJobRunning(job: ProductionQueuedJob, operation: string): void {
+function assertJobRunning(job: ReferenceQueuedJob, operation: string): void {
   if (job.status !== "running") {
     throw new Error(`Cannot ${operation} production queue job ${job.id} because it is ${job.status}.`);
   }
 }
 
-function assertLeaseActive(job: ProductionQueuedJob, checkedAt: string, operation: string): void {
+function assertLeaseActive(job: ReferenceQueuedJob, checkedAt: string, operation: string): void {
   if (job.leaseExpiresAt && job.leaseExpiresAt <= checkedAt) {
     throw new Error(`Cannot ${operation} production queue job ${job.id} because its worker lease expired at ${job.leaseExpiresAt}.`);
   }
 }
 
-function defaultPriority(kind: ProductionQueuedJobKind): ProductionQueuedJobPriority {
+function defaultPriority(kind: ReferenceQueuedJobKind): ReferenceQueuedJobPriority {
   return kind === "revocation" ? "emergency" : "normal";
 }
 
-function defaultBackoffPolicy(): ProductionJobQueueBackoffPolicy {
+function defaultBackoffPolicy(): ReferenceJobQueueBackoffPolicy {
   return {
     strategy: "exponential",
     initialDelayMs: 30_000,
@@ -1110,7 +1110,7 @@ function defaultLeaseDurationMs(): number {
   return 300_000;
 }
 
-function backoffDelayMs(job: ProductionQueuedJob): number {
+function backoffDelayMs(job: ReferenceQueuedJob): number {
   const multiplier = job.backoff.multiplier ?? 2;
   return Math.min(job.backoff.maxDelayMs, job.backoff.initialDelayMs * multiplier ** Math.max(0, job.attempts - 1));
 }
@@ -1119,11 +1119,11 @@ function addMilliseconds(isoDate: string, milliseconds: number): string {
   return new Date(Date.parse(isoDate) + milliseconds).toISOString();
 }
 
-function compareQueuedJobs(left: ProductionQueuedJob, right: ProductionQueuedJob): number {
+function compareQueuedJobs(left: ReferenceQueuedJob, right: ReferenceQueuedJob): number {
   return priorityRank(left.priority) - priorityRank(right.priority) || left.requestedAt.localeCompare(right.requestedAt);
 }
 
-function priorityRank(priority: ProductionQueuedJobPriority): number {
+function priorityRank(priority: ReferenceQueuedJobPriority): number {
   switch (priority) {
     case "emergency":
       return 0;
@@ -1144,7 +1144,7 @@ function jobHasRevocation(job: ProvisioningJob): boolean {
   return job.actionResults.some((result) => result.operation === "revoke");
 }
 
-function countQueueEntities(jobs: RebacJobSnapshot, queue: ProductionJobQueueSnapshot): ProductionJobQueueEntityCounts {
+function countQueueEntities(jobs: RebacJobSnapshot, queue: ReferenceJobQueueSnapshot): ReferenceJobQueueEntityCounts {
   return {
     ...countJobEntities(jobs),
     queuedJobs: queue.queuedJobs.length,
@@ -1154,7 +1154,7 @@ function countQueueEntities(jobs: RebacJobSnapshot, queue: ProductionJobQueueSna
   };
 }
 
-function emptyQueueSnapshot(): ProductionJobQueueSnapshot {
+function emptyQueueSnapshot(): ReferenceJobQueueSnapshot {
   return {
     queuedJobs: [],
     connectorHealth: [],
@@ -1162,7 +1162,7 @@ function emptyQueueSnapshot(): ProductionJobQueueSnapshot {
   };
 }
 
-function normalizeQueueSnapshot(queue: Partial<ProductionJobQueueSnapshot>): ProductionJobQueueSnapshot {
+function normalizeQueueSnapshot(queue: Partial<ReferenceJobQueueSnapshot>): ReferenceJobQueueSnapshot {
   return {
     queuedJobs: clone(queue.queuedJobs ?? []),
     connectorHealth: clone(queue.connectorHealth ?? []),
@@ -1188,7 +1188,7 @@ function upsertByDecisionId(items: DecisionResult[], item: DecisionResult): Deci
   return items.map((entry, entryIndex) => (entryIndex === index ? item : entry));
 }
 
-function upsertByConnectorId(items: ProductionConnectorHealth[], item: ProductionConnectorHealth): ProductionConnectorHealth[] {
+function upsertByConnectorId(items: ReferenceConnectorHealth[], item: ReferenceConnectorHealth): ReferenceConnectorHealth[] {
   const index = items.findIndex((entry) => entry.connectorId === item.connectorId);
 
   if (index === -1) {

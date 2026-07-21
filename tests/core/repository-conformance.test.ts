@@ -7,12 +7,12 @@ import {
   InMemoryRebacPersistenceRepository,
   LocalJsonFileGraphRepository,
   LocalJsonFileJobRepository,
-  ProductionConnectorStateStoreAdapter,
-  ProductionGraphStoreAdapter,
-  ProductionJobQueueAdapter,
-  type ProductionConnectorStateStoreRecord,
-  type ProductionGraphStoreRecord,
-  type ProductionJobQueueStoreRecord
+  ReferenceConnectorStateStoreAdapter,
+  ReferenceGraphStoreAdapter,
+  ReferenceJobQueueAdapter,
+  type ReferenceConnectorStateStoreRecord,
+  type ReferenceGraphStoreRecord,
+  type ReferenceJobQueueStoreRecord
 } from "../../packages/core/src/index.js";
 import {
   conformanceNow,
@@ -43,7 +43,7 @@ describeGraphRepositoryConformance([
   },
   {
     name: "production external",
-    createRepository: () => createProductionGraphRepository()
+    createRepository: () => createReferenceGraphRepository()
   }
 ]);
 
@@ -62,18 +62,18 @@ describeConnectorStateRepositoryConformance([
   },
   {
     name: "production external",
-    createRepository: () => createProductionConnectorStateRepository()
+    createRepository: () => createReferenceConnectorStateRepository()
   },
   {
     name: "production external queue",
-    createRepository: () => createProductionJobQueueRepository()
+    createRepository: () => createReferenceJobQueueRepository()
   }
 ]);
 
 describe("production graph and connector-state adapters", () => {
   it("describes production graph persistence without changing the queue readiness boundary", () => {
-    const graph = createProductionGraphRepository();
-    const connectorState = createProductionConnectorStateRepository();
+    const graph = createReferenceGraphRepository();
+    const connectorState = createReferenceConnectorStateRepository();
 
     expect(graph.describePersistence()).toMatchObject({
       component: "graph",
@@ -110,8 +110,8 @@ describe("production graph and connector-state adapters", () => {
   });
 
   it("creates backup metadata and restores graph snapshots from the external store", () => {
-    const store = new InMemoryExternalSnapshotStore<ProductionGraphStoreRecord>();
-    const repository = createProductionGraphRepository(store);
+    const store = new InMemoryExternalSnapshotStore<ReferenceGraphStoreRecord>();
+    const repository = createReferenceGraphRepository(store);
     const secondSubject = createSubject({
       id: "user:charlie",
       displayName: "Charlie Example",
@@ -132,14 +132,14 @@ describe("production graph and connector-state adapters", () => {
     expect(repository.getSubject(secondSubject.id)).toBeUndefined();
     expect(repository.listBackupMetadata()).toEqual([backup]);
 
-    const reopened = createProductionGraphRepository(store);
+    const reopened = createReferenceGraphRepository(store);
     expect(reopened.getSubject("user:bob")).toEqual(createSubject());
     expect(reopened.getSubject(secondSubject.id)).toBeUndefined();
   });
 
   it("creates backup metadata and restores connector-state snapshots from the external store", () => {
-    const store = new InMemoryExternalSnapshotStore<ProductionConnectorStateStoreRecord>();
-    const repository = createProductionConnectorStateRepository(store);
+    const store = new InMemoryExternalSnapshotStore<ReferenceConnectorStateStoreRecord>();
+    const repository = createReferenceConnectorStateRepository(store);
     const secondPlan = createProvisioningPlan({
       id: "plan:charlie-graph-plan-read",
       idempotencyKey: "idem:plan:charlie-graph-plan-read",
@@ -170,7 +170,7 @@ describe("production graph and connector-state adapters", () => {
   });
 
   it("rejects cross-tenant and secret-bearing graph records before persistence", () => {
-    const repository = createProductionGraphRepository();
+    const repository = createReferenceGraphRepository();
 
     expect(() =>
       repository.upsertSubject(
@@ -190,7 +190,7 @@ describe("production graph and connector-state adapters", () => {
   });
 
   it("rejects cross-tenant readiness reports and secret-bearing connector-state records", () => {
-    const repository = createProductionConnectorStateRepository();
+    const repository = createReferenceConnectorStateRepository();
 
     expect(() =>
       repository.recordDiscoveryRun(
@@ -239,8 +239,8 @@ describe("production graph and connector-state adapters", () => {
   });
 
   it("rejects cross-tenant discovery evidence when loading stored connector state", () => {
-    const store = new InMemoryExternalSnapshotStore<ProductionConnectorStateStoreRecord>();
-    const repository = createProductionConnectorStateRepository(store);
+    const store = new InMemoryExternalSnapshotStore<ReferenceConnectorStateStoreRecord>();
+    const repository = createReferenceConnectorStateRepository(store);
 
     repository.recordDiscoveryRun(
       createDiscoveryRun({
@@ -270,13 +270,13 @@ describe("production graph and connector-state adapters", () => {
       jobsHash: `sha256:${stableHash(jobs)}`
     });
 
-    expect(() => createProductionConnectorStateRepository(store)).toThrow(
+    expect(() => createReferenceConnectorStateRepository(store)).toThrow(
       "must include matching evidence.tenantBoundary"
     );
   });
 
   it("keeps connector-state persistence separate from production queue readiness descriptors", () => {
-    const repository = createProductionConnectorStateRepository();
+    const repository = createReferenceConnectorStateRepository();
 
     expect(repository.describeConnectorStatePersistence()).toMatchObject({
       component: "connector_state",
@@ -286,8 +286,8 @@ describe("production graph and connector-state adapters", () => {
   });
 
   it("rejects tampered external graph snapshots before serving data", () => {
-    const store = new InMemoryExternalSnapshotStore<ProductionGraphStoreRecord>();
-    const repository = createProductionGraphRepository(store);
+    const store = new InMemoryExternalSnapshotStore<ReferenceGraphStoreRecord>();
+    const repository = createReferenceGraphRepository(store);
 
     repository.upsertSubject(createSubject());
     const stored = store.readCurrent();
@@ -300,14 +300,14 @@ describe("production graph and connector-state adapters", () => {
     };
     store.writeCurrent(stored);
 
-    expect(() => createProductionGraphRepository(store)).toThrow(
-      "Production graph store hash does not match the stored graph payload."
+    expect(() => createReferenceGraphRepository(store)).toThrow(
+      "Reference graph store hash does not match the stored graph payload."
     );
   });
 
   it("rejects malformed external connector-state payloads before hashing or normalizing", () => {
-    const store = new InMemoryExternalSnapshotStore<ProductionConnectorStateStoreRecord>();
-    const repository = createProductionConnectorStateRepository(store);
+    const store = new InMemoryExternalSnapshotStore<ReferenceConnectorStateStoreRecord>();
+    const repository = createReferenceConnectorStateRepository(store);
 
     repository.recordDiscoveryRun(createDiscoveryRun());
     const stored = store.readCurrent();
@@ -317,15 +317,15 @@ describe("production graph and connector-state adapters", () => {
     (stored.jobs as { discoveryRuns: unknown }).discoveryRuns = {};
     store.writeCurrent(stored);
 
-    expect(() => createProductionConnectorStateRepository(store)).toThrow(
-      "Production connector-state store payload field discoveryRuns must be an array."
+    expect(() => createReferenceConnectorStateRepository(store)).toThrow(
+      "Reference connector-state store payload field discoveryRuns must be an array."
     );
   });
 });
 
 describe("production job queue adapter", () => {
   it("describes the external queue backend and passes durable job-history boundaries", () => {
-    const queue = createProductionJobQueueRepository();
+    const queue = createReferenceJobQueueRepository();
 
     expect(queue.describePersistence()).toMatchObject({
       component: "job",
@@ -343,7 +343,7 @@ describe("production job queue adapter", () => {
   });
 
   it("enqueues idempotently, rejects conflicting payloads, and keeps defensive copies", () => {
-    const queue = createProductionJobQueueRepository();
+    const queue = createReferenceJobQueueRepository();
     const first = queue.enqueueJob({
       kind: "discovery",
       connectorId: "mock",
@@ -375,7 +375,7 @@ describe("production job queue adapter", () => {
   });
 
   it("prioritizes emergency revocations even when connector health is degraded", () => {
-    const queue = createProductionJobQueueRepository();
+    const queue = createReferenceJobQueueRepository();
     queue.enqueueJob({
       kind: "discovery",
       connectorId: "mock",
@@ -413,8 +413,8 @@ describe("production job queue adapter", () => {
   });
 
   it("uses current store state so two workers cannot reserve the same queued job", () => {
-    const store = new InMemoryExternalSnapshotStore<ProductionJobQueueStoreRecord>();
-    const queue = createProductionJobQueueRepository(store);
+    const store = new InMemoryExternalSnapshotStore<ReferenceJobQueueStoreRecord>();
+    const queue = createReferenceJobQueueRepository(store);
     queue.enqueueJob({
       kind: "discovery",
       connectorId: "mock",
@@ -422,8 +422,8 @@ describe("production job queue adapter", () => {
       requestedAt: "2026-05-26T04:00:00.000Z",
       payload: { connectorId: "mock" }
     });
-    const firstWorker = createProductionJobQueueRepository(store);
-    const secondWorker = createProductionJobQueueRepository(store);
+    const firstWorker = createReferenceJobQueueRepository(store);
+    const secondWorker = createReferenceJobQueueRepository(store);
 
     expect(firstWorker.reserveNextJob({
       workerId: "worker:one",
@@ -439,7 +439,7 @@ describe("production job queue adapter", () => {
   });
 
   it("recovers stale running jobs after the reservation lease expires", () => {
-    const queue = createProductionJobQueueRepository();
+    const queue = createReferenceJobQueueRepository();
     queue.enqueueJob({
       kind: "reconciliation",
       connectorId: "mock",
@@ -474,7 +474,7 @@ describe("production job queue adapter", () => {
   });
 
   it("retries with backoff, dead-letters visible failures, and supports replay", () => {
-    const queue = createProductionJobQueueRepository();
+    const queue = createReferenceJobQueueRepository();
     queue.enqueueJob({
       kind: "reconciliation",
       connectorId: "mock",
@@ -525,7 +525,7 @@ describe("production job queue adapter", () => {
   });
 
   it("requires approval, control, and readiness evidence before enqueueing enforcement jobs", () => {
-    const queue = createProductionJobQueueRepository();
+    const queue = createReferenceJobQueueRepository();
     const enforcementJob = createProvisioningJob({
       id: "job:bob-graph-plan-enforce",
       idempotencyKey: "idem:job:bob-graph-plan-enforce",
@@ -534,7 +534,7 @@ describe("production job queue adapter", () => {
     });
 
     expect(() => queue.enqueueProvisioningJob(enforcementJob)).toThrow(
-      "Production queue enforcement jobs require approval, control, and readiness evidence before enqueue."
+      "Reference queue enforcement jobs require approval, control, and readiness evidence before enqueue."
     );
     expect(queue.listProvisioningJobs()).toEqual([]);
     expect(queue.listProvisioningPlans()).toEqual([]);
@@ -572,8 +572,8 @@ describe("production job queue adapter", () => {
   });
 
   it("rejects secret-bearing queue records and tampered persisted queue snapshots", () => {
-    const store = new InMemoryExternalSnapshotStore<ProductionJobQueueStoreRecord>();
-    const queue = createProductionJobQueueRepository(store);
+    const store = new InMemoryExternalSnapshotStore<ReferenceJobQueueStoreRecord>();
+    const queue = createReferenceJobQueueRepository(store);
 
     expect(() =>
       queue.enqueueJob({
@@ -624,14 +624,14 @@ describe("production job queue adapter", () => {
     };
     store.writeCurrent(stored);
 
-    expect(() => createProductionJobQueueRepository(store)).toThrow(
-      "Production job queue store hash does not match the stored queue payload."
+    expect(() => createReferenceJobQueueRepository(store)).toThrow(
+      "Reference job queue store hash does not match the stored queue payload."
     );
   });
 
   it("validates queue job-history snapshots through the shared production snapshot store", () => {
-    const store = new InMemoryExternalSnapshotStore<ProductionJobQueueStoreRecord>();
-    const queue = createProductionJobQueueRepository(store);
+    const store = new InMemoryExternalSnapshotStore<ReferenceJobQueueStoreRecord>();
+    const queue = createReferenceJobQueueRepository(store);
 
     queue.recordDiscoveryRun(createDiscoveryRun());
     const stored = store.readCurrent();
@@ -641,16 +641,16 @@ describe("production job queue adapter", () => {
     (stored.jobs as { discoveryRuns: unknown }).discoveryRuns = {};
     store.writeCurrent(stored);
 
-    expect(() => createProductionJobQueueRepository(store)).toThrow(
-      "Production job queue job payload field discoveryRuns must be an array."
+    expect(() => createReferenceJobQueueRepository(store)).toThrow(
+      "Reference job queue job payload field discoveryRuns must be an array."
     );
   });
 });
 
-function createProductionGraphRepository(
-  store = new InMemoryExternalSnapshotStore<ProductionGraphStoreRecord>()
-): ProductionGraphStoreAdapter {
-  return new ProductionGraphStoreAdapter({
+function createReferenceGraphRepository(
+  store = new InMemoryExternalSnapshotStore<ReferenceGraphStoreRecord>()
+): ReferenceGraphStoreAdapter {
+  return new ReferenceGraphStoreAdapter({
     store,
     tenantBoundary: conformanceTenant,
     location: "external://graph/access-kit-test-graph",
@@ -658,10 +658,10 @@ function createProductionGraphRepository(
   });
 }
 
-function createProductionConnectorStateRepository(
-  store = new InMemoryExternalSnapshotStore<ProductionConnectorStateStoreRecord>()
-): ProductionConnectorStateStoreAdapter {
-  return new ProductionConnectorStateStoreAdapter({
+function createReferenceConnectorStateRepository(
+  store = new InMemoryExternalSnapshotStore<ReferenceConnectorStateStoreRecord>()
+): ReferenceConnectorStateStoreAdapter {
+  return new ReferenceConnectorStateStoreAdapter({
     store,
     tenantBoundary: conformanceTenant,
     location: "external://connector-state/access-kit-test",
@@ -669,10 +669,10 @@ function createProductionConnectorStateRepository(
   });
 }
 
-function createProductionJobQueueRepository(
-  store = new InMemoryExternalSnapshotStore<ProductionJobQueueStoreRecord>()
-): ProductionJobQueueAdapter {
-  return new ProductionJobQueueAdapter({
+function createReferenceJobQueueRepository(
+  store = new InMemoryExternalSnapshotStore<ReferenceJobQueueStoreRecord>()
+): ReferenceJobQueueAdapter {
+  return new ReferenceJobQueueAdapter({
     store,
     tenantBoundary: conformanceTenant,
     location: "external://queue/access-kit-test-jobs",

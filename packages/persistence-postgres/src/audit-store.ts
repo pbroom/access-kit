@@ -1,12 +1,12 @@
 import type {
   CanonicalId,
   ExternalAppendOnlyAuditStore,
-  ProductionAuditEventStoreRecord,
-  ProductionAuditStoreBackup,
-  ProductionEvidenceStoreRecord,
-  ProductionRepositoryBackupMetadata,
-  ProductionSiemDeliveryRecord,
-  ProductionSignedAuditWindow
+  ReferenceAuditEventStoreRecord,
+  ReferenceAuditStoreBackup,
+  ReferenceEvidenceStoreRecord,
+  ReferenceRepositoryBackupMetadata,
+  ReferenceSiemDeliveryRecord,
+  ReferenceSignedAuditWindow
 } from "@access-kit/core";
 import { appendOnlyRestoreBypassStatement, postgresPersistenceTableNames } from "./schema.js";
 import type { PostgresQueryable } from "./types.js";
@@ -17,27 +17,27 @@ export interface PostgresAppendOnlyAuditStoreOptions {
 }
 
 interface AuditRecordRow {
-  record: ProductionAuditEventStoreRecord;
+  record: ReferenceAuditEventStoreRecord;
 }
 
 interface EvidenceRecordRow {
-  record: ProductionEvidenceStoreRecord;
+  record: ReferenceEvidenceStoreRecord;
 }
 
 interface SignedWindowRow {
-  record: ProductionSignedAuditWindow;
+  record: ReferenceSignedAuditWindow;
 }
 
 interface SiemDeliveryRow {
-  record: ProductionSiemDeliveryRecord;
+  record: ReferenceSiemDeliveryRecord;
 }
 
 interface BackupMetadataRow {
-  metadata: ProductionRepositoryBackupMetadata[];
+  metadata: ReferenceRepositoryBackupMetadata[];
 }
 
 interface BackupRow {
-  record: ProductionAuditStoreBackup;
+  record: ReferenceAuditStoreBackup;
 }
 
 /**
@@ -51,12 +51,12 @@ interface BackupRow {
 export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyAuditStore {
   readonly #db: PostgresQueryable;
   readonly #tenantBoundary: string;
-  #auditRecords: ProductionAuditEventStoreRecord[] = [];
-  #evidenceRecords: ProductionEvidenceStoreRecord[] = [];
-  #signedWindows: ProductionSignedAuditWindow[] = [];
-  #siemDeliveries: ProductionSiemDeliveryRecord[] = [];
-  #backupMetadata: ProductionRepositoryBackupMetadata[] = [];
-  readonly #backups = new Map<CanonicalId, ProductionAuditStoreBackup>();
+  #auditRecords: ReferenceAuditEventStoreRecord[] = [];
+  #evidenceRecords: ReferenceEvidenceStoreRecord[] = [];
+  #signedWindows: ReferenceSignedAuditWindow[] = [];
+  #siemDeliveries: ReferenceSiemDeliveryRecord[] = [];
+  #backupMetadata: ReferenceRepositoryBackupMetadata[] = [];
+  readonly #backups = new Map<CanonicalId, ReferenceAuditStoreBackup>();
   #writeQueue: Promise<void> = Promise.resolve();
 
   private constructor(options: PostgresAppendOnlyAuditStoreOptions) {
@@ -70,14 +70,14 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
     return store;
   }
 
-  readAuditRecords(): ProductionAuditEventStoreRecord[] {
+  readAuditRecords(): ReferenceAuditEventStoreRecord[] {
     assertSequenceContinuity(this.#auditRecords);
     return clone(this.#auditRecords);
   }
 
-  appendAuditRecord(record: ProductionAuditEventStoreRecord): void {
+  appendAuditRecord(record: ReferenceAuditEventStoreRecord): void {
     if (this.#auditRecords.some((entry) => entry.event.eventId === record.event.eventId)) {
-      throw new Error(`Production audit event ${record.event.eventId} has already been appended.`);
+      throw new Error(`Reference audit event ${record.event.eventId} has already been appended.`);
     }
 
     const persistedRecord = clone(record);
@@ -98,13 +98,13 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
     );
   }
 
-  readEvidenceRecords(): ProductionEvidenceStoreRecord[] {
+  readEvidenceRecords(): ReferenceEvidenceStoreRecord[] {
     return clone(this.#evidenceRecords);
   }
 
-  appendEvidenceRecord(record: ProductionEvidenceStoreRecord): void {
+  appendEvidenceRecord(record: ReferenceEvidenceStoreRecord): void {
     if (this.#evidenceRecords.some((entry) => entry.exportId === record.exportId)) {
-      throw new Error(`Production evidence package ${record.exportId} has already been retained.`);
+      throw new Error(`Reference evidence package ${record.exportId} has already been retained.`);
     }
 
     const persistedRecord = clone(record);
@@ -118,13 +118,13 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
     );
   }
 
-  readSignedWindows(): ProductionSignedAuditWindow[] {
+  readSignedWindows(): ReferenceSignedAuditWindow[] {
     return clone(this.#signedWindows);
   }
 
-  appendSignedWindow(window: ProductionSignedAuditWindow): void {
+  appendSignedWindow(window: ReferenceSignedAuditWindow): void {
     if (this.#signedWindows.some((entry) => entry.windowId === window.windowId)) {
-      throw new Error(`Production audit window ${window.windowId} has already been signed.`);
+      throw new Error(`Reference audit window ${window.windowId} has already been signed.`);
     }
 
     const persistedWindow = clone(window);
@@ -138,13 +138,13 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
     );
   }
 
-  readSiemDeliveries(): ProductionSiemDeliveryRecord[] {
+  readSiemDeliveryLogEntries(): ReferenceSiemDeliveryRecord[] {
     return clone(this.#siemDeliveries);
   }
 
-  appendSiemDelivery(delivery: ProductionSiemDeliveryRecord): void {
+  appendSiemDeliveryLogEntry(delivery: ReferenceSiemDeliveryRecord): void {
     if (this.#siemDeliveries.some((entry) => entry.deliveryId === delivery.deliveryId)) {
-      throw new Error(`Production SIEM delivery ${delivery.deliveryId} has already been recorded.`);
+      throw new Error(`Reference SIEM delivery ${delivery.deliveryId} has already been recorded.`);
     }
 
     const persistedDelivery = clone(delivery);
@@ -164,11 +164,11 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
     );
   }
 
-  readBackupMetadata(): ProductionRepositoryBackupMetadata[] {
+  readBackupMetadata(): ReferenceRepositoryBackupMetadata[] {
     return clone(this.#backupMetadata);
   }
 
-  writeBackupMetadata(metadata: ProductionRepositoryBackupMetadata[]): void {
+  writeBackupMetadata(metadata: ReferenceRepositoryBackupMetadata[]): void {
     const persistedMetadata = clone(metadata);
     this.#backupMetadata = persistedMetadata;
     this.#enqueue(() =>
@@ -181,11 +181,11 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
     );
   }
 
-  readBackup(id: CanonicalId): ProductionAuditStoreBackup | undefined {
+  readBackup(id: CanonicalId): ReferenceAuditStoreBackup | undefined {
     return cloneOptional(this.#backups.get(id));
   }
 
-  writeBackup(id: CanonicalId, backup: ProductionAuditStoreBackup): void {
+  writeBackup(id: CanonicalId, backup: ReferenceAuditStoreBackup): void {
     const persistedBackup = clone(backup);
     this.#backups.set(id, persistedBackup);
     this.#enqueue(() =>
@@ -199,11 +199,11 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
   }
 
   restoreSnapshot(snapshot: {
-    auditRecords: ProductionAuditEventStoreRecord[];
-    evidenceRecords: ProductionEvidenceStoreRecord[];
-    signedWindows: ProductionSignedAuditWindow[];
-    siemDeliveries: ProductionSiemDeliveryRecord[];
-    backupMetadata: ProductionRepositoryBackupMetadata[];
+    auditRecords: ReferenceAuditEventStoreRecord[];
+    evidenceRecords: ReferenceEvidenceStoreRecord[];
+    signedWindows: ReferenceSignedAuditWindow[];
+    siemDeliveries: ReferenceSiemDeliveryRecord[];
+    backupMetadata: ReferenceRepositoryBackupMetadata[];
   }): void {
     const persistedSnapshot = clone(snapshot);
     this.#auditRecords = clone(persistedSnapshot.auditRecords);
@@ -270,11 +270,11 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
   }
 
   async #persistRestoreSnapshot(snapshot: {
-    auditRecords: ProductionAuditEventStoreRecord[];
-    evidenceRecords: ProductionEvidenceStoreRecord[];
-    signedWindows: ProductionSignedAuditWindow[];
-    siemDeliveries: ProductionSiemDeliveryRecord[];
-    backupMetadata: ProductionRepositoryBackupMetadata[];
+    auditRecords: ReferenceAuditEventStoreRecord[];
+    evidenceRecords: ReferenceEvidenceStoreRecord[];
+    signedWindows: ReferenceSignedAuditWindow[];
+    siemDeliveries: ReferenceSiemDeliveryRecord[];
+    backupMetadata: ReferenceRepositoryBackupMetadata[];
   }): Promise<void> {
     await this.#db.withTransaction(async (tx) => {
       await tx.query(appendOnlyRestoreBypassStatement());
@@ -325,7 +325,7 @@ export class PostgresExternalAppendOnlyAuditStore implements ExternalAppendOnlyA
   }
 }
 
-function assertSequenceContinuity(records: readonly ProductionAuditEventStoreRecord[]): void {
+function assertSequenceContinuity(records: readonly ReferenceAuditEventStoreRecord[]): void {
   for (const [index, record] of records.entries()) {
     const expectedSequence = index + 1;
 
