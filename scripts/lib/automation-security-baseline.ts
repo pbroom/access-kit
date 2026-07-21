@@ -20,7 +20,7 @@ const requiredSecurityWorkflowNeedles = [
 export function requireAutomationSecurityBaseline(inputs: AutomationSecurityBaselineInputs): void {
   requireScriptEntries(inputs.packageScripts, "security:pass", requiredSecurityPassEntries);
   requireExactScript(inputs.packageScripts, "validate:ci", requiredValidateCiCommand);
-  requireScriptEntries(inputs.packageScripts, "ci:check", ["pnpm validate:ci"]);
+  requireScriptEntries(inputs.packageScripts, "validate", ["pnpm validate:ci"]);
 
   if (!inputs.labelNames.includes(requiredMergeBlockerLabel)) {
     throw new Error(`.github/labels.yml is missing required baseline label ${requiredMergeBlockerLabel}.`);

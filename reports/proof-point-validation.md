@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-07-20T21:17:55.680Z
+Generated at: 2026-07-20T21:18:38.732Z
 
-Branch: codex/split-local-app
+Branch: codex/consolidate-ceremony-validators
 
 Node: v24.4.1
 
@@ -18,11 +18,10 @@ All proof-point validation commands passed.
 | schema validation | `corepack pnpm validate:schemas` | PASS |
 | OpenAPI validation | `corepack pnpm validate:openapi` | PASS |
 | API collection validation | `corepack pnpm validate:api-collections` | PASS |
+| documentation and packaging lint | `corepack pnpm validate:docs-lint` | PASS |
 | policy fixture validation | `corepack pnpm validate:policy` | PASS |
 | connector security gate validation | `corepack pnpm validate:connector-security` | PASS |
 | CLI command contract | `corepack pnpm validate:cli-contract` | PASS |
-| container packaging validation | `corepack pnpm validate:packaging` | PASS |
-| release packaging validation | `corepack pnpm validate:release-packaging` | PASS |
 | deployment manifest validation | `corepack pnpm validate:deployment-manifests` | PASS |
 | persistence deployment evidence validation | `corepack pnpm validate:persistence-deployment` | PASS |
 | runbook exercise evidence validation | `corepack pnpm validate:runbook-exercises` | PASS |
@@ -40,14 +39,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-stack-ops
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-schemas.ts
 
 Validated 21 schemas and 21 example fixtures.
@@ -77,10 +76,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-split-local-app/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-stack-ops/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -92,16 +91,25 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### API collection validation
 
 ```text
-> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/generate-api-collections.ts --check
 
 API collection artifacts are current.
 ```
 
+### documentation and packaging lint
+
+```text
+> access-kit@0.1.0 validate:docs-lint /Users/peterbroomfield/access-kit-stack-ops
+> tsx scripts/validate-docs-lint.ts
+
+Validated documentation headings, examples, and static packaging contracts.
+```
+
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -124,7 +132,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-stack-ops
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -137,47 +145,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  17:17:47
-   Duration  370ms (transform 193ms, setup 0ms, import 288ms, tests 24ms, environment 0ms)
-```
-
-### container packaging validation
-
-```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-split-local-app
-> tsx scripts/validate-container-packaging.ts
-
-Validated deployable API container packaging.
-PASS Dockerfile builds and runs the rebac-api runtime as a non-root container.
-PASS Container packaging CI job builds and smoke-tests health, readiness, and API auth.
-```
-
-### release packaging validation
-
-```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-split-local-app
-> tsx scripts/validate-release-packaging.ts
-
-Validated deployable API release packaging.
-PASS Container release workflow publishes only on tags or explicit manual dispatch.
-PASS Container release workflow builds runtime image with SBOM/provenance, registry attestation, and keyless signing.
-PASS Product release manifest covers source, container, CLI, SDK, docs site, compatibility, support, security, and CVE disclosure channels.
-PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclosure, and proof-point versus production-ready labels.
+   Start at  17:18:31
+   Duration  376ms (transform 197ms, setup 0ms, import 295ms, tests 22ms, environment 0ms)
 ```
 
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -188,7 +172,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -199,7 +183,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -210,7 +194,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -221,7 +205,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-stack-ops
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -231,93 +215,93 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  15 passed (15)
       Tests  190 passed (190)
-   Start at  17:17:51
-   Duration  322ms (transform 1.79s, setup 0ms, import 2.55s, tests 159ms, environment 1ms)
+   Start at  17:18:33
+   Duration  305ms (transform 1.65s, setup 0ms, import 2.37s, tests 155ms, environment 1ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  8 passed (8)
       Tests  125 passed (125)
-   Start at  17:17:51
-   Duration  652ms (transform 1.38s, setup 0ms, import 2.17s, tests 506ms, environment 0ms)
+   Start at  17:18:34
+   Duration  650ms (transform 1.37s, setup 0ms, import 2.19s, tests 512ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
 
 ```text
-> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/sdk-pep
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  17:17:52
-   Duration  528ms (transform 385ms, setup 0ms, import 595ms, tests 239ms, environment 0ms)
+   Start at  17:18:35
+   Duration  594ms (transform 411ms, setup 0ms, import 654ms, tests 283ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
 
 ```text
-> access-kit@0.1.0 validate:sample-admin-app /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 validate:sample-admin-app /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/examples/internal-admin-app.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  17:17:53
-   Duration  190ms (transform 103ms, setup 0ms, import 126ms, tests 7ms, environment 0ms)
+   Start at  17:18:36
+   Duration  244ms (transform 132ms, setup 0ms, import 168ms, tests 8ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  8 passed (8)
       Tests  47 passed (47)
-   Start at  17:17:54
-   Duration  320ms (transform 1.17s, setup 0ms, import 1.60s, tests 79ms, environment 0ms)
+   Start at  17:18:37
+   Duration  386ms (transform 1.40s, setup 0ms, import 1.95s, tests 86ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-split-local-app
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-stack-ops
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  17:17:55
-   Duration  444ms (transform 606ms, setup 0ms, import 936ms, tests 134ms, environment 0ms)
+   Start at  17:18:37
+   Duration  528ms (transform 718ms, setup 0ms, import 1.13s, tests 157ms, environment 0ms)
 ```
 
 

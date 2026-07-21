@@ -53,12 +53,6 @@ jobs:
       - name: Validate CI workflow contract
         run: pnpm validate:ci
 
-      - name: Validate container packaging contract
-        run: pnpm validate:packaging
-
-      - name: Validate release packaging contract
-        run: pnpm validate:release-packaging
-
       - name: Validate deployment manifests
         run: pnpm validate:deployment-manifests
 

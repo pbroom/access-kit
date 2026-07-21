@@ -6,11 +6,10 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 
 - `pnpm validate:contracts` validates JSON Schemas, OpenAPI paths, API examples, contract snapshots, generated client metadata, policy model validation, policy proof points, connector security gates, and CLI-to-API command mappings.
 - `pnpm validate:connector-security` validates connector identity, consent, tenant boundaries, least-privilege read scopes, pagination, throttling, deletion semantics, coverage-warning requirements, secret handling, and no-write defaults, including approved live-read Microsoft Graph and AWS scopes when optional sandbox connectors are registered.
-- `pnpm validate:docs` validates relative Markdown links, required runbook sections, documentation examples against JSON Schema/OpenAPI contracts, and generated API reference freshness.
+- `pnpm validate:docs` validates relative Markdown links, runbook sections, documentation examples against JSON Schema/OpenAPI contracts, static container and release packaging expectations, and generated API artifacts.
+- `pnpm validate:docs-lint` is the consolidated heading, example, Dockerfile, release-manifest, and workflow lint used by `validate:docs`.
 - `pnpm validate:automation` validates the implementation backlog, PR state labels, steward scripts, automation docs, and CI automation gate.
-- `pnpm validate:ci` validates that the GitHub Actions workflow still contains the expected contract, quality, evidence, and security jobs.
-- `pnpm validate:packaging` validates the deployable API Dockerfile, runtime healthcheck, non-root container contract, and container CI smoke-test wiring.
-- `pnpm validate:release-packaging` validates the GHCR release workflow, publish gates, SBOM/provenance metadata, artifact attestation, keyless signing wiring, product release manifest, compatibility matrix, support policy, security policy, and CVE disclosure path.
+- `pnpm validate:ci` is a local steward check that validates expected GitHub Actions jobs. The hosted workflow does not self-validate this run-line.
 - `pnpm validate:deployment-manifests` validates the Kubernetes manifests, probe wiring, secret references, restricted runtime security, network policy, and signed-image admission policy example.
 - `pnpm validate:persistence-deployment` validates the schema-backed synthetic production persistence manifest, retained readiness report artifact, external backend readiness, IaC output references, release approval, backup/restore, operator controls, and blocked local proof-point manifests.
 - `pnpm validate:secure-sdlc` validates release-retained SAST, DAST, dependency scan, SBOM, fuzzing, tenant-isolation abuse, threat-model, vulnerability triage, and NIST SSDF evidence.
@@ -62,7 +61,7 @@ pnpm ci:check
 git diff --check
 ```
 
-`pnpm ci:check` is intentionally stricter than a quick test run. It exercises contract validation, CI workflow validation, type checking, linting, tests, build, and evidence freshness.
+`pnpm ci:check` is intentionally stricter than a quick test run. It runs the complete validation chain, including the local CI workflow check, then lint, build, and evidence freshness.
 
 ## Operator Workflow Smoke Example
 

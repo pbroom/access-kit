@@ -28,7 +28,7 @@ Patch releases keep the same contract family and may include docs, validation, p
 
 ## Release Manifest
 
-Every product release keeps a machine-readable manifest under `releases/<version>/manifest.json`. The manifest is validated by `pnpm validate:release-packaging` and records:
+Every product release keeps a machine-readable manifest under `releases/<version>/manifest.json`. The manifest is validated by `pnpm validate:docs-lint` and records:
 
 - source, container, CLI, SDK, and docs-site adoption channels
 - release notes and changelog references

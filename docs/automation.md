@@ -12,6 +12,8 @@ The typed automation contract manifest in `scripts/lib/automation-contract.ts` i
 
 Generated API collections are part of the docs validation surface. Run `pnpm validate:api-collections` to check that the Postman and Bruno demo seed collections are current, cover the required workflows, and avoid checked-in secrets.
 
+`pnpm validate:ci` remains a local steward preflight that checks workflow structure against the automation contract. CI does not run that self-check against its own workflow; `pnpm validate:automation` and the behavior-oriented jobs remain the hosted gates.
+
 ## State Labels
 
 GitHub labels carry PR state:

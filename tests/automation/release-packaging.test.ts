@@ -52,6 +52,24 @@ describe("release packaging validation", () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr + result.stdout).toContain("proof-point release labels must not include production-ready");
   });
+
+  it("collects unexpected validator errors into the final documentation lint summary", () => {
+    const missingReleaseDir = mkdtempSync(join(tmpdir(), "access-kit-missing-release-packaging-"));
+    rmSync(missingReleaseDir, { recursive: true, force: true });
+
+    const result = spawnSync(process.execPath, ["--import", "tsx", "scripts/validate-docs-lint.ts"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        REBAC_RELEASE_MANIFEST_DIR: missingReleaseDir
+      }
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr + result.stdout).toContain("Documentation lint failed:");
+    expect(result.stderr + result.stdout).toContain("release packaging validation:");
+  });
 });
 
 function readValidManifest(): ProductReleaseManifest {
@@ -65,7 +83,7 @@ function runValidator(manifest: ProductReleaseManifest): SpawnSyncReturns<string
   try {
     mkdirSync(tempReleaseDir, { recursive: true });
     writeFileSync(join(tempReleaseDir, "manifest.json"), JSON.stringify(manifest, null, 2));
-    return spawnSync(process.execPath, ["--import", "tsx", "scripts/validate-release-packaging.ts"], {
+    return spawnSync(process.execPath, ["--import", "tsx", "scripts/validate-docs-lint.ts"], {
       cwd: repoRoot,
       encoding: "utf8",
       env: {
