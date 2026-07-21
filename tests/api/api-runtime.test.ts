@@ -19,6 +19,7 @@ import {
   LocalJsonFileStateRepository,
   sha256,
   stableStringify,
+  verifyAuditChain,
   verifyEvidenceExport,
   type AdminAuthorizationDescriptor,
   type AuditEvent,
@@ -48,6 +49,7 @@ import {
   listPolicies,
   publishPolicy,
   readRebacApiRuntimeConfig,
+  rollbackPolicy,
   runReconciliation,
   syncConnector,
   validatePolicy,
@@ -129,7 +131,7 @@ describe("ReBAC API runtime", () => {
     expect(published).toMatchObject({
       id: draft.id,
       status: "published",
-      publishedAt: "2026-05-21T17:05:00.000Z"
+      publishedAt: "2026-05-21T17:10:00.000Z"
     });
 
     const duplicatePublish = await fetch(`${baseUrl}/v1/policies/${encodeURIComponent(String(draft.id))}/publish`, {
@@ -147,14 +149,14 @@ describe("ReBAC API runtime", () => {
       `/v1/policies/${encodeURIComponent(String(draft.id))}/rollback`,
       "idem-policy-rollback",
       {
-        targetVersion: "policy:previous",
+        targetVersion: draft.version,
         changeTicket: "CHG-1235",
         approverId: "user:policy-approver"
       }
     );
     expect(rolledBack).toMatchObject({
       id: draft.id,
-      version: "policy:previous",
+      version: draft.version,
       status: "rolled_back"
     });
     expect(rolledBack.publishedAt).toBe(published.publishedAt);
@@ -173,7 +175,7 @@ describe("ReBAC API runtime", () => {
     expect(republished).toMatchObject({
       id: draft.id,
       status: "published",
-      publishedAt: "2026-05-21T17:10:00.000Z"
+      publishedAt: "2026-05-21T17:25:00.000Z"
     });
 
     const secondDraft = await postWithIdempotency<JsonObject>("/v1/policies", "idem-policy-create-second", {
@@ -209,14 +211,14 @@ describe("ReBAC API runtime", () => {
       `/v1/policies/${encodeURIComponent(String(secondDraft.id))}/rollback`,
       "idem-policy-rollback",
       {
-        targetVersion: "policy:second-previous",
+        targetVersion: secondDraft.version,
         changeTicket: "CHG-2235",
         approverId: "user:policy-approver"
       }
     );
     expect(secondRolledBack).toMatchObject({
       id: secondDraft.id,
-      version: "policy:second-previous",
+      version: secondDraft.version,
       status: "rolled_back"
     });
 
@@ -266,6 +268,76 @@ describe("ReBAC API runtime", () => {
 
     expect(error).toMatchObject({ code: "POLICY_VALIDATION_FAILED", statusCode: 422 });
     expect(listPolicies(app).items.find((item) => item.id === policy.id)).toMatchObject({ status: "draft" });
+  });
+
+  it("audits policy lifecycle mutations at their actual persistence timestamps and validates rollback state", () => {
+    const { repository, snapshots, storedAts } = createRecordingStateRepository();
+    const timestamps = [
+      "2026-05-21T17:00:00.000Z",
+      "2026-05-21T17:01:00.000Z",
+      "2026-05-21T17:02:00.000Z",
+      "2026-05-21T17:03:00.000Z"
+    ];
+    const app = createRebacLocalApp({ now: sequenceNow(...timestamps), stateRepository: repository });
+    const draft = createPolicy(app, {
+      name: "audited policy lifecycle",
+      model: createDefaultPolicyModel(),
+      tests: [{ name: "default proof points" }]
+    }, "idem-policy-audit-create");
+
+    expect(validatePolicy(app, draft.id).valid).toBe(true);
+    publishPolicy(app, draft.id, {
+      changeTicket: "CHG-AUDIT-PUBLISH",
+      approverId: "user:policy-approver"
+    }, "idem-policy-audit-publish");
+
+    expect(() => rollbackPolicy(app, draft.id, {
+      targetVersion: "policy:invented-version",
+      changeTicket: "CHG-AUDIT-INVALID",
+      approverId: "user:policy-approver"
+    }, "idem-policy-audit-invalid")).toThrowError(expect.objectContaining({ code: "POLICY_VERSION_NOT_FOUND" }));
+
+    rollbackPolicy(app, draft.id, {
+      targetVersion: draft.version,
+      changeTicket: "CHG-AUDIT-ROLLBACK",
+      approverId: "user:policy-approver"
+    }, "idem-policy-audit-rollback");
+
+    expect(storedAts).toEqual(timestamps);
+    expect(snapshots.at(-1)?.auditEvents?.map((event) => event.eventType)).toEqual([
+      "policy.created",
+      "policy.validated",
+      "policy.published",
+      "policy.rolled_back"
+    ]);
+    expect(verifyAuditChain(snapshots.at(-1)?.auditEvents ?? [], timestamps.at(-1)!)).toMatchObject({
+      status: "verified",
+      eventCount: 4,
+      findings: []
+    });
+    expect(() => rollbackPolicy(app, draft.id, {
+      targetVersion: draft.version,
+      changeTicket: "CHG-AUDIT-SECOND-ROLLBACK",
+      approverId: "user:policy-approver"
+    }, "idem-policy-audit-second-rollback")).toThrowError(expect.objectContaining({ code: "POLICY_NOT_PUBLISHED" }));
+
+    const draftOnlyApp = createRebacLocalApp({ now: () => TEST_NOW });
+    const draftOnly = createPolicy(draftOnlyApp, {
+      name: "draft-only policy",
+      model: createDefaultPolicyModel(),
+      tests: []
+    }, "idem-policy-draft-only");
+    expect(() => rollbackPolicy(draftOnlyApp, draftOnly.id, {
+      targetVersion: draftOnly.version,
+      changeTicket: "CHG-DRAFT-ROLLBACK",
+      approverId: "user:policy-approver"
+    }, "idem-policy-draft-rollback")).toThrowError(expect.objectContaining({ code: "POLICY_NOT_PUBLISHED" }));
+    expect(validatePolicy(draftOnlyApp, draftOnly.id).valid).toBe(true);
+    expect(() => rollbackPolicy(draftOnlyApp, draftOnly.id, {
+      targetVersion: draftOnly.version,
+      changeTicket: "CHG-VALIDATED-ROLLBACK",
+      approverId: "user:policy-approver"
+    }, "idem-policy-validated-rollback")).toThrowError(expect.objectContaining({ code: "POLICY_NOT_PUBLISHED" }));
   });
 
   it("serves readiness without auth and reports runtime guardrails", async () => {
@@ -1610,6 +1682,85 @@ describe("ReBAC API runtime", () => {
     expect(integrity).toMatchObject({ status: "verified", eventCount: 4 });
     expect(state?.subjects?.some((item) => item.id === "user:persistent-analyst")).toBe(true);
     expect(state?.auditEvents?.map((event) => event.eventType)).toContain("audit.integrity_verified");
+  });
+
+  it("persists policy lifecycle state across API restarts with a local JSON state repository", async () => {
+    const stateRoot = await mkdtemp(join(tmpdir(), "access-kit-policy-state-"));
+    tempDirs.push(stateRoot);
+    const repository = new LocalJsonFileStateRepository({ rootDir: stateRoot });
+    await restartServer({
+      now: sequenceNow("2026-05-21T17:00:00.000Z", "2026-05-21T17:05:00.000Z"),
+      stateRepository: repository
+    });
+
+    const draft = await postWithIdempotency<JsonObject>("/v1/policies", "idem-policy-persist-create", {
+      name: "persistent case access",
+      model: createDefaultPolicyModel(),
+      tests: [{ name: "default proof points" }]
+    });
+    await post<JsonObject>(`/v1/policies/${encodeURIComponent(String(draft.id))}/validate`, { mode: "validate" });
+    const published = await postWithIdempotency<JsonObject>(
+      `/v1/policies/${encodeURIComponent(String(draft.id))}/publish`,
+      "idem-policy-persist-publish",
+      {
+        changeTicket: "CHG-PERSIST",
+        approverId: "user:policy-approver"
+      }
+    );
+    expect(published).toMatchObject({
+      id: draft.id,
+      status: "published",
+      publishedAt: "2026-05-21T17:05:00.000Z"
+    });
+
+    const state = repository.readState();
+    expect(state?.policies?.map((record) => record.summary)).toEqual([
+      expect.objectContaining({ id: draft.id, status: "published", publishedAt: "2026-05-21T17:05:00.000Z" })
+    ]);
+    expect(state?.policyIdempotencyRecords?.map((record) => record.key)).toEqual(
+      expect.arrayContaining(["create:idem-policy-persist-create", `publish:${String(draft.id)}:idem-policy-persist-publish`])
+    );
+
+    await restartServer({
+      now: () => "2026-05-21T18:00:00.000Z",
+      stateRepository: repository
+    });
+
+    const restored = await get<{ items: JsonObject[] }>("/v1/policies");
+    expect(restored.items).toEqual([
+      expect.objectContaining({
+        id: draft.id,
+        status: "published",
+        publishedAt: "2026-05-21T17:05:00.000Z",
+        version: `${String(draft.id)}:published`
+      })
+    ]);
+
+    const replayedPublish = await postWithIdempotency<JsonObject>(
+      `/v1/policies/${encodeURIComponent(String(draft.id))}/publish`,
+      "idem-policy-persist-publish",
+      {
+        changeTicket: "CHG-PERSIST",
+        approverId: "user:policy-approver"
+      }
+    );
+    expect(replayedPublish).toEqual(published);
+
+    const unvalidatedRepublish = await fetch(`${baseUrl}/v1/policies/${encodeURIComponent(String(draft.id))}/publish`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "idempotency-key": "idem-policy-persist-republish" },
+      body: JSON.stringify({
+        changeTicket: "CHG-PERSIST-2",
+        approverId: "user:policy-approver"
+      })
+    });
+    expect(unvalidatedRepublish.status).toBe(409);
+    await expect(unvalidatedRepublish.json()).resolves.toMatchObject({ code: "POLICY_NOT_VALIDATED" });
+
+    const revalidated = await post<JsonObject>(`/v1/policies/${encodeURIComponent(String(draft.id))}/validate`, {
+      mode: "validate"
+    });
+    expect(revalidated).toMatchObject({ valid: true });
   });
 
   it("recovers graph and runtime job records from repository persistence across API restarts", async () => {
@@ -4060,14 +4211,17 @@ class ThrowingEvidenceRepository implements EvidencePackageRepository {
   }
 }
 
-function createRecordingStateRepository(): { repository: RebacStateRepository; snapshots: RebacSeedData[] } {
+function createRecordingStateRepository(): { repository: RebacStateRepository; snapshots: RebacSeedData[]; storedAts: string[] } {
   const snapshots: RebacSeedData[] = [];
+  const storedAts: string[] = [];
   return {
     snapshots,
+    storedAts,
     repository: {
       readState: () => undefined,
       writeState: (state, storedAt) => {
         snapshots.push(JSON.parse(JSON.stringify(state)) as RebacSeedData);
+        storedAts.push(storedAt);
         return {
           storedAt,
           backend: "external",
@@ -4089,7 +4243,9 @@ function createRecordingStateRepository(): { repository: RebacStateRepository; s
             reconciliationRuns: state.reconciliationRuns?.length ?? 0,
             decisions: state.decisions?.length ?? 0,
             auditEvents: state.auditEvents?.length ?? 0,
-            persistenceDegradations: state.persistenceDegradations?.length ?? 0
+            persistenceDegradations: state.persistenceDegradations?.length ?? 0,
+            policies: state.policies?.length ?? 0,
+            policyIdempotencyRecords: state.policyIdempotencyRecords?.length ?? 0
           },
           version: "rebac-state-storage-receipt:v1"
         };

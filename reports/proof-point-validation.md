@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-07-20T21:12:53.122Z
+Generated at: 2026-07-20T21:17:55.680Z
 
-Branch: codex/policy-driven-engine
+Branch: codex/split-local-app
 
 Node: v24.4.1
 
@@ -40,14 +40,14 @@ All proof-point validation commands passed.
 ### typecheck
 
 ```text
-> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 typecheck /Users/peterbroomfield/access-kit-split-local-app
 > tsc --noEmit
 ```
 
 ### schema validation
 
 ```text
-> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:schemas /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-schemas.ts
 
 Validated 21 schemas and 21 example fixtures.
@@ -77,10 +77,10 @@ PASS subject.json -> schemas/subject.schema.json
 ### OpenAPI validation
 
 ```text
-> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:openapi /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-openapi.ts
 
-Validated OpenAPI contract at /Users/peterbroomfield/access-kit-policy-engine/openapi/rebac-control-plane.yaml.
+Validated OpenAPI contract at /Users/peterbroomfield/access-kit-split-local-app/openapi/rebac-control-plane.yaml.
 PASS 29 required API path groups are present.
 PASS Phase 4 controlled-enforcement readiness, request, and job fields are present.
 PASS Phase 5 readiness, audit integrity, audit export, and evidence export path groups are present.
@@ -92,7 +92,7 @@ PASS API versioning, deprecation, authentication, and rate-limit metadata are pr
 ### API collection validation
 
 ```text
-> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:api-collections /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/generate-api-collections.ts --check
 
 API collection artifacts are current.
@@ -101,7 +101,7 @@ API collection artifacts are current.
 ### policy fixture validation
 
 ```text
-> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:policy /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-policy-fixtures.ts
 
 Validated 13 policy proof points.
@@ -124,7 +124,7 @@ PASS drift is represented as security finding
 ### connector security gate validation
 
 ```text
-> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:connector-security /Users/peterbroomfield/access-kit-split-local-app
 > node --conditions=types --import tsx scripts/validate-connector-security-gate.ts
 
 Validated connector security gates for 4 connector(s).
@@ -137,23 +137,23 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 ### CLI command contract
 
 ```text
-> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:cli-contract /Users/peterbroomfield/access-kit-split-local-app
 > vitest run tests/cli/cli-contract.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-engine
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
 
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  17:12:45
-   Duration  362ms (transform 184ms, setup 0ms, import 279ms, tests 23ms, environment 0ms)
+   Start at  17:17:47
+   Duration  370ms (transform 193ms, setup 0ms, import 288ms, tests 24ms, environment 0ms)
 ```
 
 ### container packaging validation
 
 ```text
-> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:packaging /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-container-packaging.ts
 
 Validated deployable API container packaging.
@@ -164,7 +164,7 @@ PASS Container packaging CI job builds and smoke-tests health, readiness, and AP
 ### release packaging validation
 
 ```text
-> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:release-packaging /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-release-packaging.ts
 
 Validated deployable API release packaging.
@@ -177,7 +177,7 @@ PASS Release artifacts retain SBOM, provenance, signature, vulnerability disclos
 ### deployment manifest validation
 
 ```text
-> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:deployment-manifests /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-deployment-manifests.ts
 
 Validated deployable API Kubernetes manifests.
@@ -188,7 +188,7 @@ PASS Admission policy requires immutable GHCR digests and keyless release signat
 ### persistence deployment evidence validation
 
 ```text
-> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:persistence-deployment /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-persistence-deployment.ts
 
 Validated persistence deployment manifest.
@@ -199,7 +199,7 @@ PASS Local proof-point persistence manifests remain blocked from production read
 ### runbook exercise evidence validation
 
 ```text
-> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:runbook-exercises /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-runbook-exercises.ts
 
 Validated runbook exercise evidence.
@@ -210,7 +210,7 @@ PASS Exercise record is deployment-scoped, synthetic, redacted, and not assessor
 ### secure SDLC release evidence validation
 
 ```text
-> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:secure-sdlc /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-secure-sdlc-evidence.ts
 
 Validated secure SDLC release evidence.
@@ -221,7 +221,7 @@ PASS Secure SDLC evidence maps mitigations across authorization, connector, pers
 ### live enforcement pilot validation
 
 ```text
-> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:live-enforcement-pilot /Users/peterbroomfield/access-kit-split-local-app
 > tsx scripts/validate-live-enforcement-pilot.ts
 
 Validated live enforcement pilot gates.
@@ -231,93 +231,93 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 ### core engine tests
 
 ```text
-> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 test:core /Users/peterbroomfield/access-kit-split-local-app
 > vitest run tests/core
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-engine
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
 
 
  Test Files  15 passed (15)
       Tests  190 passed (190)
-   Start at  17:12:48
-   Duration  302ms (transform 1.66s, setup 0ms, import 2.35s, tests 157ms, environment 1ms)
+   Start at  17:17:51
+   Duration  322ms (transform 1.79s, setup 0ms, import 2.55s, tests 159ms, environment 1ms)
 ```
 
 ### API runtime tests
 
 ```text
-> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 test:api /Users/peterbroomfield/access-kit-split-local-app
 > vitest run tests/api
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-engine
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
 
 
  Test Files  8 passed (8)
-      Tests  123 passed (123)
-   Start at  17:12:49
-   Duration  651ms (transform 1.43s, setup 0ms, import 2.17s, tests 498ms, environment 0ms)
+      Tests  125 passed (125)
+   Start at  17:17:51
+   Duration  652ms (transform 1.38s, setup 0ms, import 2.17s, tests 506ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
 
 ```text
-> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 test:sdk-pep /Users/peterbroomfield/access-kit-split-local-app
 > vitest run tests/sdk-pep
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-engine
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
 
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  17:12:50
-   Duration  531ms (transform 385ms, setup 0ms, import 602ms, tests 235ms, environment 0ms)
+   Start at  17:17:52
+   Duration  528ms (transform 385ms, setup 0ms, import 595ms, tests 239ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
 
 ```text
-> access-kit@0.1.0 validate:sample-admin-app /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 validate:sample-admin-app /Users/peterbroomfield/access-kit-split-local-app
 > vitest run tests/examples/internal-admin-app.test.ts
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-engine
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
 
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  17:12:51
-   Duration  190ms (transform 104ms, setup 0ms, import 127ms, tests 7ms, environment 0ms)
+   Start at  17:17:53
+   Duration  190ms (transform 103ms, setup 0ms, import 126ms, tests 7ms, environment 0ms)
 ```
 
 ### connector package tests
 
 ```text
-RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-engine
+RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
 
 
  Test Files  8 passed (8)
       Tests  47 passed (47)
-   Start at  17:12:51
-   Duration  307ms (transform 1.13s, setup 0ms, import 1.58s, tests 77ms, environment 0ms)
+   Start at  17:17:54
+   Duration  320ms (transform 1.17s, setup 0ms, import 1.60s, tests 79ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
 
 ```text
-> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-policy-engine
+> access-kit@0.1.0 test:cli /Users/peterbroomfield/access-kit-split-local-app
 > vitest run tests/cli
 
 
- RUN  v4.1.7 /Users/peterbroomfield/access-kit-policy-engine
+ RUN  v4.1.7 /Users/peterbroomfield/access-kit-split-local-app
 
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  17:12:52
-   Duration  399ms (transform 521ms, setup 0ms, import 830ms, tests 126ms, environment 0ms)
+   Start at  17:17:55
+   Duration  444ms (transform 606ms, setup 0ms, import 936ms, tests 134ms, environment 0ms)
 ```
 
 

@@ -8,6 +8,7 @@ import type {
   ExceptionRequest,
   DriftFinding,
   GovernanceFinding,
+  JsonRecord,
   NativeGrant,
   PersistenceDegradationReceipt,
   ProvisioningJob,
@@ -19,6 +20,34 @@ import type {
 } from "./domain.js";
 import { matchesDriftFindingFilter } from "./drift-finding-filter.js";
 import type { DriftFindingFilter } from "./persistence.js";
+import type { PolicyModel, PolicyModelValidationResult } from "./policy-model.js";
+
+export type PersistedPolicyStatus = "draft" | "validated" | "approved" | "published" | "rolled_back";
+
+export interface PersistedPolicySummary {
+  id: string;
+  version: string;
+  status: PersistedPolicyStatus;
+  createdAt: string;
+  publishedAt?: string;
+}
+
+export interface PersistedPolicyDraft {
+  name: string;
+  model: PolicyModel;
+  tests: JsonRecord[];
+}
+
+export interface PersistedPolicyRecord {
+  draft: PersistedPolicyDraft;
+  summary: PersistedPolicySummary;
+  validation?: PolicyModelValidationResult;
+}
+
+export interface PersistedPolicyIdempotencyRecord {
+  key: string;
+  summary: PersistedPolicySummary;
+}
 
 export interface RebacSeedData {
   subjects?: Subject[];
@@ -37,6 +66,8 @@ export interface RebacSeedData {
   decisions?: DecisionResult[];
   auditEvents?: AuditEvent[];
   persistenceDegradations?: PersistenceDegradationReceipt[];
+  policies?: PersistedPolicyRecord[];
+  policyIdempotencyRecords?: PersistedPolicyIdempotencyRecord[];
 }
 
 const MAX_PERSISTENCE_DEGRADATIONS = 20;
@@ -66,6 +97,8 @@ export class InMemoryRebacStore {
   readonly #decisions = new Map<CanonicalId, DecisionResult>();
   readonly #auditEvents: AuditEvent[] = [];
   readonly #persistenceDegradations: PersistenceDegradationReceipt[] = [];
+  readonly #policies = new Map<string, PersistedPolicyRecord>();
+  readonly #policyIdempotencyRecords = new Map<string, PersistedPolicyIdempotencyRecord>();
   #relationshipRevision = 0;
 
   constructor(seed: RebacSeedData = {}) {
@@ -85,6 +118,8 @@ export class InMemoryRebacStore {
     seed.decisions?.forEach((decision) => this.recordDecision(decision));
     seed.auditEvents?.forEach((event) => this.recordAuditEvent(event));
     seed.persistenceDegradations?.forEach((degradation) => this.recordPersistenceDegradation(degradation));
+    seed.policies?.forEach((record) => this.upsertPolicy(record));
+    seed.policyIdempotencyRecords?.forEach((record) => this.setPolicyIdempotencyRecord(record));
   }
 
   exportSeedData(): RebacSeedData {
@@ -104,7 +139,9 @@ export class InMemoryRebacStore {
       reconciliationRuns: this.listReconciliationRuns(),
       decisions: this.listDecisions(),
       auditEvents: this.listAuditEvents(),
-      persistenceDegradations: this.listPersistenceDegradations()
+      persistenceDegradations: this.listPersistenceDegradations(),
+      policies: this.listPolicies(),
+      policyIdempotencyRecords: this.listPolicyIdempotencyRecords()
     };
   }
 
@@ -398,6 +435,32 @@ export class InMemoryRebacStore {
 
   listDecisions(): DecisionResult[] {
     return [...this.#decisions.values()];
+  }
+
+  getPolicy(id: string): PersistedPolicyRecord | undefined {
+    return this.#policies.get(id);
+  }
+
+  listPolicies(): PersistedPolicyRecord[] {
+    return [...this.#policies.values()];
+  }
+
+  upsertPolicy(record: PersistedPolicyRecord): PersistedPolicyRecord {
+    this.#policies.set(record.summary.id, record);
+    return record;
+  }
+
+  getPolicyIdempotencyRecord(key: string): PersistedPolicyIdempotencyRecord | undefined {
+    return this.#policyIdempotencyRecords.get(key);
+  }
+
+  listPolicyIdempotencyRecords(): PersistedPolicyIdempotencyRecord[] {
+    return [...this.#policyIdempotencyRecords.values()];
+  }
+
+  setPolicyIdempotencyRecord(record: PersistedPolicyIdempotencyRecord): PersistedPolicyIdempotencyRecord {
+    this.#policyIdempotencyRecords.set(record.key, record);
+    return record;
   }
 
   recordAuditEvent(event: AuditEvent): AuditEvent {
