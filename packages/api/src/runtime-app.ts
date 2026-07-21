@@ -35,6 +35,8 @@ export interface RebacRuntimePersistence {
   stateRepository?: RebacStateRepository;
   auditRepository?: AuditEventRepository;
   evidenceRepository?: EvidencePackageRepository;
+  waitForPendingWrites?(): Promise<void>;
+  close?(): Promise<void>;
 }
 
 export type RebacPersistenceDegradation = PersistenceDegradationReceipt;
@@ -76,6 +78,8 @@ export function normalizeRuntimePersistence(options: RebacLocalAppOptions): Reba
     jobQueue,
     stateRepository: options.persistence?.stateRepository ?? options.stateRepository,
     auditRepository: options.persistence?.auditRepository ?? options.auditRepository,
-    evidenceRepository: options.persistence?.evidenceRepository ?? options.evidenceRepository
+    evidenceRepository: options.persistence?.evidenceRepository ?? options.evidenceRepository,
+    waitForPendingWrites: options.persistence?.waitForPendingWrites,
+    close: options.persistence?.close
   };
 }

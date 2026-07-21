@@ -81,6 +81,9 @@ The API listens on `127.0.0.1:3000` by default. Useful environment variables:
 | `REBAC_API_KEYS` | unset | Comma-separated bearer tokens for `/v1` routes except health and readiness. Optional `label:token` entries record audit events as `api-key:<label>`. |
 | `REBAC_STATE_PATH` | unset | Optional JSON runtime state snapshot path. |
 | `REBAC_EVIDENCE_ROOT` | unset | Optional local persistence root for audit records and evidence packages. |
+| `REBAC_DATABASE_URL` | unset | Optional PostgreSQL connection URL. When set, graph, connector-state, audit, and evidence persistence use the `@access-kit/persistence-postgres` backend instead of local files. |
+| `REBAC_DATABASE_TENANT_BOUNDARY` | unset | Tenant boundary required by the PostgreSQL backend (for example `tenant:alpha`). Required when `REBAC_DATABASE_URL` is set. |
+| `REBAC_DATABASE_AUDIT_SIGNING_KEY` | unset | Audit-window signing key material (32+ characters) for the PostgreSQL backend. Required when `REBAC_DATABASE_URL` is set. |
 
 Public probes:
 

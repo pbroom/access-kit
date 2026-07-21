@@ -1,4 +1,4 @@
-import { assessAdminAuthorizationReadiness } from "@access-kit/core";
+import { assessAdminAuthorizationReadiness, type PersistenceBackendDescriptor } from "@access-kit/core";
 import type { RebacLocalApp } from "./local-app.js";
 
 type RuntimeReadinessStatus = "ready" | "ready_with_warnings" | "not_ready";
@@ -67,30 +67,33 @@ export function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly { re
       name: "graph_repository",
       status: app.graphRepository ? "pass" : "warn",
       message: app.graphRepository
-        ? "Runtime graph repository is configured for local proof-point persistence."
+        ? "Runtime graph repository is configured."
         : "Runtime graph repository is not configured; graph state is in-memory only.",
       evidence: {
-        configured: Boolean(app.graphRepository)
+        configured: Boolean(app.graphRepository),
+        ...describeBackendEvidence(app.graphRepository)
       }
     },
     {
       name: "job_repository",
       status: app.jobRepository ? "pass" : "warn",
       message: app.jobRepository
-        ? "Runtime job repository is configured for local proof-point persistence."
+        ? "Runtime job repository is configured."
         : "Runtime job repository is not configured; job state is in-memory only.",
       evidence: {
-        configured: Boolean(app.jobRepository)
+        configured: Boolean(app.jobRepository),
+        ...describeBackendEvidence(app.jobRepository)
       }
     },
     {
       name: "audit_repository",
       status: app.auditRepository ? "pass" : "warn",
       message: app.auditRepository
-        ? "Audit repository is configured for local proof-point persistence."
+        ? "Audit repository is configured."
         : "Audit repository is not configured; audit events are in-memory only.",
       evidence: {
-        configured: Boolean(app.auditRepository)
+        configured: Boolean(app.auditRepository),
+        ...describeBackendEvidence(app.auditRepository)
       }
     },
     {
@@ -131,6 +134,20 @@ export function buildRuntimeReadiness(app: RebacLocalApp, apiKeys: readonly { re
     version: "0.1.0",
     checkedAt: app.now(),
     checks
+  };
+}
+
+function describeBackendEvidence(repository: unknown): Record<string, unknown> {
+  if (!repository || typeof repository !== "object" || typeof (repository as { describePersistence?: unknown }).describePersistence !== "function") {
+    return {};
+  }
+
+  const descriptor = (repository as { describePersistence(): PersistenceBackendDescriptor }).describePersistence();
+
+  return {
+    backend: descriptor.backend,
+    durable: descriptor.durable,
+    location: descriptor.location
   };
 }
 

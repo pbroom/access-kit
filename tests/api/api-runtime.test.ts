@@ -2209,6 +2209,29 @@ describe("ReBAC API runtime", () => {
     });
   });
 
+  it("preserves database audit signing-key bytes exactly", () => {
+    const signingKey = "  signing-key-material-with-boundary-space  ";
+
+    expect(readRebacApiRuntimeConfig({
+      REBAC_DATABASE_AUDIT_SIGNING_KEY: signingKey
+    }).databaseAuditSigningKey).toBe(signingKey);
+    expect(readRebacApiRuntimeConfig({
+      REBAC_DATABASE_AUDIT_SIGNING_KEY: ""
+    }).databaseAuditSigningKey).toBeUndefined();
+  });
+
+  it("preserves runtime persistence lifecycle hooks", async () => {
+    const waitForPendingWrites = vi.fn(async () => undefined);
+    const close = vi.fn(async () => undefined);
+    const app = createRebacLocalApp({ persistence: { waitForPendingWrites, close } });
+
+    await app.persistence.waitForPendingWrites?.();
+    await app.persistence.close?.();
+
+    expect(waitForPendingWrites).toHaveBeenCalledOnce();
+    expect(close).toHaveBeenCalledOnce();
+  });
+
   it("reads production admin authorization runtime configuration from environment variables", () => {
     const config = readRebacApiRuntimeConfig({
       REBAC_API_HOST: "0.0.0.0",

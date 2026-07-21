@@ -191,6 +191,48 @@ jobs:
       - name: Check decision engine benchmark thresholds
         run: pnpm benchmark:decision-engine --check
 
+  postgres-persistence:
+    name: Postgres persistence tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: access_kit
+          POSTGRES_PASSWORD: access_kit
+          POSTGRES_DB: access_kit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U access_kit"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.30.3
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22.x
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run gated PostgreSQL persistence tests
+        run: pnpm test:postgres
+        env:
+          REBAC_TEST_DATABASE_URL: postgres://access_kit:access_kit@127.0.0.1:5432/access_kit_test
+
   container-packaging:
     name: Container packaging
     runs-on: ubuntu-latest

@@ -1,11 +1,8 @@
 {
-  "name": "@access-kit/api",
+  "name": "@access-kit/persistence-postgres",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": {
-    "rebac-api": "./dist/bin.js"
-  },
   "files": [
     "dist"
   ],
@@ -18,12 +15,11 @@
     }
   },
   "dependencies": {
-    "@access-kit/connectors-aws": "workspace:*",
-    "@access-kit/connectors-mock": "workspace:*",
-    "@access-kit/connectors-microsoft-graph": "workspace:*",
     "@access-kit/core": "workspace:*",
-    "@access-kit/persistence-postgres": "workspace:*",
-    "ajv": "^8.17.1"
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.20.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json"

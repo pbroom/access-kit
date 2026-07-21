@@ -31,6 +31,7 @@ The repo treats API and evidence contracts as first-class CI gates. Automation-s
 - Typecheck, lint, tests, and build on Node 22 and Node 24.
 - Evidence report freshness on Node 24.
 - Decision-engine benchmark thresholds on Node 22. The p95 check permits four times the documented regression gate to absorb shared-runner variance while detecting material regressions.
+- PostgreSQL persistence tests (`pnpm test:postgres`) against a `postgres:16` service container with `REBAC_TEST_DATABASE_URL` set; the same tests skip cleanly in environments without a database.
 - Container packaging by building the `rebac-api` runtime image and smoke-testing health, readiness, bearer-token API protection, and seeded allow and deny-by-default decisions.
 
 `.github/workflows/container-release.yml` runs on `rebac-api-v*` tags or manual dispatch:

@@ -3,13 +3,14 @@ import type { Socket } from "node:net";
 import { createRebacApiServer } from "./server.js";
 import { createRebacLocalApp } from "./local-app.js";
 import { readRebacApiRuntimeConfig } from "./runtime-config.js";
-import { createLocalRuntimePersistence } from "./runtime-persistence.js";
+import { createRuntimePersistence } from "./runtime-persistence.js";
 
 const config = readRebacApiRuntimeConfig();
+const persistence = await createRuntimePersistence(config);
 const app = createRebacLocalApp({
   actor: config.actor,
   adminAuthorization: config.adminAuthorization,
-  persistence: createLocalRuntimePersistence(config)
+  persistence
 });
 const server = createRebacApiServer({ app, apiKeys: config.apiKeys });
 const sockets = new Set<Socket>();
@@ -37,9 +38,25 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
     }
 
     shuttingDown = true;
-    server.close((error) => {
+    server.close(async (error) => {
       if (error) {
         process.stderr.write(`ReBAC API shutdown failed: ${error.message}\n`);
+        process.exitCode = 1;
+      }
+
+      try {
+        await persistence.waitForPendingWrites?.();
+      } catch (persistenceError: unknown) {
+        const message = persistenceError instanceof Error ? persistenceError.message : String(persistenceError);
+        process.stderr.write(`ReBAC API failed to drain persistence writes: ${message}\n`);
+        process.exitCode = 1;
+      }
+
+      try {
+        await persistence.close?.();
+      } catch (closeError: unknown) {
+        const message = closeError instanceof Error ? closeError.message : String(closeError);
+        process.stderr.write(`ReBAC API failed to close persistence: ${message}\n`);
         process.exitCode = 1;
       }
 
