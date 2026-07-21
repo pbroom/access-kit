@@ -23,13 +23,14 @@ A decision is not a native provider permission, provisioning action, ticket appr
 3. The engine loads canonical subject and resource records.
 4. The engine rejects missing or inactive subjects and resources.
 5. The engine evaluates relationship tuples visible at `asOf`, including assertion time, expiration, deletion time, tuple version pins, and active lifecycle state at that point in time.
-6. Explicit deny paths are checked before allow paths.
-7. Allow paths are evaluated for the requested action under bounded traversal.
-8. The engine fails closed if traversal exceeds configured depth, visited-node, or relationship-scan limits.
-9. The engine returns deny by default if no valid path exists.
-10. The response includes decision ID, allow or deny, reason code, policy, model, relationship, tuple, and context versions, `asOf`, traversal metrics, latency SLO metadata, constraints, and evaluation time.
-11. `explain` includes the relationship path; `check` may omit it for the fast path.
-12. The decision is recorded and an audit event is emitted.
+6. Grant, deny, membership, and containment semantics are compiled from the configured policy model (the default model when none is provided): action mappings define which relations grant each action, deny rules define override relations with optional per-action scoping, and inheritance rules define which membership and containment relations may be traversed for each action. Relations not declared in the model grant nothing.
+7. Explicit deny paths are checked before allow paths.
+8. Allow paths are evaluated for the requested action under bounded traversal.
+9. The engine fails closed if traversal exceeds configured depth, visited-node, or relationship-scan limits.
+10. The engine returns deny by default if no valid path exists.
+11. The response includes decision ID, allow or deny, reason code, policy, model, relationship, tuple, and context versions, `asOf`, traversal metrics, latency SLO metadata, constraints, and evaluation time.
+12. `explain` includes the relationship path; `check` may omit it for the fast path.
+13. The decision is recorded and an audit event is emitted.
 
 ## Reason Codes
 

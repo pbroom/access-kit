@@ -135,7 +135,7 @@ export interface PolicyModelValidationResult {
   checks: PolicyModelValidationCheck[];
 }
 
-const supportedActions = new Map<string, string[]>([
+const defaultActionGrants = new Map<string, string[]>([
   ["read", ["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"]],
   ["view", ["viewer_of", "reader_of", "contributor_to", "owner_of", "admin_of"]],
   ["write", ["contributor_to", "owner_of", "admin_of"]],
@@ -145,9 +145,6 @@ const supportedActions = new Map<string, string[]>([
   ["manage", ["owner_of", "admin_of"]]
 ]);
 
-const requiredDenyRelations = new Set(["denied", "denied_read", "quarantined_from"]);
-const requiredMembershipRelations = new Set(["member_of"]);
-const requiredContainmentRelations = new Set(["contains"]);
 const supportedContextTypes = new Set<PolicyModelContextType>(["string", "number", "boolean", "datetime"]);
 const supportedCaveatOperators = new Set<PolicyModelCaveatOperator>([
   "equals",
@@ -200,13 +197,13 @@ export function createDefaultPolicyModel(): PolicyModel {
       { name: "denied_read", kind: "deny", subjectTypes: ["user", "group", "service_account"], objectTypes: ["workspace", "folder", "document", "application", "dataset", "api"] },
       { name: "quarantined_from", kind: "deny", subjectTypes: ["user", "group", "service_account"], objectTypes: ["workspace", "folder", "document", "application", "dataset", "api"] }
     ],
-    actions: [...supportedActions].map(([name, grants]) => ({ name, grants })),
+    actions: [...defaultActionGrants].map(([name, grants]) => ({ name, grants })),
     inheritanceRules: [
       {
         name: "group-membership-grants",
         relation: "member_of",
         through: "member_of",
-        actions: [...supportedActions.keys()]
+        actions: [...defaultActionGrants.keys()]
       },
       {
         name: "container-resource-grants",
@@ -225,7 +222,7 @@ export function createDefaultPolicyModel(): PolicyModel {
       { key: "riskScore", type: "number" }
     ],
     classificationConstraints: [
-      { classification: "internal", allowedActions: [...supportedActions.keys()] },
+      { classification: "internal", allowedActions: [...defaultActionGrants.keys()] },
       { classification: "confidential", allowedActions: ["read", "view", "write", "contribute", "admin", "administer", "manage"] }
     ],
     tenantBoundary: {
@@ -244,6 +241,100 @@ export function createDefaultPolicyModel(): PolicyModel {
   };
 }
 
+export interface CompiledPolicyModel {
+  membershipRelations: ReadonlySet<string>;
+  containmentRelations: ReadonlySet<string>;
+  grantRelationsByAction: ReadonlyMap<string, ReadonlySet<string>>;
+  traversalRelationsByAction: ReadonlyMap<string, ReadonlySet<string>>;
+  denyRelationsByAction: ReadonlyMap<string, ReadonlySet<string>>;
+  unscopedDenyRelations: ReadonlySet<string>;
+}
+
+export function compilePolicyModel(model: PolicyModel): CompiledPolicyModel {
+  const membershipRelations = new Set<string>();
+  const containmentRelations = new Set<string>();
+  const grantRelations = new Set<string>();
+  const denyRelations = new Set<string>();
+
+  for (const relation of model.relations) {
+    switch (relation.kind) {
+      case "membership":
+        membershipRelations.add(relation.name);
+        break;
+      case "containment":
+        containmentRelations.add(relation.name);
+        break;
+      case "grant":
+        grantRelations.add(relation.name);
+        break;
+      case "deny":
+        denyRelations.add(relation.name);
+        break;
+      default: {
+        const unsupported: never = relation.kind;
+        throw new Error(`Unsupported policy model relation kind: ${String(unsupported)}`);
+      }
+    }
+  }
+
+  const grantRelationsByAction = new Map<string, Set<string>>();
+  for (const action of model.actions) {
+    const actionKey = action.name.toLowerCase();
+    const grants = grantRelationsByAction.get(actionKey) ?? new Set<string>();
+    for (const grant of action.grants) {
+      if (grantRelations.has(grant)) {
+        grants.add(grant);
+      }
+    }
+    grantRelationsByAction.set(actionKey, grants);
+  }
+
+  const traversalRelationsByAction = new Map<string, Set<string>>();
+  for (const rule of model.inheritanceRules) {
+    if (!membershipRelations.has(rule.through) && !containmentRelations.has(rule.through)) {
+      continue;
+    }
+    for (const action of rule.actions) {
+      const actionKey = action.toLowerCase();
+      const relations = traversalRelationsByAction.get(actionKey) ?? new Set<string>();
+      relations.add(rule.through);
+      traversalRelationsByAction.set(actionKey, relations);
+    }
+  }
+
+  const unscopedDenyRelations = new Set<string>();
+  const scopedDenyRelationsByAction = new Map<string, Set<string>>();
+  for (const rule of model.denyRules) {
+    if (!denyRelations.has(rule.relation)) {
+      continue;
+    }
+    if (!rule.actions) {
+      unscopedDenyRelations.add(rule.relation);
+      continue;
+    }
+    for (const action of rule.actions) {
+      const actionKey = action.toLowerCase();
+      const relations = scopedDenyRelationsByAction.get(actionKey) ?? new Set<string>();
+      relations.add(rule.relation);
+      scopedDenyRelationsByAction.set(actionKey, relations);
+    }
+  }
+
+  const denyRelationsByAction = new Map<string, Set<string>>();
+  for (const [actionKey, relations] of scopedDenyRelationsByAction) {
+    denyRelationsByAction.set(actionKey, new Set([...unscopedDenyRelations, ...relations]));
+  }
+
+  return {
+    membershipRelations,
+    containmentRelations,
+    grantRelationsByAction,
+    traversalRelationsByAction,
+    denyRelationsByAction,
+    unscopedDenyRelations
+  };
+}
+
 export function validatePolicyModel(model: PolicyModel): PolicyModelValidationResult {
   const checks: PolicyModelValidationCheck[] = [];
   const relationNames = new Set(model.relations.map((relation) => relation.name));
@@ -257,7 +348,7 @@ export function validatePolicyModel(model: PolicyModel): PolicyModelValidationRe
   for (const check of checkKnownResourceTypes(model, resourceTypeNames)) {
     addCheck(check);
   }
-  addCheck(checkRelations(model, relationNames));
+  addCheck(checkRelations(model));
   addCheck(checkActionMappings(model, relationNames));
   addCheck(checkInheritanceRules(model, relationNames, actionNames));
   addCheck(checkDenyRules(model, relationNames, actionNames));
@@ -332,22 +423,17 @@ function checkKnownResourceTypes(model: PolicyModel, resourceTypeNames: Set<Reso
   return checks;
 }
 
-function checkRelations(model: PolicyModel, relationNames: Set<string>): PolicyModelValidationCheck {
-  for (const required of [...requiredMembershipRelations, ...requiredContainmentRelations, ...requiredDenyRelations]) {
-    if (!relationNames.has(required)) {
-      return fail("canonical_relations_present", `Missing canonical relation ${required}.`);
-    }
-  }
+function checkRelations(model: PolicyModel): PolicyModelValidationCheck {
   for (const relation of model.relations) {
     if (relation.subjectTypes.length === 0 || relation.objectTypes.length === 0) {
       return fail("relation_endpoints_declared", `Relation ${relation.name} must declare subject and object types.`);
     }
   }
-  return pass("canonical_relations_present", "Canonical grant, membership, containment, and deny relations are declared.");
+  return pass("relation_endpoints_declared", "Relations declare subject and object types.");
 }
 
 function checkActionMappings(model: PolicyModel, relationNames: Set<string>): PolicyModelValidationCheck {
-  const actions = new Map(model.actions.map((action) => [action.name, action]));
+  const grantRelations = relationNamesOfKind(model, "grant");
   for (const action of model.actions) {
     if (action.grants.length === 0) {
       return fail("action_grants_declared", `Action ${action.name} must map to at least one grant relation.`);
@@ -356,32 +442,34 @@ function checkActionMappings(model: PolicyModel, relationNames: Set<string>): Po
       if (!relationNames.has(grant)) {
         return fail("action_grants_known", `Action ${action.name} references unknown relation ${grant}.`);
       }
-    }
-  }
-  for (const [requiredAction, requiredRelations] of supportedActions) {
-    const action = actions.get(requiredAction);
-    if (!action) {
-      return fail("canonical_actions_present", `Missing canonical action ${requiredAction}.`);
-    }
-    for (const grant of action.grants) {
-      if (!requiredRelations.includes(grant)) {
-        return fail("action_grants_compatible", `Action ${requiredAction} uses relation ${grant}, which is not compatible with the current engine.`);
+      if (!grantRelations.has(grant)) {
+        return fail("action_grants_grant_kind", `Action ${action.name} references relation ${grant}, which is not declared as a grant relation.`);
       }
     }
   }
-  return pass("action_grants_compatible", "Action mappings are compatible with the current deterministic engine.");
+  return pass("action_grants_grant_kind", "Action mappings reference declared grant relations.");
 }
 
 function checkInheritanceRules(model: PolicyModel, relationNames: Set<string>, actionNames: Set<string>): PolicyModelValidationCheck {
   if (model.inheritanceRules.length === 0) {
     return fail("inheritance_rules_declared", "At least one inheritance rule is required.");
   }
+  const traversalRelations = new Set([
+    ...relationNamesOfKind(model, "membership"),
+    ...relationNamesOfKind(model, "containment")
+  ]);
   for (const rule of model.inheritanceRules) {
     if (!relationNames.has(rule.relation)) {
       return fail("inheritance_relations_known", `Inheritance rule ${rule.name} references unknown relation ${rule.relation}.`);
     }
     if (!relationNames.has(rule.through)) {
       return fail("inheritance_paths_known", `Inheritance rule ${rule.name} references unknown traversal relation ${rule.through}.`);
+    }
+    if (!traversalRelations.has(rule.through)) {
+      return fail(
+        "inheritance_traversal_kinds",
+        `Inheritance rule ${rule.name} traverses ${rule.through}, which is not declared as a membership or containment relation.`
+      );
     }
     if (rule.actions.length === 0) {
       return fail("inheritance_actions_declared", `Inheritance rule ${rule.name} must declare at least one action.`);
@@ -396,14 +484,19 @@ function checkInheritanceRules(model: PolicyModel, relationNames: Set<string>, a
 }
 
 function checkDenyRules(model: PolicyModel, relationNames: Set<string>, actionNames: Set<string>): PolicyModelValidationCheck {
-  for (const requiredRelation of requiredDenyRelations) {
-    if (!model.denyRules.some((rule) => rule.relation === requiredRelation && rule.precedence === "override")) {
-      return fail("deny_rules_present", `Missing override deny rule for ${requiredRelation}.`);
-    }
+  if (model.denyRules.length === 0) {
+    return fail("deny_rules_present", "At least one override deny rule is required to keep the deny-by-default posture.");
   }
+  const denyRelations = relationNamesOfKind(model, "deny");
   for (const rule of model.denyRules) {
     if (!relationNames.has(rule.relation)) {
       return fail("deny_relations_known", `Deny rule ${rule.name} references unknown relation ${rule.relation}.`);
+    }
+    if (!denyRelations.has(rule.relation)) {
+      return fail("deny_relations_deny_kind", `Deny rule ${rule.name} references relation ${rule.relation}, which is not declared as a deny relation.`);
+    }
+    if (rule.actions?.length === 0) {
+      return fail("deny_actions_declared", `Deny rule ${rule.name} must declare at least one action when actions are scoped.`);
     }
     for (const action of rule.actions ?? []) {
       if (!actionNames.has(action)) {
@@ -411,7 +504,11 @@ function checkDenyRules(model: PolicyModel, relationNames: Set<string>, actionNa
       }
     }
   }
-  return pass("deny_rules_present", "Override deny rules are declared for canonical deny relations.");
+  return pass("deny_rules_present", "Override deny rules are declared and reference declared deny relations.");
+}
+
+function relationNamesOfKind(model: PolicyModel, kind: PolicyModelRelationKind): Set<string> {
+  return new Set(model.relations.filter((relation) => relation.kind === kind).map((relation) => relation.name));
 }
 
 function checkTenantBoundary(model: PolicyModel): PolicyModelValidationCheck {
