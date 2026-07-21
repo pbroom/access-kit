@@ -1,77 +1,136 @@
 # Access Kit
 
-Access Kit is an API-first and CLI-first foundation for an ATO-ready relationship-based authorization control plane. It defines the public contracts, deterministic decision behavior, operator CLI surface, connector boundary, audit trail, and evidence package shape before any production live-provider writes, Active Directory or Power Platform enforcement, or dashboard work. Staged read-only Microsoft Graph and AWS discovery foundations are present as sandbox proof points.
+[![CI](https://github.com/pbroom/access-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/pbroom/access-kit/actions/workflows/ci.yml)
+[![Security](https://github.com/pbroom/access-kit/actions/workflows/security.yml/badge.svg)](https://github.com/pbroom/access-kit/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Node](https://img.shields.io/badge/node-%E2%89%A522-brightgreen)
 
-The current repository is a local proof point. It is built for contract validation, runtime behavior checks, assessor inspection, and implementation planning. It is not a production authorization service yet.
+**Access Kit is an API-first, CLI-first ReBAC (relationship-based access control) control plane foundation for ATO-ready access governance.**
 
-Start with the [Product Positioning And Adoption Guide](docs/product-positioning-adoption-guide.md) when deciding whether Access Kit fits an adoption path. It separates fit, non-goals, proof-point evidence, production-readiness gaps, and buyer, developer, and assessor evaluation checklists.
+It answers one question deterministically — *"may this subject perform this action on this resource?"* — by traversing a relationship graph compiled from an explicit policy model, with deny-by-default behavior, explainable decisions, a tamper-evident audit trail, and evidence packaging built for security assessors.
 
-## What It Does
+> **Honest status:** this repository is a local proof point. It validates contracts, runtime behavior, and evidence flows. It is not a production authorization service yet. Start with the [Product Positioning And Adoption Guide](docs/product-positioning-adoption-guide.md) to judge fit, non-goals, and readiness gaps.
 
-- Evaluates ReBAC `check`, `explain`, and batch decision requests with deterministic deny-by-default behavior.
-- Exposes an OpenAPI-shaped local API runtime plus a `rebac-api` service entrypoint.
-- Provides a `rebac` CLI command tree that calls the API instead of evaluating authorization locally.
-- Models subjects, resources, relationships, policies, provisioning plans, reconciliation findings, audit records, evidence exports, and connector state.
-- Includes mock and synthetic read-only connector fixtures plus optional Microsoft Graph and AWS read-only connector foundations for sandbox evidence without provider writes.
-- Supports dry-run provisioning and synthetic-only controlled enforcement through explicit readiness, approval, incident-mode, rollback, and break-glass guardrails.
-- Produces validation evidence, audit-integrity checks, SIEM-ready audit export shapes, and local ATO evidence package flows.
-- Tracks implementation slices in a durable backlog and includes steward scripts for PR status, stack readiness, labels, and next-slice selection.
+## How It Fits Together
 
-## What It Is Not
+```mermaid
+flowchart LR
+    subgraph callers["Your Applications & Operators"]
+        PEP["App + PEP middleware<br/>(TypeScript / Python / Go starters)"]
+        CLI["rebac CLI"]
+    end
 
-- It is not an identity provider or authentication system.
-- It is not a SIEM, ticketing system, or generic workflow platform.
-- It is not an AWS IAM, Entra ID, Active Directory, SharePoint, Teams, or Power Platform replacement.
-- It is not a UI-first admin portal.
-- It does not use an LLM to make authorization decisions.
-- It does not claim a production ATO.
+    subgraph api["rebac-api &nbsp;(packages/api)"]
+        AUTH["Bearer auth<br/>timing-safe, labeled tokens"]
+        VAL["Ajv request validation<br/>OpenAPI contract"]
+        RUNTIME["Runtime modules<br/>graph / jobs / policies / evidence"]
+    end
+
+    subgraph core["Decision Core &nbsp;(packages/core)"]
+        MODEL["Policy model<br/>relations · actions · inheritance · denies"]
+        ENGINE["Decision engine<br/>deny-by-default graph traversal"]
+        AUDIT["Audit chain<br/>SHA-256 hash chain · HMAC windows"]
+    end
+
+    subgraph persist["Persistence"]
+        MEM["In-memory"]
+        JSON["Local JSON snapshots"]
+        PG[("PostgreSQL<br/>append-only audit tables")]
+    end
+
+    subgraph providers["Providers (read-only)"]
+        GRAPH["Microsoft Graph"]
+        AWS["AWS IAM / Access Analyzer"]
+        MOCK["Mock & synthetic fixtures"]
+    end
+
+    PEP -->|"POST /v1/decision/check"| api
+    CLI -->|HTTP only| api
+    AUTH --> VAL --> RUNTIME
+    RUNTIME --> ENGINE
+    MODEL -->|compiled once| ENGINE
+    ENGINE --> AUDIT
+    RUNTIME --> persist
+    AUDIT --> persist
+    providers -->|discovery sync| RUNTIME
+```
+
+Three boundaries matter:
+
+1. **Applications never evaluate authorization locally.** PEPs and the CLI call the HTTP API; the decision logic lives in one place.
+2. **The policy model drives the engine.** Relations, action grants, inheritance rules, and deny rules are declared in a validated `PolicyModel` and compiled into the traversal — custom relations and actions work without engine changes.
+3. **Provider connectors are read-only.** Microsoft Graph and AWS connectors discover existing access for reconciliation and drift detection; no live provider writes exist.
+
+## What A Decision Looks Like
+
+```mermaid
+sequenceDiagram
+    participant App as App / PEP
+    participant API as rebac-api
+    participant Eng as Decision engine
+    participant Aud as Audit chain
+
+    App->>API: POST /v1/decision/check<br/>{subject, action, resource, context?, asOf?}
+    API->>API: Bearer auth + schema validation
+    API->>Eng: evaluate(request)
+    Eng->>Eng: 1. Tenant boundary check (fail closed)
+    Eng->>Eng: 2. Deny-relation search (override wins)
+    Eng->>Eng: 3. Grant-path search via model-compiled<br/>relations + inheritance rules
+    Eng->>Eng: 4. Caveat / context conditions (fail closed)
+    Eng->>Aud: append hash-chained audit event
+    Eng-->>API: decision + reason code + relationship path
+    API-->>App: allow / deny (deny by default)
+```
+
+Every decision returns a stable reason code and, for `explain`, the exact relationship path that produced the result. If no grant path exists, bounds are exceeded, context is invalid, or a deny relation matches — the answer is deny.
+
+```mermaid
+flowchart TD
+    REQ([Decision request]) --> TENANT{Same tenant?}
+    TENANT -- no --> DENY([DENY])
+    TENANT -- yes --> DENYREL{Deny relation<br/>on any path?}
+    DENYREL -- yes --> DENY
+    DENYREL -- no --> GRANT{Grant path within<br/>traversal bounds?}
+    GRANT -- no --> DENY
+    GRANT -- yes --> CAVEAT{Caveats satisfied?}
+    CAVEAT -- no --> DENY
+    CAVEAT -- yes --> ALLOW([ALLOW])
+```
 
 ## Quickstart
 
-Use Node 22 or newer. The repo is pinned for pnpm 10.
+Use Node 22+ and pnpm 10.
 
 ```sh
 corepack enable
 pnpm install
-pnpm validate
+pnpm validate        # contracts, policy fixtures, tests, conformance
 ```
 
-For pre-submit confidence, run the full CI-equivalent gate:
-
-```sh
-pnpm ci:check
-```
-
-`pnpm validate` runs type checking, contract and sample-policy validation, consolidated docs and static packaging lint, automation and local CI workflow validation, deployment manifest validation, persistence deployment evidence validation, runbook exercise validation, secure SDLC release evidence validation, live-enforcement pilot validation, PEP conformance, sample app validation, and the test suite.
-
-`pnpm ci:check` adds lint, build, and evidence freshness checks.
-
-For the shortest runnable API path, start the compose quickstart and run the seeded demo:
+Shortest runnable path — start the API with Docker Compose and run the seeded demo:
 
 ```sh
 docker compose -f docker-compose.quickstart.yml up --build -d
 pnpm quickstart:demo
 ```
 
-The flow uses the synthetic demo seed harness, calls `check` and `explain`, and shows both allow and deny-by-default results. See [`docs/five-minute-quickstart.md`](docs/five-minute-quickstart.md).
+The demo seeds a synthetic graph, calls `check` and `explain`, and shows both allow and deny-by-default results. See the [five-minute quickstart](docs/five-minute-quickstart.md).
 
-For the full local evaluation path, keep the same API running and execute:
+For the full 30-minute evaluation (policy tests, dry-run provisioning, reconciliation, audit export, evidence export), keep the API running and:
 
 ```sh
 pnpm evaluation:demo
 ```
 
-The evaluation runner adds policy validation and tests, all evaluation check and explain presets, dry-run provisioning, reconciliation, audit export, and evidence export. See [`docs/developer-evaluation-path.md`](docs/developer-evaluation-path.md).
+See the [developer evaluation path](docs/developer-evaluation-path.md). For pre-submit confidence, `pnpm ci:check` runs the CI-equivalent gate (adds lint, build, and evidence freshness).
 
 ## Run The Local API
-
-For local development, run the API directly from TypeScript:
 
 ```sh
 pnpm exec tsx packages/api/src/bin.ts
 ```
 
-The API listens on `127.0.0.1:3000` by default. Useful environment variables:
+The API listens on `127.0.0.1:3000` by default.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -79,11 +138,11 @@ The API listens on `127.0.0.1:3000` by default. Useful environment variables:
 | `REBAC_API_PORT` | `3000` | Bind port. |
 | `REBAC_API_ACTOR` | `service:api` | Default actor for service-emitted audit events when bearer tokens are unlabeled or auth is disabled on loopback. |
 | `REBAC_API_KEYS` | unset | Comma-separated bearer tokens for `/v1` routes except health and readiness. Optional `label:token` entries record audit events as `api-key:<label>`. |
-| `REBAC_STATE_PATH` | unset | Optional JSON runtime state snapshot path. |
+| `REBAC_STATE_PATH` | unset | Optional JSON runtime state snapshot path. Includes policy lifecycle state, restored on restart. |
 | `REBAC_EVIDENCE_ROOT` | unset | Optional local persistence root for audit records and evidence packages. |
 | `REBAC_DATABASE_URL` | unset | Optional PostgreSQL connection URL. When set, graph, connector-state, audit, and evidence persistence use the `@access-kit/persistence-postgres` backend instead of local files. |
-| `REBAC_DATABASE_TENANT_BOUNDARY` | unset | Tenant boundary required by the PostgreSQL backend (for example `tenant:alpha`). Required when `REBAC_DATABASE_URL` is set. |
-| `REBAC_DATABASE_AUDIT_SIGNING_KEY` | unset | Audit-window signing key material (32+ characters) for the PostgreSQL backend. Required when `REBAC_DATABASE_URL` is set. |
+| `REBAC_DATABASE_TENANT_BOUNDARY` | unset | Tenant boundary required by the PostgreSQL backend (for example `tenant:alpha`). Required with `REBAC_DATABASE_URL`. |
+| `REBAC_DATABASE_AUDIT_SIGNING_KEY` | unset | Audit-window signing key material (32+ characters) for the PostgreSQL backend. Required with `REBAC_DATABASE_URL`. |
 
 Public probes:
 
@@ -92,7 +151,19 @@ curl http://127.0.0.1:3000/v1/health
 curl http://127.0.0.1:3000/v1/ready
 ```
 
-When `REBAC_API_KEYS` is set, call protected routes with `Authorization: Bearer <token>`. Entries may use optional labels as `label:token`; labeled tokens record audit events under `api-key:<label>` while unlabeled tokens use `REBAC_API_ACTOR`. Because the first colon opts an entry into labeled parsing, deployments upgrading with existing opaque tokens that contain `:` must rotate those tokens to colon-free values first. The runtime refuses to bind beyond loopback without keys, audits failed authentication attempts, and excludes token material from logs.
+When `REBAC_API_KEYS` is set, call protected routes with `Authorization: Bearer <token>`. Labeled tokens (`label:token`) attribute audit events to `api-key:<label>`; unlabeled tokens use `REBAC_API_ACTOR`. Because the first colon opts an entry into labeled parsing, rotate any existing opaque tokens containing `:` to colon-free values before upgrading. The runtime refuses to bind beyond loopback without keys, audits failed authentication attempts, and excludes token material from logs. Internal errors return generic bodies — details stay in server-side logs.
+
+### Choosing a persistence backend
+
+```mermaid
+flowchart LR
+    START{REBAC_DATABASE_URL set?} -- yes --> PG[("PostgreSQL backend<br/>trigger-enforced append-only audit,<br/>sequence-continuity checks,<br/>durable: true")]
+    START -- no --> STATE{REBAC_STATE_PATH set?}
+    STATE -- yes --> JSON["Local JSON snapshots<br/>atomic writes, durable: false"]
+    STATE -- no --> MEM["In-memory only<br/>evaluation mode"]
+```
+
+Persistence descriptors are honest: only the PostgreSQL backend reports `durable: true`, and only when actually connected. `/v1/ready` reports the backend in use.
 
 ## Run The CLI
 
@@ -106,7 +177,43 @@ REBAC_API_URL=http://127.0.0.1:3000 pnpm exec tsx packages/cli/src/bin.ts connec
 
 The CLI is an operator wrapper over the API contract. Authorization logic belongs in the API/core engine, not in the CLI.
 
-## Evidence And Validation
+## The Policy Model
+
+Authorization semantics are declared, validated, and compiled — not hardcoded. A policy model names its relations (with kinds: `grant`, `membership`, `containment`, `deny`), maps actions to grant relations, scopes inheritance rules to actions, and declares override deny rules. Abridged example:
+
+```jsonc
+{
+  "schemaVersion": "access-kit.policy-model.v1",
+  "id": "policy-model:example",
+  "version": "policy:example-v1",
+  "relations": [
+    { "name": "member_of",  "kind": "membership",  "subjectTypes": ["user", "group"], "objectTypes": ["group"] },
+    { "name": "contains",   "kind": "containment", "subjectTypes": ["workspace"],     "objectTypes": ["document"] },
+    { "name": "auditor_of", "kind": "grant",       "subjectTypes": ["user"],          "objectTypes": ["dataset"] },
+    { "name": "denied",     "kind": "deny",        "subjectTypes": ["user"],          "objectTypes": ["dataset"] }
+  ],
+  "actions": [{ "name": "audit", "grants": ["auditor_of"] }],
+  "inheritanceRules": [
+    { "name": "group-grants", "relation": "member_of", "through": "member_of", "actions": ["audit"] }
+  ],
+  "denyRules": [{ "name": "explicit-deny", "relation": "denied", "precedence": "override" }]
+  // Abridged: a complete model also declares resourceTypes, tenantBoundary,
+  // classificationConstraints, contextConstraints, and migrations.
+}
+```
+
+For a complete model that passes `pnpm validate:sample-policy`, copy [`examples/sample-policy-repository/models/case-docs.v1.json`](examples/sample-policy-repository/models/case-docs.v1.json). Undeclared relations grant nothing, deny rules always win, and every model change is validated for internal consistency before it can publish. See the [domain model](docs/domain-model.md) and [decision lifecycle](docs/decision-lifecycle.md).
+
+## Assurance
+
+The engine and API are covered by behavioral tests, property-based fuzzing, and contract gates:
+
+- **~500 behavioral tests** across the engine, live HTTP API runtime, CLI-over-API, connectors, and PEP conformance.
+- **Property-based fuzzing** (fast-check) over randomized graphs asserting deny-by-default, deny-override, deny monotonicity, tenant isolation, and determinism invariants.
+- **Contract parity gates**: the OpenAPI spec, route registry, contract-snapshot client, and CLI command manifest are cross-validated in CI.
+- **Benchmark regression gate** on decision-engine latency targets.
+- **CI-exercised PostgreSQL integration tests** against a real `postgres:16` service container, plus a container smoke test that seeds data and asserts real allow and deny decisions.
+- **Tamper-evident audit**: SHA-256 hash chains, HMAC-signed audit windows, Ed25519-signed evidence packages, and database-trigger-enforced append-only audit tables on the PostgreSQL backend.
 
 Generate or check the proof-point validation report:
 
@@ -115,84 +222,68 @@ pnpm evidence:generate
 pnpm evidence:check
 ```
 
-The generated report lives at `reports/proof-point-validation.md`. Regenerate it when validation inputs, proof-point fixtures, or expected counts change.
+The report lives at `reports/proof-point-validation.md`.
 
-Useful steward and stack commands:
+## What It Is Not
 
-```sh
-pnpm pr:status
-pnpm backlog:batch
-pnpm backlog:next
-pnpm stack:ready
-pnpm security:pass
-pnpm pr:stack
-```
-
-`pnpm pr:stack` wraps `gt submit --stack`. Run it from a clean worktree after preflight mergeability against `origin/main`.
+- Not an identity provider or authentication system.
+- Not a SIEM, ticketing system, or generic workflow platform.
+- Not an AWS IAM, Entra ID, Active Directory, SharePoint, Teams, or Power Platform replacement.
+- Not a UI-first admin portal.
+- It does not use an LLM to make authorization decisions.
+- It does not claim a production ATO.
 
 ## Repository Map
 
 | Path | Purpose |
 | --- | --- |
-| `docs/start-here.md` | Documentation entry point and reading path. |
-| `docs/product-positioning-adoption-guide.md` | Product positioning, adoption fit, non-goals, integration patterns, and evaluation checklists. |
-| `docs/five-minute-quickstart.md` | Docker Compose quickstart for the local API and seeded demo decisions. |
-| `docs/developer-evaluation-path.md` | Full local 30-minute evaluation path over policy tests, dry-run provisioning, reconciliation, audit export, and evidence export. |
-| `docs/implementation-backlog.md` | Durable slice backlog for Codex and human coordination. |
-| `docs/automation.md` | PR steward, next-slice, labels, and merge-readiness operating loop. |
-| `docs/` | Concept of operations, boundary, architecture, domain, API reference and notes, CLI, persistence, decision and cache semantics, demo seed harness, PEP conformance, sample SaaS and internal admin apps, provisioning, connector contract and authoring, drift, HA/degraded-mode operations, deployment, production reference architecture, runbook exercise evidence, secure SDLC evidence, security, threat, ATO evidence, controls, assessor guidance, and readiness reporting. |
-| `runbooks/` | Emergency revocation, rollback, drift, outage, break-glass, export, credential, and decision API outage procedures. |
-| `examples/` | Synthetic API collections, CLI examples, TypeScript/Python/Go PEP starters, sample SaaS and internal admin apps, sample policy repository, connector template, and control/evidence mapping examples. |
-| `.github/workflows/` | CI, contract validation, and security checks. |
-| `deploy/` | Reference Kubernetes deployment manifests, production-reference overlays, persistence evidence, and admission-policy examples. |
-| `adrs/` | Architecture decision records for the foundation. |
+| `packages/core/` | Domain types, policy model + compiler, decision engine, audit chain, repository contracts, reference adapters. |
+| `packages/api/` | HTTP API runtime (`rebac-api`), auth, request validation, runtime modules, readiness checks. |
+| `packages/persistence-postgres/` | PostgreSQL persistence backend with append-only audit tables. |
+| `packages/api-contracts/` | OpenAPI contract snapshot and contract client exports. |
+| `packages/typescript-client/` | TypeScript client and Express-style PEP helper. |
+| `packages/cli/` | Operator CLI over the API contract. |
+| `packages/connectors-aws/` | Read-only AWS access-analysis connector (IAM Identity Center, CloudTrail, Access Analyzer). |
+| `packages/connectors-microsoft-graph/` | Read-only Microsoft Graph Entra connector. |
+| `packages/connectors-mock/` | Mock and synthetic connectors implementing the adapter boundary. |
+| `packages/connectors-sample-readonly/` | Copyable read-only connector template with contract tests. |
 | `openapi/` | ReBAC control-plane OpenAPI contract. |
 | `schemas/` | JSON Schemas for public domain contracts. |
-| `packages/core/` | Deterministic domain types, proof-point evaluator, and repository contracts. |
-| `packages/api/` | HTTP API runtime, persistence wiring, readiness checks, and `rebac-api` service entrypoint. |
-| `packages/api-contracts/` | Contract and schema manifest exports. |
-| `packages/typescript-client/` | TypeScript client and Express-style PEP helper for application integration examples. |
-| `packages/cli/` | CLI command contract and operator CLI implementation. |
-| `packages/connectors-aws/` | Optional AWS read-only access-analysis connector for IAM Identity Center assignments, AWS accounts/roles, CloudTrail activity, and Access Analyzer findings. |
-| `packages/connectors-microsoft-graph/` | Optional Microsoft Graph Entra read-only connector for sandbox user, group, service-principal, and app-role readback. |
-| `packages/connectors-mock/` | Mock and synthetic provider connectors implementing the adapter boundary. |
-| `packages/connectors-sample-readonly/` | Copyable sample read-only connector template with redacted fixtures and contract tests. |
+| `docs/` | Concept of operations, architecture, domain, API/CLI references, security and threat models, ATO evidence, assessor guidance. |
+| `runbooks/` | Emergency revocation, rollback, drift, outage, break-glass, and credential procedures. |
+| `examples/` | API collections, CLI examples, TypeScript/Python/Go PEP starters, sample apps, sample policy repository. |
+| `deploy/` | Reference Kubernetes manifests, overlays, persistence evidence, admission-policy examples. |
+| `adrs/` | Architecture decision records. |
 | `scripts/` | Validation, evidence-generation, steward, and stack-readiness commands. |
-| `tests/fixtures/` | Schema examples and policy proof points. |
+| `tests/` | Behavioral, property, conformance, and contract test suites. |
 | `reports/` | Generated validation evidence. |
 
-## Canonical Sources
+## Documentation
 
-| Source | Canonical path |
-| --- | --- |
-| Documentation entry point | [`docs/start-here.md`](docs/start-here.md) |
-| Product positioning and adoption guide | [`docs/product-positioning-adoption-guide.md`](docs/product-positioning-adoption-guide.md) |
-| Five-minute quickstart | [`docs/five-minute-quickstart.md`](docs/five-minute-quickstart.md) |
-| Developer evaluation path | [`docs/developer-evaluation-path.md`](docs/developer-evaluation-path.md) |
-| Public API | [`openapi/rebac-control-plane.yaml`](openapi/rebac-control-plane.yaml) |
-| API notes | [`docs/api.md`](docs/api.md) |
-| CLI contract | [`docs/cli.md`](docs/cli.md) |
-| PEP conformance | [`docs/pep-conformance.md`](docs/pep-conformance.md) |
-| Domain model | [`docs/domain-model.md`](docs/domain-model.md) |
-| Connector contract | [`docs/connector-contract.md`](docs/connector-contract.md) |
-| Connector authoring tutorial | [`docs/connector-authoring-tutorial.md`](docs/connector-authoring-tutorial.md) |
-| Sample connector template | [`examples/connectors/sample-readonly-template.md`](examples/connectors/sample-readonly-template.md) and [`packages/connectors-sample-readonly/`](packages/connectors-sample-readonly/) |
-| Production reference architecture | [`docs/production-reference-architecture.md`](docs/production-reference-architecture.md) |
-| Security model | [`docs/security-model.md`](docs/security-model.md) |
-| Threat model | [`docs/threat-model.md`](docs/threat-model.md) |
-| Product release packaging | [`docs/release-packaging.md`](docs/release-packaging.md) |
-| Support policy | [`docs/support-policy.md`](docs/support-policy.md) |
-| Security policy | [`SECURITY.md`](SECURITY.md) |
-| Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
-| Evidence catalog | [`docs/evidence-catalog.md`](docs/evidence-catalog.md) |
-| Assessor inspection guide | [`docs/assessor-inspection-guide.md`](docs/assessor-inspection-guide.md) |
-| Implementation backlog | [`docs/implementation-backlog.md`](docs/implementation-backlog.md) |
+Start at [`docs/start-here.md`](docs/start-here.md). Suggested reading path:
 
-## First Reading Path
+1. [Concept of operations](docs/concept-of-operations.md) and [system context and boundary](docs/system-context-and-boundary.md) for operating scope.
+2. [Domain model](docs/domain-model.md), [decision lifecycle](docs/decision-lifecycle.md), [explain API](docs/explain-api.md), and [PEP conformance](docs/pep-conformance.md) for authorization behavior.
+3. [Provisioning lifecycle](docs/provisioning-lifecycle.md), [connector contract](docs/connector-contract.md), [connector authoring tutorial](docs/connector-authoring-tutorial.md), and [drift detection](docs/drift-detection-model.md) for operational change control.
+4. [Audit event model](docs/audit-event-model.md), [evidence catalog](docs/evidence-catalog.md), [control traceability matrix](docs/control-traceability-matrix.md), and [assessor inspection guide](docs/assessor-inspection-guide.md) for inspection and evidence.
+5. [Security model](docs/security-model.md), [threat model](docs/threat-model.md), and the runbooks before operating enforcement paths.
 
-1. Start with [`docs/start-here.md`](docs/start-here.md).
-2. Read [`docs/concept-of-operations.md`](docs/concept-of-operations.md) and [`docs/system-context-and-boundary.md`](docs/system-context-and-boundary.md) for operating scope.
-3. Read [`docs/domain-model.md`](docs/domain-model.md), [`docs/decision-lifecycle.md`](docs/decision-lifecycle.md), [`docs/explain-api.md`](docs/explain-api.md), and [`docs/pep-conformance.md`](docs/pep-conformance.md) for authorization behavior and enforcement expectations.
-4. Read [`docs/provisioning-lifecycle.md`](docs/provisioning-lifecycle.md), [`docs/connector-contract.md`](docs/connector-contract.md), [`docs/connector-authoring-tutorial.md`](docs/connector-authoring-tutorial.md), and [`docs/drift-detection-model.md`](docs/drift-detection-model.md) for operational change control.
-5. Read [`docs/audit-event-model.md`](docs/audit-event-model.md), [`docs/evidence-catalog.md`](docs/evidence-catalog.md), [`docs/control-traceability-matrix.md`](docs/control-traceability-matrix.md), and [`docs/assessor-inspection-guide.md`](docs/assessor-inspection-guide.md) for inspection and evidence.
-6. Read [`docs/security-model.md`](docs/security-model.md), [`docs/threat-model.md`](docs/threat-model.md), and the runbooks before operating enforcement paths.
+Other canonical sources: [API notes](docs/api.md) · [CLI contract](docs/cli.md) · [persistence](docs/persistence.md) · [production reference architecture](docs/production-reference-architecture.md) · [release packaging](docs/release-packaging.md) · [support policy](docs/support-policy.md) · [security policy](SECURITY.md) · [changelog](CHANGELOG.md) · [implementation backlog](docs/implementation-backlog.md) · [automation loop](docs/automation.md)
+
+## Contributing And Automation
+
+The repo runs a stacked-PR workflow with steward tooling:
+
+```sh
+pnpm pr:status       # PR steward dry run
+pnpm backlog:next    # next implementation slice
+pnpm stack:ready     # stack readiness preflight
+pnpm security:pass   # audit + full CI-equivalent gate
+pnpm pr:stack        # gt submit --stack
+```
+
+Run `pnpm pr:stack` from a clean worktree after preflighting mergeability against `origin/main`. See [`docs/automation.md`](docs/automation.md).
+
+## License
+
+[MIT](LICENSE)
