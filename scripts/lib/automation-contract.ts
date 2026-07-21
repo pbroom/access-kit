@@ -231,6 +231,7 @@ export const automationContract = {
               "pnpm validate:persistence-deployment",
               "pnpm validate:secure-sdlc",
               "pnpm validate:live-enforcement-pilot",
+              "pnpm validate:runbook-exercises",
               "pnpm validate:sample-admin-app"
             ]
           },
@@ -247,6 +248,10 @@ export const automationContract = {
             requiredRuns: ["pnpm evidence:check"]
           },
           {
+            name: "decision-engine-benchmark",
+            requiredRuns: ["pnpm benchmark:decision-engine --check"]
+          },
+          {
             name: "container-packaging",
             requiredRuns: [
               "docker build --target runtime --tag access-kit-rebac-api:${{ github.sha }} ."
@@ -255,7 +260,11 @@ export const automationContract = {
               "rebac-api-smoke",
               "did not become healthy within 20 seconds",
               "/v1/ready",
-              "REBAC_API_KEYS=ci-smoke"
+              "REBAC_API_KEYS=ci-smoke",
+              '"identifiers":{"ciId":"smoke-allow"}',
+              '"identifiers":{"ciId":"smoke-deny"}',
+              "/v1/decision/check",
+              "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
             ]
           }
         ]

@@ -1,8 +1,8 @@
 # Proof-Point Validation Evidence
 
-Generated at: 2026-07-20T21:18:38.732Z
+Generated at: 2026-07-20T21:19:42.507Z
 
-Branch: codex/consolidate-ceremony-validators
+Branch: codex/hard-tests
 
 Node: v24.4.1
 
@@ -154,8 +154,8 @@ PASS aws-readonly: identity, consent, tenant boundary, and least-privilege scope
 
  Test Files  1 passed (1)
       Tests  6 passed (6)
-   Start at  17:18:31
-   Duration  376ms (transform 197ms, setup 0ms, import 295ms, tests 22ms, environment 0ms)
+   Start at  17:19:34
+   Duration  418ms (transform 221ms, setup 0ms, import 329ms, tests 25ms, environment 0ms)
 ```
 
 ### deployment manifest validation
@@ -222,10 +222,10 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
  RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
 
- Test Files  15 passed (15)
-      Tests  190 passed (190)
-   Start at  17:18:33
-   Duration  305ms (transform 1.65s, setup 0ms, import 2.37s, tests 155ms, environment 1ms)
+ Test Files  16 passed (16)
+      Tests  195 passed (195)
+   Start at  17:19:37
+   Duration  562ms (transform 3.30s, setup 0ms, import 4.57s, tests 348ms, environment 1ms)
 ```
 
 ### API runtime tests
@@ -240,8 +240,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  8 passed (8)
       Tests  125 passed (125)
-   Start at  17:18:34
-   Duration  650ms (transform 1.37s, setup 0ms, import 2.19s, tests 512ms, environment 0ms)
+   Start at  17:19:38
+   Duration  816ms (transform 1.76s, setup 0ms, import 2.84s, tests 635ms, environment 0ms)
 ```
 
 ### SDK PEP conformance tests
@@ -256,8 +256,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  4 passed (4)
       Tests  24 passed (24)
-   Start at  17:18:35
-   Duration  594ms (transform 411ms, setup 0ms, import 654ms, tests 283ms, environment 0ms)
+   Start at  17:19:39
+   Duration  549ms (transform 408ms, setup 0ms, import 640ms, tests 243ms, environment 0ms)
 ```
 
 ### sample internal admin app tests
@@ -272,8 +272,8 @@ PASS Live enforcement pilot manifest, readiness report artifact, approval workfl
 
  Test Files  1 passed (1)
       Tests  8 passed (8)
-   Start at  17:18:36
-   Duration  244ms (transform 132ms, setup 0ms, import 168ms, tests 8ms, environment 0ms)
+   Start at  17:19:40
+   Duration  209ms (transform 113ms, setup 0ms, import 140ms, tests 9ms, environment 0ms)
 ```
 
 ### connector package tests
@@ -284,8 +284,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
  Test Files  8 passed (8)
       Tests  47 passed (47)
-   Start at  17:18:37
-   Duration  386ms (transform 1.40s, setup 0ms, import 1.95s, tests 86ms, environment 0ms)
+   Start at  17:19:41
+   Duration  343ms (transform 1.24s, setup 0ms, import 1.73s, tests 83ms, environment 0ms)
 ```
 
 ### CLI API smoke tests
@@ -300,8 +300,8 @@ RUN  v4.1.7 /Users/peterbroomfield/access-kit-stack-ops
 
  Test Files  3 passed (3)
       Tests  50 passed (50)
-   Start at  17:18:37
-   Duration  528ms (transform 718ms, setup 0ms, import 1.13s, tests 157ms, environment 0ms)
+   Start at  17:19:41
+   Duration  465ms (transform 597ms, setup 0ms, import 968ms, tests 160ms, environment 0ms)
 ```
 
 
