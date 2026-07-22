@@ -59,21 +59,15 @@ The container packaging defaults `REBAC_API_HOST` to `0.0.0.0` and persists loca
 
 ## Decision API
 
-`POST /v1/decision/check` is the fast path for allow or deny.
+`check`, `explain`, and `batch-check` semantics, reason codes, cache rules, and PEP requirements are documented in [Decisions](decisions.md). Decisions do not create grants and do not mutate native providers; provisioning starts only after a separate provisioning plan.
 
-`POST /v1/decision/explain` is the inspection path for the same deterministic decision with relationship path, reason code, constraints, policy version, relationship version, and evaluation timestamp. See [Explain API](explain-api.md).
+## Read-Only Discovery
 
-`POST /v1/decision/batch-check` evaluates several decision requests under the same API contract.
-
-Decisions do not create grants and do not mutate native providers. Provisioning starts only after a separate provisioning plan.
-
-## Phase 2 Read-Only Discovery
-
-`GET /v1/connectors` returns the registered connector adapters, including provider, tenant boundary, required read scopes, and capability flags. Phase 2 registers synthetic `mock`, `entra-readonly`, `sharepoint-readonly`, and `aws-readonly` connectors. These are contract fixtures, not live tenant integrations. When `REBAC_MICROSOFT_GRAPH_ENTRA_ID_ENABLED=true` and sandbox token configuration is present, the runtime also registers `microsoft-graph-entra-readonly`, an opt-in read-only Microsoft Graph connector that redacts tenant data and leaves provider writes blocked.
+`GET /v1/connectors` returns the registered connector adapters, including provider, tenant boundary, required read scopes, and capability flags. The runtime registers synthetic `mock`, `entra-readonly`, `sharepoint-readonly`, and `aws-readonly` connectors. These are contract fixtures, not live tenant integrations. When `REBAC_MICROSOFT_GRAPH_ENTRA_ID_ENABLED=true` and sandbox token configuration is present, the runtime also registers `microsoft-graph-entra-readonly`, an opt-in read-only Microsoft Graph connector that redacts tenant data and leaves provider writes blocked.
 
 `POST /v1/connectors/{id}/test` returns connector health and permission checks. Check statuses are `pass`, `warn`, or `fail`; only failures make the response invalid.
 
-`POST /v1/connectors/{id}/enforcement-readiness` returns an `EnforcementReadinessReport`. Phase 4 readiness is synthetic-only: the mock connector can return `ready` when live writes are disabled, incident mode is clear, break-glass is disabled, and provisioning/readback capabilities are present. Synthetic provider read-only connectors return `blocked` because live least-privilege write review is intentionally incomplete. The check emits `connector.enforcement_readiness_checked` audit evidence.
+`POST /v1/connectors/{id}/enforcement-readiness` returns an `EnforcementReadinessReport`. Readiness is synthetic-only: the mock connector can return `ready` when live writes are disabled, incident mode is clear, break-glass is disabled, and provisioning/readback capabilities are present. Synthetic provider read-only connectors return `blocked` because live least-privilege write review is intentionally incomplete. The check emits `connector.enforcement_readiness_checked` audit evidence.
 
 `GET /v1/connectors/{id}/enforcement-readiness` lists readiness reports and supports filtering by `status`.
 
@@ -91,19 +85,19 @@ Decisions do not create grants and do not mutate native providers. Provisioning 
 
 `POST /v1/policies/{id}/publish` fails closed unless the policy has passed validation. Unvalidated drafts return `POLICY_NOT_VALIDATED`; models that no longer pass validation return `POLICY_VALIDATION_FAILED`.
 
-## Phase 3 And 4 Provisioning
+## Provisioning
 
 `POST /v1/provisioning/plans` defaults to `mode: "dry_run"` with `dryRun: true`. A plan records connector ID, action idempotency keys, pending verification metadata, and compensation intent. Revocation plans use `grantId`; grant/repair plans use subject, resource, and action.
 
 `POST /v1/provisioning/jobs` also defaults to `mode: "dry_run"` with `dryRun: true` and `Idempotency-Key`. The local runtime returns the same job for repeated submissions with the same idempotency key. Dry-run jobs do not call provider write APIs; they mark actions as skipped, run connector verification hooks, and emit provisioning audit events.
 
-Phase 4 adds `mode: "enforcement"` with `dryRun: false` for the synthetic `mock` connector only. Enforcement requests must include an approval object with `decision: "approved"`, `approverId`, `changeTicket`, and `approvedAt`, a control object with `syntheticOnly: true`, `liveProviderWrites: false`, `incidentMode: false`, and `breakGlass: false`, and a ready `readinessReportId` from the matching connector. The readiness report must match the current connector boundary, the submitted controls, and the approval change-ticket pattern. Read-only synthetic provider connectors, missing readiness evidence, and unsafe control settings are rejected before a job is accepted.
+Controlled enforcement uses `mode: "enforcement"` with `dryRun: false` for the synthetic `mock` connector only. Enforcement requests must include an approval object with `decision: "approved"`, `approverId`, `changeTicket`, and `approvedAt`, a control object with `syntheticOnly: true`, `liveProviderWrites: false`, `incidentMode: false`, and `breakGlass: false`, and a ready `readinessReportId` from the matching connector. The readiness report must match the current connector boundary, the submitted controls, and the approval change-ticket pattern. Read-only synthetic provider connectors, missing readiness evidence, and unsafe control settings are rejected before a job is accepted.
 
 `GET /v1/provisioning/jobs/{id}` returns dry-run or controlled-enforcement job evidence.
 
 `POST /v1/reconciliation/run` remains dry-run only and returns findings, counts, and audit event IDs.
 
-## Phase 5 ATO Evidence
+## Readiness, Audit, And Evidence
 
 `GET /v1/ready` returns deployment-readiness checks for the local API runtime. It reports bearer-token guard configuration, admin authorization descriptor status, local graph/job/state wiring, local audit/evidence repositories, persistence degradation, and whether connector adapters are configured. The admin authorization check reports only descriptor mode and check statuses; it does not expose token material, claims, trusted header names, certificate data, connector identifiers, or secret references. Degraded persistence receipts are retained in runtime state when the state repository is available, so restart checks can still disclose local proof-point write failures. The endpoint is public for orchestrator probes and never returns token material or connector identifiers.
 
@@ -113,51 +107,13 @@ The core package also defines persistent graph, audit, job repository, and produ
 
 `GET /v1/audit/export` accepts `from`, `to`, and `target`. It returns a bounded `AuditEventExport` with JSONL records, source event IDs, payload hashes, an `exportedEventCount` for the requested window, and full-chain audit-integrity status. The local runtime supports `operator_download` and `siem_forwarder` as contract targets, but does not push events to an external SIEM. The export emits `audit.exported` audit evidence.
 
-`GET /v1/evidence/export` accepts `framework`, `controls`, `from`, `to`, and `format`. The response is the complete local Phase 5 ATO package shape: audit integrity, reproducible integrity manifest, control mappings, control statements, generated artifacts, system boundary, data flows, access reviews, exception register, continuous-monitoring metrics, POA&M inputs and export, OSCAL component-definition, SSP, assessment-results, and POA&M fragments, signed package metadata, verifier checks, control-to-event trace views, operational evidence, and JSONL-ready SIEM export metadata. When an evidence repository is configured, the response also includes a storage receipt for the persisted package. The export emits `evidence.generated` audit evidence.
+`GET /v1/evidence/export` accepts `framework`, `controls`, `from`, `to`, and `format` and returns the complete local ATO package shape described in the [ATO Evidence Model](ato-evidence-model.md). When an evidence repository is configured, the response also includes a storage receipt. The export emits `evidence.generated` audit evidence.
 
 `POST /v1/evidence/verify` accepts an evidence export package and returns verifier checks for the canonical package hash, section hashes, signed package metadata, deployment scope, OSCAL fragments, POA&M export, and control trace views. The verifier keeps machine-readable evidence traceable to source events, reviewed statements, signatures, and deployment-specific scope without evaluating authorization locally.
 
 ## Write Requirements
 
-Every write operation must:
-
-- require `Idempotency-Key`
-- emit an audit event
-- preserve policy and relationship version context where relevant
-- support retry without duplicate effective grants
-- return stable canonical IDs
-
-## Decision Requirements
-
-Every decision response includes:
-
-- decision ID
-- allow or deny
-- subject, action, and resource
-- reason code
-- policy version
-- relationship tuple version
-- relationship path used, when any
-- constraints
-- evaluation timestamp
-
-`check` is optimized for fast allow or deny. `explain` is optimized for audit, incident response, system owner review, and assessor evidence.
-
-## Reason Codes
-
-Stable reason codes are required for audit, test, and assessor traceability.
-
-| Reason code | Meaning |
-| --- | --- |
-| `ALLOW_VIA_RELATIONSHIP_PATH` | Active relationship path grants the requested action. |
-| `DENY_DEFAULT_NO_RELATIONSHIP_PATH` | No active action-bearing relationship path exists. |
-| `DENY_EXPLICIT_OVERRIDE` | Deny or quarantine relationship overrides any allow path. |
-| `DENY_SUBJECT_NOT_FOUND` | Requested subject does not exist in the canonical store. |
-| `DENY_SUBJECT_NOT_ACTIVE` | Subject exists but is not active. |
-| `DENY_SUBJECT_LIFECYCLE_UNKNOWN_AS_OF` | Historical subject lifecycle state cannot be inferred safely from available timestamps. |
-| `DENY_RESOURCE_NOT_FOUND` | Requested resource does not exist in the canonical store. |
-| `DENY_RESOURCE_NOT_ACTIVE` | Resource exists but is not active. |
-| `DENY_RESOURCE_LIFECYCLE_UNKNOWN_AS_OF` | Historical resource lifecycle state cannot be inferred safely from available timestamps. |
+Every write operation must require `Idempotency-Key`, emit an audit event, preserve policy and relationship version context where relevant, support retry without duplicate effective grants, and return stable canonical IDs.
 
 ## API Errors
 
@@ -167,8 +123,7 @@ Security-sensitive failures should fail closed. Error examples must remain synth
 
 ## Related Documentation
 
-- [Decision Lifecycle](decision-lifecycle.md)
-- [Explain API](explain-api.md)
+- [Decisions](decisions.md)
 - [Provisioning Lifecycle](provisioning-lifecycle.md)
 - [Connector Contract](connector-contract.md)
 - [Audit Event Model](audit-event-model.md)

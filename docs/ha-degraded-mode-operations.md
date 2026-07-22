@@ -1,44 +1,30 @@
 # HA And Degraded-Mode Operations
 
-## Purpose
-
-This page defines the production high-availability and degraded-mode operating contract for Access Kit. It extends the production reference architecture with explicit topology expectations, fail-closed behavior, queue backpressure handling, audit-forwarder outage behavior, read-only fallback rules, health signals, and recovery criteria.
-
-## Audience
-
-Platform engineers, security engineers, connector owners, incident responders, ISSOs, assessors, and operators responsible for production authorization infrastructure.
-
-## What This Is
-
-This is a release-readiness and operations contract. It tells a deployment team what must stay available, what can degrade, which actions must stop, and what evidence must be retained before Access Kit can claim resilient production operations.
-
-## What This Is Not
-
-This is not a selected cloud architecture, an autoscaling policy, a disaster-recovery approval, or permission to enable live provider writes. Target environments must still supply deployment-specific capacity, region, backup, SIEM, alerting, and recovery evidence.
+This page answers: what must stay available, what can degrade, which actions must stop when it does, and what evidence closes a degraded mode? It extends the production reference architecture in [Deployment](deployment.md). It is not a selected cloud architecture or an autoscaling policy — target environments still supply deployment-specific capacity, region, backup, SIEM, alerting, and recovery evidence.
 
 ## HA Topology
 
-| Plane | HA expectation | Degraded-mode contract |
-| --- | --- | --- |
-| API service | Run at least two `rebac-api` replicas behind an approved IdP or mTLS gateway for production traffic. | If quorum, gateway identity, or readiness fails, protected authorization and admin mutation paths fail closed. |
-| Graph and connector-state stores | Use durable external stores with tenant-boundary checks, backups, and restore evidence. | If graph reads are stale or unavailable, decisions for protected resources deny and connector-derived facts are treated as untrusted. |
-| Job queue and workers | Use a durable queue with idempotency, lease expiry, retry, dead-letter, replay, connector health, and emergency revocation priority. | Queue backpressure pauses new grants and non-urgent discovery while emergency revocation remains reservable. |
-| Audit and evidence store | Use append-only or immutable storage with signed windows, retention metadata, and backup evidence. | Mutating workflows that cannot retain required audit evidence stop before provider action. |
-| SIEM forwarder | Deliver bounded audit windows and retain replay proof. | Decision and queue safety do not depend on SIEM delivery, but failed delivery becomes a high-severity integrity finding until replay succeeds. |
-| Connectors | Keep live provider access read-only until connector-specific enforcement readiness is approved. | Missing readback, stale cursors, partial sync, or provider outage blocks live enforcement and raises operator-visible warnings. |
-| Admin access | Require approved IdP or mTLS gateway, admin ReBAC, MFA, session bounds, revocation SLA, and break-glass evidence. | Admin mutation freezes unless emergency access is approved, time-boxed, audited, and reviewed. |
+| Plane                            | HA expectation                                                                                                                       | Degraded-mode contract                                                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| API service                      | Run at least two `rebac-api` replicas behind an approved IdP or mTLS gateway for production traffic.                                 | If quorum, gateway identity, or readiness fails, protected authorization and admin mutation paths fail closed.                                 |
+| Graph and connector-state stores | Use durable external stores with tenant-boundary checks, backups, and restore evidence.                                              | If graph reads are stale or unavailable, decisions for protected resources deny and connector-derived facts are treated as untrusted.          |
+| Job queue and workers            | Use a durable queue with idempotency, lease expiry, retry, dead-letter, replay, connector health, and emergency revocation priority. | Queue backpressure pauses new grants and non-urgent discovery while emergency revocation remains reservable.                                   |
+| Audit and evidence store         | Use append-only or immutable storage with signed windows, retention metadata, and backup evidence.                                   | Mutating workflows that cannot retain required audit evidence stop before provider action.                                                     |
+| SIEM forwarder                   | Deliver bounded audit windows and retain replay proof.                                                                               | Decision and queue safety do not depend on SIEM delivery, but failed delivery becomes a high-severity integrity finding until replay succeeds. |
+| Connectors                       | Keep live provider access read-only until connector-specific enforcement readiness is approved.                                      | Missing readback, stale cursors, partial sync, or provider outage blocks live enforcement and raises operator-visible warnings.                |
+| Admin access                     | Require approved IdP or mTLS gateway, admin ReBAC, MFA, session bounds, revocation SLA, and break-glass evidence.                    | Admin mutation freezes unless emergency access is approved, time-boxed, audited, and reviewed.                                                 |
 
 ## Degraded Modes
 
-| Mode | Trigger | Allowed behavior | Blocked behavior | Evidence |
-| --- | --- | --- | --- | --- |
-| API degraded | `/v1/health` fails, latency exceeds SLO, or readiness reports blocked production controls. | Public probes and incident diagnostics. | Protected decisions for sensitive resources, relationship writes, provisioning applies, and admin mutations. | Health output, readiness output, incident timeline, post-recovery sample decisions. |
-| Graph stale or unavailable | Graph backend health fails, tenant-boundary verification fails, or restore point is older than accepted RPO. | Read-only diagnostics and restore validation. | Protected authorization decisions that depend on current graph facts. | Backend health, restore run, decision replay, tenant-boundary check. |
-| Queue backpressure | Queue depth, oldest job age, failed reservation rate, or dead-letter count exceeds the environment threshold. | Emergency revocation, replay diagnostics, connector health updates, and idempotent recovery work. | New grants, non-urgent discovery, bulk reconciliation, and enforcement expansion. | Queue metrics, dead-letter list, replay result, emergency priority observation. |
-| Audit store degraded | Append-only write, signed-window generation, evidence receipt, or backup metadata fails. | Read-only investigation and recovery actions that do not mutate authorization state. | Provider writes, relationship writes, admin policy changes, and evidence exports that would be incomplete. | Audit adapter findings, failed write receipt, signed-window recovery, backup status. |
-| SIEM forwarding outage | Delivery failure, replay failure, or stale SIEM checkpoint. | Local immutable audit retention and bounded replay preparation. | Claiming ConMon delivery is healthy. | Delivery failure finding, retained window, replay receipt, alert routing note. |
-| Connector readback degraded | Connector health is degraded/offline, cursor is stale, coverage warning is blocking, or partial sync recovery is incomplete. | Read-only diagnostics, provider status checks, and reconciliation planning. | Live enforcement, provider mutation, and closing high-risk drift as resolved. | Connector health, warning list, cursor age, provider status, reconciliation result. |
-| Admin boundary degraded | IdP, mTLS gateway, admin ReBAC role binding, revocation evidence, or break-glass workflow is missing. | Health checks and emergency access review. | Admin mutation, policy publication, connector configuration changes, and enforcement enablement. | Admin readiness output, approval evidence, session expiry, post-action review. |
+| Mode                        | Trigger                                                                                                                      | Allowed behavior                                                                                  | Blocked behavior                                                                                             | Evidence                                                                             |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| API degraded                | `/v1/health` fails, latency exceeds SLO, or readiness reports blocked production controls.                                   | Public probes and incident diagnostics.                                                           | Protected decisions for sensitive resources, relationship writes, provisioning applies, and admin mutations. | Health output, readiness output, incident timeline, post-recovery sample decisions.  |
+| Graph stale or unavailable  | Graph backend health fails, tenant-boundary verification fails, or restore point is older than accepted RPO.                 | Read-only diagnostics and restore validation.                                                     | Protected authorization decisions that depend on current graph facts.                                        | Backend health, restore run, decision replay, tenant-boundary check.                 |
+| Queue backpressure          | Queue depth, oldest job age, failed reservation rate, or dead-letter count exceeds the environment threshold.                | Emergency revocation, replay diagnostics, connector health updates, and idempotent recovery work. | New grants, non-urgent discovery, bulk reconciliation, and enforcement expansion.                            | Queue metrics, dead-letter list, replay result, emergency priority observation.      |
+| Audit store degraded        | Append-only write, signed-window generation, evidence receipt, or backup metadata fails.                                     | Read-only investigation and recovery actions that do not mutate authorization state.              | Provider writes, relationship writes, admin policy changes, and evidence exports that would be incomplete.   | Audit adapter findings, failed write receipt, signed-window recovery, backup status. |
+| SIEM forwarding outage      | Delivery failure, replay failure, or stale SIEM checkpoint.                                                                  | Local immutable audit retention and bounded replay preparation.                                   | Claiming ConMon delivery is healthy.                                                                         | Delivery failure finding, retained window, replay receipt, alert routing note.       |
+| Connector readback degraded | Connector health is degraded/offline, cursor is stale, coverage warning is blocking, or partial sync recovery is incomplete. | Read-only diagnostics, provider status checks, and reconciliation planning.                       | Live enforcement, provider mutation, and closing high-risk drift as resolved.                                | Connector health, warning list, cursor age, provider status, reconciliation result.  |
+| Admin boundary degraded     | IdP, mTLS gateway, admin ReBAC role binding, revocation evidence, or break-glass workflow is missing.                        | Health checks and emergency access review.                                                        | Admin mutation, policy publication, connector configuration changes, and enforcement enablement.             | Admin readiness output, approval evidence, session expiry, post-action review.       |
 
 ## Queue Backpressure
 
@@ -102,7 +88,7 @@ A degraded mode can close only after:
 
 ## Related References
 
-- [Production Reference Architecture](production-reference-architecture.md)
+- [Deployment](deployment.md)
 - [Security Model](security-model.md)
 - [Deployment Runbook](deployment-runbook.md)
 - [Evidence Catalog](evidence-catalog.md)

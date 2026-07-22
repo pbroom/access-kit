@@ -1,20 +1,6 @@
 # Connector Authoring Tutorial
 
-## Purpose
-
-This tutorial turns the connector security gate into an author-facing path for building a new read-only connector. It covers identity setup, consent, least-privilege scopes, pagination, throttling, deletion or tombstone semantics, coverage warnings, sync recovery, and release-gate evidence.
-
-## Audience
-
-Connector developers, platform engineers, security engineers, connector owners, ISSOs, and reviewers.
-
-## What This Is
-
-This is a practical guide for adding a connector that discovers provider inventory and observed native access while preserving Access Kit's proof-point safety model. The connector must start in `read_only` mode, expose discovery metadata and security review evidence, pass `pnpm validate:connector-security`, and keep provider writes out of scope.
-
-## What This Is Not
-
-This is not a guide for live provider writes, production enforcement, tenant-wide authorization, or provider-native administration. A read-only connector can inform decisions, drift findings, and evidence, but observed provider access is not intended access until policy and relationship data explicitly authorize it.
+This tutorial is the step-by-step path for building a new read-only connector against the [Connector Contract](connector-contract.md): identity setup, consent, least-privilege scopes, pagination, throttling, deletion semantics, coverage warnings, sync recovery, and release-gate evidence. The connector must start in `read_only` mode, expose discovery metadata and security review evidence, pass `pnpm validate:connector-security`, and keep provider writes out of scope — observed provider access is not intended access until policy and relationship data explicitly authorize it.
 
 ## Authoring Flow
 
@@ -77,25 +63,25 @@ Use `packages/core/src/domain.ts` as the source of truth for the `ConnectorAdapt
 
 ```ts
 export interface ConnectorAdapter {
-  id: string;
-  mode: ConnectorMode;
-  capabilities: ConnectorCapabilities;
-  provider?: string;
-  tenantBoundary?: string;
-  requiredReadScopes?: string[];
-  discoverSubjects(): Promise<Subject[]>;
-  discoverResources(): Promise<Resource[]>;
-  discoverRelationships(): Promise<RelationshipTuple[]>;
-  readCurrentAccess(resourceId: CanonicalId): Promise<NativeGrant[]>;
-  testReadOnlyAccess?(): Promise<ConnectorHealthCheck[]>;
-  getDiscoveryMetadata?(): ConnectorDiscoveryMetadata;
-  getSecurityReview?(): ConnectorSecurityReview;
-  planProvisioningChange(request: DecisionResult): Promise<ProvisioningPlan>;
-  applyProvisioningChange(plan: ProvisioningPlan): Promise<ProvisioningPlan>;
-  verifyProvisioningChange(plan: ProvisioningPlan): Promise<boolean>;
-  revokeAccess(nativeGrantId: CanonicalId): Promise<ProvisioningPlan>;
-  detectDrift(): Promise<DriftFinding[]>;
-  emitEvidence(events: AuditEvent[]): Promise<EvidenceExport>;
+	id: string;
+	mode: ConnectorMode;
+	capabilities: ConnectorCapabilities;
+	provider?: string;
+	tenantBoundary?: string;
+	requiredReadScopes?: string[];
+	discoverSubjects(): Promise<Subject[]>;
+	discoverResources(): Promise<Resource[]>;
+	discoverRelationships(): Promise<RelationshipTuple[]>;
+	readCurrentAccess(resourceId: CanonicalId): Promise<NativeGrant[]>;
+	testReadOnlyAccess?(): Promise<ConnectorHealthCheck[]>;
+	getDiscoveryMetadata?(): ConnectorDiscoveryMetadata;
+	getSecurityReview?(): ConnectorSecurityReview;
+	planProvisioningChange(request: DecisionResult): Promise<ProvisioningPlan>;
+	applyProvisioningChange(plan: ProvisioningPlan): Promise<ProvisioningPlan>;
+	verifyProvisioningChange(plan: ProvisioningPlan): Promise<boolean>;
+	revokeAccess(nativeGrantId: CanonicalId): Promise<ProvisioningPlan>;
+	detectDrift(): Promise<DriftFinding[]>;
+	emitEvidence(events: AuditEvent[]): Promise<EvidenceExport>;
 }
 ```
 
@@ -280,32 +266,16 @@ A connector PR should identify:
 
 ## Common Failure Modes
 
-| Failure | Result |
-| --- | --- |
-| Missing `getSecurityReview()` | `pnpm validate:connector-security` fails. |
-| Empty or duplicated read scopes | Release gate fails. |
-| Required read scopes overlap with forbidden write scopes | Release gate fails. |
-| Provider connector advertises provisioning support early | Release gate fails. |
-| Deletion is `not_applicable` for provider discovery | Release gate fails. |
-| Live-read connector stores secrets in connector state | Release gate fails. |
-| Runtime metadata and security review disagree | Release gate fails. |
-| Readiness reports live writes as allowed | Release gate fails. |
-
-## Security Considerations
-
-- Keep live writes out of scope until a separate enforcement slice defines approval, rollback, monitoring, emergency revocation, and audit evidence.
-- Treat provider readback as observed state only.
-- Keep connector secrets out of docs, examples, logs, fixtures, warnings, and evidence.
-- Use explicit tenant or account boundaries and fail closed on ambiguity.
-- Make incomplete coverage visible through warnings and evidence.
-
-## Audit And Evidence Implications
-
-Connector sync emits `connector.discovery_completed`. Enforcement readiness emits `connector.enforcement_readiness_checked`. Reconciliation can open drift findings when observed native grants differ from intended access. Evidence exports should retain connector identity, consent, scope review, discovery warnings, native-grant readback, and validation command output without exposing provider secrets or raw tenant identifiers.
-
-## Related Controls
-
-AC-2, AC-3, AC-6, AU-2, AU-6, CA-7, CM-3, IA-5, IR-4, RA-5, SA-9, SC-7, SI-4, and SR controls depend on connector identity, least privilege, auditability, and safe recovery.
+| Failure                                                  | Result                                    |
+| -------------------------------------------------------- | ----------------------------------------- |
+| Missing `getSecurityReview()`                            | `pnpm validate:connector-security` fails. |
+| Empty or duplicated read scopes                          | Release gate fails.                       |
+| Required read scopes overlap with forbidden write scopes | Release gate fails.                       |
+| Provider connector advertises provisioning support early | Release gate fails.                       |
+| Deletion is `not_applicable` for provider discovery      | Release gate fails.                       |
+| Live-read connector stores secrets in connector state    | Release gate fails.                       |
+| Runtime metadata and security review disagree            | Release gate fails.                       |
+| Readiness reports live writes as allowed                 | Release gate fails.                       |
 
 ## Related References
 

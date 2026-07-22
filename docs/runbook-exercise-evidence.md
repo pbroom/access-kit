@@ -1,10 +1,6 @@
 # Runbook Exercise Evidence
 
-## Purpose
-
-Runbook exercises turn operational procedures into retained, repeatable evidence. This page defines the AK-059 evidence contract for incident response, break-glass, backup and restore, contingency, emergency revocation, SIEM replay, and post-action review rehearsals.
-
-## Scope
+Runbook exercises turn operational procedures into retained, repeatable evidence. This page defines the evidence contract for incident response, break-glass, backup and restore, contingency, emergency revocation, SIEM replay, and post-action review rehearsals.
 
 The canonical exercise record is `deploy/operations/runbook-exercises/rehearsal.example.json`. It is deployment-scoped to a named staging deployment and tenant boundary, but it uses synthetic data only. It is rehearsed proof, not assessor-approved production evidence.
 
@@ -25,15 +21,15 @@ Runbook exercise records use `schemas/runbook-exercise.schema.json` and must inc
 
 The retained rehearsal example covers:
 
-| Scenario | Runbook | Evidence focus |
-| --- | --- | --- |
-| Incident response | [Degraded Mode Operations](../runbooks/degraded-mode-operations.md) | Classification, fail-closed behavior, and incident evidence. |
-| Break-glass | [Break-Glass Review](../runbooks/break-glass-review.md) | Emergency approval, expiry, and post-action review. |
-| Backup and restore | [Degraded Mode Operations](../runbooks/degraded-mode-operations.md) | Graph, audit, and job restore receipts. |
-| Contingency | [Degraded Mode Operations](../runbooks/degraded-mode-operations.md) | Read-only fallback and protected-action freeze. |
-| Emergency revocation | [Emergency Revocation](../runbooks/emergency-revocation.md) | Revocation priority under degraded conditions. |
-| SIEM replay | [Audit/Evidence Export](../runbooks/audit-evidence-export.md) | Failed delivery, signed window, and replay receipt. |
-| Post-action review | [Degraded Mode Operations](../runbooks/degraded-mode-operations.md) | Owner sign-off, residual gaps, and retained validation proof. |
+| Scenario             | Runbook                                                             | Evidence focus                                                |
+| -------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Incident response    | [Degraded Mode Operations](../runbooks/degraded-mode-operations.md) | Classification, fail-closed behavior, and incident evidence.  |
+| Break-glass          | [Break-Glass Review](../runbooks/break-glass-review.md)             | Emergency approval, expiry, and post-action review.           |
+| Backup and restore   | [Degraded Mode Operations](../runbooks/degraded-mode-operations.md) | Graph, audit, and job restore receipts.                       |
+| Contingency          | [Degraded Mode Operations](../runbooks/degraded-mode-operations.md) | Read-only fallback and protected-action freeze.               |
+| Emergency revocation | [Emergency Revocation](../runbooks/emergency-revocation.md)         | Revocation priority under degraded conditions.                |
+| SIEM replay          | [Audit/Evidence Export](../runbooks/audit-evidence-export.md)       | Failed delivery, signed window, and replay receipt.           |
+| Post-action review   | [Degraded Mode Operations](../runbooks/degraded-mode-operations.md) | Owner sign-off, residual gaps, and retained validation proof. |
 
 ## Validation
 

@@ -58,7 +58,7 @@ rebac connector readiness mock --status ready
 rebac connector sync mock --mode read_only
 ```
 
-## Phase 2, 3, And 4 Runtime
+## Runtime Behavior
 
 The package exposes the command tree and calls the API over HTTP. Use `--api-url` or `REBAC_API_URL` to point the CLI at a running local or deployed control-plane API. Authorization logic stays in the API/core engine; the CLI is only an operator wrapper.
 
@@ -78,11 +78,11 @@ Read-only discovery uses `rebac connector sync <connector-id> --mode read_only`.
 
 Dry-run provisioning uses `rebac provision plan` followed by `rebac provision apply`. By default, `apply` creates a dry-run job: provider writes are skipped, verification hooks run, compensation intent is recorded, and audit evidence is emitted.
 
-Controlled enforcement is available only as a synthetic Phase 4 proof point against the `mock` connector. Operators first run `rebac connector readiness mock --mode enforcement --synthetic-only` and pass the resulting report ID into provisioning with `--readiness-report <id>`. The CLI can then send `--mode enforcement --approver <id> --change-ticket <id> --readiness-report <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.
+Controlled enforcement is available only as a synthetic proof point against the `mock` connector. Operators first run `rebac connector readiness mock --mode enforcement --synthetic-only` and pass the resulting report ID into provisioning with `--readiness-report <id>`. The CLI can then send `--mode enforcement --approver <id> --change-ticket <id> --readiness-report <id> --synthetic-only`, which wraps the API approval and guardrail fields. It still contains no authorization logic and cannot enable live Microsoft, AWS, SharePoint, AD, or Power Platform writes.
 
 Emergency revocation is intentionally separate from routine dry-run revocation. `rebac emergency revoke` always targets the provisioning plan API with `mode: "enforcement"`, requires an approver, change ticket, readiness report, reason, and `--confirm-revoke`, sends a stable idempotency key, and leaves readiness/audit enforcement to the API. If confirmation is omitted, the CLI exits with `78` before calling the API. If readiness evidence is missing, stale, blocked, or rejected by the runtime, the API response is surfaced as exit code `70` with no local fallback.
 
-Phase 5 assessor commands use the same API contract. `rebac audit integrity` requests an audit hash-chain report, `rebac audit export` requests SIEM-ready JSONL audit records for a time window, and `rebac evidence export` can request a framework, control set, time window, and format for the complete local ATO evidence package, including boundary, data-flow, access-review, exception, operational, ConMon, POA&M, OSCAL fragments, signed package metadata, verifier checks, control trace views, and SIEM metadata. `rebac evidence verify --package <path>` posts an exported package to the verifier endpoint and returns package hash, section hash, signature, deployment-scope, OSCAL, POA&M, and control trace checks.
+Assessor commands use the same API contract. `rebac audit integrity` requests an audit hash-chain report, `rebac audit export` requests SIEM-ready JSONL audit records for a time window, and `rebac evidence export` can request a framework, control set, time window, and format for the complete local ATO evidence package, including boundary, data-flow, access-review, exception, operational, ConMon, POA&M, OSCAL fragments, signed package metadata, verifier checks, control trace views, and SIEM metadata. `rebac evidence verify --package <path>` posts an exported package to the verifier endpoint and returns package hash, section hash, signature, deployment-scope, OSCAL, POA&M, and control trace checks.
 
 ## Security Considerations
 
@@ -95,8 +95,7 @@ Phase 5 assessor commands use the same API contract. `rebac audit integrity` req
 ## Related Documentation
 
 - [API Contract Notes](api.md)
-- [Decision Lifecycle](decision-lifecycle.md)
-- [Explain API](explain-api.md)
-- [Assessor Inspection Guide](assessor-inspection-guide.md)
+- [Decisions](decisions.md)
+- [Evidence Catalog](evidence-catalog.md)
 - [CLI example script](../examples/cli/operator-and-assessor.sh)
 - [CLI profile example](../examples/cli/profiles.example.json)

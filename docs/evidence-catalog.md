@@ -1,94 +1,77 @@
 # Evidence Catalog
 
-## Purpose
-
-This page catalogs the evidence Access Kit can produce or reference for ATO-oriented inspection.
-
-## Audience
-
-ISSOs, assessors, security engineers, platform engineers, governance leads, and evidence owners.
-
-## What This Is
-
-The evidence catalog maps repo artifacts, runtime exports, audit events, schemas, examples, runbooks, and validation reports to inspection use cases. It is an ATO-oriented foundation, not an authorization status claim.
-
-## What This Is Not
-
-This is not a complete system security plan, production evidence vault, WORM archive, approved SIEM integration, or FedRAMP package.
+This page answers three assessor questions: what evidence exists and where, which control does each piece support, and what is a concrete path for inspecting it? It is an ATO-oriented foundation — not an SSP, production evidence vault, WORM archive, approved SIEM integration, or FedRAMP package.
 
 ## Evidence Types
 
-| Evidence type | Canonical artifact | Notes |
-| --- | --- | --- |
-| API contract | `openapi/rebac-control-plane.yaml` | Public API source of truth. |
-| Schema contracts | `schemas/*.schema.json` | Portable object contracts. |
-| Schema examples | `tests/fixtures/schema-examples/*.json` | Validated synthetic examples. |
-| CLI contract | `packages/cli/src/commands.ts` and [CLI Contract](cli.md) | CLI maps to API, no local authorization logic. |
-| Policy proof points | `tests/fixtures/policy/proof-points.json` | Deterministic behavior coverage. |
-| ADRs | `adrs/0001-*.md` through `adrs/0010-*.md` | Architecture decisions. |
-| Audit events | `schemas/audit-event.schema.json` | Decision and operational traceability. |
-| Audit integrity | `schemas/audit-integrity.schema.json` | Hash-chain verification, including production audit adapter delivery findings. |
-| Audit export | `schemas/audit-export.schema.json` | SIEM-ready JSONL package shape. |
-| Persistence deployment manifest | `schemas/persistence-deployment-manifest.schema.json` | Production persistence backend and deployment-control gate. |
-| Persistence deployment readiness | `schemas/persistence-deployment-readiness.schema.json` | Deterministic deployment-readiness report contract. |
-| Persistence deployment evidence | `deploy/persistence/production-manifest.example.json` | Synthetic IaC, release, backup/restore, and operator-control references. |
-| Secure SDLC release evidence | `release/security-evidence/ak-044-secure-sdlc.example.json` | Release-retained SAST, DAST, dependency, SBOM, fuzzing, abuse-test, threat-model, triage, and SSDF references. |
-| Live enforcement pilot manifest | `schemas/live-enforcement-pilot-manifest.schema.json` | First live write candidate gate with read-only confidence, approval, verification, rollback, emergency revocation, and release controls. |
-| Live enforcement pilot readiness | `schemas/live-enforcement-pilot-readiness.schema.json` | Deterministic readiness report for the retained pilot manifest. |
-| Live enforcement pilot evidence | `deploy/live-enforcement-pilot/manifest.example.json` | Synthetic pilot-candidate approval, least-privilege, verification, rollback, and release-gate references. |
-| Admin authorization readiness | `packages/core/src/admin-authorization.ts` and `/v1/ready` | IdP or mTLS gateway, admin ReBAC, secrets-manager, break-glass, incident notification, and post-action review evidence contract. |
-| Governance workflow evidence | `packages/core/src/governance.ts` and [Access Review And Exception Governance](../runbooks/access-review-exceptions.md) | Durable campaigns, findings, exception requests, owner approvals, risk acceptance, expiry, remediation, ConMon, and POA&M-ready records. |
-| HA and degraded-mode evidence | `docs/ha-degraded-mode-operations.md` and [Degraded Mode Operations Runbook](../runbooks/degraded-mode-operations.md) | Queue backpressure, audit-forwarder outage, read-only fallback, emergency revocation priority, health signals, and recovery criteria. |
-| Runbook exercise evidence | `schemas/runbook-exercise.schema.json` and [Runbook Exercise Evidence](runbook-exercise-evidence.md) | Rehearsed, redacted, deployment-scoped records for incident response, break-glass, backup/restore, contingency, emergency revocation, SIEM replay, and post-action review exercises. |
-| Evidence export | `schemas/evidence-export.schema.json` | ATO package manifest with OSCAL fragments, signed package metadata, control-to-event traces, reproducible integrity hashes, and optional immutable external storage receipts. |
-| Evidence integrity verifier | [Evidence Integrity Verifier](evidence-integrity-verifier.md) | Steps and CLI command for recomputing package hashes, section hashes, signed package metadata, and trace links from stable JSON. |
-| Validation report | `reports/proof-point-validation.md` | Generated proof-point evidence. |
-| Runbooks | `runbooks/*.md` | Operational procedures and expected evidence. |
+| Evidence type                   | Canonical artifact                                                                                                                                                   | Notes                                                                                                                           |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| API contract                    | `openapi/rebac-control-plane.yaml`                                                                                                                                   | Public API source of truth.                                                                                                     |
+| Schema contracts                | `schemas/*.schema.json`                                                                                                                                              | Portable object contracts, with validated synthetic examples in `tests/fixtures/schema-examples/`.                              |
+| CLI contract                    | `packages/cli/src/commands.ts` and [CLI Contract](cli.md)                                                                                                            | CLI maps to API, no local authorization logic.                                                                                  |
+| Policy proof points             | `tests/fixtures/policy/proof-points.json`                                                                                                                            | Deterministic behavior coverage.                                                                                                |
+| ADRs                            | `adrs/0001-*.md` through `adrs/0010-*.md`                                                                                                                            | Architecture decisions.                                                                                                         |
+| Audit events, integrity, export | `schemas/audit-event.schema.json`, `schemas/audit-integrity.schema.json`, `schemas/audit-export.schema.json`                                                         | Decision and operational traceability; hash-chain verification; SIEM-ready JSONL package shape.                                 |
+| Persistence deployment gate     | `schemas/persistence-deployment-manifest.schema.json`, `schemas/persistence-deployment-readiness.schema.json`, `deploy/persistence/production-manifest.example.json` | Production persistence backend and deployment-control gate with synthetic evidence references.                                  |
+| Secure SDLC release evidence    | `release/security-evidence/ak-044-secure-sdlc.example.json`                                                                                                          | Release-retained SAST, DAST, dependency, SBOM, fuzzing, abuse-test, threat-model, triage, and SSDF references.                  |
+| Live enforcement pilot gate     | `schemas/live-enforcement-pilot-manifest.schema.json`, `schemas/live-enforcement-pilot-readiness.schema.json`, `deploy/live-enforcement-pilot/manifest.example.json` | First live write candidate gate with approval, verification, rollback, and release controls.                                    |
+| Admin authorization readiness   | `packages/core/src/admin-authorization.ts` and `/v1/ready`                                                                                                           | IdP or mTLS gateway, admin ReBAC, secrets-manager, break-glass, and post-action review evidence contract.                       |
+| Governance workflow evidence    | `packages/core/src/governance.ts` and [Access Review And Exception Governance](../runbooks/access-review-exceptions.md)                                              | Durable campaigns, findings, exceptions, risk acceptance, expiry, remediation, ConMon, and POA&M-ready records.                 |
+| HA and degraded-mode evidence   | [HA And Degraded-Mode Operations](ha-degraded-mode-operations.md) and [Degraded Mode Operations Runbook](../runbooks/degraded-mode-operations.md)                    | Backpressure, outage, fallback, health-signal, and recovery evidence.                                                           |
+| Runbook exercise evidence       | `schemas/runbook-exercise.schema.json` and [Runbook Exercise Evidence](runbook-exercise-evidence.md)                                                                 | Rehearsed, redacted, deployment-scoped exercise records.                                                                        |
+| Evidence export                 | `schemas/evidence-export.schema.json`                                                                                                                                | ATO package manifest with OSCAL fragments, signed package metadata, control-to-event traces, and reproducible integrity hashes. |
+| Evidence integrity verifier     | [Evidence Integrity Verifier](evidence-integrity-verifier.md)                                                                                                        | Recomputing package hashes, section hashes, and trace links from stable JSON.                                                   |
+| Validation report               | `reports/proof-point-validation.md`                                                                                                                                  | Generated with `pnpm evidence:generate`, freshness-checked with `pnpm evidence:check`.                                          |
+| Runbooks                        | `runbooks/*.md`                                                                                                                                                      | Operational procedures and expected evidence.                                                                                   |
 
-The validation report is regenerated with `pnpm evidence:generate` and freshness-checked with `pnpm evidence:check`. Its command plan contains the surviving contract, deployment, and behavior gates; consolidated documentation and packaging lint runs through `pnpm validate:docs`.
+If the goal is an evidence package, use `schemas/evidence-export.schema.json`; the [ATO Evidence Model](ato-evidence-model.md) describes the full package contents.
 
-## Evidence Export Package
+## Control Traceability Matrix
 
-The `EvidenceExport` contract can include framework, controls, time period, source event IDs, audit integrity, an integrity manifest, control mappings, control statements, artifacts, system boundary, data flows, access review campaigns, exception requests, risk acceptance, ConMon metrics, POA&M inputs and export, operational evidence, OSCAL component-definition, SSP, assessment-results and POA&M fragments, signed package metadata, verifier checks, control-to-event traces, SIEM metadata, and storage receipt.
+The matrix uses NIST/FedRAMP-relevant family labels but does not claim formal authorization. Mappings must stay honest about proof-point versus production status.
 
-If the goal is an evidence package, use `schemas/evidence-export.schema.json`. Add a separate `evidence-object` schema only if atomic evidence objects become a distinct contract.
+| Control area               | Implemented or proof-point behavior                                                                                                            | Evidence references                                                                                                                          | Known gaps                                                                       |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| AC-2 Account Management    | Canonical subjects, lifecycle state, access review evidence, revocation-first runbooks.                                                        | `schemas/subject.schema.json`, `schemas/evidence-export.schema.json`, [Emergency Revocation Runbook](../runbooks/emergency-revocation.md)    | Production identity source integration and durable access campaigns.             |
+| AC-3 Access Enforcement    | Deterministic decisions, deny by default, reason codes, policy/relationship versions.                                                          | [Decisions](decisions.md), `schemas/decision.schema.json`, audit events                                                                      | Production PDP deployment and application integration evidence.                  |
+| AC-6 Least Privilege       | Connector capability model, read-only discovery, synthetic enforcement gates, admin authorization readiness for separate admin ReBAC roles.    | [Connector Contract](connector-contract.md), `schemas/enforcement-readiness.schema.json`, `packages/core/src/admin-authorization.ts`         | Live connector least-privilege reviews and deployed admin role-binding evidence. |
+| AU-2/AU-3 Audit Events     | Append-only audit event schema, event coverage, immutable production audit receipts, retention metadata.                                       | [Audit Event Model](audit-event-model.md), `schemas/audit-event.schema.json`, `tests/core/reference-audit.test.ts`                           | Environment-specific WORM driver and retained deployment approvals.              |
+| AU-6 Audit Review          | Audit integrity, signed windows, SIEM-ready export metadata, delivery failure findings, replay receipts.                                       | `schemas/audit-integrity.schema.json`, `schemas/audit-export.schema.json`, [HA And Degraded-Mode Operations](ha-degraded-mode-operations.md) | Approved SIEM forwarding deployment and alert playbooks.                         |
+| CM-3 Configuration Change  | ADRs, policy versions, connector readiness, idempotent provisioning.                                                                           | `adrs/`, [Provisioning Lifecycle](provisioning-lifecycle.md)                                                                                 | Production change-management integration.                                        |
+| CA-7 Continuous Monitoring | ConMon metrics in evidence export and validation evidence.                                                                                     | `reports/proof-point-validation.md`                                                                                                          | Deployed metrics pipeline and retained scan artifacts.                           |
+| IA                         | Documented authentication boundary; admin contract requires IdP or mTLS gateway, MFA, session TTL, revocation SLA before production readiness. | [System Context and Boundary](system-context-and-boundary.md), [Security Model](security-model.md), `tests/core/admin-authorization.test.ts` | Production gateway configuration evidence and request-scoped actor binding.      |
+| IR                         | Emergency revocation, outage, compromised credential, degraded-mode, break-glass, and post-action review runbooks.                             | `runbooks/*.md`, `tests/core/admin-authorization.test.ts`                                                                                    | Exercised incident records and retained post-action reviews.                     |
+| RA/SI                      | Drift findings treat unauthorized access as a security finding; secure SDLC manifest retains release scan and triage evidence.                 | [Drift Detection Model](drift-detection-model.md), [Secure SDLC Evidence](secure-sdlc-evidence.md), `schemas/drift-finding.schema.json`      | Production vulnerability and monitoring integrations.                            |
+| SC                         | Boundary, data flows, API-first contract, future encryption/key management expectations.                                                       | [System Context and Boundary](system-context-and-boundary.md), [Security Model](security-model.md)                                           | Deployment-specific encryption and network controls.                             |
+| SA/SR                      | ADRs, CI validation, SBOM/provenance release evidence, SSDF mapping.                                                                           | [CI](ci.md), [Secure SDLC Evidence](secure-sdlc-evidence.md), `.github/workflows/security.yml`, `.github/workflows/container-release.yml`    | Deployment-specific scanner exports and assessor-reviewed SSDF evidence.         |
+| PT                         | Data minimization and synthetic examples.                                                                                                      | [Security Model](security-model.md), [Start Here](start-here.md)                                                                             | Deployment privacy impact analysis.                                              |
 
-## Concrete Example
+## Assessor Inspection Path
 
-An assessor samples AC-3 for May 2026. The operator exports evidence for `AC-3`, includes source decision events, audit integrity status, control mapping, system boundary, OSCAL fragments, and access-review evidence, then runs `rebac evidence verify --package evidence-export.json` and uses the control trace view to trace a sample event back to the reviewed statement, signed package metadata, deployment scope, policy, and relationship versions.
+1. Confirm scope and boundaries in [Start Here](start-here.md) and [System Context and Boundary](system-context-and-boundary.md).
+2. Review layers and invariants in [Architecture](architecture.md), object contracts in [Domain Model](domain-model.md) and `schemas/`.
+3. Review API coverage in `openapi/rebac-control-plane.yaml` and CLI-to-API behavior in [CLI Contract](cli.md).
+4. Review deterministic authorization in [Decisions](decisions.md) and `tests/fixtures/policy/proof-points.json`.
+5. Review connector, provisioning, drift, and runbook coverage; then audit integrity and evidence export coverage.
+6. Run validation commands or inspect `reports/proof-point-validation.md`, and compare known gaps in [Start Here](start-here.md) and the [Implementation Backlog](implementation-backlog.md).
 
-A governance lead samples `CA-7` for the same period. The operator exports evidence after reconciliation and verifies that the package includes a stable access-review campaign, exception request status, owner approval state, risk acceptance or expiry, remediation POA&M item, and ConMon counters for pending or overdue governance work.
+A concrete sampling scenario for an allowed decision: open `tests/fixtures/schema-examples/decision.json` and verify reason code, versions, and relationship path; confirm deny-by-default and explicit-deny precedence in `packages/core/src/engine.ts` and `tests/fixtures/policy/proof-points.json`; confirm decision events carry trace fields in `schemas/audit-event.schema.json`; confirm control mapping and source event linkage in `tests/fixtures/schema-examples/evidence-export.json`.
 
-## Security Considerations
+For AC-3 over a time period: export evidence for `AC-3`, run `rebac evidence verify --package evidence-export.json`, and use the control trace view to trace a sample event back to the reviewed statement, signed package metadata, deployment scope, and policy and relationship versions. For `CA-7`: export after reconciliation and verify the package includes a stable access-review campaign, exception status, owner approval, risk acceptance or expiry, remediation POA&M item, and ConMon counters.
 
-- Evidence packages and integrity manifests must not include secrets, tokens, live tenant IDs, production emails, or sensitive provider payloads.
-- Local file-backed receipts are proof points, not production immutability.
-- Local bearer-token admin controls are proof points, not production admin authentication.
-- Production evidence requires immutable adapter receipts, retention, access control, tamper evidence, delivery/replay monitoring, and reviewer approval.
-- Production admin authorization evidence requires IdP or mTLS gateway configuration references, admin ReBAC policy and role-binding evidence, secrets-manager references, break-glass approval, incident notifications, and post-action review records.
-- Exception records are residual-risk evidence only; they must not silently allow access or bypass deterministic authorization decisions.
-- Degraded-mode evidence should retain health/readiness output, queue metrics, SIEM replay receipts, connector warnings, emergency revocation priority observations, and recovery sign-off without embedding secrets or live tenant data.
-- Runbook exercise evidence must label local or staging rehearsals as rehearsed proof, keep `assessorApproved` false, and avoid production-operation claims until the deployment-specific record has been reviewed.
-- Mark assumptions, gaps, and planned controls clearly.
+## Rules
 
-## Audit And Evidence Implications
-
-Evidence generation emits an `evidence.generated` audit event. Evidence exports should include source event IDs and audit integrity so claims can be traced back to append-only events.
-
-## Related Controls
-
-AC, AU, CA, CM, IA, IR, RA, SA, SC, SI, SR, and PT families may reference evidence catalog entries.
+- Evidence packages must not include secrets, tokens, live tenant IDs, production emails, or sensitive provider payloads. Treat all repository examples as synthetic.
+- Local file-backed receipts and local bearer-token admin controls are proof points, not production immutability or authentication. Do not infer live connector behavior from synthetic fixtures.
+- Production evidence requires immutable adapter receipts, retention, access control, tamper evidence, delivery/replay monitoring, and reviewer approval — plus deployment-specific IdP or mTLS configuration, admin role bindings, secrets-manager references, SIEM forwarding, WORM retention, and connector security review.
+- Exception records are residual-risk evidence only; they never bypass deterministic authorization.
+- Evidence generation emits an `evidence.generated` audit event; exports include source event IDs and audit integrity so claims trace back to append-only events.
+- Mark assumptions, gaps, and planned controls clearly; planned controls stay marked planned until deployment evidence exists.
 
 ## Related References
 
 - [ATO Evidence Model](ato-evidence-model.md)
-- [Control Traceability Matrix](control-traceability-matrix.md)
-- [Assessor Inspection Guide](assessor-inspection-guide.md)
 - [Audit Event Model](audit-event-model.md)
-- [Access Review And Exception Governance](../runbooks/access-review-exceptions.md)
 - [Runbook Exercise Evidence](runbook-exercise-evidence.md)
-- `schemas/evidence-export.schema.json`
-- `schemas/runbook-exercise.schema.json`
 - `tests/fixtures/schema-examples/evidence-export.json`
-- `tests/fixtures/schema-examples/runbook-exercise.json`
 - [ADR 0008: Evidence export control mapping](../adrs/0008-evidence-export-control-mapping.md)

@@ -1,82 +1,83 @@
 # Start Here
 
-## Purpose
+Access Kit is an API-first, CLI-first control plane for relationship-based access control (ReBAC). Applications ask it "can this subject take this action on this resource?" and get a deterministic, deny-by-default answer that the API can also explain. Around that decision core it models relationships and policies, plans and dry-runs provisioning, discovers native grants through read-only connectors, detects drift, keeps a hash-chained audit trail, and exports ATO-oriented evidence packages.
 
-This page orients developers, platform engineers, security engineers, ISSOs, assessors, resource owners, and product/governance leads to the Access Kit documentation foundation.
+The current repository is a local proof point. It proves contract shape, decision behavior, operational flows, and evidence structure against synthetic data. It is not a production authorization service yet.
 
-Access Kit is an API-first and CLI-first relationship-based authorization control plane. It decides, explains, provisions, verifies, reconciles, audits, and produces evidence for authorization activity. It does not authenticate users, replace native platform enforcement, or use LLMs to make authorization decisions.
+## What it is not
 
-## What This Is
+This is the canonical boundary statement. Other docs assume it rather than repeat it.
 
-Access Kit is a foundation for an ATO-ready ReBAC authorization control plane. The current implementation is a local proof point with deterministic policy decisions, OpenAPI and JSON Schema contracts, a CLI that calls the API, mock and synthetic read-only connectors, dry-run provisioning, synthetic-only controlled enforcement, audit integrity checks, SIEM-ready audit exports, and ATO-oriented evidence exports.
+Access Kit does not:
 
-## What This Is Not
+- authenticate users, manage sessions, or act as an identity provider
+- replace native enforcement in Entra ID, Active Directory, AWS IAM, SharePoint, Teams, Power Platform, or application code
+- act as a SIEM, ticketing system, or generic workflow platform
+- perform live provider writes; the Microsoft Graph and AWS connectors are read-only and sandbox-staged
+- use LLMs to make authorization decisions, approve access, or create or revoke grants
+- claim a production ATO or FedRAMP authorization; it produces evidence that supports ATO inspection
 
-Access Kit is not an identity provider, authentication system, SIEM, ticketing system, generic workflow platform, UI-first admin portal, production Microsoft/AWS write connector, or production authorization to operate. It supports ATO inspection; it does not claim an ATO.
+Treat these as security controls: letting observed native access stand in for intended access, enabling live writes before connector security review, or feeding LLM output into decisions would break the trust model.
 
-## First Reading Path
+One framing worth keeping in mind: relationships explain access paths, roles describe responsibilities, and attributes constrain context. Access Kit centers on ReBAC but treats roles and attributes as explicit, reviewable policy inputs rather than flattening everything into relationships.
 
-1. Read [Product Positioning And Adoption Guide](product-positioning-adoption-guide.md) to understand fit, non-goals, proof-point status, and evaluation checklists.
-2. Run [Five-Minute Quickstart](five-minute-quickstart.md) for the shortest local API path.
-3. Run [Developer Evaluation Path](developer-evaluation-path.md) for the full local policy, provisioning, reconciliation, audit, and evidence walkthrough.
-4. Read [Concept of Operations](concept-of-operations.md) for the operating model.
-5. Read [System Context and Boundary](system-context-and-boundary.md) to understand what is inside and outside the control plane.
-6. Read [Domain Model](domain-model.md) for source-of-truth objects.
-7. Read [Decision Lifecycle](decision-lifecycle.md), [Explain API](explain-api.md), and [PEP Conformance](pep-conformance.md) for authorization behavior and application enforcement expectations.
-8. Read [Decision Cache Semantics](decision-cache-semantics.md) before allowing PEPs to reuse decisions.
-9. Read [Provisioning Lifecycle](provisioning-lifecycle.md), [Connector Contract](connector-contract.md), [Connector Authoring Tutorial](connector-authoring-tutorial.md), and [Drift Detection Model](drift-detection-model.md) for operational change control.
-10. Read [Sample Internal Admin App](sample-internal-admin-app.md) for the synthetic admin/operator example once production admin controls are in scope.
-11. Read [Audit Event Model](audit-event-model.md), [Evidence Catalog](evidence-catalog.md), [Control Traceability Matrix](control-traceability-matrix.md), and [Assessor Inspection Guide](assessor-inspection-guide.md) for inspection and evidence.
-12. Read [Product Release Packaging](release-packaging.md), [Support Policy](support-policy.md), and [Security Policy](../SECURITY.md) before adopting a versioned release channel.
-13. Read [Threat Model](threat-model.md), [Security Model](security-model.md), and the [Emergency Revocation Runbook](../runbooks/emergency-revocation.md), along with the other runbooks in `runbooks/`, before operating enforcement paths.
-
-## Build And Validate
+## Try it
 
 Use Node 22 or newer and pnpm 10.
 
 ```sh
 corepack enable
 pnpm install
-pnpm validate
-pnpm ci:check
+pnpm validate      # contracts, docs, policy, tests
+pnpm ci:check      # adds lint, build, evidence freshness
 ```
 
-`pnpm validate` runs type checking, contract and sample-policy validation, automation/CI/package/deployment gates, runbook exercise validation, secure SDLC evidence validation, live-enforcement pilot validation, PEP conformance, sample app validation, and tests. `pnpm ci:check` adds docs validation, lint, build, and evidence freshness checks.
+Then follow the [Quickstart](quickstart.md): a five-minute seeded API demo first, and a full evaluation path (policy tests, dry-run provisioning, reconciliation, audit and evidence export) after that.
 
-## Canonical Sources
+## Proof point versus production
 
-| Source | Canonical path | Use |
-| --- | --- | --- |
-| Product positioning and adoption guide | [Product Positioning And Adoption Guide](product-positioning-adoption-guide.md) | Adoption fit, non-goals, proof-point versus production boundaries, integration patterns, and evaluation checklists. |
-| Five-minute quickstart | `docker-compose.quickstart.yml`, `scripts/quickstart-demo.ts`, [Five-Minute Quickstart](five-minute-quickstart.md) | Shortest local API flow using synthetic demo seed data and check/explain decisions. |
-| Developer evaluation path | `scripts/evaluation-demo.ts`, [Developer Evaluation Path](developer-evaluation-path.md) | Full local 30-minute path covering policy tests, dry-run provisioning, reconciliation, audit export, and evidence export. |
-| Public API | `openapi/rebac-control-plane.yaml` | API routes, operation IDs, request and response schemas. |
-| API reference | `docs/api-reference.md` | Generated reference for auth, idempotency, parameters, responses, and example artifacts. |
-| Domain contracts | `schemas/*.schema.json` | Portable JSON object contracts. |
-| Runtime types | `packages/core/src/domain.ts` | TypeScript implementation types mirroring schema concepts. |
-| CLI contract | `packages/cli/src/commands.ts`, [CLI Contract](cli.md), `examples/cli/profiles.example.json` | CLI command tree, API surface mapping, profile config, JSON output, preview/diff, exit-code, and completion behavior. |
-| Connector contract | `docs/connector-contract.md` | Connector capability model, security review gate, and live-read boundary. |
-| Connector authoring tutorial | `docs/connector-authoring-tutorial.md` | Safe read-only connector authoring flow and release-gate evidence. |
-| Sample connector template | `examples/connectors/sample-readonly-template.md`, `packages/connectors-sample-readonly/` | Copyable read-only connector implementation with synthetic fixtures and tests. |
-| Production reference architecture | `docs/production-reference-architecture.md`, `deploy/overlays/production-reference/` | Local-to-production deployment map, Kubernetes overlay shape, RTO/RPO evidence, and external-control boundaries. |
-| HA and degraded-mode operations | `docs/ha-degraded-mode-operations.md`, `runbooks/degraded-mode-operations.md` | Fail-closed resilience, queue backpressure, audit-forwarder outage, read-only fallback, health signals, and recovery criteria. |
-| Demo seed harness | `packages/core/src/demo-seed.ts`, `examples/demo-seed-harness.json`, [Demo Seed Harness](demo-seed-harness.md) | Synthetic local subjects, resources, relationships, policy fixture, decision presets, and evidence labels for quickstart and evaluation paths. |
-| API collections | `examples/api-collections/` | Generated Postman and Bruno workflows for the demo seed decision, policy, provisioning, reconciliation, audit, evidence, and auth-failure examples. |
-| PEP conformance | [PEP Conformance](pep-conformance.md), `tests/sdk-pep/pep-conformance.test.ts` | Shared policy enforcement point behavior for fail-closed protected routes, correlation propagation, decision logging, local fallback avoidance, and safe denials. |
-| Sample SaaS application | [Sample SaaS Application](sample-saas-app.md), `examples/sample-saas-app/`, `tests/examples/sample-saas-app.test.ts` | End-to-end protected route, tenant-boundary, safe explain, decision traceability, and policy-test workflow example. |
-| Internal admin app sample | `examples/internal-admin-app/`, [Sample Internal Admin App](sample-internal-admin-app.md) | Synthetic least-privilege admin/operator app with approval evidence, access-review context, break-glass boundaries, audit traceability, and safe explain summaries. |
-| Policy model | `schemas/policy-model.schema.json`, `packages/core/src/policy-model.ts` | Versioned model shape and deterministic validation rules. |
-| Policy proof points | `tests/fixtures/policy/proof-points.json` | Deterministic authorization behaviors under test. |
-| Decision cache semantics | `docs/decision-cache-semantics.md`, `packages/core/src/decision-runtime.ts` | PEP cache key, TTL, invalidation, fail-closed, and auditability contract. |
-| Schema examples | `tests/fixtures/schema-examples/*.json` | Validated synthetic examples for core objects, including the policy model example. |
-| Architecture decisions | `adrs/*.md` using zero-padded numeric filenames | Canonical ADR naming and design decisions. |
-| Evidence report | `reports/proof-point-validation.md` | Generated validation proof point. |
-| Secure SDLC evidence | `release/security-evidence/ak-044-secure-sdlc.example.json`, `docs/secure-sdlc-evidence.md` | Release-retained security evidence and validation gate. |
-| Product release manifest | `releases/v0.1.0/manifest.json`, [Product Release Packaging](release-packaging.md), [Support Policy](support-policy.md), [Security Policy](../SECURITY.md), [Changelog](../CHANGELOG.md) | Versioned source, container, CLI, SDK, docs-site, support, security, compatibility, SBOM, provenance, signature, and disclosure channel contract. |
+| Area               | What the repo proves today                                                                                            | What a production deployment must add                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| API runtime        | Local HTTP API with schema-backed contracts, health/readiness probes, bearer-token guarding, deterministic decisions. | Approved deployment boundary, IdP or mTLS gateway, rate limits, monitoring, environment hardening.         |
+| PEP integration    | Decision contracts plus TypeScript, Python, and Go starter enforcement points.                                        | A reviewed PEP that fails closed, propagates correlation IDs, and never falls back to local authorization. |
+| Connectors         | Mock, synthetic, and staged read-only Microsoft Graph and AWS discovery.                                              | Per-provider security review, least-privilege scopes, live-write readiness, and rollback evidence.         |
+| Audit and evidence | Hash-chain integrity checks, SIEM-ready export shape, local ATO-oriented evidence packages.                           | Immutable/WORM audit storage, approved SIEM forwarding, assessor-reviewed control statements.              |
+| Persistence        | In-memory and local-file stores, plus an opt-in PostgreSQL backend.                                                   | Durable backends with backup/restore evidence, migration review, and operational monitoring.               |
+| Admin access       | Local bearer tokens and a readiness contract describing IdP/mTLS gateway modes.                                       | A deployed identity gateway, separate admin ReBAC policy, secrets manager, and break-glass evidence.       |
+
+## Known gaps
+
+- Live provider writes remain blocked everywhere; the live-enforcement pilot is a gate contract with synthetic evidence, not an enforcement path.
+- Environment-specific graph, queue, and WORM audit drivers, SIEM forwarding, and IdP or mTLS gateway deployment are future work; the adapter boundaries exist as contracts.
+- OSCAL output is proof-point fragments; production OSCAL packages need deployment-specific review, signing, and assessor approval.
+- Runbook exercises against a deployed environment, post-action reviews, and approved control statements are deployment-specific and not in this repo.
+
+## Where things live
+
+| Question                                                | Source                                                                                                                                                                                  |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What are the API routes and schemas?                    | [openapi/rebac-control-plane.yaml](../openapi/rebac-control-plane.yaml), generated [API Reference](api-reference.md), [API notes](api.md)                                               |
+| What objects does it model?                             | [Domain Model](domain-model.md), `schemas/*.schema.json`, `packages/core/src/domain.ts`                                                                                                 |
+| How do decisions, explain, caching, and PEPs work?      | [Decisions](decisions.md)                                                                                                                                                               |
+| How do I run and evaluate it?                           | [Quickstart](quickstart.md)                                                                                                                                                             |
+| How does the system fit together?                       | [Architecture](architecture.md), [System Context and Boundary](system-context-and-boundary.md)                                                                                          |
+| How do I write or test policy?                          | [Policy Testing Guide](policy-testing-guide.md), `tests/fixtures/policy/proof-points.json`                                                                                              |
+| How do connectors work and how do I build one?          | [Connector Contract](connector-contract.md), [Connector Authoring Tutorial](connector-authoring-tutorial.md), `packages/connectors-sample-readonly/`                                    |
+| How do provisioning and drift work?                     | [Provisioning Lifecycle](provisioning-lifecycle.md), [Drift Detection Model](drift-detection-model.md)                                                                                  |
+| How do I deploy and operate it?                         | [Deployment](deployment.md), [Deployment Runbook](deployment-runbook.md), [HA and Degraded-Mode Operations](ha-degraded-mode-operations.md), [Persistence](persistence.md), `runbooks/` |
+| What is the security and threat posture?                | [Security Model](security-model.md)                                                                                                                                                     |
+| What evidence exists and which controls does it map to? | [Evidence Catalog](evidence-catalog.md), [Audit Event Model](audit-event-model.md), [ATO Evidence Model](ato-evidence-model.md)                                                         |
+| What is the CLI surface?                                | [CLI Contract](cli.md), `packages/cli/src/commands.ts`                                                                                                                                  |
+| How are releases packaged and supported?                | [Product Release Packaging](release-packaging.md), [Support Policy](support-policy.md), [Security Policy](../SECURITY.md), [Changelog](../CHANGELOG.md)                                 |
+| What was decided and why?                               | `adrs/*.md`                                                                                                                                                                             |
+| What work is planned or in flight?                      | [Implementation Backlog](implementation-backlog.md), [Automation](automation.md)                                                                                                        |
+
+## Reading paths
+
+- **Building an integration:** [Quickstart](quickstart.md), then [Decisions](decisions.md) and [Domain Model](domain-model.md), then the PEP starters under `examples/`.
+- **Reviewing the architecture:** [Architecture](architecture.md), [System Context and Boundary](system-context-and-boundary.md), [Security Model](security-model.md), then [Deployment](deployment.md).
+- **Assessing evidence:** [Evidence Catalog](evidence-catalog.md), [Audit Event Model](audit-event-model.md), [ATO Evidence Model](ato-evidence-model.md), then the runbooks in `runbooks/`.
 
 ## Assumptions
 
-- All examples are synthetic.
-- Live tenant identifiers, emails, secrets, access tokens, customer names, production logs, and sensitive architecture details are out of scope.
-- Synthetic Entra ID, SharePoint, and AWS-style connectors prove contract shape only; the optional Microsoft Graph sandbox connector now stages live read-only Entra, M365/Teams, SharePoint, and OneDrive inventory with redacted evidence and coverage warnings.
-- Production deployments must replace local proof points with deployment-specific diagrams, retention controls, operational approvals, and assessor-reviewed control statements.
+All examples are synthetic. Live tenant identifiers, emails, secrets, tokens, customer names, and production logs stay out of fixtures, examples, and local evidence. Production deployments must replace local proof points with deployment-specific diagrams, retention controls, approvals, and assessor-reviewed control statements.
