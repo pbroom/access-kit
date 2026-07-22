@@ -1,72 +1,51 @@
 # Persistent Storage Foundation
 
-The local runtime still uses in-memory state, local JSON snapshots, and local proof-point evidence files by default. This storage foundation defines the production adapter boundary that database, audit-ledger, and queue implementations must satisfy before live connectors or enforcement can rely on them.
+This page answers: where does state live today, what must a production backend satisfy, and which adapters exist? The local runtime defaults to in-memory state, local JSON snapshots, and local proof-point evidence files. The production adapter boundary defined here is what database, audit-ledger, and queue implementations must satisfy before live connectors or enforcement can rely on them.
 
-## Repository Groups
+## Repository groups
 
-The persistent control plane is split into three repository groups:
+Storage is split into three deliberately separate groups: relationship tuples are not native grants, decisions are not provisioning jobs, and audit events are not mutable operational records.
 
-- **Graph repository:** canonical subjects, resources, relationship tuples, and observed native grants.
-- **Audit repository:** append-only audit events, hash-chain integrity, immutability, retention, and replay.
-- **Job repository:** discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation runs, and recorded decisions.
+- **Graph**: canonical subjects, resources, relationship tuples, and observed native grants.
+- **Audit**: append-only events, hash-chain integrity, immutability, retention, and replay.
+- **Jobs**: discovery runs, readiness reports, provisioning plans and jobs, drift findings, reconciliation runs, and recorded decisions.
 
-These groups intentionally stay separate. Relationship tuples are not native grants, decisions are not provisioning jobs, and audit events are not mutable operational records.
+## Readiness contract
 
-## Readiness Contract
+`assessPersistenceReadiness` evaluates backend descriptors: graph backends need transactional writes, relationship queries, and backup/restore; audit backends need append-only writes, hash-chain verification, immutability controls, at least one year of retention, and backup/restore; job backends need queue semantics, idempotency lookup, transactional writes, and backup/restore. Local memory and local file adapters always report blocked for production.
 
-`assessPersistenceReadiness` evaluates backend descriptors before a deployment can claim production-ready persistence.
+`PersistenceDeploymentManifest` raises this to a deployment-level gate: it requires production intent, exactly one external backend kind each for graph (`external_graph`), audit (`external_append_only_audit`), and jobs (`external_queue`), plus deployment controls for IdP-backed access, operator authorization, externalized secrets, backup/restore testing, change approval, monitoring, and migration review. `pnpm validate:persistence-deployment` validates the schemas (`schemas/persistence-deployment-manifest.schema.json`, `schemas/persistence-deployment-readiness.schema.json`) against the retained examples under `deploy/persistence/` and proves a local proof-point manifest stays blocked.
 
-Required production capabilities:
+## Adapters
 
-- Graph: read/write graph facts, relationship queries, transactional writes, and backup/restore.
-- Audit: append-only writes, hash-chain verification, immutability, retention, and backup/restore.
-- Jobs: queue/enqueue semantics, idempotency lookup, transactional writes, and backup/restore.
+| Adapter                               | Contract                                                 | Storage                                                     | Production-ready?                                                                                                                       |
+| ------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `InMemoryRebacPersistenceRepository`  | graph + jobs                                             | memory                                                      | No — test/proof-point conformance adapter.                                                                                              |
+| `LocalJsonFileGraphRepository`        | `RebacGraphRepository`                                   | hash-checked local JSON (graph facts only)                  | No — `local_file`, `durable: false`.                                                                                                    |
+| `LocalAppendOnlyAuditRepository`      | `AuditEventRepository`                                   | local JSONL with event hashes, rejects out-of-order appends | No — local integrity proof point, not WORM.                                                                                             |
+| `LocalJsonFileJobRepository`          | `RebacJobRepository`                                     | hash-checked local JSON with idempotency lookups            | No — proof-point capabilities only.                                                                                                     |
+| `ReferenceGraphStoreAdapter`          | `RebacGraphRepository`                                   | injected external snapshot store                            | Boundary for a selected graph backend; enforces tenant-boundary attributes, rejects tampered or secret-bearing payloads.                |
+| `ReferenceConnectorStateStoreAdapter` | connector state                                          | injected external snapshot store                            | Boundary only; describes itself as `external_connector_state`, not a queue.                                                             |
+| `ReferenceJobQueueAdapter`            | queue/jobs                                               | injected external snapshot store                            | Boundary for a durable queue: idempotency records, emergency revocation priority, retry/backoff, dead-letter, replay, connector health. |
+| `ReferenceAuditEvidenceAdapter`       | audit/evidence                                           | injected append-only external store                         | Boundary for a WORM or ledger driver: signed windows, SIEM delivery and replay receipts, tamper detection, secret-payload rejection.    |
+| `@access-kit/persistence-postgres`    | `ExternalSnapshotStore` + `ExternalAppendOnlyAuditStore` | PostgreSQL                                                  | First concrete external backend; see below.                                                                                             |
 
-The readiness report blocks local memory and local file proof points from being treated as production storage. Audit backends must also declare immutability controls and at least one year of retention.
+When the API runtime receives `REBAC_STATE_PATH`, `createLocalRuntimePersistence` wires the local JSON graph and job repositories beside the legacy runtime snapshot; writes go through those repositories and reload across restarts. Audit events stay in the append-only audit file or the compatibility snapshot.
 
-## Deployment Manifest
+## PostgreSQL backend
 
-`PersistenceDeploymentManifest` raises the readiness check from individual backend descriptors to a deployment-level production gate. It requires production environment intent, exactly one external backend kind for graph, audit, and jobs, evidence references, and deployment controls for identity-provider-backed access, operator authorization, externalized secrets, backup/restore testing, change approval, monitoring, and migration review.
+`@access-kit/persistence-postgres` implements the injectable snapshot store (graph and connector-state snapshots with hash-guarded compare-exchange writes) and the append-only audit store (INSERT-only audit, evidence, signed-window, and SIEM delivery rows). It bootstraps its schema with `CREATE TABLE IF NOT EXISTS` plus indexes and enforces append-only semantics with database triggers that reject `UPDATE`/`DELETE` on audit rows outside an explicit backup-restore transaction. Audit sequence continuity is re-verified on every read.
 
-`assessPersistenceDeploymentReadiness` combines backend descriptor readiness with the deployment manifest checks. Local proof-point adapters remain blocked even when they implement the local contract because production readiness requires `external_graph`, `external_append_only_audit`, and `external_queue` backend kinds plus deployment control evidence.
+Setting `REBAC_DATABASE_URL` (with `REBAC_DATABASE_TENANT_BOUNDARY` and `REBAC_DATABASE_AUDIT_SIGNING_KEY`) selects this backend in the API runtime. The factory verifies the connection during schema bootstrap before constructing any repository, so `durable: true` descriptors are only produced against a live connection. Integration tests gate on `REBAC_TEST_DATABASE_URL` and run in CI against a `postgres:16` service container. Selecting, operating, and evidencing a production Postgres deployment (HA, backups, access controls, monitoring) remains deployment-specific work.
 
-`schemas/persistence-deployment-manifest.schema.json` and `deploy/persistence/production-manifest.example.json` make this gate reviewable outside TypeScript. `schemas/persistence-deployment-readiness.schema.json` and `deploy/persistence/readiness-report.example.json` retain the deterministic readiness report produced from that manifest. `pnpm validate:persistence-deployment` validates both schemas, checks that the retained report matches the core readiness assessment, checks that referenced IaC/release/backup/operator evidence exists, and proves a local proof-point manifest remains blocked from production readiness.
+## Queue execution
 
-## Current Adapters
+`drainNextQueuedJob` is the optional runtime worker path for queued discovery, reconciliation, provisioning, evidence export, and revocation jobs. It reserves a queue record, executes through the same runtime functions as the synchronous API, and completes the record only after those flows finish. Controlled enforcement revalidates approval, readiness, and controls at execution time.
 
-When the API runtime receives `REBAC_STATE_PATH`, `createLocalRuntimePersistence` wires the local JSON graph and job repositories beside the legacy runtime snapshot. Explicit subject, resource, relationship, decision, and provisioning operations write through those repositories and reload across restarts. Audit events stay in the append-only audit file or the compatibility state snapshot rather than being copied into graph or job state.
+## Test coverage
 
-`InMemoryRebacPersistenceRepository` is a conformance adapter for tests and local proof points. It implements the graph and job repository contracts over the existing in-memory store, returns defensive copies, and advertises itself as non-durable memory storage. It is not a production database adapter.
+`tests/core/repository-conformance.test.ts` runs the shared conformance suite against the in-memory, local JSON, and production external adapters. Adapter-specific tamper, malformed-payload, tenant-boundary, secret-material, queue-semantics, and backup/restore checks are explicit production tests. `tests/api/job-queue-runner.test.ts` covers the worker drain path.
 
-`LocalJsonFileGraphRepository` is the first concrete graph adapter behind `RebacGraphRepository`. It persists only subjects, resources, relationship tuples, and native grants to a hash-checked JSON snapshot, reloads those graph facts across process starts, and leaves jobs, decisions, audit events, and evidence packages outside the graph file. It advertises `local_file` and `durable: false`, so production readiness remains blocked until an approved external graph backend is configured.
+## What production still needs
 
-`LocalAppendOnlyAuditRepository` is the first concrete audit adapter behind `AuditEventRepository`. It appends audit events to JSONL records with stored event hashes, rejects duplicate event IDs, refuses out-of-order appends when `previousEventHash` does not match the current tail, and reports local record tampering through audit integrity findings. It advertises local retention and hash-chain capabilities, but it does not claim production durability, backup/restore, or WORM immutability.
-
-`ReferenceAuditEvidenceAdapter` is the reference audit/evidence adapter boundary. It is backed by an injected append-only external store so an environment-specific WORM bucket, immutable ledger, or audit database driver can supply storage later without changing runtime audit semantics. The adapter advertises `external_append_only_audit`, immutable retention, hash-chain verification, and backup/restore; retains signed audit windows; records SIEM delivery failures and replay receipts; stores evidence packages with immutable external receipts; rejects unredacted secret-bearing payloads; detects tampered event, window, delivery, and evidence envelopes; and blocks failed SIEM delivery from a clean integrity report until replay succeeds. It does not select, approve, or deploy a SIEM or WORM vendor by itself.
-
-`LocalJsonFileJobRepository` is the first concrete job adapter behind `RebacJobRepository`. It persists discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation runs, and decision records to a hash-checked JSON snapshot. It supports idempotency-key lookups for plans and jobs, stable overwrite by record identifier, and atomic local snapshot replacement. It advertises queue/idempotency/transaction/backup proof-point capabilities, but it does not claim production durability.
-
-`ReferenceGraphStoreAdapter` is the reference graph contract adapter. It is backed by an injected external snapshot store so a selected graph database or relational graph projection can supply the storage driver later without changing authorization semantics. The adapter stores only subjects, resources, relationship tuples, native grants, backup metadata, and a hash envelope. It advertises `external_graph`, rejects malformed or tampered stored payloads before serving data, rejects secret-bearing records, requires tenant-boundary attributes on persisted subjects and resources, and keeps backend-specific behavior out of authorization decisions.
-
-`ReferenceConnectorStateStoreAdapter` is the reference connector-state contract adapter. It persists discovery runs, enforcement-readiness reports, provisioning plans, provisioning jobs, drift findings, reconciliation evidence, decisions, backup metadata, and a hash envelope through an injected external snapshot store. It intentionally describes itself as `external_connector_state`, not `external_queue`; durable queue execution stays in the AK-036 boundary. The adapter exists so connector state can be stored behind the current runtime repository methods without claiming queue readiness.
-
-`ReferenceJobQueueAdapter` is the reference queue/job adapter boundary. It is backed by an injected external snapshot store so an environment-specific queue implementation can supply durable storage later without changing runtime execution semantics. The adapter advertises `external_queue`, keeps durable idempotency records with payload hashes, prioritizes emergency revocations, tracks connector health, supports retry/backoff, dead-letter, replay, backup/restore metadata, and rejects secret-bearing or tampered queue snapshots before serving data. It does not select or approve a vendor queue by itself.
-
-`@access-kit/persistence-postgres` is the first concrete external backend behind the production adapter contracts. It implements the injectable `ExternalSnapshotStore` (graph and connector-state snapshots with hash-guarded compare-exchange writes) and `ExternalAppendOnlyAuditStore` (INSERT-only audit, evidence, signed-window, and SIEM delivery rows) against PostgreSQL, bootstraps its schema with `CREATE TABLE IF NOT EXISTS` plus indexes, and enforces append-only semantics with database triggers that reject `UPDATE`/`DELETE` on audit rows outside an explicit backup-restore transaction. Audit sequence continuity is re-verified on every read. Setting `REBAC_DATABASE_URL` (with `REBAC_DATABASE_TENANT_BOUNDARY` and `REBAC_DATABASE_AUDIT_SIGNING_KEY`) selects this backend in the API runtime; the factory verifies the connection during schema bootstrap before constructing any repository, so `durable: true` descriptors are only ever produced against a live Postgres connection. Integration tests are gated on `REBAC_TEST_DATABASE_URL` and run in CI against a `postgres:16` service container. Selecting, operating, and evidencing a production Postgres deployment (HA, backups, access controls, monitoring) remains deployment-specific work.
-
-`drainNextQueuedJob` is the optional runtime worker path for queued discovery, reconciliation, provisioning, evidence export, and revocation jobs. It reserves a queue record, executes through the same runtime functions used by the synchronous API, and only completes the queue record after those flows finish. Controlled enforcement still revalidates approval, readiness, and controls at execution time.
-
-`tests/core/repository-conformance.test.ts` runs the shared graph and connector-state repository conformance suite against the in-memory proof-point adapter, the local JSON adapters, and the production external adapters, including the production queue adapter for job-history conformance. Adapter-specific tamper, malformed payload, tenant-boundary, secret-material, descriptor, queue idempotency, priority, retry, dead-letter, replay, connector-health, and backup/restore checks remain explicit production tests. `tests/api/job-queue-runner.test.ts` covers the optional worker drain path across discovery, reconciliation, provisioning, evidence, revocation, and execution-time enforcement approval expiry.
-
-## Future Adapters
-
-Production adapters should be added behind the same contracts:
-
-- selected graph database or relational graph projection driver for subjects, resources, relationship tuples, and native grants
-- environment-specific WORM or immutable-ledger driver behind `ReferenceAuditEvidenceAdapter`, with production access controls, monitored SIEM forwarding, and retained backup/restore evidence
-- selected connector-state storage driver for discovery, reconciliation, provisioning, decision recording, and evidence history
-- environment-specific durable queue driver behind `ReferenceJobQueueAdapter`
-- managed worker deployment, monitoring, and queue operations evidence for execution, retries, dead letters, and replay
-- environment-specific backup, restore, retention, and migration evidence
-
-No live provider write path should depend on local JSON snapshots, local JSONL audit files, or in-memory repositories. Local graph, audit, and job persistence are development and validation adapters, not production approval paths. The manifest evidence under `deploy/persistence/` is synthetic and must be replaced by deployment-specific IaC outputs and retained approval evidence before production use.
+Selected drivers behind the same contracts — a graph database or relational projection, an environment-specific WORM or ledger driver, a connector-state store, a durable queue with managed workers — plus deployment-specific backup, restore, retention, and migration evidence. No live provider write path may depend on local JSON snapshots, local JSONL audit files, or in-memory repositories.

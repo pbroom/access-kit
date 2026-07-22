@@ -1,28 +1,12 @@
 # Policy Testing Guide
 
-## Purpose
+This page answers: how do you prove deterministic authorization behavior before a policy change is published? Policy testing combines a versioned model contract with synthetic proof points and stress fixtures: `schemas/policy-model.schema.json` defines the portable model shape, `packages/core/src/policy-model.ts` validates model semantics, `tests/fixtures/policy/proof-points.json` verifies core proof points, and `tests/core/policy-model-harness.test.ts` exercises malformed models, traversal bounds, tenant-boundary abuse, replay, and time-travel behavior. Policy tests prove deterministic logic against synthetic examples; they are not production access approvals or a replacement for access reviews.
 
-This page documents how Access Kit proves deterministic authorization behavior before policy changes are published or relied on.
-
-## Audience
-
-Application developers, platform engineers, security engineers, policy authors, ISSOs, assessors, and resource owners.
-
-## What This Is
-
-Policy testing combines a versioned policy model contract with synthetic proof points and stress fixtures. `schemas/policy-model.schema.json` defines the portable model shape, `packages/core/src/policy-model.ts` validates model semantics, `tests/fixtures/policy/proof-points.json` verifies core proof points, and `tests/core/policy-model-harness.test.ts` exercises malformed model cases, traversal bounds, tenant-boundary abuse, replay, and time-travel behavior.
-
-## What This Is Not
-
-Policy tests are not production access approvals, live tenant validation, or replacement for access reviews. They prove behavior of deterministic policy logic against synthetic examples.
-
-For interactive local exploration, use the policy playground:
+For interactive local exploration, use the policy playground described in the [Quickstart](quickstart.md):
 
 ```bash
 pnpm playground:policy examples/policy-playground.sample.json
 ```
-
-The playground validates edited models and typed request context before running deterministic in-memory explain calls. It cannot publish policy and never writes production data.
 
 ## Test Coverage
 
@@ -60,16 +44,16 @@ Generated tests supplement explicit abuse and boundary tests. They can lower the
 
 ```json
 {
-  "kind": "decision",
-  "name": "deny by default without relationship path",
-  "subjectId": "user:alice",
-  "action": "read",
-  "resourceId": "document:case-plan",
-  "relationships": [],
-  "subjectStatus": "active",
-  "now": "2026-05-21T17:00:00.000Z",
-  "expect": "deny",
-  "expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
+	"kind": "decision",
+	"name": "deny by default without relationship path",
+	"subjectId": "user:alice",
+	"action": "read",
+	"resourceId": "document:case-plan",
+	"relationships": [],
+	"subjectStatus": "active",
+	"now": "2026-05-21T17:00:00.000Z",
+	"expect": "deny",
+	"expectedReasonCode": "DENY_DEFAULT_NO_RELATIONSHIP_PATH"
 }
 ```
 
@@ -99,7 +83,7 @@ Before a policy is published:
 8. Run schema, OpenAPI, policy, sample-policy, generated-policy-test, and CLI contract validation.
 9. Ensure the change ticket and audit evidence reference the policy version.
 
-## Security Considerations
+## Rules
 
 - Do not publish policies that lack deny/default and revocation proof points.
 - Do not publish unvalidated models; the API returns `POLICY_NOT_VALIDATED` before publication.
@@ -107,21 +91,11 @@ Before a policy is published:
 - Do not treat generated starter tests as sufficient coverage for boundary or abuse behavior.
 - Do not treat missing ABAC, device, risk, or time context as an implicit allow.
 - Do not use unreviewed generated text as policy logic.
-- Treat policy rollback as an operational runbook event with audit evidence.
-
-## Audit And Evidence Implications
-
-Policy validation and proof-point results support CM and CA evidence. Published policy changes should emit audit events and preserve policy version linkage to decisions.
-
-## Related Controls
-
-AC-3, AC-6, AU-2, CM-3, CM-6, CA-7, RA-5, and SI-4.
+- Treat policy rollback as an operational runbook event with audit evidence. Published policy changes should emit audit events and preserve policy version linkage to decisions.
 
 ## Related References
 
-- [Decision Lifecycle](decision-lifecycle.md)
-- [Explain API](explain-api.md)
-- [Policy Playground](policy-playground.md)
+- [Decisions](decisions.md)
 - [Policy Rollback Runbook](../runbooks/policy-rollback.md)
 - `tests/fixtures/policy/proof-points.json`
 - `examples/sample-policy-repository/`

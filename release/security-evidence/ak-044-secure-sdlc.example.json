@@ -1,198 +1,219 @@
 {
-  "version": "secure-sdlc-evidence:v1",
-  "releaseRef": "rebac-api-v0.1.0-example",
-  "generatedAt": "2026-05-26T16:00:00.000Z",
-  "scope": "local-proof-point-release",
-  "artifacts": [
-    {
-      "category": "sast",
-      "status": "retained",
-      "owner": "security-engineering",
-      "evidencePaths": [".github/workflows/security.yml", "docs/ci.md"],
-      "mitigationRefs": [
-        {
-          "abusePath": "authorization",
-          "mitigation": "Static analysis runs against the decision runtime and API handlers that enforce deny-by-default behavior.",
-          "evidencePath": "docs/security-model.md"
-        },
-        {
-          "abusePath": "connector",
-          "mitigation": "Static analysis runs with the connector security gate so provider adapters keep explicit no-write and secret-handling boundaries.",
-          "evidencePath": "docs/connector-contract.md"
-        }
-      ],
-      "controls": ["RA-5", "SA-11", "SI-2"],
-      "retention": "per-release"
-    },
-    {
-      "category": "dast",
-      "status": "release-gate-required",
-      "owner": "platform-security",
-      "evidencePaths": ["docs/secure-sdlc-evidence.md", "docs/deployment-runbook.md"],
-      "mitigationRefs": [
-        {
-          "abusePath": "authorization",
-          "mitigation": "Deployment-scoped dynamic testing must exercise protected API routes and fail closed when authentication or readiness evidence is missing.",
-          "evidencePath": "docs/deployment-runbook.md"
-        },
-        {
-          "abusePath": "evidence",
-          "mitigation": "DAST output or a deployment-scoped exception must be retained with the release instead of being left as chat-only or CI-only context.",
-          "evidencePath": "docs/secure-sdlc-evidence.md"
-        }
-      ],
-      "controls": ["RA-5", "SA-11", "CA-7"],
-      "retention": "per-release"
-    },
-    {
-      "category": "dependency_scan",
-      "status": "retained",
-      "owner": "security-engineering",
-      "evidencePaths": [".github/workflows/security.yml", "docs/automation.md"],
-      "mitigationRefs": [
-        {
-          "abusePath": "authorization",
-          "mitigation": "Dependency audit findings are release-gated before vulnerable decision or API dependencies can be promoted.",
-          "evidencePath": "docs/ci.md"
-        },
-        {
-          "abusePath": "connector",
-          "mitigation": "Dependency scanning covers connector runtime libraries before live provider evidence depends on them.",
-          "evidencePath": "docs/connector-contract.md"
-        }
-      ],
-      "controls": ["RA-5", "SI-2", "SR-6"],
-      "retention": "per-release"
-    },
-    {
-      "category": "sbom",
-      "status": "retained",
-      "owner": "release-engineering",
-      "evidencePaths": [".github/workflows/container-release.yml", "docs/deployment.md"],
-      "mitigationRefs": [
-        {
-          "abusePath": "persistence",
-          "mitigation": "Release artifacts carry SBOM and provenance metadata before deployment manifests can claim production persistence readiness.",
-          "evidencePath": "docs/deployment.md"
-        },
-        {
-          "abusePath": "evidence",
-          "mitigation": "Signed image and provenance records bind evidence claims to an immutable release digest.",
-          "evidencePath": "docs/deployment-runbook.md"
-        }
-      ],
-      "controls": ["SA-10", "SA-15", "SR-4"],
-      "retention": "per-release"
-    },
-    {
-      "category": "fuzzing",
-      "status": "retained",
-      "owner": "application-security",
-      "evidencePaths": ["tests/core/policy-model-harness.test.ts", "docs/policy-testing-guide.md"],
-      "mitigationRefs": [
-        {
-          "abusePath": "authorization",
-          "mitigation": "Malformed graph fuzzing preserves deny-by-default and bounded traversal behavior under hostile policy inputs.",
-          "evidencePath": "tests/core/policy-model-harness.test.ts"
-        },
-        {
-          "abusePath": "cross_tenant_isolation",
-          "mitigation": "Policy fuzzing keeps tenant boundaries explicit when relationship graphs contain malformed or adversarial tuples.",
-          "evidencePath": "docs/policy-testing-guide.md"
-        }
-      ],
-      "controls": ["SA-11", "SC-7", "SI-10"],
-      "retention": "per-release"
-    },
-    {
-      "category": "tenant_isolation_abuse",
-      "status": "retained",
-      "owner": "application-security",
-      "evidencePaths": ["tests/api/api-runtime.test.ts", "tests/core/policy-model-harness.test.ts"],
-      "mitigationRefs": [
-        {
-          "abusePath": "cross_tenant_isolation",
-          "mitigation": "Runtime and policy harness tests retain proof that cross-tenant relationship traversal, resource lookup, connector-state bleed, and evidence export leakage are denied.",
-          "evidencePath": "tests/core/policy-model-harness.test.ts"
-        },
-        {
-          "abusePath": "evidence",
-          "mitigation": "API runtime abuse tests cover safe evidence export behavior for tenant-scoped requests.",
-          "evidencePath": "tests/api/api-runtime.test.ts"
-        }
-      ],
-      "controls": ["AC-3", "AC-6", "SC-7"],
-      "retention": "per-release"
-    },
-    {
-      "category": "threat_model",
-      "status": "retained",
-      "owner": "security-architecture",
-      "evidencePaths": ["docs/threat-model.md", "docs/system-context-and-boundary.md"],
-      "mitigationRefs": [
-        {
-          "abusePath": "authorization",
-          "mitigation": "Threat-model refreshes keep decision bypass, admin takeover, and explanation leakage mitigations current for each release.",
-          "evidencePath": "docs/threat-model.md"
-        },
-        {
-          "abusePath": "connector",
-          "mitigation": "Threat-model refreshes review live connector credential, consent, readback, and no-write boundaries before connector evidence is promoted.",
-          "evidencePath": "docs/system-context-and-boundary.md"
-        },
-        {
-          "abusePath": "persistence",
-          "mitigation": "Threat-model refreshes review audit, queue, graph, and evidence-store trust boundaries when release changes touch persistence.",
-          "evidencePath": "docs/persistence.md"
-        }
-      ],
-      "controls": ["RA-3", "SA-8", "PL-2"],
-      "retention": "per-release"
-    },
-    {
-      "category": "vulnerability_triage",
-      "status": "release-gate-required",
-      "owner": "security-engineering",
-      "evidencePaths": ["docs/secure-sdlc-evidence.md", "docs/security-model.md"],
-      "mitigationRefs": [
-        {
-          "abusePath": "authorization",
-          "mitigation": "High or critical findings that affect decision, admin, or API authorization must be triaged before release promotion.",
-          "evidencePath": "docs/security-model.md"
-        },
-        {
-          "abusePath": "persistence",
-          "mitigation": "Findings that affect audit durability, queue replay, or graph state integrity require retained triage before release promotion.",
-          "evidencePath": "docs/persistence.md"
-        },
-        {
-          "abusePath": "evidence",
-          "mitigation": "Release triage records must distinguish resolved findings, accepted proof-point gaps, and blocked production claims.",
-          "evidencePath": "docs/secure-sdlc-evidence.md"
-        }
-      ],
-      "controls": ["RA-5", "SI-2", "CA-7"],
-      "retention": "per-release"
-    },
-    {
-      "category": "nist_ssdf",
-      "status": "retained",
-      "owner": "release-engineering",
-      "evidencePaths": ["docs/secure-sdlc-evidence.md", "docs/control-traceability-matrix.md"],
-      "mitigationRefs": [
-        {
-          "abusePath": "authorization",
-          "mitigation": "SSDF evidence maps release controls to Access Kit authorization safeguards without implying ATO approval.",
-          "evidencePath": "docs/control-traceability-matrix.md"
-        },
-        {
-          "abusePath": "evidence",
-          "mitigation": "SSDF mapping ties retained artifacts to control families and known production gaps for assessor review.",
-          "evidencePath": "docs/secure-sdlc-evidence.md"
-        }
-      ],
-      "controls": ["SA-10", "SA-15", "SR-3"],
-      "retention": "per-release"
-    }
-  ]
+	"version": "secure-sdlc-evidence:v1",
+	"releaseRef": "rebac-api-v0.1.0-example",
+	"generatedAt": "2026-05-26T16:00:00.000Z",
+	"scope": "local-proof-point-release",
+	"artifacts": [
+		{
+			"category": "sast",
+			"status": "retained",
+			"owner": "security-engineering",
+			"evidencePaths": [".github/workflows/security.yml", "docs/ci.md"],
+			"mitigationRefs": [
+				{
+					"abusePath": "authorization",
+					"mitigation": "Static analysis runs against the decision runtime and API handlers that enforce deny-by-default behavior.",
+					"evidencePath": "docs/security-model.md"
+				},
+				{
+					"abusePath": "connector",
+					"mitigation": "Static analysis runs with the connector security gate so provider adapters keep explicit no-write and secret-handling boundaries.",
+					"evidencePath": "docs/connector-contract.md"
+				}
+			],
+			"controls": ["RA-5", "SA-11", "SI-2"],
+			"retention": "per-release"
+		},
+		{
+			"category": "dast",
+			"status": "release-gate-required",
+			"owner": "platform-security",
+			"evidencePaths": [
+				"docs/secure-sdlc-evidence.md",
+				"docs/deployment-runbook.md"
+			],
+			"mitigationRefs": [
+				{
+					"abusePath": "authorization",
+					"mitigation": "Deployment-scoped dynamic testing must exercise protected API routes and fail closed when authentication or readiness evidence is missing.",
+					"evidencePath": "docs/deployment-runbook.md"
+				},
+				{
+					"abusePath": "evidence",
+					"mitigation": "DAST output or a deployment-scoped exception must be retained with the release instead of being left as chat-only or CI-only context.",
+					"evidencePath": "docs/secure-sdlc-evidence.md"
+				}
+			],
+			"controls": ["RA-5", "SA-11", "CA-7"],
+			"retention": "per-release"
+		},
+		{
+			"category": "dependency_scan",
+			"status": "retained",
+			"owner": "security-engineering",
+			"evidencePaths": [".github/workflows/security.yml", "docs/automation.md"],
+			"mitigationRefs": [
+				{
+					"abusePath": "authorization",
+					"mitigation": "Dependency audit findings are release-gated before vulnerable decision or API dependencies can be promoted.",
+					"evidencePath": "docs/ci.md"
+				},
+				{
+					"abusePath": "connector",
+					"mitigation": "Dependency scanning covers connector runtime libraries before live provider evidence depends on them.",
+					"evidencePath": "docs/connector-contract.md"
+				}
+			],
+			"controls": ["RA-5", "SI-2", "SR-6"],
+			"retention": "per-release"
+		},
+		{
+			"category": "sbom",
+			"status": "retained",
+			"owner": "release-engineering",
+			"evidencePaths": [
+				".github/workflows/container-release.yml",
+				"docs/deployment.md"
+			],
+			"mitigationRefs": [
+				{
+					"abusePath": "persistence",
+					"mitigation": "Release artifacts carry SBOM and provenance metadata before deployment manifests can claim production persistence readiness.",
+					"evidencePath": "docs/deployment.md"
+				},
+				{
+					"abusePath": "evidence",
+					"mitigation": "Signed image and provenance records bind evidence claims to an immutable release digest.",
+					"evidencePath": "docs/deployment-runbook.md"
+				}
+			],
+			"controls": ["SA-10", "SA-15", "SR-4"],
+			"retention": "per-release"
+		},
+		{
+			"category": "fuzzing",
+			"status": "retained",
+			"owner": "application-security",
+			"evidencePaths": [
+				"tests/core/policy-model-harness.test.ts",
+				"docs/policy-testing-guide.md"
+			],
+			"mitigationRefs": [
+				{
+					"abusePath": "authorization",
+					"mitigation": "Malformed graph fuzzing preserves deny-by-default and bounded traversal behavior under hostile policy inputs.",
+					"evidencePath": "tests/core/policy-model-harness.test.ts"
+				},
+				{
+					"abusePath": "cross_tenant_isolation",
+					"mitigation": "Policy fuzzing keeps tenant boundaries explicit when relationship graphs contain malformed or adversarial tuples.",
+					"evidencePath": "docs/policy-testing-guide.md"
+				}
+			],
+			"controls": ["SA-11", "SC-7", "SI-10"],
+			"retention": "per-release"
+		},
+		{
+			"category": "tenant_isolation_abuse",
+			"status": "retained",
+			"owner": "application-security",
+			"evidencePaths": [
+				"tests/api/api-runtime.test.ts",
+				"tests/core/policy-model-harness.test.ts"
+			],
+			"mitigationRefs": [
+				{
+					"abusePath": "cross_tenant_isolation",
+					"mitigation": "Runtime and policy harness tests retain proof that cross-tenant relationship traversal, resource lookup, connector-state bleed, and evidence export leakage are denied.",
+					"evidencePath": "tests/core/policy-model-harness.test.ts"
+				},
+				{
+					"abusePath": "evidence",
+					"mitigation": "API runtime abuse tests cover safe evidence export behavior for tenant-scoped requests.",
+					"evidencePath": "tests/api/api-runtime.test.ts"
+				}
+			],
+			"controls": ["AC-3", "AC-6", "SC-7"],
+			"retention": "per-release"
+		},
+		{
+			"category": "threat_model",
+			"status": "retained",
+			"owner": "security-architecture",
+			"evidencePaths": [
+				"docs/security-model.md",
+				"docs/system-context-and-boundary.md"
+			],
+			"mitigationRefs": [
+				{
+					"abusePath": "authorization",
+					"mitigation": "Threat-model refreshes keep decision bypass, admin takeover, and explanation leakage mitigations current for each release.",
+					"evidencePath": "docs/security-model.md"
+				},
+				{
+					"abusePath": "connector",
+					"mitigation": "Threat-model refreshes review live connector credential, consent, readback, and no-write boundaries before connector evidence is promoted.",
+					"evidencePath": "docs/system-context-and-boundary.md"
+				},
+				{
+					"abusePath": "persistence",
+					"mitigation": "Threat-model refreshes review audit, queue, graph, and evidence-store trust boundaries when release changes touch persistence.",
+					"evidencePath": "docs/persistence.md"
+				}
+			],
+			"controls": ["RA-3", "SA-8", "PL-2"],
+			"retention": "per-release"
+		},
+		{
+			"category": "vulnerability_triage",
+			"status": "release-gate-required",
+			"owner": "security-engineering",
+			"evidencePaths": [
+				"docs/secure-sdlc-evidence.md",
+				"docs/security-model.md"
+			],
+			"mitigationRefs": [
+				{
+					"abusePath": "authorization",
+					"mitigation": "High or critical findings that affect decision, admin, or API authorization must be triaged before release promotion.",
+					"evidencePath": "docs/security-model.md"
+				},
+				{
+					"abusePath": "persistence",
+					"mitigation": "Findings that affect audit durability, queue replay, or graph state integrity require retained triage before release promotion.",
+					"evidencePath": "docs/persistence.md"
+				},
+				{
+					"abusePath": "evidence",
+					"mitigation": "Release triage records must distinguish resolved findings, accepted proof-point gaps, and blocked production claims.",
+					"evidencePath": "docs/secure-sdlc-evidence.md"
+				}
+			],
+			"controls": ["RA-5", "SI-2", "CA-7"],
+			"retention": "per-release"
+		},
+		{
+			"category": "nist_ssdf",
+			"status": "retained",
+			"owner": "release-engineering",
+			"evidencePaths": [
+				"docs/secure-sdlc-evidence.md",
+				"docs/evidence-catalog.md"
+			],
+			"mitigationRefs": [
+				{
+					"abusePath": "authorization",
+					"mitigation": "SSDF evidence maps release controls to Access Kit authorization safeguards without implying ATO approval.",
+					"evidencePath": "docs/evidence-catalog.md"
+				},
+				{
+					"abusePath": "evidence",
+					"mitigation": "SSDF mapping ties retained artifacts to control families and known production gaps for assessor review.",
+					"evidencePath": "docs/secure-sdlc-evidence.md"
+				}
+			],
+			"controls": ["SA-10", "SA-15", "SR-3"],
+			"retention": "per-release"
+		}
+	]
 }

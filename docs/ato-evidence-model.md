@@ -1,108 +1,36 @@
 # ATO Evidence Model
 
-## Evidence Goal
-
-The foundation must let an assessor trace architecture, data flow, control implementation, policy decision, enforcement action, verification, and audit evidence. Evidence should be generated continuously instead of assembled manually at the end.
-
-This is ATO-oriented and ATO-inspectable evidence. It does not claim that the repository, local proof point, or any deployment has an authorization to operate.
+This page answers: what goes into an evidence export package, and how far does the local proof point get an assessor? The goal is that an assessor can trace architecture, data flow, control implementation, policy decision, enforcement action, verification, and audit evidence — generated continuously, not assembled manually at the end. The evidence is ATO-oriented and ATO-inspectable; it does not claim that the repository or any deployment has an authorization to operate.
 
 ## Control Families
 
-The first milestone maps the domain and API contracts to these NIST/FedRAMP-relevant areas:
-
-- AC: deny by default, least privilege, automated revocation, approved access paths, separation of duties.
-- IA: federated identity assumptions, service identity inventory, admin identity controls.
-- AU: decision logs, provisioning logs, readiness-check logs, admin logs, connector logs, tamper-evidence.
-- CM: versioned policy models, connector configuration, enforcement-readiness reports, approved baselines, drift findings.
-- CA: evidence exports, validation reports, access review results, continuous monitoring.
-- RA/SI: vulnerability and dependency evidence, anomaly/drift findings, remediation tracking.
-- SC: encryption, API security, key management, secure data flows.
-- IR: emergency revocation, incident mode, lockout mode, post-action review.
-- SA/SR: SBOMs, connector dependency inventory, secure SDLC evidence.
-- PT: PII minimization and purpose limitation.
+The domain and API contracts map to these NIST/FedRAMP-relevant areas: AC (deny by default, least privilege, automated revocation), IA (federated identity assumptions, admin identity controls), AU (decision/provisioning/admin/connector logs with tamper evidence), CM (versioned policy models, configurations, baselines, drift findings), CA (evidence exports, validation reports, access reviews, continuous monitoring), RA/SI (vulnerability and dependency evidence, drift findings, remediation tracking), SC (encryption, API security, secure data flows), IR (emergency revocation, incident mode, post-action review), SA/SR (SBOMs, dependency inventory, secure SDLC evidence), and PT (PII minimization). The per-control mapping lives in the [Evidence Catalog](evidence-catalog.md).
 
 ## Evidence Export Contract
 
-Evidence exports include:
+`schemas/evidence-export.schema.json` defines the package. An export includes: framework, control IDs, time period, source event IDs, audit integrity report, SIEM-ready audit export, system boundary and component inventory, data-flow evidence, control implementation mappings and statements, access-review evidence (campaigns, owner approvals, findings, exceptions, remediation IDs), an exception register with risk acceptance and expiry, continuous-monitoring metrics with governance counters, POA&M inputs, OSCAL fragments, signed package metadata, verifier checks, control-to-event trace views, an artifact manifest, operational evidence (SBOM, scanning, baselines, incident response, break-glass, backup, contingency), admin authorization evidence, SIEM export metadata, an optional storage receipt, responsible role, timestamp, and format.
 
-- framework
-- control IDs
-- time period
-- evidence type
-- source event IDs
-- audit integrity report
-- SIEM-ready audit event export
-- system boundary and component inventory
-- data-flow evidence
-- control implementation mappings
-- control implementation statements
-- access review evidence with campaign, owner approval, finding, exception request, and remediation IDs
-- exception register with request status, risk acceptance, expiry, owner approval, remediation, and evidence references
-- continuous-monitoring metrics, including governance counters for pending approvals, pending risk acceptance, expired exceptions, and overdue remediation
-- POA&M inputs, including governance findings with stable remediation IDs
-- OSCAL component-definition, SSP, assessment-results, and POA&M fragments
-- signed package metadata, verifier checks, and control-to-event trace views
-- artifact manifest
-- operational evidence for SBOM, dependency scanning, vulnerability scanning, configuration baseline, incident response, break-glass, backup, and contingency planning
-- admin authorization evidence for IdP or mTLS gateway configuration, separate admin ReBAC policy, role bindings, secrets-manager references, break-glass approval, incident-mode notifications, and post-action review
-- SIEM export metadata
-- storage receipt, when an evidence repository is configured
-- responsible role
-- generated timestamp
-- export format
+The first generated evidence artifact is `reports/proof-point-validation.md`, which records tool versions, commit, command results, covered proof points, and outstanding requirements.
 
-The first generated evidence artifact is `reports/proof-point-validation.md`. It records tool versions, commit, command results, covered proof points, and outstanding requirements.
+## What The Local Package Proves
 
-The default local Phase 5 evidence package is complete for proof-point validation: it includes boundary, data-flow, control statement, access review, exception, ConMon, POA&M, SIEM-ready, release-packaging, deployment-manifest, persistence-readiness, secure SDLC, and operational evidence sections. Access review and exception evidence is backed by durable governance records for campaigns, findings, exception requests, owner approvals, risk acceptance, expiry, and remediation tracking; evidence export renders those records instead of inventing one-off local proof-point rows. The local runtime can export bounded audit windows as SIEM-ready JSONL records, persist audit events and evidence packages through a local file-backed repository, and keep restartable JSON state snapshots for validation. The production audit/evidence adapter adds implementation proof for immutable external audit receipts, signed audit windows, retention metadata, SIEM delivery monitoring, replay records, tamper-evident evidence package receipts, and backup/restore metadata. The admin authorization readiness contract adds a testable shape for IdP or mTLS gateway evidence, internal admin ReBAC, external secrets-manager references, break-glass approval, incident-mode notification, and post-action review evidence. The release workflow adds signature and provenance proof points for the deployable runtime package, deployment manifests prove probe, secret-reference, runtime hardening, and admission-policy contracts, persistence readiness checks define graph/audit/job backend requirements plus schema-backed deployment-manifest controls, retained readiness report artifacts, IaC output references, release approvals, backup/restore records, and operator-control evidence for production storage claims, and the secure SDLC manifest ties SAST, DAST, dependency scanning, SBOM, fuzzing, tenant-isolation abuse tests, threat-model refresh, vulnerability triage, and SSDF mapping to release-retained mitigation evidence. These adapter, admin-authorization, persistence, secure SDLC, packaging, and governance paths are not substitutes for a selected production IdP, mTLS gateway, WORM driver, approved SIEM forwarding deployment, GRC system, deployment runbooks, database recovery exercises, signed-image admission enforcement, scanner exports, DAST reports, or assessor-approved control statements. They prove the contract and auditability shape without exporting production data, tenant identifiers, secrets, live vulnerability exports, or live provider records.
+The local evidence package is complete for proof-point validation. Access-review and exception evidence is rendered from durable governance records rather than invented one-off rows. The runtime exports bounded audit windows as SIEM-ready JSONL, persists audit events and evidence packages through the local file-backed repository, and keeps restartable JSON state snapshots. The production audit/evidence adapter, admin authorization readiness contract, release signature/provenance workflow, deployment manifests, persistence readiness gates, and secure SDLC manifest each add implementation proof for their boundary.
 
-## Local Phase 5 Evidence Package
-
-- system boundary and component inventory
-- data flow inventory
-- authorization data model
-- identity source inventory
-- resource inventory
-- connector inventory
-- service account and service principal inventory
-- privileged user list
-- policy model versions
-- access review results
-- exception requests and risk acceptance
-- remediation and POA&M-ready governance findings
-- decision log samples
-- enforcement-readiness reports
-- audit integrity reports
-- continuous monitoring metrics
-- SIEM export records
-- provisioning log samples
-- admin activity logs
-- configuration baseline
-- vulnerability scan outputs
-- incident response playbooks
-- contingency and backup evidence
-- encryption and key management documentation
-- rules of behavior
-- privacy notes
-- control implementation statements
-- POA&M register
+None of those paths substitutes for a selected production IdP or mTLS gateway, WORM driver, approved SIEM deployment, GRC system, database recovery exercises, signed-image admission enforcement, scanner exports, or assessor-approved control statements. They prove the contract and auditability shape without exporting production data, tenant identifiers, secrets, or live provider records.
 
 ## OSCAL And Signed Evidence
 
-Evidence exports now include machine-readable OSCAL-oriented fragments generated from the same canonical sources used by the evidence package: audit events, control mappings, reviewed control statements, system boundary, data flows, POA&M inputs, and deployment scope.
-
-The generated OSCAL sections are fragments, not an assessor-approved authorization package:
+Evidence exports include machine-readable OSCAL-oriented fragments generated from the same canonical sources as the rest of the package. They are fragments, not an assessor-approved authorization package:
 
 - `oscal.componentDefinition` maps boundary components and reviewed requirements.
 - `oscal.systemSecurityPlan` maps deployment scope, data flows, and control implementation statements.
 - `oscal.assessmentResults` maps reviewed controls, observations, source events, and gaps.
 - `oscal.planOfActionAndMilestones` mirrors the package POA&M items.
 
-The package also includes `signedPackage`, `verifierChecks`, and `controlTraceViews`. These bind the canonical package hash to source events, reviewed statement references, deployment scope, and per-control trace records. The local proof signature is verified with trusted key metadata for the proof-point runtime; production deployments still need environment-managed signing keys, immutable retention, and assessor-approved control statements.
+`signedPackage`, `verifierChecks`, and `controlTraceViews` bind the canonical package hash to source events, reviewed statement references, deployment scope, and per-control trace records; see the [Evidence Integrity Verifier](evidence-integrity-verifier.md) for reproduction steps. The local proof signature is verified with trusted key metadata for the proof-point runtime; production deployments still need environment-managed signing keys, immutable retention, and assessor-approved control statements.
 
 ## Related Documentation
 
 - [Evidence Catalog](evidence-catalog.md)
-- [Control Traceability Matrix](control-traceability-matrix.md)
-- [Assessor Inspection Guide](assessor-inspection-guide.md)
 - [Audit And Evidence Export Runbook](../runbooks/audit-evidence-export.md)
 - [Access Review And Exception Governance Runbook](../runbooks/access-review-exceptions.md)

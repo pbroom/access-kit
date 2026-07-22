@@ -1,20 +1,6 @@
 # Connector Contract
 
-## Purpose
-
-This page documents the connector boundary for discovery, readback, provisioning, verification, reconciliation, readiness, and evidence.
-
-## Audience
-
-Connector developers, platform engineers, security engineers, ISSOs, assessors, and resource owners.
-
-## What This Is
-
-The connector contract defines how Access Kit interacts with provider-specific systems while preserving a portable authorization model. The current repo includes a mock connector, synthetic read-only Entra ID, SharePoint, OneDrive, and AWS-style fixtures that prove contract shape without live tenant or live account access, plus optional Microsoft Graph and AWS read-only foundations for sandbox evidence.
-
-## What This Is Not
-
-This is not a claim that Power Platform, Dataverse, AD, Microsoft write behavior, Microsoft native grant readback, or AWS write behavior is implemented. Synthetic connectors do not call provider APIs and must not be treated as production integrations. The Microsoft Graph and AWS connector foundations are opt-in and read-only, and must retain sandbox-run evidence before anyone claims live-tenant or live-account verification.
+This page defines how Access Kit interacts with provider-specific systems — discovery, readback, provisioning, verification, reconciliation, readiness, and evidence — while preserving a portable authorization model. The repo includes a mock connector, synthetic read-only Entra ID, SharePoint, OneDrive, and AWS-style fixtures that prove contract shape without live access, plus opt-in, read-only Microsoft Graph and AWS foundations for sandbox evidence. Provider writes are not implemented anywhere; synthetic connectors never call provider APIs, and the sandbox foundations must retain run evidence before anyone claims live-tenant verification. To build a new connector, follow the [Connector Authoring Tutorial](connector-authoring-tutorial.md).
 
 ## Capability Model
 
@@ -34,18 +20,18 @@ The current runtime blocks controlled enforcement for synthetic read-only provid
 
 ## Required Connector Evidence
 
-| Evidence | Purpose |
-| --- | --- |
-| Connector ID, provider, and tenant boundary | Establish scope and prevent cross-boundary ambiguity. |
-| Required read scopes | Support least-privilege review. |
-| Capability flags | Prevent unsupported operations. |
-| Discovery run | Prove read-only inventory and native grant readback. |
-| Native grants | Preserve observed provider state without converting it to intended access. |
-| Connector security review | Gate connector identity, consent, tenant boundary, least-privilege scopes, deletion behavior, coverage warnings, secret handling, and no-write defaults. |
-| Enforcement readiness report | Gate controlled enforcement. |
-| Live enforcement pilot manifest | Gate the first live write candidate through read-only confidence, least-privilege write review, approval, verification, rollback, emergency revocation, and release evidence. |
-| Verification result | Prove readback after planned action. |
-| Drift findings | Record mismatch between intended and observed state. |
+| Evidence                                    | Purpose                                                                                                                                                                       |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connector ID, provider, and tenant boundary | Establish scope and prevent cross-boundary ambiguity.                                                                                                                         |
+| Required read scopes                        | Support least-privilege review.                                                                                                                                               |
+| Capability flags                            | Prevent unsupported operations.                                                                                                                                               |
+| Discovery run                               | Prove read-only inventory and native grant readback.                                                                                                                          |
+| Native grants                               | Preserve observed provider state without converting it to intended access.                                                                                                    |
+| Connector security review                   | Gate connector identity, consent, tenant boundary, least-privilege scopes, deletion behavior, coverage warnings, secret handling, and no-write defaults.                      |
+| Enforcement readiness report                | Gate controlled enforcement.                                                                                                                                                  |
+| Live enforcement pilot manifest             | Gate the first live write candidate through read-only confidence, least-privilege write review, approval, verification, rollback, emergency revocation, and release evidence. |
+| Verification result                         | Prove readback after planned action.                                                                                                                                          |
+| Drift findings                              | Record mismatch between intended and observed state.                                                                                                                          |
 
 ## Connector Security Review Gate
 
@@ -96,15 +82,15 @@ Coverage warnings are part of the contract. Group-backed Teams membership does n
 
 The staged Microsoft provider semantics are consolidated as provider-specific facts and warnings:
 
-| Provider behavior | Access Kit treatment |
-| --- | --- |
-| Graph delta cursors and tombstones | Redacted cursor hashes, `mark_deleted` tombstones, stale-token recovery, and drift findings for ambiguous incremental state. |
-| Graph change notifications | Unsupported delivery coverage warning; delta sync remains the implemented read-only change signal until webhook delivery evidence exists. |
-| Microsoft 365 groups and Teams | Provider-specific workspace/team resources, group and team relationships, and native grants without converting collaboration membership into generic application access. |
-| SharePoint and OneDrive inheritance | Inventory resources carry explicit inheritance ambiguity markers and never mint canonical reader relationships from hierarchy alone. |
-| Guest and external users | Imported as redacted subjects with external-user attributes and native principal type rather than local user assumptions. |
-| Power Platform and Dataverse roles | Unsupported role-mapping warning until a reviewed read-only connector slice can prove least-privilege scope, tenant boundary, and native-role semantics. |
-| Partial sync recovery | Stale or ambiguous delta state is discarded before full read-only resync, and coverage gaps become reviewable drift findings. |
+| Provider behavior                   | Access Kit treatment                                                                                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Graph delta cursors and tombstones  | Redacted cursor hashes, `mark_deleted` tombstones, stale-token recovery, and drift findings for ambiguous incremental state.                                             |
+| Graph change notifications          | Unsupported delivery coverage warning; delta sync remains the implemented read-only change signal until webhook delivery evidence exists.                                |
+| Microsoft 365 groups and Teams      | Provider-specific workspace/team resources, group and team relationships, and native grants without converting collaboration membership into generic application access. |
+| SharePoint and OneDrive inheritance | Inventory resources carry explicit inheritance ambiguity markers and never mint canonical reader relationships from hierarchy alone.                                     |
+| Guest and external users            | Imported as redacted subjects with external-user attributes and native principal type rather than local user assumptions.                                                |
+| Power Platform and Dataverse roles  | Unsupported role-mapping warning until a reviewed read-only connector slice can prove least-privilege scope, tenant boundary, and native-role semantics.                 |
+| Partial sync recovery               | Stale or ambiguous delta state is discarded before full read-only resync, and coverage gaps become reviewable drift findings.                                            |
 
 The connector does not implement Graph writes. Provisioning hooks return dry-run plans or failed write attempts, enforcement readiness remains blocked for this provider, and `pnpm validate:connector-security` verifies that live provider writes stay disabled. `pnpm validate:live-enforcement-pilot` separately validates the retained pilot-candidate evidence for a future direct-grant revocation path, including the least-privilege write scope and the release gate that must stay closed when connector or audit readiness is degraded.
 
@@ -129,22 +115,13 @@ The connector does not implement AWS writes. Provisioning hooks return dry-run p
 
 `rebac connector sync microsoft-graph-entra-readonly --mode read_only` calls `POST /v1/connectors/{id}/sync` when the optional sandbox connector is configured. The connector returns a `DiscoveryRun` with counts, warnings, cursor metadata, read-only evidence, and audit event IDs. Native grants discovered in supported slices can be inspected with `rebac resource native-access`; SharePoint and OneDrive inventory alone does not mint native grants.
 
-## Security Considerations
+## Rules
 
-- Use read-only scopes until live connector review is complete.
-- Treat `pnpm validate:connector-security` as the release gate for connector identity, consent, least privilege, tenant boundary, and no-write defaults.
-- Managed identity is preferred for future live connectors; vault-backed secrets require rotation and logging controls.
-- Connector warnings must not be suppressed when they affect coverage or deletion semantics.
-- Provider readback must not become intended access without policy and approval.
-- Live write paths need explicit least-privilege review, rollback, emergency revocation, monitoring, and evidence retention.
-
-## Audit And Evidence Implications
-
-Connector discovery emits `connector.discovery_completed`. Readiness checks emit `connector.enforcement_readiness_checked`. Provisioning and reconciliation emit job and drift events. Evidence exports should include connector inventory, boundary, capabilities, source events, warnings, and gaps.
-
-## Related Controls
-
-AC-2, AC-3, AC-6, AU-2, AU-6, CM-2, CM-3, CA-7, IA-5, SC-7, SI-4, SA-9, and SR controls.
+- Use read-only scopes until live connector review is complete; `pnpm validate:connector-security` is the release gate for identity, consent, least privilege, tenant boundary, and no-write defaults.
+- Prefer managed identity for future live connectors; vault-backed secrets require rotation and logging controls.
+- Never suppress connector warnings that affect coverage or deletion semantics.
+- Provider readback must not become intended access without policy and approval. Live write paths need explicit least-privilege review, rollback, emergency revocation, monitoring, and evidence retention.
+- Discovery emits `connector.discovery_completed`; readiness checks emit `connector.enforcement_readiness_checked`; provisioning and reconciliation emit job and drift events. Evidence exports should include connector inventory, boundary, capabilities, source events, warnings, and gaps.
 
 ## Related References
 

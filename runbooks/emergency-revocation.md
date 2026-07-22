@@ -131,7 +131,7 @@ Emergency revocation should not be rolled back without resource owner and ISSO a
 
 ## Related References
 
-- [Decision Lifecycle](../docs/decision-lifecycle.md)
+- [Decisions](../docs/decisions.md)
 - [Provisioning Lifecycle](../docs/provisioning-lifecycle.md)
 - [Drift Detection Model](../docs/drift-detection-model.md)
 - [Audit Event Model](../docs/audit-event-model.md)

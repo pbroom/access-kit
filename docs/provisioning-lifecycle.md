@@ -1,20 +1,6 @@
 # Provisioning Lifecycle
 
-## Purpose
-
-This page describes how Access Kit turns authorization intent into auditable provisioning plans, jobs, verification evidence, compensation intent, and drift checks.
-
-## Audience
-
-Platform engineers, security engineers, ISSOs, resource owners, connector developers, and assessors.
-
-## What This Is
-
-Provisioning is the controlled path from intended access to provider-facing actions. The current implementation supports dry-run provisioning and synthetic mock-only controlled enforcement. The first live provider write remains behind a schema-backed pilot release gate rather than a default runtime behavior.
-
-## What This Is Not
-
-Provisioning is not the decision itself, not a ticketing system, and not live Microsoft, AWS, SharePoint, Teams, Power Platform, Dataverse, or AD mutation. Decisions never mutate target systems directly.
+Provisioning is the controlled path from intended access to provider-facing actions: auditable plans, jobs, verification evidence, compensation intent, and drift checks. The current implementation supports dry-run provisioning and synthetic mock-only controlled enforcement; the first live provider write sits behind a schema-backed pilot release gate. Provisioning is not the decision itself — decisions never mutate target systems directly.
 
 ## Lifecycle
 
@@ -41,21 +27,12 @@ rebac provision apply plan:decision:allow-alice-read-case-plan --mode enforcemen
 
 For non-synthetic connectors, use dry-run only. The plan and job evidence show what would happen, what readback would verify, and what compensation would be needed.
 
-## Security Considerations
+## Rules
 
-- Use idempotency keys for every write path.
-- Require readiness evidence before enforcement.
+- Use idempotency keys for every write path and require readiness evidence before enforcement.
 - Keep live provider writes blocked until connector least-privilege review, rollback, emergency revocation, audit retention, degraded-runtime blocking, and release-gate evidence are complete.
-- Prioritize revoke, expire, quarantine, and deny repair over new grants.
-- Treat missing verification as failure or incomplete evidence.
-
-## Audit And Evidence Implications
-
-Provisioning emits audit events for plan creation, approval, job execution, skipped writes, verification, controlled synthetic enforcement, rollback, and reconciliation. Evidence exports use provisioning logs for AC, AU, CM, CA, and IR control support.
-
-## Related Controls
-
-AC-2, AC-3, AC-6, AU-2, AU-6, CM-3, CM-6, CA-7, and IR-4 depend on provisioning traceability and rollback evidence.
+- Prioritize revoke, expire, quarantine, and deny repair over new grants. Treat missing verification as failure or incomplete evidence.
+- Provisioning emits audit events for plan creation, approval, job execution, skipped writes, verification, rollback, and reconciliation.
 
 ## Related References
 
